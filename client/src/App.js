@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import GroceryListForm from './GroceryListForm';
 
 function App() {
@@ -6,10 +6,10 @@ function App() {
     <div style={styles.app}>
       <header style={styles.header}>
         <h1 style={styles.title}>
-          🛒 Cart Smash
+          ðŸ›’ Cart Smash
         </h1>
         <p style={styles.subtitle}>
-          Smash through your grocery list! AI-Powered List Destroyer 💥
+          AI-Powered List Destroyer ðŸ’¥
         </p>
       </header>
       
@@ -18,7 +18,7 @@ function App() {
       </main>
       
       <footer style={styles.footer}>
-        <p>Made with 💥 by Cart Smash</p>
+        <p>Made with ðŸ’¥ by Cart Smash</p>
       </footer>
     </div>
   );
@@ -32,33 +32,36 @@ const styles = {
     flexDirection: 'column',
   },
   header: {
-    backgroundColor: '#FF6B35',
+    background: 'linear-gradient(135deg, #FF6B35, #F7931E)',
     color: 'white',
-    padding: '30px 20px',
+    padding: 'clamp(20px, 5vw, 40px) 20px',
     textAlign: 'center',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+    boxShadow: '0 4px 20px rgba(255,107,53,0.3)',
   },
   title: {
     margin: '0',
-    fontSize: '48px',
-    fontWeight: 'bold',
-    textShadow: '2px 2px 4px rgba(0,0,0,0.2)',
+    fontSize: 'clamp(32px, 8vw, 64px)',
+    fontWeight: '900',
+    textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+    letterSpacing: '2px',
   },
   subtitle: {
-    margin: '10px 0 0 0',
-    fontSize: '20px',
-    opacity: '0.9',
+    margin: '8px 0 0 0',
+    fontSize: 'clamp(14px, 4vw, 22px)',
+    opacity: '0.95',
+    fontWeight: '600',
   },
   main: {
     flex: '1',
-    padding: '40px 20px',
+    padding: 'clamp(16px, 4vw, 40px) clamp(16px, 4vw, 20px)',
   },
   footer: {
     backgroundColor: '#2c3e50',
     color: 'white',
     textAlign: 'center',
-    padding: '20px',
+    padding: 'clamp(16px, 4vw, 20px)',
     marginTop: 'auto',
+    fontSize: 'clamp(12px, 3vw, 16px)',
   },
 };
 

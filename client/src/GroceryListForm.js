@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import groceryService from './api/groceryService';
 import ParsedResultsDisplay from './ParsedResultsDisplay';
 
@@ -230,7 +230,7 @@ if (typeof AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 
         key: 'button-text',
         style: { position: 'relative', zIndex: 1 }
       }, [
-        isSmashing ? '💥 SMASHING... 💥' : '🛒 SMASH MY LIST 🛒',
+        isSmashing ? 'ðŸ’¥ SMASHING... ðŸ’¥' : 'ðŸ›’ SMASH MY LIST ðŸ›’',
         itemCount > 0 && !isSmashing && React.createElement('div', {
           key: 'item-count',
           style: { 
@@ -277,7 +277,7 @@ if (typeof AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 
         boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
       }
     }, [
-      React.createElement('div', { key: 'overlay-title' }, '🚀 CART SMASH ACTIVATED! 🚀'),
+      React.createElement('div', { key: 'overlay-title' }, 'ðŸš€ CART SMASH ACTIVATED! ðŸš€'),
       React.createElement('div', { 
         key: 'overlay-subtitle',
         style: { fontSize: '16px', marginTop: '8px', opacity: 0.9 }
@@ -387,9 +387,9 @@ function GroceryListForm() {
       </div>
       
       <div style={styles.formSection}>
-        <h2 style={styles.title}>🛒 Paste Your Grocery List</h2>
+        <h2 style={styles.title}>ðŸ›’ Paste Your Grocery List</h2>
         <p style={styles.subtitle}>
-          Ready to <strong>SMASH</strong> through your shopping list? Paste it below and watch the magic happen! 💥
+          Ready to <strong>SMASH</strong> through your shopping list? Paste it below and watch the magic happen! ðŸ’¥
         </p>
         
         <form onSubmit={(e) => e.preventDefault()}>
@@ -410,7 +410,7 @@ function GroceryListForm() {
                 onChange={(e) => setUseAdvancedParsing(e.target.checked)}
                 disabled={isProcessing}
               />
-              🔥 Use advanced SMASH parsing (extracts quantities & categories)
+              ðŸ”¥ Use advanced SMASH parsing (extracts quantities & categories)
             </label>
           </div>
           
@@ -428,7 +428,7 @@ function GroceryListForm() {
                 style={{...styles.button, ...styles.clearButton}}
                 disabled={isProcessing}
               >
-                🗑️ Clear
+                ðŸ—‘ï¸ Clear
               </button>
               
               <button 
@@ -437,7 +437,7 @@ function GroceryListForm() {
                 style={{...styles.button, ...styles.sampleButton}}
                 disabled={isProcessing}
               >
-                📋 Try Sample
+                ðŸ“‹ Try Sample
               </button>
             </div>
           </div>
@@ -445,7 +445,7 @@ function GroceryListForm() {
 
         {error && (
           <div style={styles.error}>
-            ❌ {error}
+            âŒ {error}
           </div>
         )}
       </div>
@@ -464,21 +464,25 @@ function GroceryListForm() {
 
 const styles = {
   container: {
-    maxWidth: '800px',
+    maxWidth: '100%',
     margin: '0 auto',
-    padding: '20px',
+    padding: 'clamp(16px, 4vw, 20px)',
+    width: '100%',
   },
   formSection: {
     backgroundColor: '#ffffff',
-    padding: '40px',
-    borderRadius: '20px',
+    padding: 'clamp(20px, 5vw, 40px)',
+    borderRadius: 'clamp(12px, 3vw, 20px)',
     boxShadow: '0 8px 32px rgba(255,107,53,0.1), 0 2px 16px rgba(0,0,0,0.05)',
     border: '2px solid rgba(255,107,53,0.1)',
+    width: '100%',
+    maxWidth: '800px',
+    margin: '0 auto',
   },
   title: {
     color: '#2c3e50',
-    marginBottom: '16px',
-    fontSize: '32px',
+    marginBottom: 'clamp(12px, 3vw, 16px)',
+    fontSize: 'clamp(24px, 6vw, 32px)',
     fontWeight: '800',
     textAlign: 'center',
     background: 'linear-gradient(135deg, #FF6B35, #F7931E)',
@@ -487,98 +491,112 @@ const styles = {
   },
   subtitle: {
     color: '#666',
-    marginBottom: '30px',
-    fontSize: '18px',
+    marginBottom: 'clamp(20px, 5vw, 30px)',
+    fontSize: 'clamp(14px, 4vw, 18px)',
     textAlign: 'center',
     lineHeight: '1.5',
+    padding: '0 clamp(8px, 2vw, 16px)',
   },
   textarea: {
     width: '100%',
-    padding: '20px',
-    fontSize: '16px',
+    padding: 'clamp(16px, 4vw, 20px)',
+    fontSize: 'clamp(14px, 4vw, 16px)',
     border: '3px solid #f0f0f0',
-    borderRadius: '16px',
+    borderRadius: 'clamp(12px, 3vw, 16px)',
     fontFamily: 'inherit',
     resize: 'vertical',
-    minHeight: '240px',
+    minHeight: 'clamp(200px, 40vh, 240px)',
     transition: 'border-color 0.3s, box-shadow 0.3s',
     boxSizing: 'border-box',
     backgroundColor: '#fafafa',
     lineHeight: '1.5',
+    touchAction: 'manipulation',
   },
   buttonGroup: {
-    marginTop: '24px',
+    marginTop: 'clamp(20px, 5vw, 24px)',
   },
   secondaryButtons: {
     display: 'flex',
-    gap: '12px',
-    marginTop: '16px',
+    gap: 'clamp(8px, 2vw, 12px)',
+    marginTop: 'clamp(12px, 3vw, 16px)',
     justifyContent: 'center',
+    flexWrap: 'wrap',
   },
   button: {
-    padding: '12px 24px',
-    fontSize: '16px',
+    padding: 'clamp(10px, 3vw, 12px) clamp(16px, 4vw, 24px)',
+    fontSize: 'clamp(14px, 3.5vw, 16px)',
     border: 'none',
-    borderRadius: '12px',
+    borderRadius: 'clamp(8px, 2vw, 12px)',
     cursor: 'pointer',
     fontWeight: '600',
     transition: 'all 0.3s',
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: 'clamp(6px, 1.5vw, 8px)',
+    minHeight: '44px',
+    touchAction: 'manipulation',
+    userSelect: 'none',
   },
   clearButton: {
     backgroundColor: '#dc3545',
     color: 'white',
+    flex: '1',
+    maxWidth: '140px',
   },
   sampleButton: {
     backgroundColor: '#6c757d',
     color: 'white',
+    flex: '1',
+    maxWidth: '140px',
   },
   error: {
-    marginTop: '20px',
-    padding: '16px',
+    marginTop: 'clamp(16px, 4vw, 20px)',
+    padding: 'clamp(12px, 3vw, 16px)',
     backgroundColor: '#fee',
     color: '#c33',
-    borderRadius: '12px',
+    borderRadius: 'clamp(8px, 2vw, 12px)',
     border: '2px solid #fcc',
     textAlign: 'center',
     fontWeight: '600',
+    fontSize: 'clamp(14px, 3.5vw, 16px)',
   },
   apiStatus: {
     position: 'fixed',
-    top: '16px',
-    right: '16px',
-    padding: '8px 16px',
+    top: 'clamp(12px, 3vw, 16px)',
+    right: 'clamp(12px, 3vw, 16px)',
+    padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
     backgroundColor: 'white',
     borderRadius: '20px',
     boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    fontSize: '14px',
+    gap: 'clamp(6px, 2vw, 8px)',
+    fontSize: 'clamp(12px, 3vw, 14px)',
     zIndex: 1000,
     border: '1px solid rgba(255,107,53,0.2)',
   },
   statusDot: {
-    width: '10px',
-    height: '10px',
+    width: 'clamp(8px, 2vw, 10px)',
+    height: 'clamp(8px, 2vw, 10px)',
     borderRadius: '50%',
     display: 'inline-block',
   },
   options: {
-    marginTop: '16px',
-    marginBottom: '16px',
+    marginTop: 'clamp(12px, 3vw, 16px)',
+    marginBottom: 'clamp(12px, 3vw, 16px)',
   },
   checkbox: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    fontSize: '16px',
+    gap: 'clamp(8px, 2vw, 12px)',
+    fontSize: 'clamp(14px, 3.5vw, 16px)',
     cursor: 'pointer',
     fontWeight: '600',
     color: '#333',
+    padding: 'clamp(8px, 2vw, 12px)',
+    touchAction: 'manipulation',
   },
 };
 
 export default GroceryListForm;
+

@@ -1,3 +1,4 @@
+﻿/* Mobile-First CSS for Cart Smash */
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -6,11 +7,43 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #f5f5f5;
+  font-size: 16px;
+  line-height: 1.5;
+  
+  /* Mobile viewport optimization */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  
+  /* Touch scrolling */
+  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Mobile-optimized interactions */
+button {
+  /* Touch-friendly minimum size */
+  min-height: 44px;
+  min-width: 44px;
+  
+  /* Remove iOS button styling */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  
+  /* Touch feedback */
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  
+  /* Prevent zoom on focus (iOS) */
+  font-size: 16px;
 }
 
 button:hover {
@@ -22,11 +55,151 @@ button:disabled {
   cursor: not-allowed;
 }
 
-* {
+button:active {
+  transform: scale(0.98);
+}
+
+/* Touch-friendly form inputs */
+input, textarea, select {
+  /* Prevent zoom on focus (iOS) */
+  font-size: 16px;
+  
+  /* Touch-friendly minimum size */
+  min-height: 44px;
+  
+  /* Remove iOS styling */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  
+  /* Better touch targets */
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
+  
+  /* Touch scrolling for textareas */
+  -webkit-overflow-scrolling: touch;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #FF6B35;
+  box-shadow: 0 0 0 3px rgba(255,107,53,0.1);
+}
+
+/* Responsive typography */
+h1 { font-size: clamp(24px, 6vw, 48px); }
+h2 { font-size: clamp(20px, 5vw, 32px); }
+h3 { font-size: clamp(18px, 4vw, 24px); }
+p { font-size: clamp(14px, 3.5vw, 18px); }
+
+/* Box sizing for all elements */
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
+/* Animations */
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+@keyframes cartSmashShake {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  10% { transform: translateX(-2px) translateY(-1px); }
+  20% { transform: translateX(2px) translateY(1px); }
+  30% { transform: translateX(-2px) translateY(-1px); }
+  40% { transform: translateX(2px) translateY(1px); }
+  50% { transform: translateX(-1px) translateY(0px); }
+  60% { transform: translateX(1px) translateY(0px); }
+  70% { transform: translateX(-1px) translateY(0px); }
+  80% { transform: translateX(1px) translateY(0px); }
+  90% { transform: translateX(0px) translateY(0px); }
+}
+
+/* Mobile-specific utilities */
+.mobile-hidden {
+  display: none;
+}
+
+.mobile-only {
+  display: block;
+}
+
+/* Tablet and up */
+@media (min-width: 768px) {
+  .mobile-hidden {
+    display: block;
+  }
+  
+  .mobile-only {
+    display: none;
+  }
+  
+  body {
+    font-size: 18px;
+  }
+  
+  @keyframes cartSmashShake {
+    0%, 100% { transform: translateX(0) translateY(0); }
+    10% { transform: translateX(-4px) translateY(-2px); }
+    20% { transform: translateX(4px) translateY(2px); }
+    30% { transform: translateX(-3px) translateY(-1px); }
+    40% { transform: translateX(3px) translateY(1px); }
+    50% { transform: translateX(-2px) translateY(-1px); }
+    60% { transform: translateX(2px) translateY(1px); }
+    70% { transform: translateX(-1px) translateY(0px); }
+    80% { transform: translateX(1px) translateY(0px); }
+    90% { transform: translateX(0px) translateY(0px); }
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  body {
+    font-size: 16px;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Sharper text rendering */
+  body {
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #1a1a1a;
+    color: #ffffff;
+  }
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus management for accessibility */
+:focus-visible {
+  outline: 2px solid #FF6B35;
+  outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+  
+  button {
+    display: none;
+  }
 }
