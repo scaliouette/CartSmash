@@ -12,7 +12,9 @@
     "start": "cd server && npm start",
     "test": "npm run test:server && npm run test:client",
     "test:server": "cd server && npm test",
-    "test:client": "cd client && npm test"
+    "test:client": "cd client && npm test",
+    "clean": "rm -rf node_modules server/node_modules client/node_modules",
+    "fresh-install": "npm run clean && npm run install:all"
   },
   "devDependencies": {
     "concurrently": "^7.6.0"

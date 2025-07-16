@@ -1,84 +1,65 @@
-import React, { useState } from 'react';
+import React from 'react';
+import GroceryListForm from './GroceryListForm';
 
 function App() {
-  const [groceryList, setGroceryList] = useState('');
-  const [parsedItems, setParsedItems] = useState([]);
-
-  const handleParse = async () => {
-    try {
-      const response = await fetch('http://localhost:3001/api/grocery-list/parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ listText: groceryList })
-      });
-      const data = await response.json();
-      setParsedItems(data.items);
-    } catch (error) {
-      console.error('Error parsing list:', error);
-    }
-  };
-
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
-      <header style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <h1 style={{ color: '#00D084', fontSize: '48px' }}>🛒 HulkCart 💚</h1>
-        <p style={{ fontSize: '20px', color: '#666' }}>
-          Smash through grocery lists with AI power!
+    <div style={styles.app}>
+      <header style={styles.header}>
+        <h1 style={styles.title}>
+          💪 HulkCart
+        </h1>
+        <p style={styles.subtitle}>
+          Smash through your grocery list! Powered by AI 🤖
         </p>
       </header>
-
-      <div style={{ marginBottom: '20px' }}>
-        <h2>Paste Your AI-Generated Grocery List:</h2>
-        <textarea
-          value={groceryList}
-          onChange={(e) => setGroceryList(e.target.value)}
-          placeholder="- 2 pounds chicken breast\n- 1 dozen eggs\n- Fresh spinach\n- 3 avocados"
-          style={{
-            width: '100%',
-            height: '200px',
-            padding: '10px',
-            fontSize: '16px',
-            border: '2px solid #ddd',
-            borderRadius: '8px'
-          }}
-        />
-        <button
-          onClick={handleParse}
-          style={{
-            marginTop: '10px',
-            padding: '12px 24px',
-            backgroundColor: '#00D084',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '18px',
-            cursor: 'pointer',
-            width: '100%'
-          }}
-        >
-          Parse List
-        </button>
-      </div>
-
-      {parsedItems.length > 0 && (
-        <div>
-          <h3>Parsed Items ({parsedItems.length}):</h3>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {parsedItems.map(item => (
-              <li key={item.id} style={{
-                padding: '10px',
-                margin: '5px 0',
-                backgroundColor: '#f5f5f5',
-                borderRadius: '4px'
-              }}>
-                ✅ {item.itemName}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      
+      <main style={styles.main}>
+        <GroceryListForm />
+      </main>
+      
+      <footer style={styles.footer}>
+        <p>Made with 💚 by HulkCart</p>
+      </footer>
     </div>
   );
 }
+
+const styles = {
+  app: {
+    minHeight: '100vh',
+    backgroundColor: '#f5f5f5',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  header: {
+    backgroundColor: '#00D084',
+    color: 'white',
+    padding: '30px 20px',
+    textAlign: 'center',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+  },
+  title: {
+    margin: '0',
+    fontSize: '48px',
+    fontWeight: 'bold',
+    textShadow: '2px 2px 4px rgba(0,0,0,0.2)',
+  },
+  subtitle: {
+    margin: '10px 0 0 0',
+    fontSize: '20px',
+    opacity: '0.9',
+  },
+  main: {
+    flex: '1',
+    padding: '40px 20px',
+  },
+  footer: {
+    backgroundColor: '#2c3e50',
+    color: 'white',
+    textAlign: 'center',
+    padding: '20px',
+    marginTop: 'auto',
+  },
+};
 
 export default App;
