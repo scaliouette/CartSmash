@@ -2,30 +2,15 @@ import React, { useState } from 'react';
 import InstacartIntegration from './InstacartIntegration';
 
 function ParsedResultsDisplay({ items, onItemEdit, onItemRemove, onAddToCart }) {
-  const [expandedCategories, setExpandedCategories] = useState(new Set());
+
   const [selectedItems, setSelectedItems] = useState(new Set());
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'category'
-  const [editingItem, setEditingItem] = useState(null);
+
+
   const [showInstacart, setShowInstacart] = useState(false);
 
-  // Group items by category
-  const itemsByCategory = items.reduce((acc, item) => {
-    const category = item.category || 'other';
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(item);
-    return acc;
-  }, {});
 
-  // Category metadata
-  const categoryInfo = {
-    produce: { icon: '🥬', label: 'Produce', order: 1 },
-    dairy: { icon: '🥛', label: 'Dairy', order: 2 },
-    meat: { icon: '🥩', label: 'Meat & Seafood', order: 3 },
-    bakery: { icon: '🍞', label: 'Bakery', order: 4 },
-    pantry: { icon: '🥫', label: 'Pantry', order: 5 },
-    frozen: { icon: '❄️', label: 'Frozen', order: 6 },
-    other: { icon: '📦', label: 'Other', order: 7 }
-  };
+
+
 
   const toggleItemSelection = (itemId) => {
     const newSelected = new Set(selectedItems);
@@ -106,7 +91,7 @@ function ParsedResultsDisplay({ items, onItemEdit, onItemRemove, onAddToCart }) 
         <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
           <button
             onClick={() => setShowInstacart(true)}
-            style={{...styles.viewButton, backgroundColor: '#00D084', color: 'white'}}
+            style={{...styles.viewButton, backgroundColor: '#FF6B35', color: 'white'}}
           >
             🛒 Open Instacart
           </button>
@@ -180,7 +165,7 @@ const styles = {
     gap: '15px',
   },
   selectedCount: {
-    backgroundColor: '#00D084',
+    backgroundColor: '#FF6B35',
     color: 'white',
     padding: '4px 12px',
     borderRadius: '15px',
@@ -203,7 +188,7 @@ const styles = {
     flexWrap: 'wrap',
   },
   addToCartButton: {
-    backgroundColor: '#00D084',
+    backgroundColor: '#FF6B35',
     color: 'white',
     border: 'none',
     padding: '10px 20px',

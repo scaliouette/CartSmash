@@ -1,8 +1,8 @@
 {
-  "name": "hulkcart-client",
+  "name": "cartsmash-client",
   "version": "1.0.0",
   "private": true,
-  "description": "HulkCart frontend - AI-powered grocery list converter",
+  "description": "Cart Smash frontend - AI-powered grocery list converter",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",

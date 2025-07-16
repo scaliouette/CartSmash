@@ -75,7 +75,7 @@ function parseGroceryItem(line) {
 // Routes
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'HulkCart API is running! 💚',
+    message: 'Cart Smash API is running! 💥',
     version: '1.0.0',
     endpoints: {
       health: 'GET /health',
@@ -234,7 +234,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`
-    💚 HulkCart Server SMASH into action! 💚
+    💥 Cart Smash Server SMASH into action! 💥
     🚀 Server running on http://localhost:${PORT}
     📡 Ready to parse grocery lists...
   `);

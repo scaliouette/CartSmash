@@ -1,7 +1,7 @@
 {
-  "name": "hulkcart-server",
+  "name": "cartsmash-server",
   "version": "1.0.0",
-  "description": "HulkCart backend API",
+  "description": "Cart Smash backend API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

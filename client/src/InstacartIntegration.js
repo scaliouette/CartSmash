@@ -2,18 +2,18 @@ import React, { useState, useEffect } from 'react';
 import groceryService from './api/groceryService';
 
 function InstacartIntegration({ items, onClose }) {
-  const [processingItems, setProcessingItems] = useState(new Set());
+  const [processingItems, setSMASHINGItems] = useState(new Set());
   const [completedItems, setCompletedItems] = useState(new Set());
   const [failedItems, setFailedItems] = useState(new Set());
   const [searchResults, setSearchResults] = useState({});
   const [isSearching, setIsSearching] = useState(false);
   const [currentStep, setCurrentStep] = useState('search');
 
-  useEffect(() => {
-    if (items.length > 0 && currentStep === 'search') {
-      searchAllItems();
-    }
-  }, [items]);
+useEffect(() => {
+  if (items.length > 0 && currentStep === 'search') {
+    searchAllItems();
+  }
+}, [items.length, currentStep]);
 
   const searchAllItems = async () => {
     setIsSearching(true);
@@ -42,7 +42,7 @@ function InstacartIntegration({ items, onClose }) {
   };
 
   const handleAddToCart = async (itemId) => {
-    setProcessingItems(prev => new Set([...prev, itemId]));
+    setSMASHINGItems(prev => new Set([...prev, itemId]));
     
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -50,7 +50,7 @@ function InstacartIntegration({ items, onClose }) {
     // Randomly succeed or fail for demo
     const success = Math.random() > 0.1;
     
-    setProcessingItems(prev => {
+    setSMASHINGItems(prev => {
       const newSet = new Set(prev);
       newSet.delete(itemId);
       return newSet;
@@ -222,7 +222,7 @@ const styles = {
     height: '40px',
     margin: '0 auto 20px',
     border: '4px solid #f3f3f3',
-    borderTop: '4px solid #00D084',
+    borderTop: '4px solid #FF6B35',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
   },
@@ -239,7 +239,7 @@ const styles = {
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#00D084',
+    backgroundColor: '#FF6B35',
     transition: 'width 0.3s ease',
   },
   progressText: {
@@ -301,10 +301,10 @@ const styles = {
   },
   matchPrice: {
     fontWeight: '600',
-    color: '#00D084',
+    color: '#FF6B35',
   },
   addButton: {
-    backgroundColor: '#00D084',
+    backgroundColor: '#FF6B35',
     color: 'white',
     border: 'none',
     padding: '8px 16px',
@@ -328,7 +328,7 @@ const styles = {
     justifyContent: 'center',
   },
   instacartButton: {
-    backgroundColor: '#00D084',
+    backgroundColor: '#FF6B35',
     color: 'white',
     border: 'none',
     padding: '12px 24px',

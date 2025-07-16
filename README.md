@@ -1,22 +1,23 @@
-# HulkCart 🛒💚
+# Cart Smash 🛒💥
 
-AI-powered grocery list converter for Instacart - Smash through grocery lists with superhuman efficiency!
+**AI-Powered Grocery List Destroyer** - Smash through grocery lists with superhuman efficiency!
 
-## Features
+## 🎯 Features
 - 🤖 Convert any AI-generated grocery list
 - ⚡ Lightning-fast Instacart integration  
 - 🎯 99% accurate item matching
-- 💪 Bulk processing capabilities
+- 💥 Bulk processing capabilities
+- 🛒 Viral "SMASH" button experience
 
-## Quick Start
+## 🚀 Quick Start
 
-\```bash
+```bash
 # Clone the repository
-git clone https://github.com/yourusername/hulkcart.git
+git clone https://github.com/yourusername/cartsmash.git
 
 # Install dependencies
-cd hulkcart
-npm install
+cd cartsmash
+npm run install:all
 
 # Set up environment variables
 cp .env.example .env
@@ -24,13 +25,46 @@ cp .env.example .env
 
 # Start development servers
 npm run dev
-\```
+```
 
-## Tech Stack
-- Frontend: React, TypeScript, Tailwind CSS
-- Backend: Node.js, Express, PostgreSQL
-- AI/ML: Python, TensorFlow
-- Infrastructure: Docker, AWS
+## 🎮 Usage
 
-## License
+1. **Paste your grocery list** - Any format works!
+2. **Hit the SMASH button** - Watch the magic happen with confetti and effects
+3. **Review parsed items** - AI categorizes and extracts quantities
+4. **Add to Instacart** - One-click integration
+
+## 🛠 Tech Stack
+- **Frontend**: React, JavaScript, CSS Animations
+- **Backend**: Node.js, Express, Advanced Parsing
+- **AI/ML**: Custom grocery item recognition
+- **Infrastructure**: Docker, AWS ready
+
+## 🎨 Brand Colors
+- Primary Orange: `#FF6B35`
+- Secondary Orange: `#F7931E`
+- Accent Yellow: `#FFD23F`
+
+## 📱 Mobile Ready
+Optimized for mobile with:
+- Touch-friendly SMASH button
+- Haptic feedback
+- Responsive design
+- PWA capabilities
+
+## 🌟 Roadmap
+- [x] Core SMASH functionality
+- [x] Advanced parsing engine
+- [ ] Social sharing features
+- [ ] Cart battles/challenges
+- [ ] Influencer partnerships
+- [ ] Voice commands
+
+## 📄 License
 MIT License - see LICENSE file
+
+---
+
+**Made with 💥 by the Cart Smash team**
+
+*Ready to SMASH your grocery lists? Let's go!* 🛒💥

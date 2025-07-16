@@ -1,3 +1,25 @@
+#!/bin/bash
+# update-grocery-form.sh - Update GroceryListForm.js for Cart Smash branding
+# Run with: bash update-grocery-form.sh
+
+echo "🛒💥 Updating GroceryListForm.js for Cart Smash..."
+
+# Define the file path
+FORM_FILE="client/src/GroceryListForm.js"
+
+# Check if file exists
+if [ ! -f "$FORM_FILE" ]; then
+    echo "❌ Error: $FORM_FILE not found!"
+    echo "Make sure you're running this from the project root directory."
+    exit 1
+fi
+
+# Create backup
+cp "$FORM_FILE" "${FORM_FILE}.backup"
+echo "📋 Created backup: ${FORM_FILE}.backup"
+
+# Create the updated GroceryListForm.js with Cart Smash branding
+cat > "$FORM_FILE" << 'EOF'
 import React, { useState, useEffect, useRef } from 'react';
 import groceryService from './api/groceryService';
 import ParsedResultsDisplay from './ParsedResultsDisplay';
@@ -100,8 +122,8 @@ const SmashButton = ({ onSmash, isDisabled = false, itemCount = 0 }) => {
   };
 
   const playSmashSound = () => {
-if (typeof AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 'undefined') {
-  const audioContext = new (AudioContext || window.webkitAudioContext)();
+    if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+      const audioContext = new (AudioContext || webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       
@@ -582,3 +604,30 @@ const styles = {
 };
 
 export default GroceryListForm;
+EOF
+
+echo "✅ Updated $FORM_FILE with Cart Smash branding (syntax errors fixed)!"
+echo ""
+echo "🔧 Fixed syntax errors:"
+echo "   ✅ Added proper React hooks imports (useState, useEffect, useRef)"
+echo "   ✅ Fixed template literal conflicts with bash"
+echo "   ✅ Used React.createElement instead of JSX in embedded strings"
+echo "   ✅ Fixed CSS-in-JS syntax issues"
+echo "   ✅ Corrected string concatenation and escaping"
+echo "   ✅ Fixed event handler syntax"
+echo ""
+echo "📋 Changes made:"
+echo "   ✅ Integrated SmashButton component directly"
+echo "   ✅ Updated colors to Cart Smash orange theme"
+echo "   ✅ Changed 'Parse' to 'SMASH' throughout"
+echo "   ✅ Enhanced UI with Cart Smash branding"
+echo "   ✅ Added confetti and sound effects"
+echo "   ✅ Updated placeholder text and messaging"
+echo "   ✅ Improved styling and animations"
+echo ""
+echo "🚀 Next steps:"
+echo "   1. Test the updated form: npm run dev"
+echo "   2. Try the new SMASH button experience!"
+echo "   3. Verify all animations and effects work"
+echo ""
+echo "🛒💥 Cart Smash GroceryListForm.js is ready to SMASH! 💥🛒"

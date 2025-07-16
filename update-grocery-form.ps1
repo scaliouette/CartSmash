@@ -1,3 +1,24 @@
+# update-grocery-form.ps1 - Windows PowerShell version for Cart Smash
+# Run with: powershell -ExecutionPolicy Bypass -File update-grocery-form.ps1
+
+Write-Host "🛒💥 Updating GroceryListForm.js for Cart Smash..." -ForegroundColor Yellow
+
+# Define the file path
+$FormFile = "client\src\GroceryListForm.js"
+
+# Check if file exists
+if (-Not (Test-Path $FormFile)) {
+    Write-Host "❌ Error: $FormFile not found!" -ForegroundColor Red
+    Write-Host "Make sure you're running this from the project root directory." -ForegroundColor Red
+    exit 1
+}
+
+# Create backup
+Copy-Item $FormFile "$FormFile.backup"
+Write-Host "📋 Created backup: $FormFile.backup" -ForegroundColor Green
+
+# Create the updated GroceryListForm.js content
+$UpdatedContent = @'
 import React, { useState, useEffect, useRef } from 'react';
 import groceryService from './api/groceryService';
 import ParsedResultsDisplay from './ParsedResultsDisplay';
@@ -62,21 +83,23 @@ const SmashButton = ({ onSmash, isDisabled = false, itemCount = 0 }) => {
       return () => cancelAnimationFrame(animationFrame);
     }, [particle]);
 
-    return React.createElement('div', {
-      style: {
-        position: 'fixed',
-        left: pos.x,
-        top: pos.y,
-        width: '8px',
-        height: '8px',
-        backgroundColor: particle.color,
-        transform: 'rotate(' + rotation + 'deg) scale(' + particle.scale + ')',
-        opacity: opacity,
-        pointerEvents: 'none',
-        zIndex: 9999,
-        borderRadius: '2px',
-      }
-    });
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          left: pos.x,
+          top: pos.y,
+          width: '8px',
+          height: '8px',
+          backgroundColor: particle.color,
+          transform: `rotate(${rotation}deg) scale(${particle.scale})`,
+          opacity: opacity,
+          pointerEvents: 'none',
+          zIndex: 9999,
+          borderRadius: '2px',
+        }}
+      />
+    );
   };
 
   const createRipple = (e) => {
@@ -100,8 +123,8 @@ const SmashButton = ({ onSmash, isDisabled = false, itemCount = 0 }) => {
   };
 
   const playSmashSound = () => {
-if (typeof AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 'undefined') {
-  const audioContext = new (AudioContext || window.webkitAudioContext)();
+    if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+      const audioContext = new (AudioContext || webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       
@@ -143,147 +166,141 @@ if (typeof AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 
     }
   };
 
-  const buttonStyle = {
-    position: 'relative',
-    overflow: 'hidden',
-    width: '100%',
-    padding: '20px 40px',
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: 'white',
-    background: isSmashing 
-      ? 'linear-gradient(45deg, #FF6B35, #F7931E, #FFD23F, #FF6B35)'
-      : 'linear-gradient(45deg, #FF6B35, #F7931E)',
-    border: 'none',
-    borderRadius: '16px',
-    cursor: isDisabled ? 'not-allowed' : 'pointer',
-    transform: isSmashing ? 'scale(0.95)' : 'scale(1)',
-    transition: 'all 0.2s ease',
-    boxShadow: isSmashing 
-      ? 'inset 0 4px 8px rgba(0,0,0,0.3), 0 8px 32px rgba(255,107,53,0.4)'
-      : '0 8px 32px rgba(255,107,53,0.3), 0 4px 16px rgba(0,0,0,0.1)',
-    backgroundSize: '200% 200%',
-    animation: isSmashing ? 'smashPulse 0.6s ease-in-out infinite' : 'none',
-    opacity: isDisabled ? 0.6 : 1,
-    textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-    letterSpacing: '1px',
-    textTransform: 'uppercase',
-  };
-
-  return React.createElement('div', null, [
-    React.createElement('style', { key: 'smash-styles' }, `
-      @keyframes cartSmashShake {
-        0%, 100% { transform: translateX(0); }
-        10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
-        20%, 40%, 60%, 80% { transform: translateX(3px); }
-      }
-      
-      @keyframes smashPulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
-      }
-      
-      @keyframes ripple {
-        0% { transform: scale(0); opacity: 0.6; }
-        100% { transform: scale(1); opacity: 0; }
-      }
-    `),
-
-    React.createElement('button', {
-      key: 'smash-button',
-      ref: buttonRef,
-      onClick: handleSmash,
-      disabled: isDisabled || isSmashing,
-      style: buttonStyle,
-      onMouseEnter: (e) => {
-        if (!isDisabled) {
-          e.target.style.backgroundPosition = '100% 0';
-          e.target.style.transform = 'scale(1.02)';
-        }
-      },
-      onMouseLeave: (e) => {
-        if (!isDisabled) {
-          e.target.style.backgroundPosition = '0% 0';
-          e.target.style.transform = 'scale(1)';
-        }
-      }
-    }, [
-      ...ripples.map(ripple => 
-        React.createElement('span', {
-          key: ripple.id,
-          style: {
-            position: 'absolute',
-            left: ripple.x,
-            top: ripple.y,
-            width: ripple.size,
-            height: ripple.size,
-            background: 'rgba(255,255,255,0.6)',
-            borderRadius: '50%',
-            animation: 'ripple 1s ease-out',
-            pointerEvents: 'none',
+  return (
+    <>
+      <style>
+        {`
+          @keyframes cartSmashShake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+            20%, 40%, 60%, 80% { transform: translateX(3px); }
           }
-        })
-      ),
-      
-      React.createElement('span', { 
-        key: 'button-text',
-        style: { position: 'relative', zIndex: 1 }
-      }, [
-        isSmashing ? '💥 SMASHING... 💥' : '🛒 SMASH MY LIST 🛒',
-        itemCount > 0 && !isSmashing && React.createElement('div', {
-          key: 'item-count',
-          style: { 
-            fontSize: '14px', 
-            marginTop: '4px',
-            opacity: 0.9,
-            fontWeight: '600',
+          
+          @keyframes smashPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
           }
-        }, itemCount + ' ITEMS READY')
-      ])
-    ]),
+          
+          @keyframes ripple {
+            0% { transform: scale(0); opacity: 0.6; }
+            100% { transform: scale(1); opacity: 0; }
+          }
+        `}
+      </style>
 
-    showConfetti && React.createElement('div', {
-      key: 'confetti-container',
-      style: { 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        width: '100%', 
-        height: '100%', 
-        pointerEvents: 'none', 
-        zIndex: 9999 
-      }
-    }, generateConfetti().map((particle) => 
-      React.createElement(ConfettiParticle, { key: particle.id, particle })
-    )),
+      <button
+        ref={buttonRef}
+        onClick={handleSmash}
+        disabled={isDisabled || isSmashing}
+        style={{
+          position: 'relative',
+          overflow: 'hidden',
+          width: '100%',
+          padding: '20px 40px',
+          fontSize: '24px',
+          fontWeight: 'bold',
+          color: 'white',
+          background: isSmashing 
+            ? 'linear-gradient(45deg, #FF6B35, #F7931E, #FFD23F, #FF6B35)'
+            : 'linear-gradient(45deg, #FF6B35, #F7931E)',
+          border: 'none',
+          borderRadius: '16px',
+          cursor: isDisabled ? 'not-allowed' : 'pointer',
+          transform: isSmashing ? 'scale(0.95)' : 'scale(1)',
+          transition: 'all 0.2s ease',
+          boxShadow: isSmashing 
+            ? 'inset 0 4px 8px rgba(0,0,0,0.3), 0 8px 32px rgba(255,107,53,0.4)'
+            : '0 8px 32px rgba(255,107,53,0.3), 0 4px 16px rgba(0,0,0,0.1)',
+          backgroundSize: '200% 200%',
+          animation: isSmashing ? 'smashPulse 0.6s ease-in-out infinite' : 'none',
+          opacity: isDisabled ? 0.6 : 1,
+          textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+          letterSpacing: '1px',
+          textTransform: 'uppercase',
+        }}
+        onMouseEnter={(e) => {
+          if (!isDisabled) {
+            e.target.style.backgroundPosition = '100% 0';
+            e.target.style.transform = 'scale(1.02)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isDisabled) {
+            e.target.style.backgroundPosition = '0% 0';
+            e.target.style.transform = 'scale(1)';
+          }
+        }}
+      >
+        {ripples.map(ripple => (
+          <span
+            key={ripple.id}
+            style={{
+              position: 'absolute',
+              left: ripple.x,
+              top: ripple.y,
+              width: ripple.size,
+              height: ripple.size,
+              background: 'rgba(255,255,255,0.6)',
+              borderRadius: '50%',
+              animation: 'ripple 1s ease-out',
+              pointerEvents: 'none',
+            }}
+          />
+        ))}
+        
+        <span style={{ position: 'relative', zIndex: 1 }}>
+          {isSmashing ? (
+            <>💥 SMASHING... 💥</>
+          ) : (
+            <>🛒 SMASH MY LIST 🛒</>
+          )}
+          {itemCount > 0 && !isSmashing && (
+            <div style={{ 
+              fontSize: '14px', 
+              marginTop: '4px',
+              opacity: 0.9,
+              fontWeight: '600',
+            }}>
+              {itemCount} ITEMS READY
+            </div>
+          )}
+        </span>
+      </button>
 
-    isSmashing && React.createElement('div', {
-      key: 'smash-overlay',
-      style: {
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        backgroundColor: 'rgba(255, 107, 53, 0.95)',
-        color: 'white',
-        padding: '20px 40px',
-        borderRadius: '12px',
-        fontSize: '24px',
-        fontWeight: 'bold',
-        zIndex: 10000,
-        textAlign: 'center',
-        animation: 'smashPulse 0.6s ease-in-out infinite',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-      }
-    }, [
-      React.createElement('div', { key: 'overlay-title' }, '🚀 CART SMASH ACTIVATED! 🚀'),
-      React.createElement('div', { 
-        key: 'overlay-subtitle',
-        style: { fontSize: '16px', marginTop: '8px', opacity: 0.9 }
-      }, 'SMASHING YOUR LIST...')
-    ])
-  ]);
+      {showConfetti && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 9999 }}>
+          {generateConfetti().map((particle) => (
+            <ConfettiParticle key={particle.id} particle={particle} />
+          ))}
+        </div>
+      )}
+
+      {isSmashing && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: 'rgba(255, 107, 53, 0.95)',
+          color: 'white',
+          padding: '20px 40px',
+          borderRadius: '12px',
+          fontSize: '24px',
+          fontWeight: 'bold',
+          zIndex: 10000,
+          textAlign: 'center',
+          animation: 'smashPulse 0.6s ease-in-out infinite',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        }}>
+          <div>🚀 CART SMASH ACTIVATED! 🚀</div>
+          <div style={{ fontSize: '16px', marginTop: '8px', opacity: 0.9 }}>
+            SMASHING YOUR LIST...
+          </div>
+        </div>
+      )}
+    </>
+  );
 };
 
 function GroceryListForm() {
@@ -365,10 +382,21 @@ function GroceryListForm() {
 
   const handleAddToCart = (selectedItems) => {
     console.log('Adding to Instacart:', selectedItems);
-    alert('Ready to add ' + selectedItems.length + ' items to Instacart!');
+    alert(`Ready to add ${selectedItems.length} items to Instacart!`);
   };
 
-  const sampleList = '2 lbs organic bananas\n1 container Greek yogurt\n3 chicken breasts\n1 loaf artisan bread\n2 fresh avocados\n1 dozen free-range eggs\n2 cans black beans\n1 bag frozen broccoli\nOlive oil\nPasta sauce\nCheddar cheese\nFresh spinach';
+  const sampleList = `2 lbs organic bananas
+1 container Greek yogurt
+3 chicken breasts
+1 loaf artisan bread
+2 fresh avocados
+1 dozen free-range eggs
+2 cans black beans
+1 bag frozen broccoli
+Olive oil
+Pasta sauce
+Cheddar cheese
+Fresh spinach`;
 
   // Show API status indicator
   const getStatusColor = () => {
@@ -396,7 +424,13 @@ function GroceryListForm() {
           <textarea
             value={listText}
             onChange={(e) => setListText(e.target.value)}
-            placeholder={'Paste your grocery list here and prepare for SMASH mode...\n\nExample:\n2 lbs organic bananas\n1 container Greek yogurt\n3 chicken breasts\n1 loaf artisan bread'}
+            placeholder={`Paste your grocery list here and prepare for SMASH mode...
+
+Example:
+2 lbs organic bananas
+1 container Greek yogurt
+3 chicken breasts
+1 loaf artisan bread`}
             style={styles.textarea}
             rows={10}
             disabled={isProcessing || apiStatus === 'disconnected'}
@@ -582,3 +616,25 @@ const styles = {
 };
 
 export default GroceryListForm;
+'@
+
+# Write the updated content to file
+Set-Content -Path $FormFile -Value $UpdatedContent -Encoding UTF8
+
+Write-Host "✅ Updated $FormFile with Cart Smash branding!" -ForegroundColor Green
+Write-Host ""
+Write-Host "📋 Changes made:" -ForegroundColor Cyan
+Write-Host "   ✅ Integrated SmashButton component directly" -ForegroundColor Green
+Write-Host "   ✅ Updated colors to Cart Smash orange theme" -ForegroundColor Green
+Write-Host "   ✅ Changed 'Parse' to 'SMASH' throughout" -ForegroundColor Green
+Write-Host "   ✅ Enhanced UI with Cart Smash branding" -ForegroundColor Green
+Write-Host "   ✅ Added confetti and sound effects" -ForegroundColor Green
+Write-Host "   ✅ Updated placeholder text and messaging" -ForegroundColor Green
+Write-Host "   ✅ Improved styling and animations" -ForegroundColor Green
+Write-Host ""
+Write-Host "🚀 Next steps:" -ForegroundColor Yellow
+Write-Host "   1. Test the updated form: npm run dev" -ForegroundColor White
+Write-Host "   2. Try the new SMASH button experience!" -ForegroundColor White
+Write-Host "   3. Verify all animations and effects work" -ForegroundColor White
+Write-Host ""
+Write-Host "🛒💥 Cart Smash GroceryListForm.js is ready to SMASH! 💥🛒" -ForegroundColor Magenta

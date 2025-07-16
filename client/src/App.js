@@ -6,10 +6,10 @@ function App() {
     <div style={styles.app}>
       <header style={styles.header}>
         <h1 style={styles.title}>
-          💪 HulkCart
+          🛒 Cart Smash
         </h1>
         <p style={styles.subtitle}>
-          Smash through your grocery list! Powered by AI 🤖
+          Smash through your grocery list! AI-Powered List Destroyer 💥
         </p>
       </header>
       
@@ -18,7 +18,7 @@ function App() {
       </main>
       
       <footer style={styles.footer}>
-        <p>Made with 💚 by HulkCart</p>
+        <p>Made with 💥 by Cart Smash</p>
       </footer>
     </div>
   );
@@ -32,7 +32,7 @@ const styles = {
     flexDirection: 'column',
   },
   header: {
-    backgroundColor: '#00D084',
+    backgroundColor: '#FF6B35',
     color: 'white',
     padding: '30px 20px',
     textAlign: 'center',
