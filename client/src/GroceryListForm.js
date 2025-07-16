@@ -1,9 +1,10 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import groceryService from './api/groceryService';
+import { parseGroceryList, getCurrentCart, clearCart } from './utils/parseGroceryList';
 import ParsedResultsDisplay from './ParsedResultsDisplay';
 
-// Cart Smash SmashButton Component
-const SmashButton = ({ onSmash, isDisabled = false, itemCount = 0 }) => {
+// Cart Smash SmashButton Component with Cart Actions
+const SmashButton = ({ onSmash, isDisabled = false, itemCount = 0, cartAction = 'replace' }) => {
   const [isSmashing, setIsSmashing] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [ripples, setRipples] = useState([]);
@@ -13,18 +14,18 @@ const SmashButton = ({ onSmash, isDisabled = false, itemCount = 0 }) => {
     const particles = [];
     const colors = ['#FF6B35', '#F7931E', '#FFD23F', '#06FFA5', '#3A86FF', '#8338EC'];
     
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 50; i++) {
       particles.push({
         id: i,
         color: colors[Math.floor(Math.random() * colors.length)],
         x: Math.random() * window.innerWidth,
         y: -10,
-        vx: (Math.random() - 0.5) * 6,
-        vy: Math.random() * 3 + 2,
+        vx: (Math.random() - 0.5) * 8,
+        vy: Math.random() * 4 + 3,
         rotation: Math.random() * 360,
-        rotationSpeed: (Math.random() - 0.5) * 10,
-        scale: Math.random() * 0.8 + 0.4,
-        gravity: 0.1,
+        rotationSpeed: (Math.random() - 0.5) * 12,
+        scale: Math.random() * 1.2 + 0.6,
+        gravity: 0.15,
         life: 1,
       });
     }
@@ -42,12 +43,12 @@ const SmashButton = ({ onSmash, isDisabled = false, itemCount = 0 }) => {
 
       const animate = () => {
         const elapsed = (Date.now() - startTime) / 1000;
-        if (elapsed > 3) return;
+        if (elapsed > 4) return;
 
         const newY = particle.y + particle.vy * elapsed * 60 + 0.5 * particle.gravity * Math.pow(elapsed * 60, 2);
         const newX = particle.x + particle.vx * elapsed * 60;
         const newRotation = particle.rotation + particle.rotationSpeed * elapsed * 60;
-        const newOpacity = Math.max(0, 1 - elapsed / 3);
+        const newOpacity = Math.max(0, 1 - elapsed / 4);
 
         setPos({ x: newX, y: newY });
         setRotation(newRotation);
@@ -62,21 +63,24 @@ const SmashButton = ({ onSmash, isDisabled = false, itemCount = 0 }) => {
       return () => cancelAnimationFrame(animationFrame);
     }, [particle]);
 
-    return React.createElement('div', {
-      style: {
-        position: 'fixed',
-        left: pos.x,
-        top: pos.y,
-        width: '8px',
-        height: '8px',
-        backgroundColor: particle.color,
-        transform: 'rotate(' + rotation + 'deg) scale(' + particle.scale + ')',
-        opacity: opacity,
-        pointerEvents: 'none',
-        zIndex: 9999,
-        borderRadius: '2px',
-      }
-    });
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          left: pos.x,
+          top: pos.y,
+          width: '10px',
+          height: '10px',
+          backgroundColor: particle.color,
+          transform: `rotate(${rotation}deg) scale(${particle.scale})`,
+          opacity: opacity,
+          pointerEvents: 'none',
+          zIndex: 9999,
+          borderRadius: '3px',
+          boxShadow: '0 0 6px rgba(0,0,0,0.3)',
+        }}
+      />
+    );
   };
 
   const createRipple = (e) => {
@@ -100,22 +104,30 @@ const SmashButton = ({ onSmash, isDisabled = false, itemCount = 0 }) => {
   };
 
   const playSmashSound = () => {
-if (typeof AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 'undefined') {
-  const audioContext = new (AudioContext || window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
+    if (typeof AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 'undefined') {
+      const audioContext = new (AudioContext || window.webkitAudioContext)();
+      const oscillator1 = audioContext.createOscillator();
+      const oscillator2 = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       
-      oscillator.connect(gainNode);
+      oscillator1.connect(gainNode);
+      oscillator2.connect(gainNode);
       gainNode.connect(audioContext.destination);
       
-      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
+      oscillator1.frequency.setValueAtTime(1000, audioContext.currentTime);
+      oscillator1.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.15);
       
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      oscillator2.frequency.setValueAtTime(600, audioContext.currentTime);
+      oscillator2.frequency.exponentialRampToValueAtTime(80, audioContext.currentTime + 0.2);
       
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.2);
+      gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
+      
+      oscillator1.start(audioContext.currentTime);
+      oscillator1.stop(audioContext.currentTime + 0.25);
+      
+      oscillator2.start(audioContext.currentTime + 0.05);
+      oscillator2.stop(audioContext.currentTime + 0.3);
     }
   };
 
@@ -128,7 +140,7 @@ if (typeof AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 
     triggerHaptic();
     setShowConfetti(true);
     
-    document.body.style.animation = 'cartSmashShake 0.5s ease-in-out';
+    document.body.style.animation = 'cartSmashShake 0.6s ease-in-out';
     
     try {
       await onSmash();
@@ -139,164 +151,195 @@ if (typeof AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 
         setIsSmashing(false);
         setShowConfetti(false);
         document.body.style.animation = '';
-      }, 2000);
+      }, 2500);
     }
   };
 
-  const buttonStyle = {
-    position: 'relative',
-    overflow: 'hidden',
-    width: '100%',
-    padding: '20px 40px',
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: 'white',
-    background: isSmashing 
-      ? 'linear-gradient(45deg, #FF6B35, #F7931E, #FFD23F, #FF6B35)'
-      : 'linear-gradient(45deg, #FF6B35, #F7931E)',
-    border: 'none',
-    borderRadius: '16px',
-    cursor: isDisabled ? 'not-allowed' : 'pointer',
-    transform: isSmashing ? 'scale(0.95)' : 'scale(1)',
-    transition: 'all 0.2s ease',
-    boxShadow: isSmashing 
-      ? 'inset 0 4px 8px rgba(0,0,0,0.3), 0 8px 32px rgba(255,107,53,0.4)'
-      : '0 8px 32px rgba(255,107,53,0.3), 0 4px 16px rgba(0,0,0,0.1)',
-    backgroundSize: '200% 200%',
-    animation: isSmashing ? 'smashPulse 0.6s ease-in-out infinite' : 'none',
-    opacity: isDisabled ? 0.6 : 1,
-    textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-    letterSpacing: '1px',
-    textTransform: 'uppercase',
+  const getButtonText = () => {
+    if (isSmashing) {
+      return cartAction === 'merge' ? '🔀 MERGING...' : '🔄 REPLACING...';
+    }
+    return cartAction === 'merge' ? '🔀 MERGE WITH CART' : '🛒 SMASH MY LIST';
   };
 
-  return React.createElement('div', null, [
-    React.createElement('style', { key: 'smash-styles' }, `
-      @keyframes cartSmashShake {
-        0%, 100% { transform: translateX(0); }
-        10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
-        20%, 40%, 60%, 80% { transform: translateX(3px); }
-      }
-      
-      @keyframes smashPulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
-      }
-      
-      @keyframes ripple {
-        0% { transform: scale(0); opacity: 0.6; }
-        100% { transform: scale(1); opacity: 0; }
-      }
-    `),
+  const getActionEmoji = () => {
+    return cartAction === 'merge' ? '🔀' : '💥';
+  };
 
-    React.createElement('button', {
-      key: 'smash-button',
-      ref: buttonRef,
-      onClick: handleSmash,
-      disabled: isDisabled || isSmashing,
-      style: buttonStyle,
-      onMouseEnter: (e) => {
-        if (!isDisabled) {
-          e.target.style.backgroundPosition = '100% 0';
-          e.target.style.transform = 'scale(1.02)';
-        }
-      },
-      onMouseLeave: (e) => {
-        if (!isDisabled) {
-          e.target.style.backgroundPosition = '0% 0';
-          e.target.style.transform = 'scale(1)';
-        }
-      }
-    }, [
-      ...ripples.map(ripple => 
-        React.createElement('span', {
-          key: ripple.id,
-          style: {
-            position: 'absolute',
-            left: ripple.x,
-            top: ripple.y,
-            width: ripple.size,
-            height: ripple.size,
-            background: 'rgba(255,255,255,0.6)',
-            borderRadius: '50%',
-            animation: 'ripple 1s ease-out',
-            pointerEvents: 'none',
+  return (
+    <>
+      <style>
+        {`
+          @keyframes cartSmashShake {
+            0%, 100% { transform: translateX(0) translateY(0); }
+            10% { transform: translateX(-4px) translateY(-2px); }
+            20% { transform: translateX(4px) translateY(2px); }
+            30% { transform: translateX(-3px) translateY(-1px); }
+            40% { transform: translateX(3px) translateY(1px); }
+            50% { transform: translateX(-2px) translateY(-1px); }
+            60% { transform: translateX(2px) translateY(1px); }
+            70% { transform: translateX(-1px) translateY(0px); }
+            80% { transform: translateX(1px) translateY(0px); }
+            90% { transform: translateX(0px) translateY(0px); }
           }
-        })
-      ),
-      
-      React.createElement('span', { 
-        key: 'button-text',
-        style: { position: 'relative', zIndex: 1 }
-      }, [
-        isSmashing ? '💥 SMASHING... 💥' : '🛒 SMASH MY LIST 🛒',
-        itemCount > 0 && !isSmashing && React.createElement('div', {
-          key: 'item-count',
-          style: { 
-            fontSize: '14px', 
-            marginTop: '4px',
+          
+          @keyframes smashPulse {
+            0% { transform: scale(1); }
+            25% { transform: scale(1.08); }
+            50% { transform: scale(0.95); }
+            75% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+          }
+          
+          @keyframes ripple {
+            0% { transform: scale(0); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 0; }
+          }
+        `}
+      </style>
+
+      <button
+        ref={buttonRef}
+        onClick={handleSmash}
+        disabled={isDisabled || isSmashing}
+        style={{
+          position: 'relative',
+          overflow: 'hidden',
+          width: '100%',
+          padding: '24px 48px',
+          fontSize: '26px',
+          fontWeight: '900',
+          color: 'white',
+          background: isSmashing 
+            ? `linear-gradient(135deg, ${cartAction === 'merge' ? '#4CAF50' : '#FF6B35'}, #F7931E, #FFD23F)`
+            : `linear-gradient(135deg, ${cartAction === 'merge' ? '#4CAF50' : '#FF6B35'}, #F7931E)`,
+          border: 'none',
+          borderRadius: '20px',
+          cursor: isDisabled ? 'not-allowed' : 'pointer',
+          transform: isSmashing ? 'scale(0.92)' : 'scale(1)',
+          transition: 'all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+          boxShadow: isSmashing 
+            ? `inset 0 6px 12px rgba(0,0,0,0.4), 0 12px 48px rgba(${cartAction === 'merge' ? '76,175,80' : '255,107,53'},0.6)`
+            : `0 8px 32px rgba(${cartAction === 'merge' ? '76,175,80' : '255,107,53'},0.4), 0 4px 16px rgba(0,0,0,0.1)`,
+          backgroundSize: '300% 300%',
+          animation: isSmashing ? 'smashPulse 0.5s ease-in-out infinite' : 'none',
+          opacity: isDisabled ? 0.6 : 1,
+          textShadow: '3px 3px 6px rgba(0,0,0,0.4)',
+          letterSpacing: '2px',
+          textTransform: 'uppercase',
+        }}
+        onMouseEnter={(e) => {
+          if (!isDisabled && !isSmashing) {
+            e.target.style.backgroundPosition = '100% 0';
+            e.target.style.transform = 'scale(1.05)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isDisabled && !isSmashing) {
+            e.target.style.backgroundPosition = '0% 0';
+            e.target.style.transform = 'scale(1)';
+          }
+        }}
+      >
+        {ripples.map(ripple => (
+          <span
+            key={ripple.id}
+            style={{
+              position: 'absolute',
+              left: ripple.x,
+              top: ripple.y,
+              width: ripple.size,
+              height: ripple.size,
+              background: 'rgba(255,255,255,0.7)',
+              borderRadius: '50%',
+              animation: 'ripple 1s ease-out',
+              pointerEvents: 'none',
+            }}
+          />
+        ))}
+        
+        <span style={{ position: 'relative', zIndex: 1 }}>
+          {getButtonText()}
+          {itemCount > 0 && !isSmashing && (
+            <div style={{ 
+              fontSize: '14px', 
+              marginTop: '4px',
+              opacity: 0.9,
+              fontWeight: '600',
+              letterSpacing: '1px',
+            }}>
+              {itemCount} ITEMS READY
+            </div>
+          )}
+        </span>
+      </button>
+
+      {showConfetti && (
+        <div style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          width: '100%', 
+          height: '100%', 
+          pointerEvents: 'none', 
+          zIndex: 9999 
+        }}>
+          {generateConfetti().map((particle) => (
+            <ConfettiParticle key={particle.id} particle={particle} />
+          ))}
+        </div>
+      )}
+
+      {isSmashing && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: `rgba(${cartAction === 'merge' ? '76,175,80' : '255,107,53'}, 0.98)`,
+          color: 'white',
+          padding: '32px 48px',
+          borderRadius: '20px',
+          fontSize: '32px',
+          fontWeight: '900',
+          zIndex: 10000,
+          textAlign: 'center',
+          animation: 'smashPulse 0.6s ease-in-out infinite',
+          boxShadow: '0 16px 64px rgba(0,0,0,0.4)',
+          border: '3px solid rgba(255,255,255,0.3)',
+          textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+          letterSpacing: '2px',
+        }}>
+          <div>{getActionEmoji()} CART SMASH ACTIVATED! {getActionEmoji()}</div>
+          <div style={{ 
+            fontSize: '18px', 
+            marginTop: '12px', 
             opacity: 0.9,
             fontWeight: '600',
-          }
-        }, itemCount + ' ITEMS READY')
-      ])
-    ]),
-
-    showConfetti && React.createElement('div', {
-      key: 'confetti-container',
-      style: { 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        width: '100%', 
-        height: '100%', 
-        pointerEvents: 'none', 
-        zIndex: 9999 
-      }
-    }, generateConfetti().map((particle) => 
-      React.createElement(ConfettiParticle, { key: particle.id, particle })
-    )),
-
-    isSmashing && React.createElement('div', {
-      key: 'smash-overlay',
-      style: {
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        backgroundColor: 'rgba(255, 107, 53, 0.95)',
-        color: 'white',
-        padding: '20px 40px',
-        borderRadius: '12px',
-        fontSize: '24px',
-        fontWeight: 'bold',
-        zIndex: 10000,
-        textAlign: 'center',
-        animation: 'smashPulse 0.6s ease-in-out infinite',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-      }
-    }, [
-      React.createElement('div', { key: 'overlay-title' }, '🚀 CART SMASH ACTIVATED! 🚀'),
-      React.createElement('div', { 
-        key: 'overlay-subtitle',
-        style: { fontSize: '16px', marginTop: '8px', opacity: 0.9 }
-      }, 'SMASHING YOUR LIST...')
-    ])
-  ]);
+            letterSpacing: '1px',
+          }}>
+            {cartAction === 'merge' ? 'MERGING WITH CART...' : 'REPLACING CART...'}
+          </div>
+        </div>
+      )}
+    </>
+  );
 };
 
 function GroceryListForm() {
   const [listText, setListText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedItems, setParsedItems] = useState([]);
+  const [currentCart, setCurrentCart] = useState([]);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [apiStatus, setApiStatus] = useState('checking');
-  const [useAdvancedParsing, setUseAdvancedParsing] = useState(true);
+  const [cartAction, setCartAction] = useState('replace');
 
-  // Check API health on component mount
+  // Check API health and load current cart
   useEffect(() => {
     checkApiHealth();
+    loadCurrentCart();
   }, []);
 
   const checkApiHealth = async () => {
@@ -309,36 +352,40 @@ function GroceryListForm() {
     }
   };
 
+  const loadCurrentCart = async () => {
+    try {
+      const cart = await getCurrentCart();
+      setCurrentCart(cart);
+    } catch (err) {
+      console.error('Failed to load current cart:', err);
+    }
+  };
+
   const handleSubmit = async () => {
     setError('');
+    setSuccess('');
     
-    // Validate input
-    const validation = groceryService.validateGroceryList(listText);
-    if (!validation.valid) {
-      setError(validation.error);
+    if (!listText.trim()) {
+      setError('Please enter a grocery list');
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      let data;
-      if (useAdvancedParsing) {
-        data = await groceryService.parseGroceryListAdvanced(listText, {
-          groupByCategory: true
-        });
-      } else {
-        data = await groceryService.parseGroceryList(listText);
-      }
+      const result = await parseGroceryList(listText, cartAction);
       
-      setParsedItems(data.items);
+      setParsedItems(result.cart);
+      setCurrentCart(result.cart);
       
-      // Log categories if using advanced parsing
-      if (data.categories) {
-        console.log('Found categories:', data.categories);
-      }
+      // Show success message
+      const actionText = cartAction === 'merge' ? 'merged with' : 'replaced';
+      const duplicateText = result.duplicatesSkipped > 0 ? ` (${result.duplicatesSkipped} duplicates skipped)` : '';
+      setSuccess(`✅ Successfully ${actionText} cart! ${result.itemsAdded} items added${duplicateText}`);
+
+      console.log(`Cart ${cartAction}:`, result);
     } catch (err) {
-      setError(err.message || 'Error smashing your list. Please try again.');
+      setError(err.message || `Error ${cartAction === 'merge' ? 'merging with' : 'replacing'} cart. Please try again.`);
       console.error('Error:', err);
     } finally {
       setIsProcessing(false);
@@ -349,28 +396,33 @@ function GroceryListForm() {
     setListText('');
     setParsedItems([]);
     setError('');
+    setSuccess('');
   };
 
-  const handleItemEdit = (itemId, newName) => {
-    setParsedItems(items => 
-      items.map(item => 
-        item.id === itemId ? { ...item, itemName: newName } : item
-      )
-    );
+  const handleClearCart = async () => {
+    try {
+      await clearCart();
+      setCurrentCart([]);
+      setParsedItems([]);
+      setSuccess('🗑️ Cart cleared successfully!');
+    } catch (err) {
+      setError('Failed to clear cart');
+    }
   };
 
-  const handleItemRemove = (itemId) => {
-    setParsedItems(items => items.filter(item => item.id !== itemId));
-  };
+  const sampleList = `2 lbs organic bananas
+1 container Greek yogurt
+3 chicken breasts
+1 loaf artisan bread
+2 fresh avocados
+1 dozen free-range eggs
+2 cans black beans
+1 bag frozen broccoli
+Olive oil
+Pasta sauce
+Cheddar cheese
+Fresh spinach`;
 
-  const handleAddToCart = (selectedItems) => {
-    console.log('Adding to Instacart:', selectedItems);
-    alert('Ready to add ' + selectedItems.length + ' items to Instacart!');
-  };
-
-  const sampleList = '2 lbs organic bananas\n1 container Greek yogurt\n3 chicken breasts\n1 loaf artisan bread\n2 fresh avocados\n1 dozen free-range eggs\n2 cans black beans\n1 bag frozen broccoli\nOlive oil\nPasta sauce\nCheddar cheese\nFresh spinach';
-
-  // Show API status indicator
   const getStatusColor = () => {
     switch (apiStatus) {
       case 'connected': return '#FF6B35';
@@ -386,39 +438,75 @@ function GroceryListForm() {
         API Status: {apiStatus}
       </div>
       
+      {currentCart.length > 0 && (
+        <div style={styles.cartSummary}>
+          <div style={styles.cartInfo}>
+            <span>🛒 Current Cart: {currentCart.length} items</span>
+            <button onClick={handleClearCart} style={styles.clearCartButton}>
+              🗑️ Clear Cart
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div style={styles.formSection}>
-        <h2 style={styles.title}>💥 Paste Your Grocery List</h2>
+        <h2 style={styles.title}>🛒 Paste Your Grocery List</h2>
         <p style={styles.subtitle}>
-          Ready to <strong>SMASH</strong> through your shopping list? Paste it below and watch the magic happen! 💥
+          Ready to <strong>SMASH</strong> through your shopping list? Choose your action and watch the magic happen! 💥
         </p>
+        
+        <div style={styles.actionSelector}>
+          <label style={styles.actionOption}>
+            <input
+              type="radio"
+              name="cartAction"
+              value="replace"
+              checked={cartAction === 'replace'}
+              onChange={(e) => setCartAction(e.target.value)}
+              disabled={isProcessing}
+            />
+            <span style={styles.actionLabel}>
+              🔄 <strong>Replace Cart</strong> - Clear cart and add new items
+            </span>
+          </label>
+          
+          <label style={styles.actionOption}>
+            <input
+              type="radio"
+              name="cartAction"
+              value="merge"
+              checked={cartAction === 'merge'}
+              onChange={(e) => setCartAction(e.target.value)}
+              disabled={isProcessing}
+            />
+            <span style={styles.actionLabel}>
+              🔀 <strong>Merge with Cart</strong> - Add new items, skip duplicates
+            </span>
+          </label>
+        </div>
         
         <form onSubmit={(e) => e.preventDefault()}>
           <textarea
             value={listText}
             onChange={(e) => setListText(e.target.value)}
-            placeholder={'Paste your grocery list here and prepare for SMASH mode...\n\nExample:\n2 lbs organic bananas\n1 container Greek yogurt\n3 chicken breasts\n1 loaf artisan bread'}
+            placeholder={`Paste your grocery list here and prepare for SMASH mode...
+
+Example:
+2 lbs organic bananas
+1 container Greek yogurt
+3 chicken breasts
+1 loaf artisan bread`}
             style={styles.textarea}
             rows={10}
             disabled={isProcessing || apiStatus === 'disconnected'}
           />
-          
-          <div style={styles.options}>
-            <label style={styles.checkbox}>
-              <input
-                type="checkbox"
-                checked={useAdvancedParsing}
-                onChange={(e) => setUseAdvancedParsing(e.target.checked)}
-                disabled={isProcessing}
-              />
-              🔥 Use advanced SMASH parsing (extracts quantities & categories)
-            </label>
-          </div>
           
           <div style={styles.buttonGroup}>
             <SmashButton
               onSmash={handleSubmit}
               isDisabled={!listText.trim() || isProcessing || apiStatus === 'disconnected'}
               itemCount={listText.split('\n').filter(line => line.trim()).length}
+              cartAction={cartAction}
             />
             
             <div style={styles.secondaryButtons}>
@@ -437,7 +525,7 @@ function GroceryListForm() {
                 style={{...styles.button, ...styles.sampleButton}}
                 disabled={isProcessing}
               >
-                📋‹ Try Sample
+                📋 Try Sample
               </button>
             </div>
           </div>
@@ -445,7 +533,13 @@ function GroceryListForm() {
 
         {error && (
           <div style={styles.error}>
-            âŒ {error}
+            ❌ {error}
+          </div>
+        )}
+
+        {success && (
+          <div style={styles.success}>
+            {success}
           </div>
         )}
       </div>
@@ -453,9 +547,9 @@ function GroceryListForm() {
       {parsedItems.length > 0 && (
         <ParsedResultsDisplay
           items={parsedItems}
-          onItemEdit={handleItemEdit}
-          onItemRemove={handleItemRemove}
-          onAddToCart={handleAddToCart}
+          onItemEdit={() => {}}
+          onItemRemove={() => {}}
+          onAddToCart={() => {}}
         />
       )}
     </div>
@@ -464,25 +558,45 @@ function GroceryListForm() {
 
 const styles = {
   container: {
-    maxWidth: '100%',
+    maxWidth: '800px',
     margin: '0 auto',
-    padding: 'clamp(16px, 4vw, 20px)',
-    width: '100%',
+    padding: '20px',
+  },
+  cartSummary: {
+    backgroundColor: '#e8f5e9',
+    border: '2px solid #4CAF50',
+    borderRadius: '12px',
+    padding: '16px',
+    marginBottom: '20px',
+  },
+  cartInfo: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontWeight: '600',
+    color: '#2e7d32',
+  },
+  clearCartButton: {
+    backgroundColor: '#f44336',
+    color: 'white',
+    border: 'none',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    fontWeight: '600',
   },
   formSection: {
     backgroundColor: '#ffffff',
-    padding: 'clamp(20px, 5vw, 40px)',
-    borderRadius: 'clamp(12px, 3vw, 20px)',
+    padding: '40px',
+    borderRadius: '20px',
     boxShadow: '0 8px 32px rgba(255,107,53,0.1), 0 2px 16px rgba(0,0,0,0.05)',
     border: '2px solid rgba(255,107,53,0.1)',
-    width: '100%',
-    maxWidth: '800px',
-    margin: '0 auto',
   },
   title: {
     color: '#2c3e50',
-    marginBottom: 'clamp(12px, 3vw, 16px)',
-    fontSize: 'clamp(24px, 6vw, 32px)',
+    marginBottom: '16px',
+    fontSize: '32px',
     fontWeight: '800',
     textAlign: 'center',
     background: 'linear-gradient(135deg, #FF6B35, #F7931E)',
@@ -491,112 +605,118 @@ const styles = {
   },
   subtitle: {
     color: '#666',
-    marginBottom: 'clamp(20px, 5vw, 30px)',
-    fontSize: 'clamp(14px, 4vw, 18px)',
+    marginBottom: '30px',
+    fontSize: '18px',
     textAlign: 'center',
     lineHeight: '1.5',
-    padding: '0 clamp(8px, 2vw, 16px)',
+  },
+  actionSelector: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    marginBottom: '24px',
+    padding: '20px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '12px',
+    border: '2px solid #e9ecef',
+  },
+  actionOption: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+  },
+  actionLabel: {
+    fontSize: '16px',
+    lineHeight: '1.4',
   },
   textarea: {
     width: '100%',
-    padding: 'clamp(16px, 4vw, 20px)',
-    fontSize: 'clamp(14px, 4vw, 16px)',
+    padding: '20px',
+    fontSize: '16px',
     border: '3px solid #f0f0f0',
-    borderRadius: 'clamp(12px, 3vw, 16px)',
+    borderRadius: '16px',
     fontFamily: 'inherit',
     resize: 'vertical',
-    minHeight: 'clamp(200px, 40vh, 240px)',
+    minHeight: '240px',
     transition: 'border-color 0.3s, box-shadow 0.3s',
     boxSizing: 'border-box',
     backgroundColor: '#fafafa',
     lineHeight: '1.5',
-    touchAction: 'manipulation',
   },
   buttonGroup: {
-    marginTop: 'clamp(20px, 5vw, 24px)',
+    marginTop: '24px',
   },
   secondaryButtons: {
     display: 'flex',
-    gap: 'clamp(8px, 2vw, 12px)',
-    marginTop: 'clamp(12px, 3vw, 16px)',
+    gap: '12px',
+    marginTop: '16px',
     justifyContent: 'center',
-    flexWrap: 'wrap',
   },
   button: {
-    padding: 'clamp(10px, 3vw, 12px) clamp(16px, 4vw, 24px)',
-    fontSize: 'clamp(14px, 3.5vw, 16px)',
+    padding: '12px 24px',
+    fontSize: '16px',
     border: 'none',
-    borderRadius: 'clamp(8px, 2vw, 12px)',
+    borderRadius: '12px',
     cursor: 'pointer',
     fontWeight: '600',
     transition: 'all 0.3s',
     display: 'flex',
     alignItems: 'center',
-    gap: 'clamp(6px, 1.5vw, 8px)',
-    minHeight: '44px',
-    touchAction: 'manipulation',
-    userSelect: 'none',
+    gap: '8px',
   },
   clearButton: {
     backgroundColor: '#dc3545',
     color: 'white',
-    flex: '1',
-    maxWidth: '140px',
   },
   sampleButton: {
     backgroundColor: '#6c757d',
     color: 'white',
-    flex: '1',
-    maxWidth: '140px',
   },
   error: {
-    marginTop: 'clamp(16px, 4vw, 20px)',
-    padding: 'clamp(12px, 3vw, 16px)',
+    marginTop: '20px',
+    padding: '16px',
     backgroundColor: '#fee',
     color: '#c33',
-    borderRadius: 'clamp(8px, 2vw, 12px)',
+    borderRadius: '12px',
     border: '2px solid #fcc',
     textAlign: 'center',
     fontWeight: '600',
-    fontSize: 'clamp(14px, 3.5vw, 16px)',
+  },
+  success: {
+    marginTop: '20px',
+    padding: '16px',
+    backgroundColor: '#e8f5e9',
+    color: '#2e7d32',
+    borderRadius: '12px',
+    border: '2px solid #4caf50',
+    textAlign: 'center',
+    fontWeight: '600',
   },
   apiStatus: {
     position: 'fixed',
-    top: 'clamp(12px, 3vw, 16px)',
-    right: 'clamp(12px, 3vw, 16px)',
-    padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
+    top: '16px',
+    right: '16px',
+    padding: '8px 16px',
     backgroundColor: 'white',
     borderRadius: '20px',
     boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
     display: 'flex',
     alignItems: 'center',
-    gap: 'clamp(6px, 2vw, 8px)',
-    fontSize: 'clamp(12px, 3vw, 14px)',
+    gap: '8px',
+    fontSize: '14px',
     zIndex: 1000,
     border: '1px solid rgba(255,107,53,0.2)',
   },
   statusDot: {
-    width: 'clamp(8px, 2vw, 10px)',
-    height: 'clamp(8px, 2vw, 10px)',
+    width: '10px',
+    height: '10px',
     borderRadius: '50%',
     display: 'inline-block',
-  },
-  options: {
-    marginTop: 'clamp(12px, 3vw, 16px)',
-    marginBottom: 'clamp(12px, 3vw, 16px)',
-  },
-  checkbox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 'clamp(8px, 2vw, 12px)',
-    fontSize: 'clamp(14px, 3.5vw, 16px)',
-    cursor: 'pointer',
-    fontWeight: '600',
-    color: '#333',
-    padding: 'clamp(8px, 2vw, 12px)',
-    touchAction: 'manipulation',
   },
 };
 
 export default GroceryListForm;
-
