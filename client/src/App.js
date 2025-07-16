@@ -6,10 +6,10 @@ function App() {
     <div style={styles.app}>
       <header style={styles.header}>
         <h1 style={styles.title}>
-          ðŸ›’ Cart Smash
+          💥 Cart Smash
         </h1>
         <p style={styles.subtitle}>
-          AI-Powered List Destroyer ðŸ’¥
+          AI-Powered List Destroyer 💥
         </p>
       </header>
       
@@ -18,7 +18,7 @@ function App() {
       </main>
       
       <footer style={styles.footer}>
-        <p>Made with ðŸ’¥ by Cart Smash</p>
+        <p>Made with 💥 by Cart Smash</p>
       </footer>
     </div>
   );
