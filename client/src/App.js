@@ -6,7 +6,7 @@ function App() {
 
   const handleParse = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/grocery-list/parse', {
+      const response = await fetch('http://localhost:3001/api/grocery-list/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ listText: groceryList })
