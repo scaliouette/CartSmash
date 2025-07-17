@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import ParsedResultsDisplay from './components/ParsedResultsDisplay';
 import InstacartIntegration from './components/InstacartIntegration';
-import AIAssistantHelper from './components/AIAssistantHelper';
+import EnhancedAIHelper from './components/EnhancedAIHelper';
 import confetti from 'canvas-confetti';
 
 // 🎆 Enhanced SMASH Button with viral effects
@@ -268,8 +268,8 @@ function GroceryListForm() {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '900px', margin: '0 auto' }}>      
-      {/* 🔥 NEW: AI Assistant Helper */}
-      <AIAssistantHelper />
+      {/* 🔥 ENHANCED: AI Assistant Integration */}
+      <EnhancedAIHelper />
       
       <form onSubmit={handleSubmit} style={{ marginBottom: '30px' }}>
         <div style={{ marginBottom: '15px' }}>
