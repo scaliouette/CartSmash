@@ -24,5 +24,9 @@
     "url": "https://github.com/yourusername/cartsmash.git"
   },
   "author": "Your Name",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "canvas-confetti": "^1.6.0",
+    "firebase": "^10.7.1"
+  }
 }
