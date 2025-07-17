@@ -5,20 +5,140 @@ import ParsedResultsDisplay from './components/ParsedResultsDisplay';
 import InstacartIntegration from './components/InstacartIntegration';
 import EnhancedAIHelper from './components/EnhancedAIHelper';
 import confetti from 'canvas-confetti';
-import AiAssistantBox from './components/AiAssistantBox'; // ✅ Correct path
 
+// AI Recipe Suggestion Component
+function AIRecipeSuggestions({ onRecipeSelect }) {
+  const [currentRecipeIndex, setCurrentRecipeIndex] = useState(0);
+  
+  const aiRecipeSuggestions = [
+    {
+      name: "Chicken Stir-Fry",
+      image: "🥘",
+      ingredients: ["2 lbs chicken breast", "2 bell peppers", "1 onion", "2 tbsp soy sauce", "1 tbsp garlic", "2 tbsp oil", "1 cup broccoli"],
+      cookTime: "25 mins",
+      difficulty: "Easy",
+      description: "A quick and healthy dinner perfect for busy weeknights"
+    },
+    {
+      name: "Mediterranean Bowl",
+      image: "🥗",
+      ingredients: ["1 cup quinoa", "1 cucumber", "2 tomatoes", "1/2 cup feta cheese", "1/4 cup olives", "2 tbsp olive oil", "1 lemon"],
+      cookTime: "20 mins",
+      difficulty: "Easy",
+      description: "Fresh and nutritious Mediterranean flavors"
+    },
+    {
+      name: "Pasta Carbonara",
+      image: "🍝",
+      ingredients: ["1 lb spaghetti", "6 oz pancetta", "4 eggs", "1 cup parmesan", "2 cloves garlic", "Black pepper", "Salt"],
+      cookTime: "30 mins",
+      difficulty: "Medium",
+      description: "Classic Italian comfort food"
+    }
+  ];
 
-// 🎆 Enhanced SMASH Button with viral effects
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentRecipeIndex((prev) => (prev + 1) % aiRecipeSuggestions.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentRecipe = aiRecipeSuggestions[currentRecipeIndex];
+
+  return (
+    <div style={styles.aiRecipeSection}>
+      <h2 style={styles.recipeSectionTitle}>What recipe would you like to make?</h2>
+      
+      <div style={styles.featuredRecipe}>
+        <div style={styles.recipeHeader}>
+          <div style={styles.aiLabel}>
+            <div style={styles.aiIcon}>✨</div>
+            <span style={styles.aiText}>AI</span>
+            <span style={styles.suggestionText}>How about {currentRecipe.name}?</span>
+          </div>
+          <div style={styles.recipeEmoji}>{currentRecipe.image}</div>
+        </div>
+        
+        <p style={styles.recipeDescription}>{currentRecipe.description}</p>
+        
+        <div style={styles.ingredientGrid}>
+          {currentRecipe.ingredients.slice(0, 4).map((ingredient, index) => (
+            <div key={index} style={styles.ingredientTag}>
+              {ingredient}
+            </div>
+          ))}
+          {currentRecipe.ingredients.length > 4 && (
+            <div style={styles.moreIngredientsTag}>
+              +{currentRecipe.ingredients.length - 4} more
+            </div>
+          )}
+        </div>
+        
+        <div style={styles.recipeStats}>
+          <span style={styles.recipeStat}>🕒 {currentRecipe.cookTime}</span>
+          <span style={styles.recipeStat}>📊 {currentRecipe.difficulty}</span>
+          <span style={styles.recipeStat}>⭐ 4.8/5</span>
+        </div>
+        
+        <div style={styles.recipeActions}>
+          <button
+            onClick={() => onRecipeSelect(currentRecipe)}
+            style={styles.addIngredientsBtn}
+          >
+            Add Ingredients to List
+          </button>
+          <button
+            onClick={() => window.open('https://claude.ai/chat', '_blank')}
+            style={styles.customRecipeBtn}
+          >
+            Ask AI for Custom Recipe
+          </button>
+        </div>
+      </div>
+
+      <div style={styles.recipeGrid}>
+        {aiRecipeSuggestions.map((recipe, index) => (
+          <div
+            key={index}
+            style={{
+              ...styles.recipeCard,
+              ...(index === currentRecipeIndex ? styles.activeRecipeCard : {})
+            }}
+            onClick={() => setCurrentRecipeIndex(index)}
+          >
+            <div style={styles.recipeCardEmoji}>{recipe.image}</div>
+            <h3 style={styles.recipeCardTitle}>{recipe.name}</h3>
+            <p style={styles.recipeCardMeta}>{recipe.cookTime} • {recipe.difficulty}</p>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRecipeSelect(recipe);
+              }}
+              style={styles.useRecipeBtn}
+            >
+              Use This Recipe
+            </button>
+          </div>
+        ))}
+      </div>
+      
+      <button style={styles.exploreRecipesBtn}>
+        <span style={styles.chefIcon}>👨‍🍳</span>
+        Explore More Recipes
+      </button>
+    </div>
+  );
+}
+
+// Enhanced SMASH Button with viral effects
 function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
   const [isSmashing, setIsSmashing] = useState(false);
   const [buttonText, setButtonText] = useState('🛒 SMASH 🛒');
 
   const triggerConfetti = () => {
-    // Multiple confetti bursts for viral effect
     const count = 200;
-    const defaults = {
-      origin: { y: 0.7 }
-    };
+    const defaults = { origin: { y: 0.7 } };
 
     function fire(particleRatio, opts) {
       confetti({
@@ -28,7 +148,6 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
       });
     }
 
-    // Orange-themed confetti matching Cart Smash colors
     fire(0.25, {
       spread: 26,
       startVelocity: 55,
@@ -46,36 +165,17 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
       scalar: 0.8,
       colors: ['#FF6B35', '#F7931E', '#FFD23F']
     });
-
-    fire(0.1, {
-      spread: 120,
-      startVelocity: 25,
-      decay: 0.92,
-      scalar: 1.2,
-      colors: ['#FF6B35', '#F7931E']
-    });
-
-    fire(0.1, {
-      spread: 120,
-      startVelocity: 45,
-      colors: ['#FFD23F', '#FFFFFF']
-    });
   };
 
   const handleSmash = async (e) => {
     e.preventDefault();
-    
     setIsSmashing(true);
-    
-    // Trigger confetti immediately for instant gratification
     triggerConfetti();
     
-    // Add haptic feedback if available
     if (navigator.vibrate) {
       navigator.vibrate([100, 50, 100]);
     }
     
-    // Dynamic button text during smashing
     const smashTexts = [
       '💥 SMASHING! 💥',
       '🔥 DESTROYING! 🔥', 
@@ -91,8 +191,6 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
 
     try {
       await onSubmit(e);
-      
-      // Success confetti
       setTimeout(() => {
         confetti({
           particleCount: 100,
@@ -101,7 +199,6 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
           colors: ['#28a745', '#20c997', '#17a2b8']
         });
       }, 500);
-      
     } finally {
       clearInterval(textInterval);
       setButtonText('🛒 SMASH 🛒');
@@ -114,54 +211,15 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
       onClick={handleSmash}
       disabled={isDisabled || isLoading}
       style={{
+        ...styles.smashButton,
         background: isDisabled ? '#ccc' : 'linear-gradient(45deg, #FF6B35, #F7931E, #FFD23F)',
-        border: 'none',
-        padding: '15px 30px',
-        color: 'white',
-        fontSize: '18px',
-        fontWeight: 'bold',
-        borderRadius: '12px',
-        cursor: isDisabled ? 'not-allowed' : 'pointer',
-        width: '100%',
-        textTransform: 'uppercase',
-        letterSpacing: '1px',
+        transform: isSmashing ? 'scale(0.98)' : 'scale(1)',
         boxShadow: isSmashing 
           ? '0 0 20px rgba(255, 107, 53, 0.8), inset 0 0 20px rgba(255, 107, 53, 0.3)'
           : '0 4px 15px rgba(255, 107, 53, 0.4)',
-        transition: 'all 0.3s ease',
-        transform: isSmashing ? 'scale(0.98)' : 'scale(1)',
         animation: isSmashing ? 'shake 0.5s ease-in-out infinite' : 'none',
-        position: 'relative',
-        overflow: 'hidden'
       }}
     >
-      <style>
-        {`
-          @keyframes shake {
-            0%, 100% { transform: scale(0.98) translateX(0); }
-            25% { transform: scale(0.98) translateX(-2px); }
-            75% { transform: scale(0.98) translateX(2px); }
-          }
-          
-          @keyframes ripple {
-            0% { transform: scale(0); opacity: 1; }
-            100% { transform: scale(4); opacity: 0; }
-          }
-        `}
-      </style>
-      {isSmashing && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          width: '20px',
-          height: '20px',
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.7)',
-          transform: 'translate(-50%, -50%)',
-          animation: 'ripple 0.6s linear infinite'
-        }} />
-      )}
       {buttonText}
     </button>
   );
@@ -181,9 +239,6 @@ function GroceryListForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    console.log('🔥 SMASH button clicked!');
-    console.log('👤 Current user:', currentUser?.email || 'Not signed in');
-    
     if (!inputText.trim()) {
       setError('Please enter a grocery list');
       return;
@@ -197,9 +252,7 @@ function GroceryListForm() {
     try {
       const response = await fetch('/api/cart/parse', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           listText: inputText,
           action: cartAction,
@@ -212,27 +265,17 @@ function GroceryListForm() {
       }
 
       const data = await response.json();
-      console.log('✅ Response data:', data);
-      
-      let items = null;
-      
-      if (data.cart && Array.isArray(data.cart)) {
-        items = data.cart;
-      } else if (data.items && Array.isArray(data.items)) {
-        items = data.items;
-      }
+      let items = data.cart || data.items || [];
       
       if (items && items.length > 0) {
         setParsedItems(items);
         setShowResults(true);
         
-        // Save to Firebase if user is signed in
         if (currentUser) {
           try {
             await saveCartToFirebase(items);
-            console.log('💾 Cart saved to Firebase');
           } catch (firebaseError) {
-            console.warn('⚠️ Failed to save cart to Firebase:', firebaseError);
+            console.warn('Failed to save cart to Firebase:', firebaseError);
           }
         }
       } else {
@@ -240,23 +283,26 @@ function GroceryListForm() {
       }
       
     } catch (err) {
-      console.error('❌ Parse error:', err);
+      console.error('Parse error:', err);
       setError(`Failed to parse grocery list: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleRecipeSelect = (recipe) => {
+    const recipeList = recipe.ingredients.join('\n');
+    setInputText(recipeList);
+  };
+
   const handleItemsChange = (updatedItems) => {
     setParsedItems(updatedItems);
     
-    // Also save to Firebase if user is signed in
     if (currentUser) {
       try {
         saveCartToFirebase(updatedItems);
-        console.log('💾 Updated cart saved to Firebase');
       } catch (firebaseError) {
-        console.warn('⚠️ Failed to save updated cart to Firebase:', firebaseError);
+        console.warn('Failed to save updated cart to Firebase:', firebaseError);
       }
     }
   };
@@ -269,162 +315,89 @@ function GroceryListForm() {
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '900px', margin: '0 auto' }}>      
-      {/* 🔥 ENHANCED: AI Assistant Integration */}
-      <EnhancedAIHelper />
-      
-      <form onSubmit={handleSubmit} style={{ marginBottom: '30px' }}>
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="groceryList" style={{ 
-            display: 'block', 
-            marginBottom: '8px', 
-            fontWeight: 'bold',
-            fontSize: '18px',
-            color: '#333'
-          }}>
-            🤖 Paste Your AI-Generated Grocery List (Any Format!)
+    <div style={styles.container}>
+      {/* Hero Section */}
+      <div style={styles.heroSection}>
+        <h1 style={styles.heroTitle}>
+          Smash That List.
+          <br />
+          <span style={styles.heroAccent}>Instantly.</span>
+        </h1>
+        <p style={styles.heroSubtitle}>
+          Turn any AI-generated grocery list into a ready-to-order Instacart cart in seconds.
+        </p>
+      </div>
+
+      {/* Enhanced AI Helper */}
+      <div style={styles.aiHelperSection}>
+        <EnhancedAIHelper />
+      </div>
+
+      {/* Main Input Section */}
+      <form onSubmit={handleSubmit} style={styles.mainForm}>
+        <div style={styles.inputSection}>
+          <label style={styles.inputLabel}>
+            Paste Grocery List
           </label>
           <textarea
-            id="groceryList"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="🤖 PERFECT FOR AI-GENERATED LISTS! 🤖
+            style={styles.textarea}
+            placeholder="Paste your AI-generated grocery list here...
 
-Paste ANY grocery list from ChatGPT, Claude, or any AI assistant:
-
-✅ CHATGPT/CLAUDE STYLE:
-Here's your grocery list:
-- 2 lbs boneless chicken breast  
-- 1 lb fresh broccoli
-- 2 cups jasmine rice
-- 6 large eggs
-- 1 gallon 2% milk
-
-✅ MEAL PLANNING STYLE:
-Monday: Chicken stir-fry
-- chicken breast (1 lb)
-- bell peppers (3)
-- soy sauce
-Tuesday: Pasta night  
-- spaghetti (1 box)
-- marinara sauce
-
-✅ RECIPE INGREDIENTS:
-Ingredients for Chicken Alfredo (serves 4):
-• 1 pound fettuccine pasta
-• 2 cups heavy cream  
-• 1 cup parmesan cheese
-• 3 chicken breasts
-
-Just paste ANY AI output and hit SMASH! 🚀"
-            rows="10"
-            style={{
-              width: '100%',
-              padding: '15px',
-              border: '2px solid #ddd',
-              borderRadius: '12px',
-              fontSize: '16px',
-              fontFamily: 'monospace',
-              boxSizing: 'border-box',
-              resize: 'vertical',
-              transition: 'border-color 0.3s ease',
-              outline: 'none'
-            }}
-            onFocus={(e) => e.target.style.borderColor = '#FF6B35'}
-            onBlur={(e) => e.target.style.borderColor = '#ddd'}
+Example:
+2 lbs chicken breast
+1 cup quinoa
+2 bell peppers
+1 onion
+2 tbsp olive oil"
+            rows="8"
           />
         </div>
-
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '10px', 
-            fontWeight: 'bold',
-            fontSize: '16px',
-            color: '#333'
-          }}>
-            🎯 Cart Action:
-          </label>
-          <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-            <label style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              cursor: 'pointer',
-              padding: '10px 15px',
-              border: `2px solid ${cartAction === 'merge' ? '#FF6B35' : '#ddd'}`,
-              borderRadius: '8px',
-              background: cartAction === 'merge' ? '#fff5f0' : 'white',
-              transition: 'all 0.3s ease'
-            }}>
+        
+        <div style={styles.actionSelector}>
+          <label style={styles.actionLabel}>Cart Action:</label>
+          <div style={styles.actionOptions}>
+            <label style={styles.actionOption}>
               <input
                 type="radio"
                 value="merge"
                 checked={cartAction === 'merge'}
                 onChange={(e) => setCartAction(e.target.value)}
-                style={{ marginRight: '8px' }}
               />
-              🔄 Merge with existing cart
+              <span>🔀 Merge with existing cart</span>
             </label>
-            <label style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              cursor: 'pointer',
-              padding: '10px 15px',
-              border: `2px solid ${cartAction === 'replace' ? '#FF6B35' : '#ddd'}`,
-              borderRadius: '8px',
-              background: cartAction === 'replace' ? '#fff5f0' : 'white',
-              transition: 'all 0.3s ease'
-            }}>
+            <label style={styles.actionOption}>
               <input
                 type="radio"
                 value="replace"
                 checked={cartAction === 'replace'}
                 onChange={(e) => setCartAction(e.target.value)}
-                style={{ marginRight: '8px' }}
               />
-              🔥 Replace entire cart
+              <span>🔥 Replace entire cart</span>
             </label>
           </div>
         </div>
 
         {error && (
-          <div style={{ 
-            background: '#f8d7da', 
-            color: '#721c24', 
-            padding: '15px', 
-            borderRadius: '8px', 
-            marginBottom: '20px',
-            border: '1px solid #f5c6cb',
-            fontSize: '16px'
-          }}>
+          <div style={styles.errorMessage}>
             ❌ {error}
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <div style={{ flex: 1 }}>
-            <SmashButton
-              onSubmit={handleSubmit}
-              isDisabled={!inputText.trim()}
-              isLoading={isLoading}
-              itemCount={parsedItems.length}
-            />
-          </div>
+        <div style={styles.buttonGroup}>
+          <SmashButton
+            onSubmit={handleSubmit}
+            isDisabled={!inputText.trim()}
+            isLoading={isLoading}
+            itemCount={parsedItems.length}
+          />
           
           {showResults && (
             <button
               type="button"
               onClick={handleNewList}
-              style={{
-                padding: '15px 20px',
-                background: '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                whiteSpace: 'nowrap'
-              }}
+              style={styles.newListButton}
             >
               📝 New List
             </button>
@@ -432,7 +405,10 @@ Just paste ANY AI output and hit SMASH! 🚀"
         </div>
       </form>
 
-      {/* 🔥 ADVANCED: ParsedResultsDisplay Component */}
+      {/* AI Recipe Suggestions */}
+      <AIRecipeSuggestions onRecipeSelect={handleRecipeSelect} />
+
+      {/* Results Display */}
       {showResults && parsedItems.length > 0 && (
         <ParsedResultsDisplay 
           items={parsedItems} 
@@ -441,7 +417,7 @@ Just paste ANY AI output and hit SMASH! 🚀"
         />
       )}
 
-      {/* 🔥 ADVANCED: InstacartIntegration Component */}
+      {/* Instacart Integration */}
       {showResults && parsedItems.length > 0 && (
         <InstacartIntegration 
           items={parsedItems}
@@ -452,53 +428,26 @@ Just paste ANY AI output and hit SMASH! 🚀"
   );
 }
 
-// Auth status component with enhanced styling
+// Auth Status Component
 function AuthStatus() {
   const { currentUser, signOut, isLoading } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   if (isLoading) return (
-    <div style={{ 
-      position: 'fixed', 
-      top: '20px', 
-      right: '20px',
-      padding: '10px',
-      color: '#666',
-      zIndex: 1000
-    }}>
+    <div style={styles.authStatus}>
       Loading...
     </div>
   );
 
   if (currentUser) {
     return (
-      <div style={{ 
-        position: 'fixed', 
-        top: '20px', 
-        right: '20px',
-        background: 'linear-gradient(135deg, #d4edda, #c3e6cb)',
-        padding: '12px 15px',
-        borderRadius: '10px',
-        border: '2px solid #c3e6cb',
-        boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
-        zIndex: 1000
-      }}>
-        <span style={{ color: '#155724', fontWeight: 'bold' }}>
+      <div style={styles.authStatusLoggedIn}>
+        <span style={styles.userGreeting}>
           👋 {currentUser.displayName || currentUser.email.split('@')[0]}
         </span>
         <button 
           onClick={signOut}
-          style={{
-            marginLeft: '12px',
-            padding: '6px 12px',
-            background: '#dc3545',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: 'bold'
-          }}
+          style={styles.signOutButton}
         >
           Sign Out
         </button>
@@ -508,28 +457,10 @@ function AuthStatus() {
 
   return (
     <>
-      <div style={{ 
-        position: 'fixed', 
-        top: '20px', 
-        right: '20px',
-        zIndex: 1000
-      }}>
+      <div style={styles.authStatus}>
         <button
           onClick={() => setShowAuthModal(true)}
-          style={{
-            padding: '12px 20px',
-            background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '14px',
-            boxShadow: '0 4px 10px rgba(255, 107, 53, 0.3)',
-            transition: 'transform 0.2s ease'
-          }}
-          onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
-          onMouseLeave={(e) => e.target.style.transform = 'translateY(0px)'}
+          style={styles.signInButton}
         >
           🔐 Sign In to Save Carts
         </button>
@@ -543,7 +474,7 @@ function AuthStatus() {
   );
 }
 
-// Main App with enhanced styling and mobile responsiveness
+// Main App Component
 function App() {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -559,48 +490,562 @@ function App() {
 
   return (
     <AuthProvider>
-      <div style={{ 
-        position: 'relative', 
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #fff5f0 0%, #ffffff 100%)',
-        paddingBottom: '40px'
-      }}>
+      <div style={styles.app}>
+        {/* Header */}
+        <header style={styles.header}>
+          <div style={styles.headerContent}>
+            <div style={styles.logo}>
+              <div style={styles.logoIcon}>🛒</div>
+              <span style={styles.logoText}>CART SMASH</span>
+            </div>
+            
+            <div style={styles.headerActions}>
+              <button style={styles.loginButton}>Log In</button>
+              <button style={styles.ctaButton}>Start Converting Your List</button>
+            </div>
+          </div>
+        </header>
+
         <AuthStatus />
         
-        <div style={{ 
-          paddingTop: isMobile ? '100px' : '80px',
-          paddingLeft: isMobile ? '10px' : '20px',
-          paddingRight: isMobile ? '10px' : '20px'
-        }}>
-          <h1 style={{ 
-            color: '#FF6B35', 
-            textAlign: 'center', 
-            fontSize: isMobile ? '2.5em' : '3.5em',
-            marginBottom: '10px',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
-            background: 'linear-gradient(45deg, #FF6B35, #F7931E, #FFD23F)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
-          }}>
-            🛒💥 Cart Smash 💥🛒
-          </h1>
-          <p style={{ 
-            textAlign: 'center', 
-            marginBottom: '40px', 
-            fontSize: isMobile ? '16px' : '20px', 
-            color: '#666',
-            fontWeight: '500'
-          }}>
-            The Missing Link Between AI and Your Groceries
-          </p>
-          
+        <main style={styles.main}>
           <GroceryListForm />
-          <AiAssistantBox /> {/* 💡 Add this below the form */}
-        </div>
+        </main>
+        
+        {/* Features Section */}
+        <section style={styles.featuresSection}>
+          <div style={styles.featuresGrid}>
+            <div style={styles.featureCard}>
+              <div style={styles.featureIcon}>✨</div>
+              <h3 style={styles.featureTitle}>AI-Powered</h3>
+              <p style={styles.featureDescription}>Advanced AI parsing handles any grocery list format</p>
+            </div>
+            
+            <div style={styles.featureCard}>
+              <div style={styles.featureIcon}>⚡</div>
+              <h3 style={styles.featureTitle}>Lightning Fast</h3>
+              <p style={styles.featureDescription}>Convert lists to carts in under 5 seconds</p>
+            </div>
+            
+            <div style={styles.featureCard}>
+              <div style={styles.featureIcon}>👥</div>
+              <h3 style={styles.featureTitle}>Social Ready</h3>
+              <p style={styles.featureDescription}>Share recipes and shopping lists with friends</p>
+            </div>
+          </div>
+        </section>
       </div>
     </AuthProvider>
   );
 }
+
+const styles = {
+  app: {
+    minHeight: '100vh',
+    backgroundColor: 'linear-gradient(to-br, from-orange-50, to-yellow-50)',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  },
+  
+  header: {
+    backgroundColor: 'white',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+    padding: '16px 24px',
+  },
+  
+  headerContent: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  
+  logo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  
+  logoIcon: {
+    padding: '8px',
+    backgroundColor: 'linear-gradient(45deg, #FF6B35, #F7931E)',
+    borderRadius: '8px',
+    fontSize: '20px',
+  },
+  
+  logoText: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  
+  loginButton: {
+    color: '#6b7280',
+    backgroundColor: 'transparent',
+    border: 'none',
+    padding: '8px 16px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'color 0.2s',
+  },
+  
+  ctaButton: {
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    padding: '12px 24px',
+    borderRadius: '8px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+  },
+  
+  main: {
+    maxWidth: '1000px',
+    margin: '0 auto',
+    padding: '40px 24px',
+  },
+  
+  container: {
+    width: '100%',
+  },
+  
+  heroSection: {
+    textAlign: 'center',
+    marginBottom: '48px',
+  },
+  
+  heroTitle: {
+    fontSize: 'clamp(36px, 8vw, 64px)',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: '24px',
+    lineHeight: '1.1',
+  },
+  
+  heroAccent: {
+    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+  },
+  
+  heroSubtitle: {
+    fontSize: '20px',
+    color: '#6b7280',
+    maxWidth: '600px',
+    margin: '0 auto',
+    lineHeight: '1.6',
+  },
+  
+  aiHelperSection: {
+    marginBottom: '32px',
+  },
+  
+  mainForm: {
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    padding: '32px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+    marginBottom: '48px',
+  },
+  
+  inputSection: {
+    marginBottom: '24px',
+  },
+  
+  inputLabel: {
+    display: 'block',
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: '12px',
+  },
+  
+  textarea: {
+    width: '100%',
+    padding: '16px',
+    fontSize: '16px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '12px',
+    resize: 'vertical',
+    fontFamily: 'inherit',
+    lineHeight: '1.5',
+    minHeight: '160px',
+    transition: 'border-color 0.2s',
+    outline: 'none',
+  },
+  
+  actionSelector: {
+    marginBottom: '24px',
+  },
+  
+  actionLabel: {
+    display: 'block',
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: '12px',
+  },
+  
+  actionOptions: {
+    display: 'flex',
+    gap: '16px',
+    flexWrap: 'wrap',
+  },
+  
+  actionOption: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '12px 16px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'border-color 0.2s',
+  },
+  
+  errorMessage: {
+    padding: '16px',
+    backgroundColor: '#fef2f2',
+    color: '#dc2626',
+    borderRadius: '8px',
+    border: '1px solid #fecaca',
+    marginBottom: '24px',
+    fontSize: '16px',
+  },
+  
+  buttonGroup: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+  },
+  
+  smashButton: {
+    flex: 1,
+    border: 'none',
+    padding: '16px 32px',
+    color: 'white',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    transition: 'all 0.3s ease',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  
+  newListButton: {
+    padding: '16px 24px',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    whiteSpace: 'nowrap',
+  },
+  
+  aiRecipeSection: {
+    marginBottom: '48px',
+  },
+  
+  recipeSectionTitle: {
+    fontSize: '32px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    textAlign: 'center',
+    marginBottom: '32px',
+  },
+  
+  featuredRecipe: {
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    padding: '32px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+    marginBottom: '32px',
+  },
+  
+  recipeHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '16px',
+  },
+  
+  aiLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  
+  aiIcon: {
+    width: '40px',
+    height: '40px',
+    backgroundColor: 'linear-gradient(45deg, #10b981, #3b82f6)',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '18px',
+  },
+  
+  aiText: {
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  
+  suggestionText: {
+    color: '#6b7280',
+  },
+  
+  recipeEmoji: {
+    fontSize: '48px',
+  },
+  
+  recipeDescription: {
+    color: '#6b7280',
+    fontSize: '16px',
+    marginBottom: '24px',
+  },
+  
+  ingredientGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '12px',
+    marginBottom: '24px',
+  },
+  
+  ingredientTag: {
+    padding: '12px',
+    backgroundColor: '#f3f4f6',
+    borderRadius: '8px',
+    fontSize: '14px',
+    color: '#374151',
+  },
+  
+  moreIngredientsTag: {
+    padding: '12px',
+    backgroundColor: '#fef3cd',
+    borderRadius: '8px',
+    fontSize: '14px',
+    color: '#d97706',
+    fontWeight: '600',
+  },
+  
+  recipeStats: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '24px',
+    marginBottom: '24px',
+  },
+  
+  recipeStat: {
+    fontSize: '14px',
+    color: '#6b7280',
+  },
+  
+  recipeActions: {
+    display: 'flex',
+    gap: '16px',
+  },
+  
+  addIngredientsBtn: {
+    flex: 1,
+    padding: '12px 24px',
+    backgroundColor: 'linear-gradient(45deg, #FF6B35, #F7931E)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'transform 0.2s',
+  },
+  
+  customRecipeBtn: {
+    padding: '12px 24px',
+    border: '2px solid #FF6B35',
+    color: '#FF6B35',
+    backgroundColor: 'transparent',
+    borderRadius: '8px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  
+  recipeGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '24px',
+    marginBottom: '32px',
+  },
+  
+  recipeCard: {
+    padding: '24px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    backgroundColor: 'white',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+    border: '2px solid transparent',
+    textAlign: 'center',
+  },
+  
+  activeRecipeCard: {
+    background: 'linear-gradient(135deg, #fef3cd, #fed7aa)',
+    borderColor: '#f59e0b',
+  },
+  
+  recipeCardEmoji: {
+    fontSize: '32px',
+    marginBottom: '12px',
+  },
+  
+  recipeCardTitle: {
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: '8px',
+  },
+  
+  recipeCardMeta: {
+    fontSize: '14px',
+    color: '#6b7280',
+    marginBottom: '16px',
+  },
+  
+  useRecipeBtn: {
+    width: '100%',
+    padding: '8px 16px',
+    backgroundColor: '#FF6B35',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+  },
+  
+  exploreRecipesBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    margin: '0 auto',
+    padding: '16px 32px',
+    backgroundColor: 'linear-gradient(45deg, #3b82f6, #8b5cf6)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'transform 0.2s',
+  },
+  
+  chefIcon: {
+    fontSize: '20px',
+  },
+  
+  featuresSection: {
+    padding: '48px 24px',
+    backgroundColor: '#f9fafb',
+  },
+  
+  featuresGrid: {
+    maxWidth: '1000px',
+    margin: '0 auto',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '32px',
+  },
+  
+  featureCard: {
+    textAlign: 'center',
+    padding: '24px',
+  },
+  
+  featureIcon: {
+    width: '64px',
+    height: '64px',
+    backgroundColor: 'linear-gradient(45deg, #FF6B35, #F7931E)',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 16px',
+    fontSize: '24px',
+  },
+  
+  featureTitle: {
+    fontWeight: 'bold',
+    fontSize: '20px',
+    color: '#1f2937',
+    marginBottom: '8px',
+  },
+  
+  featureDescription: {
+    color: '#6b7280',
+  },
+  
+  authStatus: {
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    zIndex: 1000,
+  },
+  
+  authStatusLoggedIn: {
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    backgroundColor: 'linear-gradient(135deg, #d4edda, #c3e6cb)',
+    padding: '12px 16px',
+    borderRadius: '10px',
+    border: '2px solid #c3e6cb',
+    boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+    zIndex: 1000,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  
+  userGreeting: {
+    color: '#155724',
+    fontWeight: 'bold',
+  },
+  
+  signOutButton: {
+    padding: '6px 12px',
+    backgroundColor: '#dc3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 'bold',
+  },
+  
+  signInButton: {
+    padding: '12px 20px',
+    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '14px',
+    boxShadow: '0 4px 10px rgba(255, 107, 53, 0.3)',
+    transition: 'transform 0.2s ease',
+  },
+};
 
 export default App;
