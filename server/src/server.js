@@ -2,6 +2,7 @@
 echo 'const express = require("express");
 const app = express();
 const PORT = process.env.PORT || 3000;
+const aiRoutes = require('./routes/aiRoutes');
 
 app.use(express.json());
 
@@ -12,3 +13,5 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });' > server\server.js
+
+app.use('/api/ai', aiRoutes);

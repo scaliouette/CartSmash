@@ -5,6 +5,8 @@ import ParsedResultsDisplay from './components/ParsedResultsDisplay';
 import InstacartIntegration from './components/InstacartIntegration';
 import EnhancedAIHelper from './components/EnhancedAIHelper';
 import confetti from 'canvas-confetti';
+import AiAssistantBox from './components/AiAssistantBox'; // ✅ Correct path
+
 
 // 🎆 Enhanced SMASH Button with viral effects
 function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
@@ -594,6 +596,7 @@ function App() {
           </p>
           
           <GroceryListForm />
+          <AiAssistantBox /> {/* 💡 Add this below the form */}
         </div>
       </div>
     </AuthProvider>
