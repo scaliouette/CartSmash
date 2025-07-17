@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import ParsedResultsDisplay from './components/ParsedResultsDisplay';
 import InstacartIntegration from './components/InstacartIntegration';
+import AIAssistantHelper from './components/AIAssistantHelper';
 import confetti from 'canvas-confetti';
 
 // 🎆 Enhanced SMASH Button with viral effects
@@ -244,6 +245,20 @@ function GroceryListForm() {
     }
   };
 
+  const handleItemsChange = (updatedItems) => {
+    setParsedItems(updatedItems);
+    
+    // Also save to Firebase if user is signed in
+    if (currentUser) {
+      try {
+        saveCartToFirebase(updatedItems);
+        console.log('💾 Updated cart saved to Firebase');
+      } catch (firebaseError) {
+        console.warn('⚠️ Failed to save updated cart to Firebase:', firebaseError);
+      }
+    }
+  };
+
   const handleNewList = () => {
     setInputText('');
     setParsedItems([]);
@@ -253,6 +268,9 @@ function GroceryListForm() {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '900px', margin: '0 auto' }}>      
+      {/* 🔥 NEW: AI Assistant Helper */}
+      <AIAssistantHelper />
+      
       <form onSubmit={handleSubmit} style={{ marginBottom: '30px' }}>
         <div style={{ marginBottom: '15px' }}>
           <label htmlFor="groceryList" style={{ 
@@ -262,22 +280,41 @@ function GroceryListForm() {
             fontSize: '18px',
             color: '#333'
           }}>
-            🛒 Paste Your Grocery List (Any Format!)
+            🤖 Paste Your AI-Generated Grocery List (Any Format!)
           </label>
           <textarea
             id="groceryList"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Paste your grocery list here...
+            placeholder="🤖 PERFECT FOR AI-GENERATED LISTS! 🤖
 
-Examples:
-• 2 lbs chicken breast
-• 1 dozen eggs  
-• 3 bananas
-• bread
-• milk
+Paste ANY grocery list from ChatGPT, Claude, or any AI assistant:
 
-Or any format - AI will understand! 🤖"
+✅ CHATGPT/CLAUDE STYLE:
+Here's your grocery list:
+- 2 lbs boneless chicken breast  
+- 1 lb fresh broccoli
+- 2 cups jasmine rice
+- 6 large eggs
+- 1 gallon 2% milk
+
+✅ MEAL PLANNING STYLE:
+Monday: Chicken stir-fry
+- chicken breast (1 lb)
+- bell peppers (3)
+- soy sauce
+Tuesday: Pasta night  
+- spaghetti (1 box)
+- marinara sauce
+
+✅ RECIPE INGREDIENTS:
+Ingredients for Chicken Alfredo (serves 4):
+• 1 pound fettuccine pasta
+• 2 cups heavy cream  
+• 1 cup parmesan cheese
+• 3 chicken breasts
+
+Just paste ANY AI output and hit SMASH! 🚀"
             rows="10"
             style={{
               width: '100%',
@@ -398,6 +435,7 @@ Or any format - AI will understand! 🤖"
         <ParsedResultsDisplay 
           items={parsedItems} 
           currentUser={currentUser}
+          onItemsChange={handleItemsChange}
         />
       )}
 
@@ -552,7 +590,7 @@ function App() {
             color: '#666',
             fontWeight: '500'
           }}>
-            AI-Powered Grocery List Destroyer
+            The Missing Link Between AI and Your Groceries
           </p>
           
           <GroceryListForm />

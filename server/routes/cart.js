@@ -1,116 +1,150 @@
+// server/routes/cart.js
 const express = require('express');
 const router = express.Router();
-const parseGroceryItem = require('../utils/parseGroceryItem');
+const { parseGroceryList } = require('../utils/parseGroceryItem');
 
-// In-memory cart storage (in production, use database)
-let userCart = [];
+// In-memory cart storage (replace with database in production)
+let currentCart = [];
 
-// Parse and add items to cart (merge or replace)
-router.post('/parse', async (req, res) => {
-  const { listText, action = 'replace' } = req.body;
-
-  if (!listText) {
-    return res.status(400).json({ error: 'Missing listText' });
-  }
-
-  if (!['merge', 'replace'].includes(action)) {
-    return res.status(400).json({ error: 'Invalid action. Use "merge" or "replace"' });
-  }
-
+// Parse grocery list and update cart
+router.post('/parse', (req, res) => {
   try {
-    const lines = listText
-      .split(/[\n;,]/)
-      .map(line => line.trim())
-      .filter(line => line && !line.match(/^(grocery list|shopping list|to buy|items needed):?$/i));
+    const { listText, action = 'merge', userId = null } = req.body;
 
-    const parsedItems = lines.map((line, index) => ({
+    if (!listText) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No grocery list provided' 
+      });
+    }
+
+    console.log('🛒 Processing grocery list...');
+    console.log('📝 Text length:', listText.length);
+    
+    // Parse the grocery list
+    const parsedItems = parseGroceryList(listText);
+    
+    if (!parsedItems || parsedItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No grocery items could be parsed from the provided text'
+      });
+    }
+
+    // Add IDs and timestamps to items
+    const itemsWithIds = parsedItems.map((item, index) => ({
       id: `item_${Date.now()}_${index}`,
-      ...parseGroceryItem(line),
-      addedAt: new Date().toISOString()
+      ...item,
+      addedAt: new Date().toISOString(),
+      userId: userId
     }));
 
+    let duplicatesSkipped = 0;
     let itemsAdded = 0;
 
     if (action === 'replace') {
-      userCart = parsedItems;
-      itemsAdded = parsedItems.length;
-      console.log(`🔄 Cart replaced with ${parsedItems.length} items`);
-    } else if (action === 'merge') {
-      // Smart merge: avoid duplicates by item name
-      const existingItemNames = new Set(userCart.map(item => item.itemName.toLowerCase()));
-      const newItems = parsedItems.filter(item => !existingItemNames.has(item.itemName.toLowerCase()));
-      
-      userCart = [...userCart, ...newItems];
-      itemsAdded = newItems.length;
-      console.log(`🔀 Cart merged: ${newItems.length} new items added (${parsedItems.length - newItems.length} duplicates skipped)`);
+      // Replace entire cart
+      currentCart = itemsWithIds;
+      itemsAdded = itemsWithIds.length;
+      console.log(`🔄 Cart replaced with ${itemsAdded} items`);
+    } else {
+      // Merge with existing cart (skip duplicates)
+      const existingItemNames = currentCart.map(item => 
+        (item.itemName || item.name || '').toLowerCase()
+      );
+
+      itemsWithIds.forEach(newItem => {
+        const itemName = (newItem.itemName || newItem.name || '').toLowerCase();
+        if (!existingItemNames.includes(itemName)) {
+          currentCart.push(newItem);
+          itemsAdded++;
+        } else {
+          duplicatesSkipped++;
+        }
+      });
+
+      console.log(`🔀 Cart merged: ${itemsAdded} new items added (${duplicatesSkipped} duplicates skipped)`);
     }
 
-    res.status(200).json({ 
+    // Response with detailed information
+    res.json({
       success: true,
-      cart: userCart,
+      cart: currentCart,
       action: action,
       itemsAdded: itemsAdded,
-      totalItems: userCart.length,
-      duplicatesSkipped: action === 'merge' ? parsedItems.length - itemsAdded : 0
+      duplicatesSkipped: duplicatesSkipped,
+      totalItems: currentCart.length
     });
-  } catch (err) {
-    console.error('Cart parse error:', err);
-    res.status(500).json({ error: 'Failed to parse grocery list' });
+
+  } catch (error) {
+    console.error('❌ Cart parse error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to parse grocery list',
+      details: error.message
+    });
   }
 });
 
 // Get current cart
 router.get('/current', (req, res) => {
-  res.status(200).json({ 
-    cart: userCart,
-    itemCount: userCart.length,
-    lastUpdated: userCart.length > 0 ? Math.max(...userCart.map(item => new Date(item.addedAt).getTime())) : null
+  res.json({
+    success: true,
+    cart: currentCart,
+    totalItems: currentCart.length
   });
 });
 
-// Clear cart
+// Clear entire cart
 router.post('/clear', (req, res) => {
-  const clearedCount = userCart.length;
-  userCart = [];
-  console.log(`🗑️ Cart cleared (${clearedCount} items removed)`);
-  res.status(200).json({ 
+  currentCart = [];
+  console.log('🗑️ Cart cleared');
+  
+  res.json({
     success: true,
-    cart: [],
-    message: `Cart cleared successfully (${clearedCount} items removed)`
+    message: 'Cart cleared',
+    cart: currentCart
   });
 });
 
 // Remove specific item
 router.delete('/item/:id', (req, res) => {
   const { id } = req.params;
-  const initialLength = userCart.length;
-  userCart = userCart.filter(item => item.id !== id);
+  const initialLength = currentCart.length;
   
-  if (userCart.length < initialLength) {
-    console.log(`🗑️ Removed item ${id} from cart`);
-    res.status(200).json({ 
+  currentCart = currentCart.filter(item => item.id !== id);
+  
+  if (currentCart.length < initialLength) {
+    console.log(`🗑️ Item ${id} removed from cart`);
+    res.json({
       success: true,
-      cart: userCart,
-      message: 'Item removed successfully'
+      message: 'Item removed',
+      cart: currentCart
     });
   } else {
-    res.status(404).json({ error: 'Item not found' });
+    res.status(404).json({
+      success: false,
+      error: 'Item not found'
+    });
   }
 });
 
-// Get cart by category
+// Get items by category
 router.get('/categories', (req, res) => {
-  const categorized = userCart.reduce((acc, item) => {
+  const categories = {};
+  
+  currentCart.forEach(item => {
     const category = item.category || 'other';
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(item);
-    return acc;
-  }, {});
-
-  res.status(200).json({
-    categories: categorized,
-    totalItems: userCart.length,
-    categoryCount: Object.keys(categorized).length
+    if (!categories[category]) {
+      categories[category] = [];
+    }
+    categories[category].push(item);
+  });
+  
+  res.json({
+    success: true,
+    categories: categories,
+    totalCategories: Object.keys(categories).length
   });
 });
 
@@ -119,20 +153,25 @@ router.patch('/item/:id', (req, res) => {
   const { id } = req.params;
   const { quantity, unit } = req.body;
   
-  const item = userCart.find(item => item.id === id);
-  if (!item) {
-    return res.status(404).json({ error: 'Item not found' });
+  const item = currentCart.find(item => item.id === id);
+  
+  if (item) {
+    item.quantity = quantity;
+    if (unit !== undefined) item.unit = unit;
+    item.updatedAt = new Date().toISOString();
+    
+    console.log(`✏️ Item ${id} updated`);
+    res.json({
+      success: true,
+      message: 'Item updated',
+      item: item
+    });
+  } else {
+    res.status(404).json({
+      success: false,
+      error: 'Item not found'
+    });
   }
-  
-  if (quantity !== undefined) item.quantity = quantity;
-  if (unit !== undefined) item.unit = unit;
-  
-  console.log(`📝 Updated item ${id}: ${item.itemName}`);
-  res.status(200).json({
-    success: true,
-    item: item,
-    cart: userCart
-  });
 });
 
 module.exports = router;

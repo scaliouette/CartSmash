@@ -1,15 +1,74 @@
 // client/src/components/ParsedResultsDisplay.js
 import React, { useState } from 'react';
 
-function ParsedResultsDisplay({ items, currentUser }) {
+function ParsedResultsDisplay({ items, currentUser, onItemsChange }) {
   const [expandedCategories, setExpandedCategories] = useState({});
   const [sortBy, setSortBy] = useState('category'); // category, alphabetical, quantity
+  const [deletingItems, setDeletingItems] = useState(new Set());
 
   const toggleCategory = (category) => {
     setExpandedCategories(prev => ({
       ...prev,
       [category]: !prev[category]
     }));
+  };
+
+  const handleDeleteItem = async (itemId) => {
+    setDeletingItems(prev => new Set([...prev, itemId]));
+    
+    try {
+      const response = await fetch(`/api/cart/item/${itemId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        // Remove item from local state by calling parent callback
+        if (onItemsChange) {
+          const updatedItems = items.filter(item => item.id !== itemId);
+          onItemsChange(updatedItems);
+        }
+        
+        console.log(`✅ Item ${itemId} deleted successfully`);
+      } else {
+        console.error('Failed to delete item');
+        alert('Failed to delete item. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      alert('Error deleting item. Please try again.');
+    } finally {
+      setDeletingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!window.confirm('Are you sure you want to clear all items?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/cart/clear', {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        // Clear all items
+        if (onItemsChange) {
+          onItemsChange([]);
+        }
+        console.log('✅ All items cleared successfully');
+      } else {
+        console.error('Failed to clear items');
+        alert('Failed to clear items. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error clearing items:', error);
+      alert('Error clearing items. Please try again.');
+    }
   };
 
   const getCategoryEmoji = (category) => {
@@ -250,16 +309,22 @@ function ParsedResultsDisplay({ items, currentUser }) {
                               </div>
                             )}
                             
-                            <button style={{
-                              padding: '4px 8px',
-                              background: '#dc3545',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              fontSize: '12px',
-                              cursor: 'pointer'
-                            }}>
-                              ×
+                            <button 
+                              onClick={() => handleDeleteItem(item.id)}
+                              disabled={deletingItems.has(item.id)}
+                              style={{
+                                padding: '4px 8px',
+                                background: deletingItems.has(item.id) ? '#ccc' : '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                cursor: deletingItems.has(item.id) ? 'not-allowed' : 'pointer',
+                                transition: 'background 0.2s ease'
+                              }}
+                              title="Remove item"
+                            >
+                              {deletingItems.has(item.id) ? '...' : '×'}
                             </button>
                           </div>
                         </div>
@@ -329,6 +394,21 @@ function ParsedResultsDisplay({ items, currentUser }) {
           fontWeight: 'bold'
         }}>
           📄 Export List
+        </button>
+
+        <button 
+          onClick={handleClearAll}
+          style={{
+            padding: '10px 20px',
+            background: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          🗑️ Clear All
         </button>
       </div>
     </div>
