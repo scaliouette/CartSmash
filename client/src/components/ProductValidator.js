@@ -1,494 +1,412 @@
-// client/src/components/ProductValidator.js - Review and correct flagged items
 import React, { useState, useEffect } from 'react';
 
-function ProductValidator({ items, onItemsUpdated, onClose }) {
-  const [reviewItems, setReviewItems] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+function ProductValidator({ items = [], onItemsUpdated = () => {}, onClose = () => {} }) {
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [validationMode, setValidationMode] = useState('review'); // 'review' or 'edit'
   const [isProcessing, setIsProcessing] = useState(false);
-  const [suggestions, setSuggestions] = useState({});
-  const [editingItem, setEditingItem] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Ensure items is always an array
+  const safeItems = Array.isArray(items) ? items : [];
+
+  // Filter items that need review
+  const needsReview = safeItems.filter(item => 
+    item && (item.needsReview || (item.confidence || 0) < 0.6)
+  );
+
+  // Filter items based on search term
+  const filteredItems = needsReview.filter(item => {
+    if (!item) return false;
+    if (searchTerm === '') return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    const itemName = (item.productName || item.itemName || '').toLowerCase();
+    const originalText = (item.original || '').toLowerCase();
+    
+    return itemName.includes(searchLower) || originalText.includes(searchLower);
+  });
 
   useEffect(() => {
-    // Filter items that need review (low confidence)
-    const needsReview = items.filter(item => 
-      item.needsReview || (item.confidence || 0) < 0.6
+    // Auto-select items with very low confidence
+    const autoSelect = needsReview
+      .filter(item => item && (item.confidence || 0) < 0.3)
+      .map(item => item.id)
+      .filter(id => id); // Remove any undefined IDs
+    setSelectedItems(autoSelect);
+  }, [needsReview]);
+
+  const handleItemToggle = (itemId) => {
+    setSelectedItems(prev => 
+      prev.includes(itemId) 
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
     );
-    setReviewItems(needsReview);
-    setCurrentIndex(0);
-    
-    // Load suggestions for each item
-    loadSuggestions(needsReview);
-  }, [items]);
-
-  const loadSuggestions = async (itemsToReview) => {
-    const suggestionMap = {};
-    
-    for (const item of itemsToReview) {
-      try {
-        const response = await fetch(`/api/products/alternatives/${encodeURIComponent(item.productName || item.itemName)}`, {
-          method: 'GET'
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          suggestionMap[item.id] = data.alternatives || [];
-        }
-      } catch (error) {
-        console.warn(`Failed to load suggestions for ${item.productName}:`, error);
-        suggestionMap[item.id] = [];
-      }
-    }
-    
-    setSuggestions(suggestionMap);
   };
 
-  const handleAcceptItem = async (item) => {
-    setIsProcessing(true);
-    
-    try {
-      // Mark item as accepted with higher confidence
-      const updatedItem = {
-        ...item,
-        confidence: Math.max(item.confidence || 0, 0.8),
-        needsReview: false,
-        reviewedBy: 'user',
-        reviewedAt: new Date().toISOString(),
-        status: 'accepted'
-      };
-      
-      // Update item in backend
-      const response = await fetch(`/api/cart/item/${item.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedItem)
-      });
-      
-      if (response.ok) {
-        // Remove from review list
-        setReviewItems(prev => prev.filter(reviewItem => reviewItem.id !== item.id));
-        
-        // Update parent component
-        if (onItemsUpdated) {
-          const allItemsUpdated = items.map(i => 
-            i.id === item.id ? updatedItem : i
-          );
-          onItemsUpdated(allItemsUpdated);
-        }
-        
-        console.log(`✅ Item accepted: ${item.productName}`);
-        
-        // Move to next item
-        if (currentIndex < reviewItems.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-        } else if (reviewItems.length <= 1) {
-          // No more items to review
-          if (onClose) onClose();
-        }
-      }
-    } catch (error) {
-      console.error('Failed to accept item:', error);
-      alert('Failed to accept item. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleRejectItem = async (item) => {
-    setIsProcessing(true);
-    
-    try {
-      // Remove item from cart
-      const response = await fetch(`/api/cart/item/${item.id}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        // Remove from review list and all items
-        setReviewItems(prev => prev.filter(reviewItem => reviewItem.id !== item.id));
-        
-        if (onItemsUpdated) {
-          const allItemsUpdated = items.filter(i => i.id !== item.id);
-          onItemsUpdated(allItemsUpdated);
-        }
-        
-        console.log(`❌ Item rejected and removed: ${item.productName}`);
-        
-        // Move to next item or close if done
-        if (currentIndex < reviewItems.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-        } else if (reviewItems.length <= 1) {
-          if (onClose) onClose();
-        }
-      }
-    } catch (error) {
-      console.error('Failed to reject item:', error);
-      alert('Failed to reject item. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleEditItem = (item) => {
-    setEditingItem({
-      ...item,
-      newProductName: item.productName || item.itemName,
-      newQuantity: item.quantity || 1,
-      newUnit: item.unit || '',
-      newCategory: item.category || 'other'
-    });
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingItem) return;
-    
-    setIsProcessing(true);
-    
-    try {
-      const updatedItem = {
-        ...editingItem,
-        productName: editingItem.newProductName,
-        itemName: editingItem.newProductName,
-        quantity: editingItem.newQuantity,
-        unit: editingItem.newUnit,
-        category: editingItem.newCategory,
-        confidence: 0.9, // High confidence for manually edited items
-        needsReview: false,
-        reviewedBy: 'user_edit',
-        reviewedAt: new Date().toISOString(),
-        status: 'edited'
-      };
-      
-      const response = await fetch(`/api/cart/item/${editingItem.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedItem)
-      });
-      
-      if (response.ok) {
-        // Update review list
-        setReviewItems(prev => prev.filter(reviewItem => reviewItem.id !== editingItem.id));
-        
-        if (onItemsUpdated) {
-          const allItemsUpdated = items.map(i => 
-            i.id === editingItem.id ? updatedItem : i
-          );
-          onItemsUpdated(allItemsUpdated);
-        }
-        
-        setEditingItem(null);
-        console.log(`✏️ Item edited: ${updatedItem.productName}`);
-        
-        // Move to next item
-        if (currentIndex < reviewItems.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-        } else if (reviewItems.length <= 1) {
-          if (onClose) onClose();
-        }
-      }
-    } catch (error) {
-      console.error('Failed to save edit:', error);
-      alert('Failed to save changes. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleReplaceWithSuggestion = async (item, suggestion) => {
-    setIsProcessing(true);
-    
-    try {
-      const updatedItem = {
-        ...item,
-        productName: suggestion.name,
-        itemName: suggestion.name,
-        category: suggestion.category,
-        confidence: 0.85, // High confidence for suggested replacements
-        needsReview: false,
-        reviewedBy: 'user_suggestion',
-        reviewedAt: new Date().toISOString(),
-        status: 'replaced',
-        originalProduct: item.productName || item.itemName,
-        replacementReason: suggestion.reason
-      };
-      
-      const response = await fetch(`/api/cart/item/${item.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedItem)
-      });
-      
-      if (response.ok) {
-        setReviewItems(prev => prev.filter(reviewItem => reviewItem.id !== item.id));
-        
-        if (onItemsUpdated) {
-          const allItemsUpdated = items.map(i => 
-            i.id === item.id ? updatedItem : i
-          );
-          onItemsUpdated(allItemsUpdated);
-        }
-        
-        console.log(`🔄 Item replaced: ${item.productName} → ${suggestion.name}`);
-        
-        // Move to next item
-        if (currentIndex < reviewItems.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-        } else if (reviewItems.length <= 1) {
-          if (onClose) onClose();
-        }
-      }
-    } catch (error) {
-      console.error('Failed to replace item:', error);
-      alert('Failed to replace item. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleSkip = () => {
-    if (currentIndex < reviewItems.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+  const handleSelectAll = () => {
+    if (selectedItems.length === filteredItems.length) {
+      setSelectedItems([]);
     } else {
-      setCurrentIndex(0); // Loop back to first item
+      setSelectedItems(filteredItems.map(item => item.id));
     }
   };
 
-  if (!reviewItems || reviewItems.length === 0) {
-    return (
-      <div style={styles.overlay}>
-        <div style={styles.modal}>
-          <div style={styles.successMessage}>
-            <h3 style={styles.successTitle}>🎉 All Items Validated!</h3>
-            <p style={styles.successText}>
-              Your cart looks great! All items have been validated and are ready for ordering.
-            </p>
-            <button onClick={onClose} style={styles.doneButton}>
-              Done
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleApproveSelected = async () => {
+    setIsProcessing(true);
+    
+    try {
+      // Simulate API call to approve items
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const updatedItems = safeItems.map(item => 
+        selectedItems.includes(item.id) 
+          ? { ...item, needsReview: false, confidence: Math.max(item.confidence || 0, 0.8) }
+          : item
+      );
+      
+      onItemsUpdated(updatedItems);
+      onClose();
+    } catch (error) {
+      console.error('Failed to approve items:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
-  const currentItem = reviewItems[currentIndex];
-  const itemSuggestions = suggestions[currentItem?.id] || [];
+  const handleRejectSelected = async () => {
+    setIsProcessing(true);
+    
+    try {
+      // Simulate API call to reject items
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const updatedItems = safeItems.filter(item => !selectedItems.includes(item.id));
+      onItemsUpdated(updatedItems);
+      onClose();
+    } catch (error) {
+      console.error('Failed to reject items:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
-  if (editingItem) {
-    return (
-      <div style={styles.overlay}>
-        <div style={styles.modal}>
-          <div style={styles.header}>
-            <h3 style={styles.title}>✏️ Edit Product</h3>
-            <button onClick={() => setEditingItem(null)} style={styles.closeButton}>×</button>
-          </div>
-          
-          <div style={styles.editForm}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Product Name:</label>
-              <input
-                type="text"
-                value={editingItem.newProductName}
-                onChange={(e) => setEditingItem(prev => ({
-                  ...prev,
-                  newProductName: e.target.value
-                }))}
-                style={styles.input}
-                placeholder="Enter product name"
-              />
-            </div>
-            
-            <div style={styles.formRow}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Quantity:</label>
-                <input
-                  type="number"
-                  value={editingItem.newQuantity}
-                  onChange={(e) => setEditingItem(prev => ({
-                    ...prev,
-                    newQuantity: parseFloat(e.target.value) || 1
-                  }))}
-                  style={styles.smallInput}
-                  min="0.1"
-                  step="0.1"
-                />
-              </div>
-              
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Unit:</label>
-                <select
-                  value={editingItem.newUnit}
-                  onChange={(e) => setEditingItem(prev => ({
-                    ...prev,
-                    newUnit: e.target.value
-                  }))}
-                  style={styles.select}
-                >
-                  <option value="">No unit</option>
-                  <option value="lbs">lbs</option>
-                  <option value="oz">oz</option>
-                  <option value="cups">cups</option>
-                  <option value="gallon">gallon</option>
-                  <option value="dozen">dozen</option>
-                  <option value="bag">bag</option>
-                  <option value="box">box</option>
-                  <option value="bottle">bottle</option>
-                  <option value="can">can</option>
-                  <option value="jar">jar</option>
-                </select>
-              </div>
-            </div>
-            
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Category:</label>
-              <select
-                value={editingItem.newCategory}
-                onChange={(e) => setEditingItem(prev => ({
-                  ...prev,
-                  newCategory: e.target.value
-                }))}
-                style={styles.select}
-              >
-                <option value="produce">🥬 Produce</option>
-                <option value="dairy">🥛 Dairy</option>
-                <option value="meat">🥩 Meat</option>
-                <option value="pantry">🥫 Pantry</option>
-                <option value="frozen">🧊 Frozen</option>
-                <option value="bakery">🍞 Bakery</option>
-                <option value="beverages">🥤 Beverages</option>
-                <option value="snacks">🍿 Snacks</option>
-                <option value="other">📦 Other</option>
-              </select>
-            </div>
-            
-            <div style={styles.editActions}>
-              <button 
-                onClick={handleSaveEdit}
-                disabled={isProcessing}
-                style={styles.saveButton}
-              >
-                {isProcessing ? '💾 Saving...' : '💾 Save Changes'}
-              </button>
-              <button 
-                onClick={() => setEditingItem(null)}
-                style={styles.cancelButton}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+  const handleItemEdit = (itemId, field, value) => {
+    const updatedItems = safeItems.map(item => 
+      item.id === itemId 
+        ? { ...item, [field]: value, needsReview: false, confidence: 0.9 }
+        : item
     );
-  }
+    onItemsUpdated(updatedItems);
+  };
+
+  const handleSmartSuggestion = async (itemId) => {
+    setIsProcessing(true);
+    
+    try {
+      const item = safeItems.find(i => i.id === itemId);
+      
+      if (!item) {
+        console.error('Item not found:', itemId);
+        return;
+      }
+      
+      // Simulate AI suggestion API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Mock smart suggestions based on original text
+      const suggestions = generateSmartSuggestions(item.original || item.productName || '');
+      
+      if (suggestions.length > 0) {
+        const suggestion = suggestions[0];
+        const updatedItems = safeItems.map(i => 
+          i.id === itemId 
+            ? { ...i, productName: suggestion, needsReview: false, confidence: 0.85 }
+            : i
+        );
+        onItemsUpdated(updatedItems);
+      }
+    } catch (error) {
+      console.error('Smart suggestion failed:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const generateSmartSuggestions = (text) => {
+    const suggestions = [];
+    const lowerText = text.toLowerCase();
+    
+    // Smart replacements based on common patterns
+    if (lowerText.includes('chicken')) {
+      suggestions.push('chicken breast', 'chicken thighs', 'whole chicken');
+    } else if (lowerText.includes('milk')) {
+      suggestions.push('whole milk', '2% milk', 'skim milk');
+    } else if (lowerText.includes('bread')) {
+      suggestions.push('whole wheat bread', 'white bread', 'sourdough bread');
+    } else if (lowerText.includes('cheese')) {
+      suggestions.push('cheddar cheese', 'mozzarella cheese', 'swiss cheese');
+    } else if (lowerText.includes('apple')) {
+      suggestions.push('red apples', 'green apples', 'gala apples');
+    } else {
+      // Generic cleanup
+      const cleaned = text
+        .replace(/\b(cook|bake|prepare|add|use)\b/gi, '')
+        .replace(/\b(until|for|at|in|with)\b.*/gi, '')
+        .replace(/[()]/g, '')
+        .trim();
+      if (cleaned && cleaned !== text) {
+        suggestions.push(cleaned);
+      }
+    }
+    
+    return suggestions.filter(s => s.trim().length > 0);
+  };
+
+  const getConfidenceColor = (confidence) => {
+    if (confidence >= 0.8) return '#10b981';
+    if (confidence >= 0.6) return '#f59e0b';
+    return '#ef4444';
+  };
+
+  const getIssueType = (item) => {
+    if (!item) return 'Invalid Item';
+    if ((item.confidence || 0) < 0.3) return 'Very Low Confidence';
+    if ((item.confidence || 0) < 0.6) return 'Low Confidence';
+    if (!item.productName || item.productName.length < 3) return 'Invalid Name';
+    if (item.factors && item.factors.includes('too_generic')) return 'Too Generic';
+    return 'Needs Review';
+  };
 
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
         <div style={styles.header}>
-          <h3 style={styles.title}>🔍 Review Flagged Items</h3>
+          <h3 style={styles.title}>
+            🔍 Product Validator ({needsReview.length} items need attention)
+          </h3>
           <button onClick={onClose} style={styles.closeButton}>×</button>
         </div>
-        
-        <div style={styles.progress}>
-          <div style={styles.progressText}>
-            Item {currentIndex + 1} of {reviewItems.length}
-          </div>
-          <div style={styles.progressBar}>
-            <div 
-              style={{
-                ...styles.progressFill,
-                width: `${((currentIndex + 1) / reviewItems.length) * 100}%`
-              }} 
+
+        <div style={styles.modeSelector}>
+          <button 
+            onClick={() => setValidationMode('review')}
+            style={{
+              ...styles.modeButton,
+              ...(validationMode === 'review' ? styles.modeButtonActive : {})
+            }}
+          >
+            📋 Review Mode
+          </button>
+          <button 
+            onClick={() => setValidationMode('edit')}
+            style={{
+              ...styles.modeButton,
+              ...(validationMode === 'edit' ? styles.modeButtonActive : {})
+            }}
+          >
+            ✏️ Edit Mode
+          </button>
+        </div>
+
+        <div style={styles.controls}>
+          <div style={styles.searchContainer}>
+            <input
+              type="text"
+              placeholder="Search items..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={styles.searchInput}
             />
           </div>
-        </div>
-        
-        <div style={styles.itemCard}>
-          <div style={styles.itemHeader}>
-            <h4 style={styles.itemName}>
-              {currentItem?.productName || currentItem?.itemName}
-            </h4>
-            <div style={styles.confidenceBadge}>
-              Confidence: {((currentItem?.confidence || 0) * 100).toFixed(0)}%
-            </div>
-          </div>
           
-          <div style={styles.itemDetails}>
-            <div style={styles.detail}>
-              <strong>Original:</strong> "{currentItem?.original}"
-            </div>
-            <div style={styles.detail}>
-              <strong>Quantity:</strong> {currentItem?.quantity || 1} {currentItem?.unit || ''}
-            </div>
-            <div style={styles.detail}>
-              <strong>Category:</strong> {currentItem?.category || 'Unknown'}
-            </div>
-            {currentItem?.factors && (
-              <div style={styles.detail}>
-                <strong>AI Analysis:</strong>
-                <div style={styles.factors}>
-                  {currentItem.factors.map((factor, i) => (
-                    <span key={i} style={styles.factor}>{factor}</span>
-                  ))}
+          <div style={styles.selectionControls}>
+            <button onClick={handleSelectAll} style={styles.selectAllButton}>
+              {selectedItems.length === filteredItems.length ? 'Deselect All' : 'Select All'}
+            </button>
+            <span style={styles.selectedCount}>
+              {selectedItems.length} of {filteredItems.length} selected
+            </span>
+          </div>
+        </div>
+
+        <div style={styles.itemsList}>
+          {filteredItems.length > 0 ? (
+            filteredItems.map(item => {
+              // Skip rendering if item is null/undefined or missing required properties
+              if (!item || !item.id) return null;
+              
+              return (
+                <div 
+                  key={item.id} 
+                  style={{
+                    ...styles.itemCard,
+                    ...(selectedItems.includes(item.id) ? styles.itemCardSelected : {})
+                  }}
+                >
+                  <div style={styles.itemHeader}>
+                    <input
+                      type="checkbox"
+                      checked={selectedItems.includes(item.id)}
+                      onChange={() => handleItemToggle(item.id)}
+                      style={styles.checkbox}
+                    />
+                    
+                    <div style={styles.itemInfo}>
+                      <div style={styles.itemName}>
+                        {validationMode === 'edit' ? (
+                          <input
+                            type="text"
+                            value={item.productName || item.itemName || ''}
+                            onChange={(e) => handleItemEdit(item.id, 'productName', e.target.value)}
+                            style={styles.itemNameInput}
+                          />
+                        ) : (
+                          <span>{item.productName || item.itemName || 'Unnamed item'}</span>
+                        )}
+                      </div>
+                      
+                      <div style={styles.itemMetadata}>
+                        <span style={{
+                          ...styles.confidenceBadge,
+                          backgroundColor: getConfidenceColor(item.confidence || 0)
+                        }}>
+                          {((item.confidence || 0) * 100).toFixed(0)}%
+                        </span>
+                        
+                        <span style={styles.issueType}>
+                          {getIssueType(item)}
+                        </span>
+                        
+                        {item.category && (
+                          <span style={styles.categoryBadge}>
+                            {item.category}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={styles.itemActions}>
+                      <button
+                        onClick={() => handleSmartSuggestion(item.id)}
+                        disabled={isProcessing}
+                        style={styles.suggestButton}
+                        title="Get AI suggestion"
+                      >
+                        🤖
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={styles.itemDetails}>
+                    {item.original && (
+                      <div style={styles.originalText}>
+                        <span style={styles.originalLabel}>Original:</span>
+                        <span style={styles.originalValue}>{item.original}</span>
+                      </div>
+                    )}
+
+                    {validationMode === 'edit' && (
+                      <div style={styles.editControls}>
+                        <div style={styles.editRow}>
+                          <label style={styles.editLabel}>Quantity:</label>
+                          <input
+                            type="text"
+                            value={item.quantity || '1'}
+                            onChange={(e) => handleItemEdit(item.id, 'quantity', e.target.value)}
+                            style={styles.quantityInput}
+                          />
+                          <input
+                            type="text"
+                            value={item.unit || ''}
+                            onChange={(e) => handleItemEdit(item.id, 'unit', e.target.value)}
+                            placeholder="unit"
+                            style={styles.unitInput}
+                          />
+                        </div>
+                        
+                        <div style={styles.editRow}>
+                          <label style={styles.editLabel}>Category:</label>
+                          <select
+                            value={item.category || 'other'}
+                            onChange={(e) => handleItemEdit(item.id, 'category', e.target.value)}
+                            style={styles.categorySelect}
+                          >
+                            <option value="produce">🥬 Produce</option>
+                            <option value="dairy">🥛 Dairy</option>
+                            <option value="meat">🥩 Meat</option>
+                            <option value="pantry">🥫 Pantry</option>
+                            <option value="beverages">🥤 Beverages</option>
+                            <option value="frozen">🧊 Frozen</option>
+                            <option value="bakery">🍞 Bakery</option>
+                            <option value="snacks">🍿 Snacks</option>
+                            <option value="other">📦 Other</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {item.factors && item.factors.length > 0 && (
+                      <div style={styles.factors}>
+                        <span style={styles.factorsLabel}>Issues:</span>
+                        {item.factors.map((factor, index) => (
+                          <span key={index} style={styles.factorTag}>
+                            {factor.replace(/_/g, ' ')}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            }).filter(Boolean) // Remove any null items
+          ) : null}
+        </div>
+
+        {filteredItems.length === 0 && (
+          <div style={styles.emptyState}>
+            <div style={styles.emptyIcon}>✨</div>
+            <h4 style={styles.emptyTitle}>All items look good!</h4>
+            <p style={styles.emptyDescription}>
+              {searchTerm ? 'No items match your search.' : 'No items need validation.'}
+            </p>
+          </div>
+        )}
+
+        <div style={styles.footer}>
+          <div style={styles.footerLeft}>
+            <div style={styles.summary}>
+              <strong>{needsReview.length}</strong> items need attention
+              {selectedItems.length > 0 && (
+                <span> • <strong>{selectedItems.length}</strong> selected</span>
+              )}
+            </div>
           </div>
           
-          {/* Suggestions */}
-          {itemSuggestions.length > 0 && (
-            <div style={styles.suggestions}>
-              <h5 style={styles.suggestionsTitle}>💡 Suggested Alternatives:</h5>
-              <div style={styles.suggestionsList}>
-                {itemSuggestions.slice(0, 3).map((suggestion, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleReplaceWithSuggestion(currentItem, suggestion)}
-                    disabled={isProcessing}
-                    style={styles.suggestionButton}
-                  >
-                    <div style={styles.suggestionName}>{suggestion.name}</div>
-                    <div style={styles.suggestionPrice}>${suggestion.price}</div>
-                    <div style={styles.suggestionReason}>{suggestion.reason}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-        
-        <div style={styles.actions}>
-          <button
-            onClick={() => handleAcceptItem(currentItem)}
-            disabled={isProcessing}
-            style={styles.acceptButton}
-          >
-            {isProcessing ? '⏳' : '✅'} Accept As-Is
-          </button>
-          
-          <button
-            onClick={() => handleEditItem(currentItem)}
-            disabled={isProcessing}
-            style={styles.editButton}
-          >
-            ✏️ Edit Product
-          </button>
-          
-          <button
-            onClick={() => handleRejectItem(currentItem)}
-            disabled={isProcessing}
-            style={styles.rejectButton}
-          >
-            {isProcessing ? '⏳' : '❌'} Remove Item
-          </button>
-          
-          <button
-            onClick={handleSkip}
-            disabled={isProcessing}
-            style={styles.skipButton}
-          >
-            ⏭️ Skip for Now
-          </button>
+          <div style={styles.footerRight}>
+            <button 
+              onClick={onClose} 
+              style={styles.cancelButton}
+              disabled={isProcessing}
+            >
+              Cancel
+            </button>
+            
+            <button 
+              onClick={handleRejectSelected} 
+              disabled={selectedItems.length === 0 || isProcessing}
+              style={styles.rejectButton}
+            >
+              {isProcessing ? '⏳ Processing...' : '🗑️ Remove Selected'}
+            </button>
+            
+            <button 
+              onClick={handleApproveSelected} 
+              disabled={selectedItems.length === 0 || isProcessing}
+              style={styles.approveButton}
+            >
+              {isProcessing ? '⏳ Processing...' : '✅ Approve Selected'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -502,356 +420,398 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 2000,
     padding: '20px'
   },
-  
+
   modal: {
-    backgroundColor: 'white',
-    borderRadius: '15px',
-    maxWidth: '600px',
-    width: '100%',
+    background: 'white',
+    borderRadius: '12px',
+    width: '95%',
+    maxWidth: '900px',
     maxHeight: '90vh',
-    overflow: 'auto',
-    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    boxShadow: '0 20px 50px rgba(0, 0, 0, 0.3)'
   },
-  
+
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '20px 25px',
-    borderBottom: '2px solid #f0f0f0',
-    background: 'linear-gradient(135deg, #e3f2fd, #bbdefb)'
+    padding: '20px 30px',
+    borderBottom: '1px solid #e5e7eb',
+    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+    color: 'white'
   },
-  
+
   title: {
     margin: 0,
-    color: '#1565c0',
-    fontSize: '22px',
+    fontSize: '20px',
     fontWeight: 'bold'
   },
-  
+
   closeButton: {
-    background: 'none',
+    background: 'rgba(255,255,255,0.2)',
     border: 'none',
-    fontSize: '28px',
-    cursor: 'pointer',
-    color: '#666',
-    padding: '0',
+    color: 'white',
+    fontSize: '24px',
     width: '32px',
     height: '32px',
     borderRadius: '50%',
+    cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
   },
-  
-  progress: {
-    padding: '15px 25px',
-    backgroundColor: '#f8f9fa'
+
+  modeSelector: {
+    display: 'flex',
+    borderBottom: '1px solid #e5e7eb',
+    backgroundColor: '#f9fafb'
   },
-  
-  progressText: {
+
+  modeButton: {
+    flex: 1,
+    padding: '12px 20px',
+    border: 'none',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
     fontSize: '14px',
-    color: '#666',
-    marginBottom: '8px',
-    textAlign: 'center'
+    fontWeight: '500',
+    color: '#6b7280',
+    transition: 'all 0.2s'
   },
-  
-  progressBar: {
-    width: '100%',
-    height: '8px',
-    backgroundColor: '#e9ecef',
-    borderRadius: '4px',
-    overflow: 'hidden'
-  },
-  
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#28a745',
-    borderRadius: '4px',
-    transition: 'width 0.3s ease'
-  },
-  
-  itemCard: {
-    padding: '25px',
-    backgroundColor: 'white'
-  },
-  
-  itemHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '15px',
-    flexWrap: 'wrap',
-    gap: '10px'
-  },
-  
-  itemName: {
-    margin: 0,
-    color: '#333',
-    fontSize: '20px',
-    fontWeight: 'bold',
-    flex: 1
-  },
-  
-  confidenceBadge: {
-    padding: '4px 12px',
-    backgroundColor: '#ffc107',
-    color: '#212529',
-    borderRadius: '15px',
-    fontSize: '12px',
-    fontWeight: 'bold'
-  },
-  
-  itemDetails: {
-    marginBottom: '20px'
-  },
-  
-  detail: {
-    margin: '8px 0',
-    fontSize: '14px',
-    color: '#555'
-  },
-  
-  factors: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '6px',
-    marginTop: '6px'
-  },
-  
-  factor: {
-    display: 'inline-block',
-    background: '#e9ecef',
-    padding: '3px 8px',
-    borderRadius: '10px',
-    fontSize: '11px',
-    color: '#495057'
-  },
-  
-  suggestions: {
-    marginTop: '20px',
-    padding: '15px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '8px',
-    border: '1px solid #dee2e6'
-  },
-  
-  suggestionsTitle: {
-    margin: '0 0 12px 0',
-    color: '#495057',
-    fontSize: '16px'
-  },
-  
-  suggestionsList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  },
-  
-  suggestionButton: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '10px 12px',
+
+  modeButtonActive: {
     backgroundColor: 'white',
-    border: '1px solid #dee2e6',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    textAlign: 'left'
+    color: '#1f2937',
+    borderBottom: '2px solid #f59e0b'
   },
-  
-  suggestionName: {
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1
-  },
-  
-  suggestionPrice: {
-    color: '#28a745',
-    fontWeight: 'bold',
-    marginLeft: '10px'
-  },
-  
-  suggestionReason: {
-    fontSize: '12px',
-    color: '#666',
-    marginLeft: '10px'
-  },
-  
-  actions: {
+
+  controls: {
     display: 'flex',
-    gap: '10px',
-    padding: '20px 25px',
-    backgroundColor: '#f8f9fa',
-    borderTop: '1px solid #dee2e6',
-    flexWrap: 'wrap',
-    justifyContent: 'center'
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '15px 30px',
+    borderBottom: '1px solid #e5e7eb',
+    gap: '20px',
+    flexWrap: 'wrap'
   },
-  
-  acceptButton: {
-    padding: '10px 20px',
-    backgroundColor: '#28a745',
-    color: 'white',
-    border: 'none',
+
+  searchContainer: {
+    flex: 1,
+    minWidth: '200px'
+  },
+
+  searchInput: {
+    width: '100%',
+    padding: '8px 12px',
+    border: '1px solid #d1d5db',
     borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
     fontSize: '14px',
-    transition: 'background-color 0.2s ease'
+    boxSizing: 'border-box'
   },
-  
-  editButton: {
-    padding: '10px 20px',
-    backgroundColor: '#17a2b8',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '14px',
-    transition: 'background-color 0.2s ease'
-  },
-  
-  rejectButton: {
-    padding: '10px 20px',
-    backgroundColor: '#dc3545',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '14px',
-    transition: 'background-color 0.2s ease'
-  },
-  
-  skipButton: {
-    padding: '10px 20px',
-    backgroundColor: '#6c757d',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '14px',
-    transition: 'background-color 0.2s ease'
-  },
-  
-  // Edit form styles
-  editForm: {
-    padding: '25px'
-  },
-  
-  formGroup: {
-    marginBottom: '15px'
-  },
-  
-  formRow: {
+
+  selectionControls: {
     display: 'flex',
+    alignItems: 'center',
     gap: '15px'
   },
-  
-  label: {
-    display: 'block',
-    marginBottom: '5px',
-    fontWeight: 'bold',
-    color: '#333',
-    fontSize: '14px'
-  },
-  
-  input: {
-    width: '100%',
-    padding: '8px 12px',
-    border: '1px solid #ddd',
+
+  selectAllButton: {
+    padding: '6px 12px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
     borderRadius: '4px',
+    cursor: 'pointer',
     fontSize: '14px',
-    boxSizing: 'border-box'
+    fontWeight: '500'
   },
-  
-  smallInput: {
-    width: '100%',
-    padding: '8px 12px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
+
+  selectedCount: {
     fontSize: '14px',
-    boxSizing: 'border-box'
+    color: '#6b7280'
   },
-  
-  select: {
-    width: '100%',
-    padding: '8px 12px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px',
-    backgroundColor: 'white',
-    boxSizing: 'border-box'
+
+  itemsList: {
+    flex: 1,
+    overflow: 'auto',
+    padding: '0 30px'
   },
-  
-  editActions: {
+
+  itemCard: {
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    margin: '15px 0',
+    padding: '15px',
+    transition: 'all 0.2s ease',
+    cursor: 'pointer'
+  },
+
+  itemCardSelected: {
+    borderColor: '#3b82f6',
+    backgroundColor: '#f0f9ff'
+  },
+
+  itemHeader: {
     display: 'flex',
-    gap: '10px',
-    marginTop: '20px',
-    justifyContent: 'flex-end'
+    alignItems: 'flex-start',
+    gap: '12px',
+    marginBottom: '10px'
   },
-  
-  saveButton: {
-    padding: '10px 20px',
-    backgroundColor: '#28a745',
+
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
+    marginTop: '2px'
+  },
+
+  itemInfo: {
+    flex: 1
+  },
+
+  itemName: {
+    fontSize: '16px',
+    fontWeight: '500',
+    color: '#1f2937',
+    marginBottom: '8px'
+  },
+
+  itemNameInput: {
+    width: '100%',
+    padding: '4px 8px',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    fontSize: '16px',
+    fontWeight: '500'
+  },
+
+  itemMetadata: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap'
+  },
+
+  confidenceBadge: {
+    padding: '2px 6px',
+    borderRadius: '10px',
+    fontSize: '11px',
+    fontWeight: 'bold',
+    color: 'white'
+  },
+
+  issueType: {
+    fontSize: '12px',
+    color: '#ef4444',
+    fontWeight: '500'
+  },
+
+  categoryBadge: {
+    padding: '2px 6px',
+    backgroundColor: '#e5e7eb',
+    color: '#374151',
+    borderRadius: '10px',
+    fontSize: '11px',
+    fontWeight: '500'
+  },
+
+  itemActions: {
+    display: 'flex',
+    gap: '5px'
+  },
+
+  suggestButton: {
+    padding: '4px 8px',
+    backgroundColor: '#8b5cf6',
     color: 'white',
     border: 'none',
-    borderRadius: '6px',
+    borderRadius: '4px',
     cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '14px'
+    fontSize: '12px',
+    transition: 'opacity 0.2s'
   },
-  
-  cancelButton: {
-    padding: '10px 20px',
-    backgroundColor: '#6c757d',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '14px'
+
+  itemDetails: {
+    marginTop: '10px',
+    paddingLeft: '30px'
   },
-  
-  // Success message styles
-  successMessage: {
-    padding: '40px',
+
+  originalText: {
+    padding: '8px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '4px',
+    marginBottom: '10px'
+  },
+
+  originalLabel: {
+    fontSize: '12px',
+    fontWeight: '500',
+    color: '#6b7280',
+    marginRight: '8px'
+  },
+
+  originalValue: {
+    fontSize: '12px',
+    color: '#374151',
+    fontStyle: 'italic'
+  },
+
+  editControls: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    marginTop: '10px'
+  },
+
+  editRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+
+  editLabel: {
+    fontSize: '12px',
+    fontWeight: '500',
+    color: '#6b7280',
+    minWidth: '60px'
+  },
+
+  quantityInput: {
+    width: '60px',
+    padding: '4px 6px',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    fontSize: '12px',
     textAlign: 'center'
   },
-  
-  successTitle: {
-    margin: '0 0 15px 0',
-    color: '#28a745',
-    fontSize: '24px'
+
+  unitInput: {
+    width: '80px',
+    padding: '4px 6px',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    fontSize: '12px'
   },
-  
-  successText: {
-    margin: '0 0 25px 0',
-    color: '#666',
+
+  categorySelect: {
+    padding: '4px 6px',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    fontSize: '12px',
+    backgroundColor: 'white'
+  },
+
+  factors: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+    marginTop: '8px'
+  },
+
+  factorsLabel: {
+    fontSize: '12px',
+    fontWeight: '500',
+    color: '#6b7280'
+  },
+
+  factorTag: {
+    padding: '2px 6px',
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
+    borderRadius: '10px',
+    fontSize: '10px',
+    fontWeight: '500'
+  },
+
+  emptyState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '60px 20px',
+    textAlign: 'center'
+  },
+
+  emptyIcon: {
+    fontSize: '48px',
+    marginBottom: '16px'
+  },
+
+  emptyTitle: {
+    color: '#1f2937',
+    fontSize: '20px',
+    fontWeight: 'bold',
+    marginBottom: '8px'
+  },
+
+  emptyDescription: {
+    color: '#6b7280',
     fontSize: '16px',
     lineHeight: '1.5'
   },
-  
-  doneButton: {
-    padding: '12px 30px',
-    backgroundColor: '#28a745',
+
+  footer: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px 30px',
+    borderTop: '1px solid #e5e7eb',
+    backgroundColor: '#f9fafb'
+  },
+
+  footerLeft: {},
+
+  summary: {
+    fontSize: '14px',
+    color: '#374151'
+  },
+
+  footerRight: {
+    display: 'flex',
+    gap: '10px'
+  },
+
+  cancelButton: {
+    padding: '8px 16px',
+    backgroundColor: '#6b7280',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '16px',
-    transition: 'background-color 0.2s ease'
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  rejectButton: {
+    padding: '8px 16px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  approveButton: {
+    padding: '8px 16px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500'
   }
 };
 

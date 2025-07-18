@@ -1,11 +1,17 @@
-﻿// client/src/App.js - Enhanced with intelligent parsing integration
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import ParsedResultsDisplay from './components/ParsedResultsDisplay';
 import InstacartIntegration from './components/InstacartIntegration';
 import SmartAIAssistant from './components/SmartAIAssistant';
 import ProductValidator from './components/ProductValidator';
+
+// Import the enhanced components
+import ParsingAnalyticsDashboard from './components/ParsingAnalyticsDashboard';
+import SmartParsingDemo from './components/SmartParsingDemo';
+import AIParsingSettings from './components/AIParsingSettings';
+import AdminDashboard from './components/AdminDashboard';
+
 import confetti from 'canvas-confetti';
 
 // Enhanced SMASH Button with viral effects
@@ -113,6 +119,98 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
   );
 }
 
+// Admin Menu Component
+function AdminMenu({ currentUser, onShowAnalytics, onShowDemo, onShowSettings, onShowAdmin }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    // Check if user is admin (modify this logic as needed)
+    const adminEmails = ['admin@example.com', 'developer@example.com'];
+    setIsAdmin(currentUser && adminEmails.includes(currentUser.email));
+  }, [currentUser]);
+
+  // Always show in development, or if user is admin
+  if (!isAdmin && process.env.NODE_ENV === 'production') {
+    return null;
+  }
+
+  return (
+    <div style={styles.adminMenuContainer}>
+      <button 
+        onClick={() => setIsVisible(!isVisible)}
+        style={styles.adminMenuToggle}
+        title="Admin Menu"
+      >
+        🛠️ Admin
+      </button>
+      
+      {isVisible && (
+        <div style={styles.adminMenu}>
+          <div style={styles.adminMenuHeader}>
+            <h4 style={styles.adminMenuTitle}>Admin Tools</h4>
+            <button 
+              onClick={() => setIsVisible(false)}
+              style={styles.adminMenuClose}
+            >
+              ×
+            </button>
+          </div>
+          
+          <div style={styles.adminMenuButtons}>
+            <button 
+              onClick={() => {
+                onShowAnalytics(true);
+                setIsVisible(false);
+              }}
+              style={styles.adminMenuButton}
+            >
+              📊 Analytics Dashboard
+            </button>
+            
+            <button 
+              onClick={() => {
+                onShowDemo(true);
+                setIsVisible(false);
+              }}
+              style={styles.adminMenuButton}
+            >
+              🎯 Parsing Demo
+            </button>
+            
+            <button 
+              onClick={() => {
+                onShowSettings(true);
+                setIsVisible(false);
+              }}
+              style={styles.adminMenuButton}
+            >
+              ⚙️ AI Settings
+            </button>
+            
+            <button 
+              onClick={() => {
+                onShowAdmin(true);
+                setIsVisible(false);
+              }}
+              style={styles.adminMenuButton}
+            >
+              🖥️ Full Dashboard
+            </button>
+            
+            <div style={styles.adminMenuDivider} />
+            
+            <div style={styles.adminMenuInfo}>
+              <small>Admin: {currentUser?.email || 'Dev Mode'}</small>
+              <small>Environment: {process.env.NODE_ENV || 'development'}</small>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Enhanced Grocery List Form with Intelligence
 function GroceryListForm() {
   const [inputText, setInputText] = useState('');
@@ -124,6 +222,12 @@ function GroceryListForm() {
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [intelligenceEnabled, setIntelligenceEnabled] = useState(true);
+
+  // Admin component states
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   
   const { currentUser, saveCartToFirebase } = useAuth();
 
@@ -186,7 +290,7 @@ function GroceryListForm() {
         }
         
         // Save to Firebase
-        if (currentUser) {
+        if (currentUser && saveCartToFirebase) {
           try {
             await saveCartToFirebase(data.cart);
           } catch (firebaseError) {
@@ -226,7 +330,7 @@ function GroceryListForm() {
   const handleItemsChange = (updatedItems) => {
     setParsedItems(updatedItems);
     
-    if (currentUser) {
+    if (currentUser && saveCartToFirebase) {
       try {
         saveCartToFirebase(updatedItems);
       } catch (firebaseError) {
@@ -316,6 +420,15 @@ function GroceryListForm() {
 
   return (
     <div style={styles.container}>
+      {/* Admin Menu */}
+      <AdminMenu
+        currentUser={currentUser}
+        onShowAnalytics={setShowAnalytics}
+        onShowDemo={setShowDemo}
+        onShowSettings={setShowSettings}
+        onShowAdmin={setShowAdmin}
+      />
+
       {/* Hero Section */}
       <div style={styles.heroSection}>
         <h1 style={styles.heroTitle}>
@@ -349,7 +462,7 @@ function GroceryListForm() {
       </div>
 
       {/* Main Input Section */}
-      <form onSubmit={handleSubmit} style={styles.mainForm}>
+      <div style={styles.mainForm}>
         <div style={styles.inputSection}>
           <label style={styles.inputLabel}>
             Paste or Create Grocery List
@@ -465,7 +578,7 @@ The AI will ignore 'Monday: Chicken dinner' and extract: '2 lbs chicken breast',
             </div>
           )}
         </div>
-      </form>
+      </div>
 
       {/* Enhanced Results Display */}
       {showResults && parsedItems.length > 0 && (
@@ -496,11 +609,36 @@ The AI will ignore 'Monday: Chicken dinner' and extract: '2 lbs chicken breast',
 
       {/* Smart AI Assistant - Floating Button */}
       <SmartAIAssistant onGroceryListGenerated={handleAIGroceryList} />
+
+      {/* Admin Dashboard Modals */}
+      {showAnalytics && (
+        <ParsingAnalyticsDashboard onClose={() => setShowAnalytics(false)} />
+      )}
+
+      {showDemo && (
+        <SmartParsingDemo onClose={() => setShowDemo(false)} />
+      )}
+
+      {showSettings && (
+        <AIParsingSettings 
+          onClose={() => setShowSettings(false)}
+          onSettingsChange={(settings) => {
+            console.log('Settings updated:', settings);
+          }}
+        />
+      )}
+
+      {showAdmin && (
+        <AdminDashboard 
+          onClose={() => setShowAdmin(false)}
+          currentUser={currentUser}
+        />
+      )}
     </div>
   );
 }
 
-// Auth Status Component (unchanged)
+// Auth Status Component
 function AuthStatus() {
   const { currentUser, signOut, isLoading } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -548,18 +686,6 @@ function AuthStatus() {
 
 // Main App Component
 function App() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
   return (
     <AuthProvider>
       <div style={styles.app}>
@@ -700,6 +826,100 @@ const styles = {
   
   container: {
     width: '100%',
+    position: 'relative',
+  },
+
+  // Admin Menu Styles
+  adminMenuContainer: {
+    position: 'absolute',
+    top: '-10px',
+    right: '20px',
+    zIndex: 2000,
+  },
+
+  adminMenuToggle: {
+    padding: '8px 16px',
+    backgroundColor: '#667eea',
+    color: 'white',
+    border: 'none',
+    borderRadius: '20px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    boxShadow: '0 4px 10px rgba(102, 126, 234, 0.3)',
+    transition: 'all 0.2s ease',
+  },
+
+  adminMenu: {
+    position: 'absolute',
+    top: '45px',
+    right: '0',
+    background: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
+    border: '1px solid #e5e7eb',
+    minWidth: '250px',
+    zIndex: 3000,
+  },
+
+  adminMenuHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '15px 20px',
+    borderBottom: '1px solid #e5e7eb',
+    background: 'linear-gradient(135deg, #667eea, #764ba2)',
+    color: 'white',
+    borderRadius: '12px 12px 0 0',
+  },
+
+  adminMenuTitle: {
+    margin: 0,
+    fontSize: '16px',
+    fontWeight: 'bold',
+  },
+
+  adminMenuClose: {
+    background: 'none',
+    border: 'none',
+    color: 'white',
+    fontSize: '20px',
+    cursor: 'pointer',
+    padding: '0',
+    width: '24px',
+    height: '24px',
+  },
+
+  adminMenuButtons: {
+    padding: '10px 0',
+  },
+
+  adminMenuButton: {
+    width: '100%',
+    padding: '12px 20px',
+    border: 'none',
+    background: 'none',
+    textAlign: 'left',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#374151',
+    transition: 'background-color 0.2s',
+  },
+
+  adminMenuDivider: {
+    height: '1px',
+    background: '#e5e7eb',
+    margin: '8px 0',
+  },
+
+  adminMenuInfo: {
+    padding: '10px 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    fontSize: '11px',
+    color: '#6b7280',
   },
   
   heroSection: {
@@ -1065,6 +1285,10 @@ styleSheet.textContent = `
     70% { transform: translateX(-1px) translateY(0px); }
     80% { transform: translateX(1px) translateY(0px); }
     90% { transform: translateX(0px) translateY(0px); }
+  }
+  
+  .admin-menu-button:hover {
+    background-color: #f3f4f6 !important;
   }
 `;
 document.head.appendChild(styleSheet);

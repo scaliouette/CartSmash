@@ -1,156 +1,94 @@
-// client/src/components/ParsedResultsDisplay.js - Enhanced with product intelligence
 import React, { useState, useEffect } from 'react';
 
 function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats }) {
-  const [expandedCategories, setExpandedCategories] = useState({});
-  const [sortBy, setSortBy] = useState('confidence'); // confidence, category, alphabetical, price
-  const [filterBy, setFilterBy] = useState('all'); // all, high_confidence, medium_confidence, needs_review
-  const [deletingItems, setDeletingItems] = useState(new Set());
-  const [validatingProducts, setValidatingProducts] = useState(false);
-  const [productValidations, setProductValidations] = useState({});
-  const [showPricing, setShowPricing] = useState(true);
-  const [cartTotal, setCartTotal] = useState(null);
+  const [sortBy, setSortBy] = useState('confidence');
+  const [filterBy, setFilterBy] = useState('all');
+  const [showStats, setShowStats] = useState(true);
+  const [realPrices, setRealPrices] = useState({});
+  const [validationResults, setValidationResults] = useState({});
 
-  // Smart product validation on component mount
-  useEffect(() => {
-    if (items && items.length > 0) {
-      validateProducts();
-      calculateRealTotal();
+  // Calculate real total price
+  const calculateRealTotal = async () => {
+    const prices = {};
+    for (const item of items) {
+      try {
+        const response = await fetch(`/api/products/pricing?productName=${encodeURIComponent(item.productName || item.itemName)}`);
+        if (response.ok) {
+          const data = await response.json();
+          prices[item.id] = data.pricing?.price || 0;
+        }
+      } catch (error) {
+        console.warn('Failed to fetch price for:', item.productName);
+        prices[item.id] = 0;
+      }
     }
-  }, [items]);
-
-  const toggleCategory = (category) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
+    setRealPrices(prices);
   };
 
+  // Validate products against real database
   const validateProducts = async () => {
-    if (!items || items.length === 0) return;
-    
-    setValidatingProducts(true);
-    console.log('🔍 Starting product validation...');
-    
     try {
-      const response = await fetch('/api/products/validate-batch', {
+      const response = await fetch('/api/products/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          products: items.map(item => ({
-            productName: item.productName || item.itemName || item.name,
-            quantity: item.quantity || 1
-          }))
-        })
+        body: JSON.stringify({ products: items })
       });
       
       if (response.ok) {
         const data = await response.json();
         const validationMap = {};
-        
-        data.validations.forEach((validation, index) => {
-          const itemId = items[index]?.id;
-          if (itemId) {
-            validationMap[itemId] = validation.validation;
-          }
+        data.validatedProducts.forEach(product => {
+          validationMap[product.id] = {
+            isValid: product.isValid,
+            confidence: product.confidence
+          };
         });
-        
-        setProductValidations(validationMap);
-        console.log(`✅ Product validation complete: ${Object.keys(validationMap).length} products validated`);
+        setValidationResults(validationMap);
       }
     } catch (error) {
-      console.error('❌ Product validation failed:', error);
-    } finally {
-      setValidatingProducts(false);
+      console.warn('Product validation failed:', error);
     }
   };
 
-  const calculateRealTotal = async () => {
-    if (!items || items.length === 0) return;
-    
-    try {
-      const response = await fetch('/api/products/calculate-cart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: items.map(item => ({
-            productName: item.productName || item.itemName || item.name,
-            quantity: item.quantity || 1
-          })),
-          store: 'instacart'
-        })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setCartTotal(data.calculation);
-        console.log('💰 Real cart total calculated:', data.calculation.pricing.total);
-      }
-    } catch (error) {
-      console.error('❌ Cart calculation failed:', error);
+  useEffect(() => {
+    if (items.length > 0) {
+      calculateRealTotal();
+      validateProducts();
     }
-  };
+  }, [items]);
 
-  const handleDeleteItem = async (itemId) => {
-    setDeletingItems(prev => new Set([...prev, itemId]));
-    
-    try {
-      const response = await fetch(`/api/cart/item/${itemId}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        if (onItemsChange) {
-          const updatedItems = items.filter(item => item.id !== itemId);
-          onItemsChange(updatedItems);
-        }
-        console.log(`✅ Item ${itemId} deleted successfully`);
-      } else {
-        alert('Failed to delete item. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error deleting item:', error);
-      alert('Error deleting item. Please try again.');
-    } finally {
-      setDeletingItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(itemId);
-        return newSet;
-      });
-    }
-  };
+  // Filter and sort items
+  const filteredAndSortedItems = items
+    .filter(item => {
+      if (filterBy === 'all') return true;
+      if (filterBy === 'high-confidence') return (item.confidence || 0) >= 0.8;
+      if (filterBy === 'needs-review') return (item.confidence || 0) < 0.6;
+      if (filterBy === 'category') return item.category === filterBy;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'confidence') return (b.confidence || 0) - (a.confidence || 0);
+      if (sortBy === 'category') return (a.category || '').localeCompare(b.category || '');
+      if (sortBy === 'name') return (a.productName || a.itemName || '').localeCompare(b.productName || b.itemName || '');
+      return 0;
+    });
 
-  const handleSmartReparse = async () => {
-    if (!items || items.length === 0) return;
-    
-    const originalText = items.map(item => item.original).join('\n');
-    
-    try {
-      const response = await fetch('/api/ai/smart-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: originalText,
-          options: { strictMode: true }
-        })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (onItemsChange && data.products) {
-          onItemsChange(data.products);
-        }
-        console.log('🎯 Smart reparse completed:', data.parsingStats);
-      }
-    } catch (error) {
-      console.error('❌ Smart reparse failed:', error);
-    }
+  // Calculate statistics
+  const stats = {
+    total: items.length,
+    highConfidence: items.filter(item => (item.confidence || 0) >= 0.8).length,
+    mediumConfidence: items.filter(item => (item.confidence || 0) >= 0.6 && (item.confidence || 0) < 0.8).length,
+    lowConfidence: items.filter(item => (item.confidence || 0) < 0.6).length,
+    categories: [...new Set(items.map(item => item.category))].length,
+    averageConfidence: items.length > 0 ? 
+      items.reduce((sum, item) => sum + (item.confidence || 0), 0) / items.length : 0,
+    totalEstimatedPrice: Object.values(realPrices).reduce((sum, price) => sum + price, 0)
   };
 
   const getConfidenceColor = (confidence) => {
-    if (confidence >= 0.8) return '#28a745'; // Green
-    if (confidence >= 0.6) return '#ffc107'; // Yellow
-    return '#dc3545'; // Red
+    if (confidence >= 0.8) return '#10b981';
+    if (confidence >= 0.6) return '#f59e0b';
+    return '#ef4444';
   };
 
   const getConfidenceLabel = (confidence) => {
@@ -159,637 +97,551 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     return 'Low';
   };
 
-  const getCategoryEmoji = (category) => {
-    const categoryEmojis = {
-      'produce': '🥬',
-      'dairy': '🥛', 
-      'meat': '🥩',
-      'pantry': '🥫',
-      'frozen': '🧊',
-      'bakery': '🍞',
-      'beverages': '🥤',
-      'snacks': '🍿',
-      'personal care': '🧴',
-      'household': '🏠',
-      'other': '📦'
-    };
-    return categoryEmojis[category?.toLowerCase()] || '📦';
+  const handleItemEdit = (itemId, field, value) => {
+    const updatedItems = items.map(item => 
+      item.id === itemId ? { ...item, [field]: value } : item
+    );
+    onItemsChange(updatedItems);
   };
 
-  const filterItems = (items) => {
-    let filtered = [...items];
+  const handleRemoveItem = (itemId) => {
+    const updatedItems = items.filter(item => item.id !== itemId);
+    onItemsChange(updatedItems);
+  };
+
+  const exportToPDF = () => {
+    const content = `
+Smart Cart - Grocery List
+Generated: ${new Date().toLocaleDateString()}
+
+ITEMS (${items.length}):
+${items.map(item => `• ${item.quantity || 1} ${item.unit || ''} ${item.productName || item.itemName}`).join('\n')}
+
+STATISTICS:
+• Total Items: ${stats.total}
+• High Confidence: ${stats.highConfidence}
+• Categories: ${stats.categories}
+• Average Confidence: ${(stats.averageConfidence * 100).toFixed(1)}%
+• Estimated Total: $${stats.totalEstimatedPrice.toFixed(2)}
+
+Generated by Smart Cart AI
+    `;
     
-    // Apply confidence filter
-    switch (filterBy) {
-      case 'high_confidence':
-        filtered = filtered.filter(item => (item.confidence || 0) >= 0.8);
-        break;
-      case 'medium_confidence':
-        filtered = filtered.filter(item => (item.confidence || 0) >= 0.6 && (item.confidence || 0) < 0.8);
-        break;
-      case 'needs_review':
-        filtered = filtered.filter(item => (item.confidence || 0) < 0.6);
-        break;
-      default:
-        // Show all
-        break;
-    }
-    
-    return filtered;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `smart-cart-${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
-
-  const sortItems = (items, sortBy) => {
-    switch (sortBy) {
-      case 'confidence':
-        return [...items].sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
-      case 'alphabetical':
-        return [...items].sort((a, b) => 
-          (a.productName || a.itemName || a.name || '').localeCompare(
-            b.productName || b.itemName || b.name || ''
-          )
-        );
-      case 'price':
-        return [...items].sort((a, b) => {
-          const priceA = productValidations[a.id]?.product?.totalPrice || 0;
-          const priceB = productValidations[b.id]?.product?.totalPrice || 0;
-          return priceB - priceA;
-        });
-      case 'category':
-      default:
-        return items;
-    }
-  };
-
-  const groupItemsByCategory = (items) => {
-    const filtered = filterItems(items);
-    return filtered.reduce((groups, item) => {
-      const category = item.category || 'Other';
-      if (!groups[category]) {
-        groups[category] = [];
-      }
-      groups[category].push(item);
-      return groups;
-    }, {});
-  };
-
-  if (!items || items.length === 0) {
-    return null;
-  }
-
-  const groupedItems = groupItemsByCategory(items);
-  const totalItems = items.length;
-  const highConfidenceItems = items.filter(item => (item.confidence || 0) >= 0.8).length;
-  const needsReviewItems = items.filter(item => (item.confidence || 0) < 0.6).length;
-  const totalCategories = Object.keys(groupedItems).length;
 
   return (
-    <div style={{
-      background: 'linear-gradient(135deg, #e8f5e8, #d4edda)',
-      padding: '25px',
-      borderRadius: '15px',
-      border: '2px solid #c3e6cb',
-      boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
-      marginTop: '20px'
-    }}>
-      {/* Enhanced Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '20px',
-        flexWrap: 'wrap',
-        gap: '15px'
-      }}>
-        <div>
-          <h3 style={{
-            color: '#155724',
-            margin: 0,
-            fontSize: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
-            🎯 Smart Cart Results
-            {validatingProducts && (
-              <div style={{
-                width: '20px',
-                height: '20px',
-                border: '2px solid #155724',
-                borderTop: '2px solid transparent',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
-            )}
-          </h3>
-          <div style={{
-            color: '#155724',
-            margin: '5px 0',
-            opacity: 0.8,
-            fontSize: '14px',
-            display: 'flex',
-            gap: '15px',
-            flexWrap: 'wrap'
-          }}>
-            <span>📦 {totalItems} items</span>
-            <span>📊 {totalCategories} categories</span>
-            <span style={{ color: '#28a745' }}>✅ {highConfidenceItems} validated</span>
-            {needsReviewItems > 0 && (
-              <span style={{ color: '#dc3545' }}>⚠️ {needsReviewItems} need review</span>
-            )}
-          </div>
-        </div>
-
-        {/* Smart Controls */}
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button
-            onClick={handleSmartReparse}
-            style={{
-              padding: '8px 12px',
-              background: 'linear-gradient(45deg, #17a2b8, #20c997)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            🎯 Smart Parse
+    <div style={styles.container}>
+      {/* Header */}
+      <div style={styles.header}>
+        <h3 style={styles.title}>
+          ✅ Smart Cart Results ({items.length} items)
+        </h3>
+        <div style={styles.headerActions}>
+          <button onClick={() => setShowStats(!showStats)} style={styles.toggleButton}>
+            {showStats ? '📊 Hide Stats' : '📊 Show Stats'}
           </button>
-          
-          <button
-            onClick={validateProducts}
-            disabled={validatingProducts}
-            style={{
-              padding: '8px 12px',
-              background: validatingProducts ? '#6c757d' : '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              cursor: validatingProducts ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {validatingProducts ? '⏳ Validating...' : '🔍 Validate Products'}
+          <button onClick={exportToPDF} style={styles.exportButton}>
+            📄 Export List
           </button>
         </div>
       </div>
 
-      {/* Intelligence Stats */}
-      {parsingStats && (
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.9)',
-          padding: '15px',
-          borderRadius: '10px',
-          marginBottom: '20px',
-          border: '1px solid #c3e6cb'
-        }}>
-          <h4 style={{ color: '#155724', margin: '0 0 10px 0', fontSize: '16px' }}>
-            🧠 Parsing Intelligence Stats
-          </h4>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: '10px',
-            fontSize: '14px'
-          }}>
-            <div>
-              <strong>Filtering Efficiency:</strong><br />
-              <span style={{ color: '#28a745', fontSize: '16px' }}>
-                {parsingStats.processingMetrics?.filteringEfficiency || 'N/A'}
-              </span>
+      {/* Statistics Panel */}
+      {showStats && (
+        <div style={styles.statsPanel}>
+          <h4 style={styles.statsTitle}>📊 Parsing Statistics</h4>
+          
+          <div style={styles.statsGrid}>
+            <div style={styles.statCard}>
+              <div style={styles.statValue}>{stats.total}</div>
+              <div style={styles.statLabel}>Total Items</div>
             </div>
-            <div>
-              <strong>Average Confidence:</strong><br />
-              <span style={{ color: '#17a2b8', fontSize: '16px' }}>
-                {(parsingStats.averageConfidence * 100 || 0).toFixed(1)}%
-              </span>
+            
+            <div style={styles.statCard}>
+              <div style={{...styles.statValue, color: '#10b981'}}>{stats.highConfidence}</div>
+              <div style={styles.statLabel}>High Confidence</div>
             </div>
-            <div>
-              <strong>High Confidence:</strong><br />
-              <span style={{ color: '#28a745', fontSize: '16px' }}>
-                {parsingStats.highConfidence || 0} items
-              </span>
+            
+            <div style={styles.statCard}>
+              <div style={{...styles.statValue, color: '#f59e0b'}}>{stats.mediumConfidence}</div>
+              <div style={styles.statLabel}>Medium Confidence</div>
             </div>
-            <div>
-              <strong>Categories Found:</strong><br />
-              <span style={{ color: '#6f42c1', fontSize: '16px' }}>
-                {parsingStats.categoriesFound?.length || 0}
-              </span>
+            
+            <div style={styles.statCard}>
+              <div style={{...styles.statValue, color: '#ef4444'}}>{stats.lowConfidence}</div>
+              <div style={styles.statLabel}>Need Review</div>
+            </div>
+            
+            <div style={styles.statCard}>
+              <div style={styles.statValue}>{stats.categories}</div>
+              <div style={styles.statLabel}>Categories</div>
+            </div>
+            
+            <div style={styles.statCard}>
+              <div style={styles.statValue}>{(stats.averageConfidence * 100).toFixed(1)}%</div>
+              <div style={styles.statLabel}>Avg Confidence</div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Real Pricing Display */}
-      {cartTotal && showPricing && (
-        <div style={{
-          background: 'linear-gradient(135deg, #fff3cd, #ffeaa7)',
-          padding: '15px',
-          borderRadius: '10px',
-          marginBottom: '20px',
-          border: '2px solid #ffc107'
-        }}>
-          <h4 style={{ color: '#856404', margin: '0 0 10px 0', fontSize: '16px' }}>
-            💰 Real Cart Pricing (Instacart)
-          </h4>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-            gap: '10px',
-            fontSize: '14px'
-          }}>
-            <div><strong>Subtotal:</strong> ${cartTotal.pricing.subtotal}</div>
-            <div><strong>Delivery:</strong> ${cartTotal.pricing.deliveryFee}</div>
-            <div><strong>Tax:</strong> ${cartTotal.pricing.tax}</div>
-            <div style={{ 
-              fontSize: '16px', 
-              fontWeight: 'bold', 
-              color: '#155724',
-              gridColumn: 'span 2'
-            }}>
-              <strong>Total: ${cartTotal.pricing.total}</strong>
-            </div>
-          </div>
-          {cartTotal.unavailableCount > 0 && (
-            <div style={{ color: '#dc3545', marginTop: '10px', fontSize: '12px' }}>
-              ⚠️ {cartTotal.unavailableCount} items unavailable
+          {parsingStats && (
+            <div style={styles.parsingMetrics}>
+              <h5 style={styles.metricsTitle}>🎯 AI Processing Metrics</h5>
+              <div style={styles.metricsRow}>
+                <span>Filtering Efficiency: <strong>{parsingStats.processingMetrics?.filteringEfficiency || 'N/A'}</strong></span>
+                <span>High Confidence Products: <strong>{parsingStats.highConfidence || 0}</strong></span>
+                <span>Categories Detected: <strong>{parsingStats.categoriesFound?.length || 0}</strong></span>
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* User Status */}
-      {currentUser && (
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.8)',
-          padding: '12px',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          textAlign: 'center',
-          fontSize: '14px',
-          color: '#155724'
-        }}>
-          ✅ <strong>Cart saved to {currentUser.email}</strong> • Syncs across all devices
-        </div>
-      )}
-
-      {/* Filters and Sorting */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '15px', 
-        marginBottom: '20px',
-        flexWrap: 'wrap',
-        alignItems: 'center'
-      }}>
-        <div>
-          <label style={{ fontSize: '14px', fontWeight: 'bold', color: '#155724' }}>
-            Filter:
-          </label>
-          <select
-            value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
-            style={{
-              marginLeft: '8px',
-              padding: '6px 10px',
-              borderRadius: '6px',
-              border: '1px solid #c3e6cb',
-              background: 'white',
-              color: '#155724',
-              fontSize: '14px'
-            }}
-          >
-            <option value="all">All Items</option>
-            <option value="high_confidence">High Confidence</option>
-            <option value="medium_confidence">Medium Confidence</option>
-            <option value="needs_review">Needs Review</option>
-          </select>
-        </div>
-
-        <div>
-          <label style={{ fontSize: '14px', fontWeight: 'bold', color: '#155724' }}>
-            Sort by:
-          </label>
-          <select
-            value={sortBy}
+      {/* Controls */}
+      <div style={styles.controls}>
+        <div style={styles.controlGroup}>
+          <label style={styles.controlLabel}>Sort by:</label>
+          <select 
+            value={sortBy} 
             onChange={(e) => setSortBy(e.target.value)}
-            style={{
-              marginLeft: '8px',
-              padding: '6px 10px',
-              borderRadius: '6px',
-              border: '1px solid #c3e6cb',
-              background: 'white',
-              color: '#155724',
-              fontSize: '14px'
-            }}
+            style={styles.select}
           >
             <option value="confidence">Confidence</option>
             <option value="category">Category</option>
-            <option value="alphabetical">A-Z</option>
-            <option value="price">Price</option>
+            <option value="name">Name</option>
           </select>
         </div>
 
-        <label style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px',
-          fontSize: '14px',
-          color: '#155724'
-        }}>
-          <input
-            type="checkbox"
-            checked={showPricing}
-            onChange={(e) => setShowPricing(e.target.checked)}
-          />
-          Show Pricing
-        </label>
+        <div style={styles.controlGroup}>
+          <label style={styles.controlLabel}>Filter:</label>
+          <select 
+            value={filterBy} 
+            onChange={(e) => setFilterBy(e.target.value)}
+            style={styles.select}
+          >
+            <option value="all">All Items</option>
+            <option value="high-confidence">High Confidence</option>
+            <option value="needs-review">Needs Review</option>
+          </select>
+        </div>
       </div>
 
-      {/* Category Groups */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        {Object.entries(groupedItems)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([category, categoryItems]) => {
-            const isExpanded = expandedCategories[category] !== false;
-            const sortedItems = sortItems(categoryItems, sortBy);
-            
-            return (
-              <div key={category} style={{
-                background: 'white',
-                borderRadius: '10px',
-                border: '1px solid #c3e6cb',
-                overflow: 'hidden',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
-              }}>
-                {/* Category Header */}
-                <button
-                  onClick={() => toggleCategory(category)}
-                  style={{
-                    width: '100%',
-                    padding: '15px',
-                    background: 'linear-gradient(135deg, #f8f9fa, #e9ecef)',
-                    border: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    color: '#155724',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    transition: 'background 0.2s ease'
-                  }}
-                >
-                  <span>
-                    {getCategoryEmoji(category)} {category} ({categoryItems.length} items)
-                  </span>
-                  <span style={{
-                    fontSize: '18px',
-                    transition: 'transform 0.2s ease',
-                    transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
-                  }}>
-                    ▶
-                  </span>
-                </button>
+      {/* Items Grid */}
+      <div style={styles.itemsGrid}>
+        {filteredAndSortedItems.map((item, index) => (
+          <div key={item.id || index} style={{
+            ...styles.itemCard,
+            borderColor: getConfidenceColor(item.confidence || 0)
+          }}>
+            {/* Confidence Badge */}
+            <div style={{
+              ...styles.confidenceBadge,
+              backgroundColor: getConfidenceColor(item.confidence || 0)
+            }}>
+              {getConfidenceLabel(item.confidence || 0)} {((item.confidence || 0) * 100).toFixed(0)}%
+            </div>
 
-                {/* Category Items */}
-                {isExpanded && (
-                  <div style={{ padding: '10px' }}>
-                    {sortedItems.map((item, index) => {
-                      const validation = productValidations[item.id];
-                      const confidence = item.confidence || 0;
-                      
-                      return (
-                        <div
-                          key={item.id || index}
-                          style={{
-                            padding: '12px',
-                            margin: '5px 0',
-                            background: confidence >= 0.8 ? '#f8fff8' : 
-                                       confidence >= 0.6 ? '#fffdf0' : '#fff8f8',
-                            borderRadius: '8px',
-                            border: `2px solid ${getConfidenceColor(confidence)}30`,
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: '10px'
-                          }}>
-                            {/* Product Info */}
-                            <div style={{ flex: 1, minWidth: '200px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
-                                <strong style={{ fontSize: '15px', color: '#333' }}>
-                                  {item.productName || item.itemName || item.name || item.original}
-                                </strong>
-                                
-                                {/* Confidence Badge */}
-                                <div style={{
-                                  padding: '2px 8px',
-                                  background: getConfidenceColor(confidence),
-                                  color: 'white',
-                                  borderRadius: '12px',
-                                  fontSize: '11px',
-                                  fontWeight: 'bold'
-                                }}>
-                                  {getConfidenceLabel(confidence)}
-                                </div>
-                              </div>
-                              
-                              {/* Quantity and Unit */}
-                              {item.quantity && (
-                                <div style={{
-                                  color: '#666',
-                                  fontSize: '14px',
-                                  marginBottom: '5px'
-                                }}>
-                                  Quantity: {item.quantity}{item.unit ? ` ${item.unit}` : ''}
-                                </div>
-                              )}
-                              
-                              {/* Product Validation Info */}
-                              {validation && validation.isValid && (
-                                <div style={{
-                                  fontSize: '12px',
-                                  color: '#28a745',
-                                  display: 'flex',
-                                  gap: '15px',
-                                  flexWrap: 'wrap'
-                                }}>
-                                  {showPricing && validation.product?.totalPrice && (
-                                    <span>💰 ${validation.product.totalPrice}</span>
-                                  )}
-                                  <span>✅ Validated</span>
-                                  {validation.availability?.stores && (
-                                    <span>🏪 {validation.availability.stores.length} stores</span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+            {/* Item Content */}
+            <div style={styles.itemContent}>
+              <div style={styles.itemName}>
+                <input
+                  type="text"
+                  value={item.productName || item.itemName || ''}
+                  onChange={(e) => handleItemEdit(item.id, 'productName', e.target.value)}
+                  style={styles.itemNameInput}
+                />
+              </div>
 
-                            {/* Actions */}
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                              {/* Confidence Bar */}
-                              <div style={{
-                                width: '50px',
-                                height: '8px',
-                                background: '#e9ecef',
-                                borderRadius: '4px',
-                                overflow: 'hidden'
-                              }}>
-                                <div style={{
-                                  width: `${confidence * 100}%`,
-                                  height: '100%',
-                                  background: getConfidenceColor(confidence),
-                                  borderRadius: '4px',
-                                  transition: 'width 0.3s ease'
-                                }} />
-                              </div>
-                              
-                              <button 
-                                onClick={() => handleDeleteItem(item.id)}
-                                disabled={deletingItems.has(item.id)}
-                                style={{
-                                  padding: '4px 8px',
-                                  background: deletingItems.has(item.id) ? '#ccc' : '#dc3545',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  fontSize: '12px',
-                                  cursor: deletingItems.has(item.id) ? 'not-allowed' : 'pointer',
-                                  transition: 'background 0.2s ease'
-                                }}
-                                title="Remove item"
-                              >
-                                {deletingItems.has(item.id) ? '...' : '×'}
-                              </button>
-                            </div>
-                          </div>
+              <div style={styles.itemDetails}>
+                <div style={styles.itemDetail}>
+                  <span style={styles.detailLabel}>Quantity:</span>
+                  <input
+                    type="text"
+                    value={item.quantity || '1'}
+                    onChange={(e) => handleItemEdit(item.id, 'quantity', e.target.value)}
+                    style={styles.quantityInput}
+                  />
+                  <input
+                    type="text"
+                    value={item.unit || ''}
+                    onChange={(e) => handleItemEdit(item.id, 'unit', e.target.value)}
+                    placeholder="unit"
+                    style={styles.unitInput}
+                  />
+                </div>
 
-                          {/* Additional item info */}
-                          {item.original && item.original !== (item.productName || item.itemName || item.name) && (
-                            <div style={{
-                              fontSize: '12px',
-                              color: '#666',
-                              marginTop: '8px',
-                              fontStyle: 'italic',
-                              padding: '4px 8px',
-                              background: '#f8f9fa',
-                              borderRadius: '4px'
-                            }}>
-                              Original: "{item.original}"
-                            </div>
-                          )}
-                          
-                          {/* AI Factors (for debugging) */}
-                          {item.factors && item.factors.length > 0 && (
-                            <details style={{ marginTop: '8px', fontSize: '11px', color: '#666' }}>
-                              <summary style={{ cursor: 'pointer' }}>AI Analysis Factors</summary>
-                              <div style={{ marginTop: '4px' }}>
-                                {item.factors.map((factor, i) => (
-                                  <span key={i} style={{
-                                    display: 'inline-block',
-                                    background: '#e9ecef',
-                                    padding: '2px 6px',
-                                    borderRadius: '10px',
-                                    margin: '2px',
-                                    fontSize: '10px'
-                                  }}>
-                                    {factor}
-                                  </span>
-                                ))}
-                              </div>
-                            </details>
-                          )}
-                        </div>
-                      );
-                    })}
+                <div style={styles.itemDetail}>
+                  <span style={styles.detailLabel}>Category:</span>
+                  <select
+                    value={item.category || 'other'}
+                    onChange={(e) => handleItemEdit(item.id, 'category', e.target.value)}
+                    style={styles.categorySelect}
+                  >
+                    <option value="produce">🥬 Produce</option>
+                    <option value="dairy">🥛 Dairy</option>
+                    <option value="meat">🥩 Meat</option>
+                    <option value="pantry">🥫 Pantry</option>
+                    <option value="beverages">🥤 Beverages</option>
+                    <option value="frozen">🧊 Frozen</option>
+                    <option value="bakery">🍞 Bakery</option>
+                    <option value="snacks">🍿 Snacks</option>
+                    <option value="other">📦 Other</option>
+                  </select>
+                </div>
+
+                {realPrices[item.id] && (
+                  <div style={styles.itemDetail}>
+                    <span style={styles.detailLabel}>Price:</span>
+                    <span style={styles.priceDisplay}>${realPrices[item.id].toFixed(2)}</span>
                   </div>
                 )}
               </div>
-            );
-          })}
+
+              {item.original && (
+                <div style={styles.originalText}>
+                  <span style={styles.originalLabel}>Original:</span>
+                  <span style={styles.originalValue}>{item.original}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Item Actions */}
+            <div style={styles.itemActions}>
+              <button
+                onClick={() => handleRemoveItem(item.id)}
+                style={styles.removeButton}
+                title="Remove item"
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Enhanced Summary Actions */}
-      <div style={{
-        marginTop: '20px',
-        padding: '15px',
-        background: 'rgba(255, 255, 255, 0.8)',
-        borderRadius: '10px',
-        display: 'flex',
-        gap: '10px',
-        flexWrap: 'wrap',
-        justifyContent: 'center'
-      }}>
-        <button style={{
-          padding: '10px 20px',
-          background: '#28a745',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          cursor: 'pointer',
-          fontWeight: 'bold'
-        }}>
-          🛒 Add to Instacart
-        </button>
-        
-        <button 
-          onClick={validateProducts}
-          style={{
-            padding: '10px 20px',
-            background: '#17a2b8',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 'bold'
-          }}
-        >
-          🔍 Validate All Products
-        </button>
-        
-        <button style={{
-          padding: '10px 20px',
-          background: '#6f42c1',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          cursor: 'pointer',
-          fontWeight: 'bold'
-        }}>
-          💰 Compare Prices
-        </button>
-
-        <button style={{
-          padding: '10px 20px',
-          background: '#6c757d',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          cursor: 'pointer',
-          fontWeight: 'bold'
-        }}>
-          📄 Export List
-        </button>
-      </div>
+      {/* Total Summary */}
+      {stats.totalEstimatedPrice > 0 && (
+        <div style={styles.totalSummary}>
+          <h4 style={styles.totalTitle}>💰 Estimated Total: ${stats.totalEstimatedPrice.toFixed(2)}</h4>
+          <p style={styles.totalNote}>
+            *Prices are estimates and may vary by location and availability
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-// Add spinning animation
-const styleElement = document.createElement('style');
-styleElement.textContent = `
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+const styles = {
+  container: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: '20px',
+    margin: '20px 0',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    border: '1px solid #e5e7eb'
+  },
+
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+    flexWrap: 'wrap',
+    gap: '10px'
+  },
+
+  title: {
+    color: '#1f2937',
+    margin: 0,
+    fontSize: '24px',
+    fontWeight: 'bold'
+  },
+
+  headerActions: {
+    display: 'flex',
+    gap: '10px'
+  },
+
+  toggleButton: {
+    padding: '8px 16px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  exportButton: {
+    padding: '8px 16px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  statsPanel: {
+    background: '#f9fafb',
+    padding: '20px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    border: '1px solid #e5e7eb'
+  },
+
+  statsTitle: {
+    color: '#374151',
+    margin: '0 0 15px 0',
+    fontSize: '18px',
+    fontWeight: 'bold'
+  },
+
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+    gap: '15px',
+    marginBottom: '20px'
+  },
+
+  statCard: {
+    background: 'white',
+    padding: '15px',
+    borderRadius: '8px',
+    textAlign: 'center',
+    border: '1px solid #e5e7eb'
+  },
+
+  statValue: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: '4px'
+  },
+
+  statLabel: {
+    fontSize: '12px',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+
+  parsingMetrics: {
+    background: 'white',
+    padding: '15px',
+    borderRadius: '8px',
+    border: '1px solid #d1d5db'
+  },
+
+  metricsTitle: {
+    color: '#374151',
+    margin: '0 0 10px 0',
+    fontSize: '16px',
+    fontWeight: 'bold'
+  },
+
+  metricsRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '10px',
+    fontSize: '14px',
+    color: '#6b7280'
+  },
+
+  controls: {
+    display: 'flex',
+    gap: '20px',
+    marginBottom: '20px',
+    flexWrap: 'wrap'
+  },
+
+  controlGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+
+  controlLabel: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#374151'
+  },
+
+  select: {
+    padding: '6px 12px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px',
+    backgroundColor: 'white'
+  },
+
+  itemsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+    gap: '20px',
+    marginBottom: '20px'
+  },
+
+  itemCard: {
+    position: 'relative',
+    background: 'white',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    padding: '15px',
+    transition: 'all 0.2s ease'
+  },
+
+  confidenceBadge: {
+    position: 'absolute',
+    top: '-8px',
+    right: '12px',
+    padding: '4px 8px',
+    borderRadius: '12px',
+    fontSize: '11px',
+    fontWeight: 'bold',
+    color: 'white',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+
+  itemContent: {
+    marginTop: '8px'
+  },
+
+  itemName: {
+    marginBottom: '12px'
+  },
+
+  itemNameInput: {
+    width: '100%',
+    padding: '8px 12px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '16px',
+    fontWeight: '500',
+    color: '#1f2937'
+  },
+
+  itemDetails: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+
+  itemDetail: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+
+  detailLabel: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#6b7280',
+    minWidth: '70px'
+  },
+
+  quantityInput: {
+    width: '60px',
+    padding: '4px 8px',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    fontSize: '14px',
+    textAlign: 'center'
+  },
+
+  unitInput: {
+    width: '80px',
+    padding: '4px 8px',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    fontSize: '14px'
+  },
+
+  categorySelect: {
+    padding: '4px 8px',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    fontSize: '14px',
+    backgroundColor: 'white'
+  },
+
+  priceDisplay: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#10b981'
+  },
+
+  originalText: {
+    marginTop: '12px',
+    padding: '8px',
+    background: '#f9fafb',
+    borderRadius: '4px',
+    border: '1px solid #e5e7eb'
+  },
+
+  originalLabel: {
+    fontSize: '12px',
+    fontWeight: '500',
+    color: '#6b7280',
+    marginRight: '8px'
+  },
+
+  originalValue: {
+    fontSize: '12px',
+    color: '#374151',
+    fontStyle: 'italic'
+  },
+
+  itemActions: {
+    position: 'absolute',
+    top: '8px',
+    left: '8px'
+  },
+
+  removeButton: {
+    background: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '4px 8px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    opacity: 0.8,
+    transition: 'opacity 0.2s'
+  },
+
+  totalSummary: {
+    background: 'linear-gradient(135deg, #dbeafe, #bfdbfe)',
+    padding: '20px',
+    borderRadius: '8px',
+    textAlign: 'center',
+    border: '1px solid #93c5fd'
+  },
+
+  totalTitle: {
+    color: '#1e40af',
+    margin: '0 0 8px 0',
+    fontSize: '20px',
+    fontWeight: 'bold'
+  },
+
+  totalNote: {
+    color: '#3730a3',
+    margin: 0,
+    fontSize: '14px',
+    fontStyle: 'italic'
   }
-`;
-document.head.appendChild(styleElement);
+};
 
 export default ParsedResultsDisplay;
