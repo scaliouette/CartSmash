@@ -205,7 +205,7 @@ Please format your response with a clear grocery shopping list section. List eac
           max_tokens: 1000,
           system: "You are a helpful AI that converts recipes and meal plans into clear grocery lists.",
           messages: [{ role: "user", content: enhancedPrompt }]
-        });
+        }); 
 
         const responseText = message.content[0].text;
         const groceryList = extractGroceryItems(responseText);

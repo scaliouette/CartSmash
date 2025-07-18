@@ -1,16 +1,17 @@
-﻿// client/src/App.js - Updated with integrated AI
+﻿// client/src/App.js - Enhanced with intelligent parsing integration
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import ParsedResultsDisplay from './components/ParsedResultsDisplay';
 import InstacartIntegration from './components/InstacartIntegration';
-import SmartAIAssistant from './components/SmartAIAssistant'; // New integrated AI
+import SmartAIAssistant from './components/SmartAIAssistant';
+import ProductValidator from './components/ProductValidator';
 import confetti from 'canvas-confetti';
 
 // Enhanced SMASH Button with viral effects
 function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
   const [isSmashing, setIsSmashing] = useState(false);
-  const [buttonText, setButtonText] = useState('🛒 SMASH 🛒');
+  const [buttonText, setButtonText] = useState('🎯 SMART SMASH 🎯');
 
   const triggerConfetti = () => {
     const count = 200;
@@ -53,10 +54,10 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
     }
     
     const smashTexts = [
-      '💥 SMASHING! 💥',
-      '🔥 DESTROYING! 🔥', 
-      '⚡ PROCESSING! ⚡',
-      '🚀 LAUNCHING! 🚀'
+      '🎯 SMART ANALYZING! 🎯',
+      '🧠 AI PROCESSING! 🧠', 
+      '⚡ INTELLIGENCE ACTIVE! ⚡',
+      '🚀 VALIDATING PRODUCTS! 🚀'
     ];
     
     let textIndex = 0;
@@ -77,7 +78,7 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
       }, 500);
     } finally {
       clearInterval(textInterval);
-      setButtonText('🛒 SMASH 🛒');
+      setButtonText('🎯 SMART SMASH 🎯');
       setIsSmashing(false);
     }
   };
@@ -105,14 +106,14 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
           fontWeight: '600',
           letterSpacing: '1px',
         }}>
-          {itemCount} ITEMS READY
+          {itemCount} ITEMS • AI READY
         </div>
       )}
     </button>
   );
 }
 
-// Enhanced Grocery List Form
+// Enhanced Grocery List Form with Intelligence
 function GroceryListForm() {
   const [inputText, setInputText] = useState('');
   const [parsedItems, setParsedItems] = useState([]);
@@ -120,10 +121,13 @@ function GroceryListForm() {
   const [error, setError] = useState('');
   const [cartAction, setCartAction] = useState('merge');
   const [showResults, setShowResults] = useState(false);
+  const [parsingStats, setParsingStats] = useState(null);
+  const [showValidator, setShowValidator] = useState(false);
+  const [intelligenceEnabled, setIntelligenceEnabled] = useState(true);
   
   const { currentUser, saveCartToFirebase } = useAuth();
 
-  // ✅ Extract the core submission logic into a separate function
+  // Enhanced submission logic with intelligence
   const submitGroceryList = async (listText) => {
     if (!listText.trim()) {
       setError('Please enter a grocery list');
@@ -134,15 +138,22 @@ function GroceryListForm() {
     setError('');
     setParsedItems([]);
     setShowResults(false);
+    setParsingStats(null);
 
     try {
+      console.log('🎯 Starting intelligent grocery list processing...');
+      
       const response = await fetch('/api/cart/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           listText: listText,
           action: cartAction,
-          userId: currentUser?.uid || null
+          userId: currentUser?.uid || null,
+          options: {
+            strictMode: intelligenceEnabled,
+            enableValidation: true
+          }
         }),
       });
 
@@ -151,49 +162,67 @@ function GroceryListForm() {
       }
 
       const data = await response.json();
-      let items = data.cart || data.items || [];
       
-      if (items && items.length > 0) {
-        setParsedItems(items);
+      if (data.success && data.cart && data.cart.length > 0) {
+        setParsedItems(data.cart);
+        setParsingStats(data.parsing?.stats || null);
         setShowResults(true);
         
+        console.log(`✅ Intelligent parsing complete:`);
+        console.log(`   - Products extracted: ${data.cart.length}`);
+        console.log(`   - Filtering efficiency: ${data.parsing?.filteringEfficiency || 'N/A'}`);
+        console.log(`   - Average confidence: ${(data.parsing?.averageConfidence * 100 || 0).toFixed(1)}%`);
+        
+        // Show intelligence summary
+        if (data.parsing) {
+          const needsReview = data.quality?.needsReviewItems || 0;
+          if (needsReview > 0) {
+            setTimeout(() => {
+              if (window.confirm(`🎯 Smart parsing complete! ${needsReview} items need review. Would you like to review them now for better accuracy?`)) {
+                setShowValidator(true);
+              }
+            }, 1000);
+          }
+        }
+        
+        // Save to Firebase
         if (currentUser) {
           try {
-            await saveCartToFirebase(items);
+            await saveCartToFirebase(data.cart);
           } catch (firebaseError) {
             console.warn('Failed to save cart to Firebase:', firebaseError);
           }
         }
       } else {
-        setError('No items were parsed from your list');
+        setError('No valid grocery items were found in your list. Try using specific product names with quantities.');
       }
       
     } catch (err) {
-      console.error('Parse error:', err);
-      setError(`Failed to parse grocery list: ${err.message}`);
+      console.error('❌ Enhanced parsing failed:', err);
+      setError(`Failed to process grocery list: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ✅ Form submission handler - now just calls the extracted function
+  // Form submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     await submitGroceryList(inputText);
   };
 
-  // ✅ Handle AI-generated grocery list - now properly calls the submission logic
+  // AI-generated grocery list handler
   const handleAIGroceryList = async (aiGeneratedList) => {
     setInputText(aiGeneratedList);
     
-    // Auto-submit after a short delay (optional)
     if (aiGeneratedList.trim()) {
       setTimeout(async () => {
-        await submitGroceryList(aiGeneratedList); // ✅ Clean, direct call
+        await submitGroceryList(aiGeneratedList);
       }, 500);
     }
   };
 
+  // Handle items change from components
   const handleItemsChange = (updatedItems) => {
     setParsedItems(updatedItems);
     
@@ -206,11 +235,83 @@ function GroceryListForm() {
     }
   };
 
+  // Smart reparse function
+  const handleSmartReparse = async () => {
+    if (!parsedItems || parsedItems.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/cart/smart-reparse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setParsedItems(data.cart);
+        setParsingStats(data.reparse?.stats || null);
+        
+        console.log(`🎯 Smart reparse complete: ${data.reparse?.originalItemCount} → ${data.reparse?.newItemCount} items`);
+        
+        if (data.reparse?.improvement > 0) {
+          alert(`🎉 Smart reparse improved your list! Found ${data.reparse.improvement} additional valid products.`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Smart reparse failed:', error);
+      setError('Smart reparse failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Validate all products
+  const handleValidateAll = async () => {
+    if (!parsedItems || parsedItems.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/cart/validate-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setParsedItems(data.cart);
+        
+        const summary = data.validation?.summary;
+        if (summary) {
+          alert(`🔍 Validation complete!\n✅ ${summary.highConfidence} high confidence\n⚠️ ${summary.needsReview} need review`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Validation failed:', error);
+      setError('Product validation failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleNewList = () => {
     setInputText('');
     setParsedItems([]);
     setShowResults(false);
     setError('');
+    setParsingStats(null);
+    setShowValidator(false);
+  };
+
+  const handleShowValidator = () => {
+    const needsReview = parsedItems.filter(item => 
+      item.needsReview || (item.confidence || 0) < 0.6
+    );
+    
+    if (needsReview.length > 0) {
+      setShowValidator(true);
+    } else {
+      alert('🎉 All items are already validated! Your cart looks great.');
+    }
   };
 
   return (
@@ -218,27 +319,31 @@ function GroceryListForm() {
       {/* Hero Section */}
       <div style={styles.heroSection}>
         <h1 style={styles.heroTitle}>
-          Smash That List.
+          Smart Cart.
           <br />
           <span style={styles.heroAccent}>Instantly.</span>
         </h1>
         <p style={styles.heroSubtitle}>
-          Create grocery lists with AI or paste existing ones. Turn any list into a ready-to-order Instacart cart in seconds.
+          AI-powered grocery parsing that understands what you actually want to buy. 
+          Turn any list into validated, ready-to-order products in seconds.
         </p>
       </div>
 
-      {/* AI Helper Banner */}
-      <div style={styles.aiHelperBanner}>
+      {/* Intelligence Features Banner */}
+      <div style={styles.intelligenceBanner}>
         <div style={styles.bannerContent}>
           <div style={styles.bannerText}>
-            <h3 style={styles.bannerTitle}>🤖 Need help creating a grocery list?</h3>
+            <h3 style={styles.bannerTitle}>🧠 Powered by AI Intelligence</h3>
             <p style={styles.bannerSubtitle}>
-              Use our AI assistant to generate meal plans, budget lists, or recipe ingredients
+              • Filters out meal descriptions and cooking instructions<br />
+              • Validates products against real grocery databases<br />
+              • Confidence scoring for every item<br />
+              • Smart duplicate detection and merging
             </p>
           </div>
           <div style={styles.bannerIndicator}>
-            <span style={styles.indicatorText}>Click the AI button</span>
-            <span style={styles.indicatorArrow}>↘️</span>
+            <span style={styles.indicatorText}>Smart parsing enabled</span>
+            <span style={styles.indicatorIcon}>🎯</span>
           </div>
         </div>
       </div>
@@ -253,40 +358,57 @@ function GroceryListForm() {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             style={styles.textarea}
-            placeholder="Paste your grocery list here or use the AI assistant to generate one...
+            placeholder="Paste any grocery list here - our AI will intelligently extract only the products you can actually buy:
 
 Example:
-2 lbs chicken breast
-1 cup quinoa
-2 bell peppers
-1 onion
-2 tbsp olive oil
-1 dozen eggs
-1 bag spinach"
-            rows="8"
+Monday: Chicken dinner with vegetables
+- 2 lbs chicken breast
+- 3 bell peppers  
+- 1 onion
+Tuesday: Pasta night
+- 1 lb pasta
+- pasta sauce
+- parmesan cheese
+
+The AI will ignore 'Monday: Chicken dinner' and extract: '2 lbs chicken breast', '3 bell peppers', etc."
+            rows="10"
           />
         </div>
         
-        <div style={styles.actionSelector}>
-          <label style={styles.actionLabel}>Cart Action:</label>
-          <div style={styles.actionOptions}>
-            <label style={styles.actionOption}>
+        {/* Enhanced Controls */}
+        <div style={styles.controlsSection}>
+          <div style={styles.actionSelector}>
+            <label style={styles.actionLabel}>Cart Action:</label>
+            <div style={styles.actionOptions}>
+              <label style={styles.actionOption}>
+                <input
+                  type="radio"
+                  value="merge"
+                  checked={cartAction === 'merge'}
+                  onChange={(e) => setCartAction(e.target.value)}
+                />
+                <span>🔀 Smart merge with existing cart</span>
+              </label>
+              <label style={styles.actionOption}>
+                <input
+                  type="radio"
+                  value="replace"
+                  checked={cartAction === 'replace'}
+                  onChange={(e) => setCartAction(e.target.value)}
+                />
+                <span>🔥 Replace entire cart</span>
+              </label>
+            </div>
+          </div>
+
+          <div style={styles.intelligenceToggle}>
+            <label style={styles.toggleLabel}>
               <input
-                type="radio"
-                value="merge"
-                checked={cartAction === 'merge'}
-                onChange={(e) => setCartAction(e.target.value)}
+                type="checkbox"
+                checked={intelligenceEnabled}
+                onChange={(e) => setIntelligenceEnabled(e.target.checked)}
               />
-              <span>🔀 Merge with existing cart</span>
-            </label>
-            <label style={styles.actionOption}>
-              <input
-                type="radio"
-                value="replace"
-                checked={cartAction === 'replace'}
-                onChange={(e) => setCartAction(e.target.value)}
-              />
-              <span>🔥 Replace entire cart</span>
+              <span>🎯 Enhanced AI parsing (recommended)</span>
             </label>
           </div>
         </div>
@@ -306,23 +428,61 @@ Example:
           />
           
           {showResults && (
-            <button
-              type="button"
-              onClick={handleNewList}
-              style={styles.newListButton}
-            >
-              📝 New List
-            </button>
+            <div style={styles.actionButtons}>
+              <button
+                type="button"
+                onClick={handleNewList}
+                style={styles.newListButton}
+              >
+                📝 New List
+              </button>
+              
+              <button
+                type="button"
+                onClick={handleSmartReparse}
+                disabled={isLoading}
+                style={styles.smartButton}
+              >
+                🎯 Smart Reparse
+              </button>
+              
+              <button
+                type="button"
+                onClick={handleValidateAll}
+                disabled={isLoading}
+                style={styles.validateButton}
+              >
+                🔍 Validate All
+              </button>
+              
+              <button
+                type="button"
+                onClick={handleShowValidator}
+                style={styles.reviewButton}
+              >
+                ⚠️ Review Items
+              </button>
+            </div>
           )}
         </div>
       </form>
 
-      {/* Results Display */}
+      {/* Enhanced Results Display */}
       {showResults && parsedItems.length > 0 && (
         <ParsedResultsDisplay 
           items={parsedItems} 
           currentUser={currentUser}
           onItemsChange={handleItemsChange}
+          parsingStats={parsingStats}
+        />
+      )}
+
+      {/* Product Validator Modal */}
+      {showValidator && (
+        <ProductValidator
+          items={parsedItems}
+          onItemsUpdated={handleItemsChange}
+          onClose={() => setShowValidator(false)}
         />
       )}
 
@@ -340,7 +500,7 @@ Example:
   );
 }
 
-// Auth Status Component
+// Auth Status Component (unchanged)
 function AuthStatus() {
   const { currentUser, signOut, isLoading } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -407,13 +567,13 @@ function App() {
         <header style={styles.header}>
           <div style={styles.headerContent}>
             <div style={styles.logo}>
-              <div style={styles.logoIcon}>🛒</div>
-              <span style={styles.logoText}>CART SMASH</span>
+              <div style={styles.logoIcon}>🎯</div>
+              <span style={styles.logoText}>SMART CART</span>
             </div>
             
             <div style={styles.headerActions}>
               <button style={styles.loginButton}>Log In</button>
-              <button style={styles.ctaButton}>Start Converting Your List</button>
+              <button style={styles.ctaButton}>Start Smart Parsing</button>
             </div>
           </div>
         </header>
@@ -424,25 +584,39 @@ function App() {
           <GroceryListForm />
         </main>
         
-        {/* Features Section */}
+        {/* Enhanced Features Section */}
         <section style={styles.featuresSection}>
           <div style={styles.featuresGrid}>
             <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>🤖</div>
-              <h3 style={styles.featureTitle}>AI-Powered</h3>
-              <p style={styles.featureDescription}>Built-in AI creates personalized grocery lists and meal plans</p>
+              <div style={styles.featureIcon}>🧠</div>
+              <h3 style={styles.featureTitle}>AI-Powered Intelligence</h3>
+              <p style={styles.featureDescription}>
+                Advanced parsing that distinguishes between actual products and meal descriptions
+              </p>
             </div>
             
             <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>⚡</div>
-              <h3 style={styles.featureTitle}>Lightning Fast</h3>
-              <p style={styles.featureDescription}>Convert lists to carts in under 5 seconds</p>
+              <div style={styles.featureIcon}>🎯</div>
+              <h3 style={styles.featureTitle}>Confidence Scoring</h3>
+              <p style={styles.featureDescription}>
+                Every item gets a confidence score so you know which products need review
+              </p>
             </div>
             
             <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>🛒</div>
-              <h3 style={styles.featureTitle}>Instant Cart</h3>
-              <p style={styles.featureDescription}>Direct integration with Instacart for immediate delivery</p>
+              <div style={styles.featureIcon}>✅</div>
+              <h3 style={styles.featureTitle}>Product Validation</h3>
+              <p style={styles.featureDescription}>
+                Real-time validation against grocery databases with pricing and availability
+              </p>
+            </div>
+            
+            <div style={styles.featureCard}>
+              <div style={styles.featureIcon}>🔄</div>
+              <h3 style={styles.featureTitle}>Smart Duplicate Detection</h3>
+              <p style={styles.featureDescription}>
+                Automatically merges similar items and suggests alternatives
+              </p>
             </div>
           </div>
         </section>
@@ -551,19 +725,18 @@ const styles = {
   heroSubtitle: {
     fontSize: '20px',
     color: '#6b7280',
-    maxWidth: '600px',
+    maxWidth: '700px',
     margin: '0 auto',
     lineHeight: '1.6',
   },
   
-  aiHelperBanner: {
-    background: 'linear-gradient(135deg, #e3f2fd, #bbdefb)',
+  intelligenceBanner: {
+    background: 'linear-gradient(135deg, #e8f4fd, #d0ebf7)',
     padding: '20px',
     borderRadius: '15px',
     marginBottom: '32px',
-    border: '2px solid #2196f3',
-    boxShadow: '0 4px 15px rgba(33, 150, 243, 0.2)',
-    position: 'relative',
+    border: '2px solid #3b82f6',
+    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.2)',
   },
   
   bannerContent: {
@@ -579,14 +752,14 @@ const styles = {
   },
   
   bannerTitle: {
-    color: '#0d47a1',
+    color: '#1e40af',
     margin: '0 0 8px 0',
     fontSize: '20px',
     fontWeight: 'bold',
   },
   
   bannerSubtitle: {
-    color: '#1565c0',
+    color: '#3730a3',
     margin: 0,
     fontSize: '14px',
     lineHeight: '1.4',
@@ -601,13 +774,12 @@ const styles = {
   
   indicatorText: {
     fontSize: '12px',
-    color: '#1565c0',
+    color: '#3730a3',
     fontWeight: 'bold',
   },
   
-  indicatorArrow: {
-    fontSize: '20px',
-    animation: 'bounce 2s infinite',
+  indicatorIcon: {
+    fontSize: '24px',
   },
   
   mainForm: {
@@ -639,14 +811,21 @@ const styles = {
     resize: 'vertical',
     fontFamily: 'inherit',
     lineHeight: '1.5',
-    minHeight: '160px',
+    minHeight: '200px',
     transition: 'border-color 0.2s',
     outline: 'none',
     boxSizing: 'border-box',
   },
   
-  actionSelector: {
+  controlsSection: {
     marginBottom: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+  },
+  
+  actionSelector: {
+    marginBottom: '15px',
   },
   
   actionLabel: {
@@ -674,6 +853,23 @@ const styles = {
     transition: 'border-color 0.2s',
   },
   
+  intelligenceToggle: {
+    padding: '15px',
+    background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
+    borderRadius: '10px',
+    border: '2px solid #0ea5e9',
+  },
+  
+  toggleLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#0c4a6e',
+    cursor: 'pointer',
+  },
+  
   errorMessage: {
     padding: '16px',
     backgroundColor: '#fef2f2',
@@ -686,12 +882,13 @@ const styles = {
   
   buttonGroup: {
     display: 'flex',
-    gap: '12px',
+    flexDirection: 'column',
+    gap: '15px',
     alignItems: 'center',
   },
   
   smashButton: {
-    flex: 1,
+    width: '100%',
     border: 'none',
     padding: '16px 32px',
     color: 'white',
@@ -706,15 +903,55 @@ const styles = {
     overflow: 'hidden',
   },
   
+  actionButtons: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  
   newListButton: {
-    padding: '16px 24px',
+    padding: '12px 20px',
     backgroundColor: '#6b7280',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
     fontWeight: 'bold',
-    whiteSpace: 'nowrap',
+    fontSize: '14px',
+  },
+  
+  smartButton: {
+    padding: '12px 20px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '14px',
+  },
+  
+  validateButton: {
+    padding: '12px 20px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '14px',
+  },
+  
+  reviewButton: {
+    padding: '12px 20px',
+    backgroundColor: '#f59e0b',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '14px',
   },
   
   featuresSection: {
@@ -733,6 +970,9 @@ const styles = {
   featureCard: {
     textAlign: 'center',
     padding: '24px',
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
   },
   
   featureIcon: {
@@ -756,6 +996,7 @@ const styles = {
   
   featureDescription: {
     color: '#6b7280',
+    lineHeight: '1.5',
   },
   
   authStatus: {
@@ -810,15 +1051,9 @@ const styles = {
   },
 };
 
-// Add bounce animation
+// Add animations
 const styleSheet = document.createElement('style');
 styleSheet.textContent = `
-  @keyframes bounce {
-    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-10px); }
-    60% { transform: translateY(-5px); }
-  }
-  
   @keyframes shake {
     0%, 100% { transform: translateX(0) translateY(0); }
     10% { transform: translateX(-4px) translateY(-2px); }
