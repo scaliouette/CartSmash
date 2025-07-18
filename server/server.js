@@ -1,7 +1,7 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const cartRoutes = require('./routes/cart');
-require('dotenv').config();
+const aiRoutes = require('./routes/ai');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -9,7 +9,9 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/api/cart', cartRoutes);
+
+// Routes
+app.use('/api/ai', aiRoutes);
 
 // Enhanced grocery parsing function
 function parseGroceryItem(line) {
@@ -235,9 +237,6 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`
-    💥 Cart Smash Server SMASH into action! 💥
-    🚀 Server running on http://localhost:${PORT}
-    📡 Ready to parse grocery lists...
-  `);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🤖 AI APIs: ${process.env.OPENAI_API_KEY ? '✅' : '❌'} OpenAI, ${process.env.ANTHROPIC_API_KEY ? '✅' : '❌'} Anthropic`);
 });

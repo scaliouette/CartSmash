@@ -1,135 +1,11 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿// client/src/App.js - Updated with integrated AI
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import ParsedResultsDisplay from './components/ParsedResultsDisplay';
 import InstacartIntegration from './components/InstacartIntegration';
-import EnhancedAIHelper from './components/EnhancedAIHelper';
+import SmartAIAssistant from './components/SmartAIAssistant'; // New integrated AI
 import confetti from 'canvas-confetti';
-
-// AI Recipe Suggestion Component
-function AIRecipeSuggestions({ onRecipeSelect }) {
-  const [currentRecipeIndex, setCurrentRecipeIndex] = useState(0);
-  
-  const aiRecipeSuggestions = [
-    {
-      name: "Chicken Stir-Fry",
-      image: "🥘",
-      ingredients: ["2 lbs chicken breast", "2 bell peppers", "1 onion", "2 tbsp soy sauce", "1 tbsp garlic", "2 tbsp oil", "1 cup broccoli"],
-      cookTime: "25 mins",
-      difficulty: "Easy",
-      description: "A quick and healthy dinner perfect for busy weeknights"
-    },
-    {
-      name: "Mediterranean Bowl",
-      image: "🥗",
-      ingredients: ["1 cup quinoa", "1 cucumber", "2 tomatoes", "1/2 cup feta cheese", "1/4 cup olives", "2 tbsp olive oil", "1 lemon"],
-      cookTime: "20 mins",
-      difficulty: "Easy",
-      description: "Fresh and nutritious Mediterranean flavors"
-    },
-    {
-      name: "Pasta Carbonara",
-      image: "🍝",
-      ingredients: ["1 lb spaghetti", "6 oz pancetta", "4 eggs", "1 cup parmesan", "2 cloves garlic", "Black pepper", "Salt"],
-      cookTime: "30 mins",
-      difficulty: "Medium",
-      description: "Classic Italian comfort food"
-    }
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentRecipeIndex((prev) => (prev + 1) % aiRecipeSuggestions.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const currentRecipe = aiRecipeSuggestions[currentRecipeIndex];
-
-  return (
-    <div style={styles.aiRecipeSection}>
-      <h2 style={styles.recipeSectionTitle}>What recipe would you like to make?</h2>
-      
-      <div style={styles.featuredRecipe}>
-        <div style={styles.recipeHeader}>
-          <div style={styles.aiLabel}>
-            <div style={styles.aiIcon}>✨</div>
-            <span style={styles.aiText}>AI</span>
-            <span style={styles.suggestionText}>How about {currentRecipe.name}?</span>
-          </div>
-          <div style={styles.recipeEmoji}>{currentRecipe.image}</div>
-        </div>
-        
-        <p style={styles.recipeDescription}>{currentRecipe.description}</p>
-        
-        <div style={styles.ingredientGrid}>
-          {currentRecipe.ingredients.slice(0, 4).map((ingredient, index) => (
-            <div key={index} style={styles.ingredientTag}>
-              {ingredient}
-            </div>
-          ))}
-          {currentRecipe.ingredients.length > 4 && (
-            <div style={styles.moreIngredientsTag}>
-              +{currentRecipe.ingredients.length - 4} more
-            </div>
-          )}
-        </div>
-        
-        <div style={styles.recipeStats}>
-          <span style={styles.recipeStat}>🕒 {currentRecipe.cookTime}</span>
-          <span style={styles.recipeStat}>📊 {currentRecipe.difficulty}</span>
-          <span style={styles.recipeStat}>⭐ 4.8/5</span>
-        </div>
-        
-        <div style={styles.recipeActions}>
-          <button
-            onClick={() => onRecipeSelect(currentRecipe)}
-            style={styles.addIngredientsBtn}
-          >
-            Add Ingredients to List
-          </button>
-          <button
-            onClick={() => window.open('https://claude.ai/chat', '_blank')}
-            style={styles.customRecipeBtn}
-          >
-            Ask AI for Custom Recipe
-          </button>
-        </div>
-      </div>
-
-      <div style={styles.recipeGrid}>
-        {aiRecipeSuggestions.map((recipe, index) => (
-          <div
-            key={index}
-            style={{
-              ...styles.recipeCard,
-              ...(index === currentRecipeIndex ? styles.activeRecipeCard : {})
-            }}
-            onClick={() => setCurrentRecipeIndex(index)}
-          >
-            <div style={styles.recipeCardEmoji}>{recipe.image}</div>
-            <h3 style={styles.recipeCardTitle}>{recipe.name}</h3>
-            <p style={styles.recipeCardMeta}>{recipe.cookTime} • {recipe.difficulty}</p>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRecipeSelect(recipe);
-              }}
-              style={styles.useRecipeBtn}
-            >
-              Use This Recipe
-            </button>
-          </div>
-        ))}
-      </div>
-      
-      <button style={styles.exploreRecipesBtn}>
-        <span style={styles.chefIcon}>👨‍🍳</span>
-        Explore More Recipes
-      </button>
-    </div>
-  );
-}
 
 // Enhanced SMASH Button with viral effects
 function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
@@ -221,6 +97,17 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
       }}
     >
       {buttonText}
+      {itemCount > 0 && !isSmashing && (
+        <div style={{ 
+          fontSize: '14px', 
+          marginTop: '4px',
+          opacity: 0.9,
+          fontWeight: '600',
+          letterSpacing: '1px',
+        }}>
+          {itemCount} ITEMS READY
+        </div>
+      )}
     </button>
   );
 }
@@ -290,9 +177,16 @@ function GroceryListForm() {
     }
   };
 
-  const handleRecipeSelect = (recipe) => {
-    const recipeList = recipe.ingredients.join('\n');
-    setInputText(recipeList);
+  // Handle AI-generated grocery list
+  const handleAIGroceryList = (aiGeneratedList) => {
+    setInputText(aiGeneratedList);
+    // Optionally auto-submit
+    setTimeout(() => {
+      if (aiGeneratedList.trim()) {
+        setIsLoading(true);
+        handleSubmit({ preventDefault: () => {} });
+      }
+    }, 500);
   };
 
   const handleItemsChange = (updatedItems) => {
@@ -324,33 +218,46 @@ function GroceryListForm() {
           <span style={styles.heroAccent}>Instantly.</span>
         </h1>
         <p style={styles.heroSubtitle}>
-          Turn any AI-generated grocery list into a ready-to-order Instacart cart in seconds.
+          Create grocery lists with AI or paste existing ones. Turn any list into a ready-to-order Instacart cart in seconds.
         </p>
       </div>
 
-      {/* Enhanced AI Helper */}
-      <div style={styles.aiHelperSection}>
-        <EnhancedAIHelper />
+      {/* AI Helper Banner */}
+      <div style={styles.aiHelperBanner}>
+        <div style={styles.bannerContent}>
+          <div style={styles.bannerText}>
+            <h3 style={styles.bannerTitle}>🤖 Need help creating a grocery list?</h3>
+            <p style={styles.bannerSubtitle}>
+              Use our AI assistant to generate meal plans, budget lists, or recipe ingredients
+            </p>
+          </div>
+          <div style={styles.bannerIndicator}>
+            <span style={styles.indicatorText}>Click the AI button</span>
+            <span style={styles.indicatorArrow}>↘️</span>
+          </div>
+        </div>
       </div>
 
       {/* Main Input Section */}
       <form onSubmit={handleSubmit} style={styles.mainForm}>
         <div style={styles.inputSection}>
           <label style={styles.inputLabel}>
-            Paste Grocery List
+            Paste or Create Grocery List
           </label>
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             style={styles.textarea}
-            placeholder="Paste your AI-generated grocery list here...
+            placeholder="Paste your grocery list here or use the AI assistant to generate one...
 
 Example:
 2 lbs chicken breast
 1 cup quinoa
 2 bell peppers
 1 onion
-2 tbsp olive oil"
+2 tbsp olive oil
+1 dozen eggs
+1 bag spinach"
             rows="8"
           />
         </div>
@@ -390,7 +297,7 @@ Example:
             onSubmit={handleSubmit}
             isDisabled={!inputText.trim()}
             isLoading={isLoading}
-            itemCount={parsedItems.length}
+            itemCount={inputText.split('\n').filter(line => line.trim()).length}
           />
           
           {showResults && (
@@ -404,9 +311,6 @@ Example:
           )}
         </div>
       </form>
-
-      {/* AI Recipe Suggestions */}
-      <AIRecipeSuggestions onRecipeSelect={handleRecipeSelect} />
 
       {/* Results Display */}
       {showResults && parsedItems.length > 0 && (
@@ -424,6 +328,9 @@ Example:
           currentUser={currentUser}
         />
       )}
+
+      {/* Smart AI Assistant - Floating Button */}
+      <SmartAIAssistant onGroceryListGenerated={handleAIGroceryList} />
     </div>
   );
 }
@@ -516,9 +423,9 @@ function App() {
         <section style={styles.featuresSection}>
           <div style={styles.featuresGrid}>
             <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>✨</div>
+              <div style={styles.featureIcon}>🤖</div>
               <h3 style={styles.featureTitle}>AI-Powered</h3>
-              <p style={styles.featureDescription}>Advanced AI parsing handles any grocery list format</p>
+              <p style={styles.featureDescription}>Built-in AI creates personalized grocery lists and meal plans</p>
             </div>
             
             <div style={styles.featureCard}>
@@ -528,9 +435,9 @@ function App() {
             </div>
             
             <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>👥</div>
-              <h3 style={styles.featureTitle}>Social Ready</h3>
-              <p style={styles.featureDescription}>Share recipes and shopping lists with friends</p>
+              <div style={styles.featureIcon}>🛒</div>
+              <h3 style={styles.featureTitle}>Instant Cart</h3>
+              <p style={styles.featureDescription}>Direct integration with Instacart for immediate delivery</p>
             </div>
           </div>
         </section>
@@ -542,7 +449,7 @@ function App() {
 const styles = {
   app: {
     minHeight: '100vh',
-    backgroundColor: 'linear-gradient(to-br, from-orange-50, to-yellow-50)',
+    backgroundColor: '#f8f9fa',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
   
@@ -568,7 +475,7 @@ const styles = {
   
   logoIcon: {
     padding: '8px',
-    backgroundColor: 'linear-gradient(45deg, #FF6B35, #F7931E)',
+    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
     borderRadius: '8px',
     fontSize: '20px',
   },
@@ -644,8 +551,58 @@ const styles = {
     lineHeight: '1.6',
   },
   
-  aiHelperSection: {
+  aiHelperBanner: {
+    background: 'linear-gradient(135deg, #e3f2fd, #bbdefb)',
+    padding: '20px',
+    borderRadius: '15px',
     marginBottom: '32px',
+    border: '2px solid #2196f3',
+    boxShadow: '0 4px 15px rgba(33, 150, 243, 0.2)',
+    position: 'relative',
+  },
+  
+  bannerContent: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '15px',
+  },
+  
+  bannerText: {
+    flex: 1,
+  },
+  
+  bannerTitle: {
+    color: '#0d47a1',
+    margin: '0 0 8px 0',
+    fontSize: '20px',
+    fontWeight: 'bold',
+  },
+  
+  bannerSubtitle: {
+    color: '#1565c0',
+    margin: 0,
+    fontSize: '14px',
+    lineHeight: '1.4',
+  },
+  
+  bannerIndicator: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '5px',
+  },
+  
+  indicatorText: {
+    fontSize: '12px',
+    color: '#1565c0',
+    fontWeight: 'bold',
+  },
+  
+  indicatorArrow: {
+    fontSize: '20px',
+    animation: 'bounce 2s infinite',
   },
   
   mainForm: {
@@ -680,6 +637,7 @@ const styles = {
     minHeight: '160px',
     transition: 'border-color 0.2s',
     outline: 'none',
+    boxSizing: 'border-box',
   },
   
   actionSelector: {
@@ -754,207 +712,6 @@ const styles = {
     whiteSpace: 'nowrap',
   },
   
-  aiRecipeSection: {
-    marginBottom: '48px',
-  },
-  
-  recipeSectionTitle: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    color: '#1f2937',
-    textAlign: 'center',
-    marginBottom: '32px',
-  },
-  
-  featuredRecipe: {
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    padding: '32px',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-    marginBottom: '32px',
-  },
-  
-  recipeHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '16px',
-  },
-  
-  aiLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-  },
-  
-  aiIcon: {
-    width: '40px',
-    height: '40px',
-    backgroundColor: 'linear-gradient(45deg, #10b981, #3b82f6)',
-    borderRadius: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '18px',
-  },
-  
-  aiText: {
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  
-  suggestionText: {
-    color: '#6b7280',
-  },
-  
-  recipeEmoji: {
-    fontSize: '48px',
-  },
-  
-  recipeDescription: {
-    color: '#6b7280',
-    fontSize: '16px',
-    marginBottom: '24px',
-  },
-  
-  ingredientGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '12px',
-    marginBottom: '24px',
-  },
-  
-  ingredientTag: {
-    padding: '12px',
-    backgroundColor: '#f3f4f6',
-    borderRadius: '8px',
-    fontSize: '14px',
-    color: '#374151',
-  },
-  
-  moreIngredientsTag: {
-    padding: '12px',
-    backgroundColor: '#fef3cd',
-    borderRadius: '8px',
-    fontSize: '14px',
-    color: '#d97706',
-    fontWeight: '600',
-  },
-  
-  recipeStats: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '24px',
-    marginBottom: '24px',
-  },
-  
-  recipeStat: {
-    fontSize: '14px',
-    color: '#6b7280',
-  },
-  
-  recipeActions: {
-    display: 'flex',
-    gap: '16px',
-  },
-  
-  addIngredientsBtn: {
-    flex: 1,
-    padding: '12px 24px',
-    backgroundColor: 'linear-gradient(45deg, #FF6B35, #F7931E)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'transform 0.2s',
-  },
-  
-  customRecipeBtn: {
-    padding: '12px 24px',
-    border: '2px solid #FF6B35',
-    color: '#FF6B35',
-    backgroundColor: 'transparent',
-    borderRadius: '8px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  
-  recipeGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '24px',
-    marginBottom: '32px',
-  },
-  
-  recipeCard: {
-    padding: '24px',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    backgroundColor: 'white',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-    border: '2px solid transparent',
-    textAlign: 'center',
-  },
-  
-  activeRecipeCard: {
-    background: 'linear-gradient(135deg, #fef3cd, #fed7aa)',
-    borderColor: '#f59e0b',
-  },
-  
-  recipeCardEmoji: {
-    fontSize: '32px',
-    marginBottom: '12px',
-  },
-  
-  recipeCardTitle: {
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: '8px',
-  },
-  
-  recipeCardMeta: {
-    fontSize: '14px',
-    color: '#6b7280',
-    marginBottom: '16px',
-  },
-  
-  useRecipeBtn: {
-    width: '100%',
-    padding: '8px 16px',
-    backgroundColor: '#FF6B35',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
-  },
-  
-  exploreRecipesBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    margin: '0 auto',
-    padding: '16px 32px',
-    backgroundColor: 'linear-gradient(45deg, #3b82f6, #8b5cf6)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'transform 0.2s',
-  },
-  
-  chefIcon: {
-    fontSize: '20px',
-  },
-  
   featuresSection: {
     padding: '48px 24px',
     backgroundColor: '#f9fafb',
@@ -976,7 +733,7 @@ const styles = {
   featureIcon: {
     width: '64px',
     height: '64px',
-    backgroundColor: 'linear-gradient(45deg, #FF6B35, #F7931E)',
+    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
     borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
@@ -1007,7 +764,7 @@ const styles = {
     position: 'fixed',
     top: '20px',
     right: '20px',
-    backgroundColor: 'linear-gradient(135deg, #d4edda, #c3e6cb)',
+    background: 'linear-gradient(135deg, #d4edda, #c3e6cb)',
     padding: '12px 16px',
     borderRadius: '10px',
     border: '2px solid #c3e6cb',
@@ -1047,5 +804,29 @@ const styles = {
     transition: 'transform 0.2s ease',
   },
 };
+
+// Add bounce animation
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+  @keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-10px); }
+    60% { transform: translateY(-5px); }
+  }
+  
+  @keyframes shake {
+    0%, 100% { transform: translateX(0) translateY(0); }
+    10% { transform: translateX(-4px) translateY(-2px); }
+    20% { transform: translateX(4px) translateY(2px); }
+    30% { transform: translateX(-3px) translateY(-1px); }
+    40% { transform: translateX(3px) translateY(1px); }
+    50% { transform: translateX(-2px) translateY(-1px); }
+    60% { transform: translateX(2px) translateY(1px); }
+    70% { transform: translateX(-1px) translateY(0px); }
+    80% { transform: translateX(1px) translateY(0px); }
+    90% { transform: translateX(0px) translateY(0px); }
+  }
+`;
+document.head.appendChild(styleSheet);
 
 export default App;

@@ -26,9 +26,14 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.56.0",
     "axios": "^1.10.0",
     "canvas-confetti": "^1.6.0",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.0",
-    "firebase": "^10.7.1"
+    "express": "^5.1.0",
+    "firebase": "^10.7.1",
+    "openai": "^5.10.1",
+    "react": "^19.1.0"
   }
 }
