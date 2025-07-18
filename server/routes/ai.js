@@ -1,8 +1,8 @@
-// server/routes/ai.js - REAL AI API INTEGRATION
+// server/routes/ai.js - Production version with real API calls
 const express = require('express');
 const router = express.Router();
 
-console.log('🤖 Loading AI routes with real API integration...');
+console.log('🤖 Loading AI routes (Production Mode)...');
 
 // Import AI SDKs
 let Anthropic, OpenAI;
@@ -10,48 +10,38 @@ try {
   Anthropic = require('@anthropic-ai/sdk');
   console.log('✅ Anthropic SDK loaded');
 } catch (error) {
-  console.log('⚠️ Anthropic SDK not installed. Run: npm install @anthropic-ai/sdk');
+  console.warn('⚠️ Anthropic SDK not found - install with: npm install @anthropic-ai/sdk');
 }
 
 try {
   OpenAI = require('openai');
   console.log('✅ OpenAI SDK loaded');
 } catch (error) {
-  console.log('⚠️ OpenAI SDK not installed. Run: npm install openai');
+  console.warn('⚠️ OpenAI SDK not found - install with: npm install openai');
 }
 
 // Initialize AI clients
-let anthropicClient, openaiClient;
+const anthropic = Anthropic && process.env.ANTHROPIC_API_KEY ? 
+  new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 
-if (Anthropic && process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'your_anthropic_api_key_here') {
-  anthropicClient = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-  });
-  console.log('🧠 Anthropic client initialized');
-} else {
-  console.log('⚠️ Anthropic API key not configured');
-}
-
-if (OpenAI && process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here') {
-  openaiClient = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
-  console.log('🤖 OpenAI client initialized');
-} else {
-  console.log('⚠️ OpenAI API key not configured');
-}
+const openai = OpenAI && process.env.OPENAI_API_KEY ? 
+  new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 // Health check for AI services
 router.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
     services: {
-      claude: !!anthropicClient,
-      chatgpt: !!openaiClient
-    },
-    apiKeys: {
-      anthropic: !!process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'your_anthropic_api_key_here',
-      openai: !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here'
+      claude: {
+        available: !!anthropic,
+        hasKey: !!process.env.ANTHROPIC_API_KEY,
+        keyLength: process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.length : 0
+      },
+      chatgpt: {
+        available: !!openai,
+        hasKey: !!process.env.OPENAI_API_KEY,
+        keyLength: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.length : 0
+      }
     },
     timestamp: new Date().toISOString()
   });
@@ -63,123 +53,70 @@ const extractGroceryItems = (text) => {
   
   const lines = text.split('\n');
   const groceryItems = [];
-  let inGrocerySection = false;
   
-  const groceryHeaders = [
-    'shopping list', 'grocery list', 'ingredients needed', 'what you need', 
-    'buy these', 'purchase', 'grocery items', 'food items', 'supplies needed',
-    'complete shopping list', 'grocery shopping', 'items to buy'
-  ];
-  
-  const excludePatterns = [
-    /recipe/i, /instructions/i, /directions/i, /steps/i, /method/i,
-    /monday|tuesday|wednesday|thursday|friday|saturday|sunday/i,
-    /breakfast|lunch|dinner|snack/i, /day \d+/i, /week \d+/i,
-    /serves/i, /calories/i, /prep time/i, /cook time/i, /total:/i,
-    /preheat|bake|cook|heat|boil|fry|grill|roast|simmer/i,
-    /season with|add salt|taste and adjust/i,
-    /meal plan/i, /budget/i, /tips/i, /notes/i, /optional/i
-  ];
-
-  const foodKeywords = [
-    'chicken', 'beef', 'pork', 'fish', 'salmon', 'turkey', 'eggs', 'tofu', 'beans', 'lentils',
-    'milk', 'cheese', 'yogurt', 'butter', 'cream', 'sour cream',
-    'banana', 'apple', 'orange', 'tomato', 'onion', 'garlic', 'potato', 'carrot', 'spinach', 
-    'lettuce', 'broccoli', 'pepper', 'cucumber', 'avocado', 'strawberry', 'blueberry',
-    'rice', 'pasta', 'bread', 'flour', 'sugar', 'salt', 'pepper', 'oil', 'vinegar', 'sauce',
-    'quinoa', 'oats', 'cereal', 'pasta sauce', 'olive oil', 'coconut oil',
-    'nuts', 'almonds', 'walnuts', 'honey', 'maple syrup'
-  ];
-
-  const measurements = [
+  // Common grocery keywords to help identify items
+  const groceryKeywords = [
     'cup', 'cups', 'lb', 'lbs', 'pound', 'pounds', 'oz', 'ounce', 'ounces',
     'tsp', 'tbsp', 'tablespoon', 'teaspoon', 'clove', 'cloves', 'bunch',
     'bag', 'container', 'jar', 'can', 'bottle', 'loaf', 'dozen', 'pack',
-    'gallon', 'quart', 'pint', 'box', 'package', 'head', 'piece', 'pieces'
+    'gallon', 'quart', 'pint', 'slice', 'slices', 'piece', 'pieces'
   ];
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+  // Food items to help identify grocery items
+  const foodKeywords = [
+    'chicken', 'beef', 'pork', 'fish', 'salmon', 'turkey', 'eggs', 'milk',
+    'cheese', 'yogurt', 'butter', 'bread', 'rice', 'pasta', 'potato', 'onion',
+    'garlic', 'tomato', 'pepper', 'carrot', 'broccoli', 'spinach', 'lettuce',
+    'apple', 'banana', 'orange', 'strawberry', 'blueberry', 'avocado',
+    'beans', 'lentils', 'quinoa', 'oats', 'flour', 'sugar', 'salt', 'oil'
+  ];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
     
-    if (!line) continue;
+    // Skip empty lines or obvious headers
+    if (!trimmed || trimmed.length < 3) continue;
     
-    const lowerLine = line.toLowerCase();
-    if (groceryHeaders.some(header => lowerLine.includes(header))) {
-      inGrocerySection = true;
-      console.log('📝 Found grocery list section:', line);
+    // Skip meal plan headers and day names
+    if (trimmed.match(/^(monday|tuesday|wednesday|thursday|friday|saturday|sunday|breakfast|lunch|dinner|snack|meal|recipe|serves|total|budget|plan|shopping|grocery)/i)) {
       continue;
     }
     
-    if (line.match(/^\*\*[^*]+\*\*$/) || line.match(/^#{1,6}\s/) || line.match(/^[A-Z][A-Z\s]+:$/)) {
-      if (!groceryHeaders.some(header => lowerLine.includes(header))) {
-        if (inGrocerySection) {
-          console.log('📝 Left grocery section at:', line);
-        }
-        inGrocerySection = false;
-      }
-      continue;
-    }
-    
-    const bulletMatch = line.match(/^[•\-\*\d+\.\)\s]*(.+)$/);
-    if (bulletMatch) {
-      let cleanedItem = bulletMatch[1].trim();
+    // Look for list items (bullets, numbers, dashes)
+    if (trimmed.match(/^[•\-\*\d+\.\)\s]*/) && trimmed.length > 3) {
+      let cleaned = trimmed.replace(/^[•\-\*\d+\.\)\s]+/, '').trim();
       
-      cleanedItem = cleanedItem.replace(/\*\*/g, '').replace(/\*/g, '').replace(/`/g, '');
+      // Remove common prefixes
+      cleaned = cleaned.replace(/^(buy|get|purchase|add|include|pick up|grab)\s+/i, '');
       
-      if (excludePatterns.some(pattern => pattern.test(cleanedItem))) {
-        continue;
-      }
-      
-      if (cleanedItem.length < 3 || 
-          cleanedItem.endsWith(':') ||
-          cleanedItem.toLowerCase().includes('cook') || 
-          cleanedItem.toLowerCase().includes('bake') ||
-          cleanedItem.toLowerCase().includes('heat') ||
-          cleanedItem.toLowerCase().includes('serve') ||
-          cleanedItem.toLowerCase().includes('mix') ||
-          cleanedItem.toLowerCase().includes('stir')) {
-        continue;
-      }
-      
-      const hasQuantity = /^\d+/.test(cleanedItem) || 
-                         measurements.some(unit => 
-                           new RegExp(`\\b\\d+\\s*${unit}\\b`, 'i').test(cleanedItem)
-                         );
-      
-      const hasCommonFood = foodKeywords.some(food => 
-        new RegExp(`\\b${food}\\b`, 'i').test(cleanedItem)
+      // Check if it contains grocery indicators
+      const hasGroceryKeyword = groceryKeywords.some(keyword => 
+        cleaned.toLowerCase().includes(keyword)
       );
       
-      const looksLikeGroceryItem = 
-        /\b(fresh|organic|free.range|grass.fed|whole|ground|sliced|diced|chopped)\b/i.test(cleanedItem) ||
-        /\b(bag|container|jar|can|bottle|loaf|dozen|pack|box)\s+of\b/i.test(cleanedItem) ||
-        /\b(vegetable|fruit|meat|dairy|grain|spice|herb)\b/i.test(cleanedItem);
+      const hasFoodKeyword = foodKeywords.some(keyword => 
+        cleaned.toLowerCase().includes(keyword)
+      );
       
-      let score = 0;
-      if (inGrocerySection) score += 3;
-      if (hasQuantity) score += 2;
-      if (hasCommonFood) score += 2;
-      if (looksLikeGroceryItem) score += 1;
+      // Additional check for quantity patterns (numbers at start)
+      const hasQuantityPattern = /^\d+/.test(trimmed);
       
-      if (score >= 2 || (hasQuantity && hasCommonFood)) {
-        cleanedItem = cleanedItem.replace(/^(buy|get|purchase|add|include|need)\s+/i, '');
-        
-        if (cleanedItem && !groceryItems.some(existing => 
-            existing.toLowerCase() === cleanedItem.toLowerCase())) {
-          groceryItems.push(cleanedItem);
-          console.log(`✅ Added grocery item: "${cleanedItem}" (score: ${score})`);
-        }
+      if ((hasGroceryKeyword || hasFoodKeyword || hasQuantityPattern) && 
+          cleaned.length > 2 && 
+          !groceryItems.includes(cleaned)) {
+        groceryItems.push(cleaned);
       }
     }
   }
   
-  console.log(`🎯 Final extraction: ${groceryItems.length} grocery items found`);
+  console.log(`✅ Extracted ${groceryItems.length} grocery items`);
   return groceryItems;
 };
 
 // Claude API Integration
 router.post('/claude', async (req, res) => {
   console.log('🧠 Claude API request received');
+  
   try {
     const { prompt, context } = req.body;
     
@@ -190,72 +127,91 @@ router.post('/claude', async (req, res) => {
       });
     }
     
-    // Try real Claude API first
-    if (anthropicClient) {
-      try {
-        console.log('🔄 Calling real Claude API...');
-        
-        // Enhanced prompt for better grocery list generation
-        const enhancedPrompt = `${prompt}
-
-Please format your response with a clear grocery shopping list section. List each grocery item on a separate line with bullet points, including quantities where appropriate. Focus on practical shopping items rather than cooking instructions.`;
-
-        const message = await anthropicClient.messages.create({
-          model: "claude-3-sonnet-20240229",
-          max_tokens: 1000,
-          messages: [{ role: "user", content: enhancedPrompt }]
-        });
-
-        const responseText = message.content[0].text;
-        const groceryList = extractGroceryItems(responseText);
-
-        console.log(`✅ Real Claude API success! Extracted ${groceryList.length} grocery items`);
-
-        return res.json({
-          success: true,
-          response: responseText,
-          groceryList: groceryList,
-          model: 'claude-3-sonnet',
-          tokensUsed: message.usage.output_tokens,
-          fallback: false
-        });
-
-      } catch (apiError) {
-        console.log('⚠️ Real Claude API failed:', apiError.message);
-        // Fall through to fallback
-      }
+    if (!anthropic) {
+      return res.status(503).json({
+        success: false,
+        error: 'Claude API not available - missing API key or SDK',
+        fallback: false
+      });
     }
     
-    // Fallback: Generate a realistic response
-    console.log('🔄 Using fallback Claude response...');
-    const mockResponse = generateClaudeResponse(prompt);
-    const groceryList = extractGroceryItems(mockResponse);
+    // Enhanced prompt for grocery list generation
+    const enhancedPrompt = context === 'grocery_list_generation' ? 
+      `${prompt}
+
+Please provide a detailed response and include a clear, bulleted shopping list. Format grocery items as:
+• [quantity] [item name]
+
+Example:
+• 2 lbs chicken breast
+• 1 cup quinoa
+• 3 bell peppers
+
+Focus on specific, purchasable items with quantities.` : prompt;
     
-    console.log(`✅ Fallback Claude response generated, extracted ${groceryList.length} grocery items`);
+    console.log('🔄 Calling Claude API...');
+    
+    const response = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 2000,
+      temperature: 0.7,
+      messages: [{ 
+        role: 'user', 
+        content: enhancedPrompt 
+      }]
+    });
+    
+    const responseText = response.content[0].text;
+    const groceryList = extractGroceryItems(responseText);
+    
+    console.log(`✅ Claude response received (${response.usage?.input_tokens || 0} input tokens, ${response.usage?.output_tokens || 0} output tokens)`);
+    console.log(`🛒 Extracted ${groceryList.length} grocery items`);
     
     res.json({
       success: true,
-      response: mockResponse,
+      response: responseText,
       groceryList: groceryList,
-      model: 'claude-3-sonnet (demo)',
-      tokensUsed: Math.floor(Math.random() * 500) + 200,
-      fallback: true,
-      reason: anthropicClient ? 'API call failed' : 'No API key configured'
+      model: response.model, // Use the actual model from the response
+      usage: response.usage,
+      fallback: false
     });
     
   } catch (error) {
-    console.error('Claude API error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to process request with Claude',
-      message: error.message
-    });
+    console.error('❌ Claude API error:', error);
+    
+    // Determine error type and provide appropriate response
+    if (error.status === 401) {
+      res.status(401).json({ 
+        success: false,
+        error: 'Invalid Claude API key',
+        message: 'Please check your ANTHROPIC_API_KEY environment variable'
+      });
+    } else if (error.status === 429) {
+      res.status(429).json({ 
+        success: false,
+        error: 'Claude API rate limit exceeded',
+        message: 'Please try again in a few moments'
+      });
+    } else if (error.status === 400) {
+      res.status(400).json({ 
+        success: false,
+        error: 'Invalid request to Claude API',
+        message: error.message
+      });
+    } else {
+      res.status(500).json({ 
+        success: false,
+        error: 'Failed to process request with Claude',
+        message: error.message
+      });
+    }
   }
 });
 
 // ChatGPT API Integration  
 router.post('/chatgpt', async (req, res) => {
   console.log('🤖 ChatGPT API request received');
+  
   try {
     const { prompt, context } = req.body;
     
@@ -266,158 +222,140 @@ router.post('/chatgpt', async (req, res) => {
       });
     }
     
-    // Try real OpenAI API first
-    if (openaiClient) {
-      try {
-        console.log('🔄 Calling real OpenAI API...');
-        
-        // Enhanced prompt for better grocery list generation
-        const enhancedPrompt = `${prompt}
-
-Please format your response with a clear grocery shopping list section. List each grocery item on a separate line with bullet points, including quantities where appropriate. Focus on practical shopping items rather than cooking instructions.`;
-
-        const completion = await openaiClient.chat.completions.create({
-          messages: [{ role: 'user', content: enhancedPrompt }],
-          model: 'gpt-4',
-          max_tokens: 1000,
-          temperature: 0.7
-        });
-
-        const responseText = completion.choices[0].message.content;
-        const groceryList = extractGroceryItems(responseText);
-
-        console.log(`✅ Real OpenAI API success! Extracted ${groceryList.length} grocery items`);
-
-        return res.json({
-          success: true,
-          response: responseText,
-          groceryList: groceryList,
-          model: 'gpt-4',
-          tokensUsed: completion.usage.total_tokens,
-          fallback: false
-        });
-
-      } catch (apiError) {
-        console.log('⚠️ Real OpenAI API failed:', apiError.message);
-        // Fall through to fallback
-      }
+    if (!openai) {
+      return res.status(503).json({
+        success: false,
+        error: 'ChatGPT API not available - missing API key or SDK',
+        fallback: false
+      });
     }
     
-    // Fallback: Generate a realistic response
-    console.log('🔄 Using fallback ChatGPT response...');
-    const mockResponse = generateChatGPTResponse(prompt);
-    const groceryList = extractGroceryItems(mockResponse);
+    // Enhanced prompt for grocery list generation
+    const enhancedPrompt = context === 'grocery_list_generation' ? 
+      `${prompt}
+
+Please provide a helpful response and include a clear shopping list with specific items and quantities. Format like:
+• 2 lbs ground beef
+• 1 gallon milk
+• 3 large tomatoes
+
+Focus on specific, measurable grocery items that can be easily found in a store.` : prompt;
     
-    console.log(`✅ Fallback ChatGPT response generated, extracted ${groceryList.length} grocery items`);
+    console.log('🔄 Calling ChatGPT API...');
+    
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini', // More cost-effective than gpt-4
+      messages: [{ 
+        role: 'user', 
+        content: enhancedPrompt 
+      }],
+      max_tokens: 2000,
+      temperature: 0.7
+    });
+    
+    const responseText = response.choices[0].message.content;
+    const groceryList = extractGroceryItems(responseText);
+    
+    console.log(`✅ ChatGPT response received (${response.usage?.prompt_tokens || 0} input tokens, ${response.usage?.completion_tokens || 0} output tokens)`);
+    console.log(`🛒 Extracted ${groceryList.length} grocery items`);
     
     res.json({
       success: true,
-      response: mockResponse,
+      response: responseText,
       groceryList: groceryList,
-      model: 'gpt-4 (demo)',
-      tokensUsed: Math.floor(Math.random() * 400) + 150,
-      fallback: true,
-      reason: openaiClient ? 'API call failed' : 'No API key configured'
+      model: response.model,
+      usage: response.usage,
+      fallback: false
     });
     
   } catch (error) {
-    console.error('ChatGPT API error:', error);
-    res.status(500).json({ 
+    console.error('❌ ChatGPT API error:', error);
+    
+    // Determine error type and provide appropriate response
+    if (error.status === 401) {
+      res.status(401).json({ 
+        success: false,
+        error: 'Invalid OpenAI API key',
+        message: 'Please check your OPENAI_API_KEY environment variable'
+      });
+    } else if (error.status === 429) {
+      res.status(429).json({ 
+        success: false,
+        error: 'OpenAI API rate limit exceeded',
+        message: 'Please try again in a few moments'
+      });
+    } else if (error.status === 400) {
+      res.status(400).json({ 
+        success: false,
+        error: 'Invalid request to OpenAI API',
+        message: error.message
+      });
+    } else if (error.code === 'insufficient_quota') {
+      res.status(402).json({ 
+        success: false,
+        error: 'OpenAI API quota exceeded',
+        message: 'Please check your OpenAI billing and usage limits'
+      });
+    } else {
+      res.status(500).json({ 
+        success: false,
+        error: 'Failed to process request with ChatGPT',
+        message: error.message
+      });
+    }
+  }
+});
+
+// Test endpoint for development
+router.post('/test', async (req, res) => {
+  console.log('🧪 Test endpoint called');
+  
+  const { service = 'claude' } = req.body;
+  const testPrompt = 'Create a simple grocery list for 2 people for 3 days. Include breakfast, lunch, and dinner items.';
+  
+  try {
+    let response;
+    
+    if (service === 'claude' && anthropic) {
+      const claudeResponse = await anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: testPrompt }]
+      });
+      response = claudeResponse.content[0].text;
+    } else if (service === 'chatgpt' && openai) {
+      const chatgptResponse = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: testPrompt }],
+        max_tokens: 1000
+      });
+      response = chatgptResponse.choices[0].message.content;
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: `${service} API not available`
+      });
+    }
+    
+    const groceryList = extractGroceryItems(response);
+    
+    res.json({
+      success: true,
+      service: service,
+      response: response.substring(0, 200) + '...',
+      groceryItemsFound: groceryList.length,
+      groceryList: groceryList
+    });
+    
+  } catch (error) {
+    console.error(`Test ${service} error:`, error);
+    res.status(500).json({
       success: false,
-      error: 'Failed to process request with ChatGPT',
+      error: `Test failed for ${service}`,
       message: error.message
     });
   }
 });
 
-// Fallback response generators (same as before)
-function generateClaudeResponse(prompt) {
-  const lowerPrompt = prompt.toLowerCase();
-  
-  if (lowerPrompt.includes('meal plan') || lowerPrompt.includes('weekly')) {
-    return `I'd be happy to help you create a comprehensive weekly meal plan! Here's a balanced approach focusing on nutrition and variety:
-
-**WEEKLY MEAL PLAN**
-
-**Monday - Mediterranean Monday**
-• Breakfast: Greek yogurt parfait with mixed berries
-• Lunch: Quinoa tabbouleh with grilled chicken
-• Dinner: Baked salmon with roasted vegetables
-
-**Tuesday - Comfort Tuesday** 
-• Breakfast: Overnight oats with sliced banana
-• Lunch: Turkey and avocado wrap with whole grain tortilla
-• Dinner: Lean beef stir-fry with brown rice
-
-**COMPLETE SHOPPING LIST:**
-
-**Proteins:**
-• 2 lbs salmon fillet
-• 2 lbs boneless chicken breast  
-• 1 lb lean ground beef
-• 1 lb turkey deli meat
-• 1 container Greek yogurt (32oz)
-• 1 dozen eggs
-
-**Fresh Produce:**
-• 2 cups mixed berries
-• 4 bananas
-• 2 avocados
-• 1 bag spinach (5oz)
-• 2 bell peppers
-• 1 large onion
-• 3 cloves garlic
-• 2 large sweet potatoes
-• 1 cucumber
-• 2 tomatoes
-• 1 lemon
-
-**Pantry Staples:**
-• 2 cups quinoa
-• 2 cups brown rice
-• 1 container rolled oats
-• 1 can black beans
-• 1 cup red lentils
-• 2 tbsp olive oil
-• 1 loaf whole grain bread
-
-This plan provides balanced macronutrients with approximately 2000-2200 calories per day.`;
-  }
-  
-  // Add other response templates here...
-  return `Here's a personalized grocery plan based on your request:
-
-**GROCERY SHOPPING LIST:**
-
-• 2 lbs protein of choice
-• 1 dozen eggs
-• 1 gallon milk
-• 2 cups rice
-• 1 bag vegetables
-• 3 pieces fruit
-• 1 loaf bread
-• 1 bottle olive oil
-
-This provides a solid foundation for healthy meals.`;
-}
-
-function generateChatGPTResponse(prompt) {
-  // Similar fallback structure...
-  return `Here's a practical grocery list:
-
-**SHOPPING LIST:**
-
-• 2 lbs chicken breast
-• 1 dozen eggs
-• 1 gallon milk
-• 2 cups rice
-• 1 bag mixed vegetables
-• 3 bananas
-• 1 loaf bread
-• 1 bottle cooking oil
-
-Perfect for quick, healthy meals!`;
-}
-
-console.log('✅ AI routes loaded with real API integration');
+console.log('✅ AI routes loaded successfully (Production Mode)');
 module.exports = router;
