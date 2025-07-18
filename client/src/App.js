@@ -123,10 +123,9 @@ function GroceryListForm() {
   
   const { currentUser, saveCartToFirebase } = useAuth();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!inputText.trim()) {
+  // ✅ Extract the core submission logic into a separate function
+  const submitGroceryList = async (listText) => {
+    if (!listText.trim()) {
       setError('Please enter a grocery list');
       return;
     }
@@ -141,7 +140,7 @@ function GroceryListForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          listText: inputText,
+          listText: listText,
           action: cartAction,
           userId: currentUser?.uid || null
         }),
@@ -177,16 +176,22 @@ function GroceryListForm() {
     }
   };
 
-  // Handle AI-generated grocery list
-  const handleAIGroceryList = (aiGeneratedList) => {
+  // ✅ Form submission handler - now just calls the extracted function
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await submitGroceryList(inputText);
+  };
+
+  // ✅ Handle AI-generated grocery list - now properly calls the submission logic
+  const handleAIGroceryList = async (aiGeneratedList) => {
     setInputText(aiGeneratedList);
-    // Optionally auto-submit
-    setTimeout(() => {
-      if (aiGeneratedList.trim()) {
-        setIsLoading(true);
-        handleSubmit({ preventDefault: () => {} });
-      }
-    }, 500);
+    
+    // Auto-submit after a short delay (optional)
+    if (aiGeneratedList.trim()) {
+      setTimeout(async () => {
+        await submitGroceryList(aiGeneratedList); // ✅ Clean, direct call
+      }, 500);
+    }
   };
 
   const handleItemsChange = (updatedItems) => {

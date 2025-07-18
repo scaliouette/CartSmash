@@ -2,11 +2,22 @@
 const express = require('express');
 const router = express.Router();
 
-// In a real implementation, you'd use official SDKs
-// For demo purposes, this shows the structure
+console.log('🤖 Loading AI routes...');
 
+// Health check for AI services
+router.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    services: {
+      claude: !!process.env.ANTHROPIC_API_KEY,
+      chatgpt: !!process.env.OPENAI_API_KEY
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Extract grocery items from AI response text
 const extractGroceryItems = (text) => {
-  // Enhanced grocery item extraction
   const lines = text.split('\n');
   const groceryItems = [];
   const groceryKeywords = [
@@ -26,10 +37,17 @@ const extractGroceryItems = (text) => {
       if (cleaned.toLowerCase().includes('meal plan') || 
           cleaned.toLowerCase().includes('monday') ||
           cleaned.toLowerCase().includes('tuesday') ||
+          cleaned.toLowerCase().includes('wednesday') ||
+          cleaned.toLowerCase().includes('thursday') ||
+          cleaned.toLowerCase().includes('friday') ||
+          cleaned.toLowerCase().includes('saturday') ||
+          cleaned.toLowerCase().includes('sunday') ||
           cleaned.toLowerCase().includes('breakfast') ||
           cleaned.toLowerCase().includes('lunch') ||
           cleaned.toLowerCase().includes('dinner') ||
           cleaned.toLowerCase().includes('recipe') ||
+          cleaned.toLowerCase().includes('total:') ||
+          cleaned.toLowerCase().includes('serves:') ||
           cleaned.length < 3) {
         continue;
       }
@@ -57,84 +75,116 @@ const extractGroceryItems = (text) => {
 
 // Claude API Integration
 router.post('/claude', async (req, res) => {
+  console.log('🧠 Claude API request received');
   try {
     const { prompt, context } = req.body;
     
-    // In production, you'd make a real API call to Claude
-    // const response = await fetch('https://api.anthropic.com/v1/messages', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${process.env.CLAUDE_API_KEY}`,
-    //     'Content-Type': 'application/json',
-    //     'anthropic-version': '2023-06-01'
-    //   },
-    //   body: JSON.stringify({
-    //     model: 'claude-3-sonnet-20240229',
-    //     messages: [{ role: 'user', content: prompt }],
-    //     max_tokens: 1000
-    //   })
-    // });
-    // const data = await response.json();
+    if (!prompt) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prompt is required'
+      });
+    }
     
-    // For demo purposes, generate a realistic response
+    // Check if we have a real API key
+    if (process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'your_anthropic_api_key_here') {
+      // TODO: Implement real Claude API call
+      // const response = await fetch('https://api.anthropic.com/v1/messages', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Authorization': `Bearer ${process.env.ANTHROPIC_API_KEY}`,
+      //     'Content-Type': 'application/json',
+      //     'anthropic-version': '2023-06-01'
+      //   },
+      //   body: JSON.stringify({
+      //     model: 'claude-3-sonnet-20240229',
+      //     messages: [{ role: 'user', content: prompt }],
+      //     max_tokens: 1000
+      //   })
+      // });
+      
+      console.log('⚠️ Real Claude API not implemented yet, using fallback');
+    }
+    
+    // Fallback: Generate a realistic response for demo purposes
     const mockResponse = generateClaudeResponse(prompt);
     const groceryList = extractGroceryItems(mockResponse);
+    
+    console.log(`✅ Claude response generated, extracted ${groceryList.length} grocery items`);
     
     res.json({
       success: true,
       response: mockResponse,
       groceryList: groceryList,
-      model: 'claude-3-sonnet',
-      tokensUsed: Math.floor(Math.random() * 500) + 200
+      model: 'claude-3-sonnet (demo)',
+      tokensUsed: Math.floor(Math.random() * 500) + 200,
+      fallback: true
     });
     
   } catch (error) {
     console.error('Claude API error:', error);
     res.status(500).json({ 
+      success: false,
       error: 'Failed to process request with Claude',
-      fallback: true 
+      message: error.message
     });
   }
 });
 
 // ChatGPT API Integration  
 router.post('/chatgpt', async (req, res) => {
+  console.log('🤖 ChatGPT API request received');
   try {
     const { prompt, context } = req.body;
     
-    // In production, you'd make a real API call to OpenAI
-    // const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-    //     'Content-Type': 'application/json'
-    //   },
-    //   body: JSON.stringify({
-    //     model: 'gpt-4',
-    //     messages: [{ role: 'user', content: prompt }],
-    //     max_tokens: 1000,
-    //     temperature: 0.7
-    //   })
-    // });
-    // const data = await response.json();
+    if (!prompt) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prompt is required'
+      });
+    }
     
-    // For demo purposes, generate a realistic response
+    // Check if we have a real API key
+    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here') {
+      // TODO: Implement real OpenAI API call
+      // const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      //     'Content-Type': 'application/json'
+      //   },
+      //   body: JSON.stringify({
+      //     model: 'gpt-4',
+      //     messages: [{ role: 'user', content: prompt }],
+      //     max_tokens: 1000,
+      //     temperature: 0.7
+      //   })
+      // });
+      
+      console.log('⚠️ Real ChatGPT API not implemented yet, using fallback');
+    }
+    
+    // Fallback: Generate a realistic response for demo purposes
     const mockResponse = generateChatGPTResponse(prompt);
     const groceryList = extractGroceryItems(mockResponse);
+    
+    console.log(`✅ ChatGPT response generated, extracted ${groceryList.length} grocery items`);
     
     res.json({
       success: true,
       response: mockResponse,
       groceryList: groceryList,
-      model: 'gpt-4',
-      tokensUsed: Math.floor(Math.random() * 400) + 150
+      model: 'gpt-4 (demo)',
+      tokensUsed: Math.floor(Math.random() * 400) + 150,
+      fallback: true
     });
     
   } catch (error) {
     console.error('ChatGPT API error:', error);
     res.status(500).json({ 
+      success: false,
       error: 'Failed to process request with ChatGPT',
-      fallback: true 
+      message: error.message
     });
   }
 });
@@ -167,7 +217,7 @@ function generateClaudeResponse(prompt) {
 • 2 lbs salmon fillet
 • 2 lbs boneless chicken breast  
 • 1 lb lean ground beef
-• 1 lb sliced turkey breast
+• 1 lb turkey deli meat
 • 1 container Greek yogurt (32oz)
 • 1 dozen eggs
 
@@ -202,9 +252,9 @@ This plan provides balanced macronutrients with approximately 2000-2200 calories
 **BUDGET-FRIENDLY WEEKLY PLAN ($75 total)**
 
 **STRATEGIC PROTEIN CHOICES:**
-• 3 lbs ground turkey (versatile and affordable)
-• 1 whole chicken (multiple meals)
-• 2 dozen eggs (protein powerhouse)
+• 3 lbs ground turkey
+• 1 whole chicken
+• 2 dozen eggs
 • 1 lb dried black beans
 • 1 container Greek yogurt
 
@@ -222,14 +272,7 @@ This plan provides balanced macronutrients with approximately 2000-2200 calories
 • 1 container oats
 • 1 jar peanut butter
 • 1 bottle cooking oil
-• Basic spices (salt, pepper, garlic powder)
-
-**MEAL IDEAS:**
-- Turkey rice bowls with roasted vegetables
-- Chicken soup (using whole chicken)
-- Egg fried rice with vegetables  
-- Bean and potato stew
-- Pasta with simple tomato sauce
+• Basic spices
 
 This plan maximizes nutrition per dollar while providing satisfying, filling meals throughout the week.`;
   }
@@ -255,13 +298,7 @@ This plan maximizes nutrition per dollar while providing satisfying, filling mea
 • 1 bottle olive oil
 • Basic seasonings
 
-**MEAL SUGGESTIONS:**
-- Stir-fries with vegetables and protein
-- Simple salads with protein additions
-- One-pot rice dishes
-- Egg-based meals for quick options
-
-This selection provides flexibility for various cooking styles while maintaining nutritional balance and keeping costs reasonable.`;
+This selection provides flexibility for various cooking styles while maintaining nutritional balance.`;
 }
 
 // Generate realistic ChatGPT-style response
@@ -272,19 +309,10 @@ function generateChatGPTResponse(prompt) {
 **QUICK DINNER RECIPES**
 
 1. **Chicken Fried Rice** (20 mins)
-   - Leftover rice + chicken + frozen veggies + eggs
-
 2. **Pasta Aglio e Olio** (15 mins) 
-   - Spaghetti + garlic + olive oil + parmesan
-
 3. **Beef Stir-Fry** (25 mins)
-   - Ground beef + bell peppers + soy sauce + rice
-
 4. **Quesadillas** (10 mins)
-   - Tortillas + cheese + chicken + salsa
-
 5. **Egg Fried Noodles** (18 mins)
-   - Ramen noodles + eggs + vegetables + soy sauce
 
 **COMPLETE SHOPPING LIST:**
 
@@ -312,10 +340,6 @@ function generateChatGPTResponse(prompt) {
 • 1 bag shredded cheese
 • 1 jar salsa
 
-**TOTAL COST: ~$45-55**
-**PREP TIME: All under 30 minutes**
-**SERVES: 4 people each recipe**
-
 These recipes use common ingredients and simple techniques - perfect for busy weeknights!`;
   }
   
@@ -327,40 +351,27 @@ These recipes use common ingredients and simple techniques - perfect for busy we
 • 1 bag tortilla chips
 • 2 containers hummus
 • 1 lb cheese cubes
-• 2 lbs deli meat
-• 1 bag crackers
 
 **MAIN COURSE**
-• 4 lbs ground beef (for burgers)
+• 4 lbs ground beef
 • 15 burger buns  
 • 3 lbs hot dogs
 • 15 hot dog buns
 
 **SIDES**
-• 5 lbs potatoes (for potato salad)
+• 5 lbs potatoes
 • 2 bags coleslaw mix
 • 1 container mayonnaise
-• 3 cans baked beans
 
 **DRINKS**
 • 4 cases soda/water
 • 1 gallon fruit punch
-• 1 bag ice
 
 **DESSERT**
 • 1 birthday cake
 • 1 container ice cream
 
-**PARTY SUPPLIES**
-• Paper plates
-• Plastic cups
-• Napkins
-• Plastic utensils
-
-**ESTIMATED TOTAL: $120-150**
-**PREP TIME: 2-3 hours**
-
-Pro tip: Prep potato salad and coleslaw the day before to save time!`;
+Pro tip: Prep potato salad the day before to save time!`;
   }
   
   return `Here's a practical grocery list based on your needs:
@@ -378,16 +389,8 @@ Pro tip: Prep potato salad and coleslaw the day before to save time!`;
 • 1 jar peanut butter
 • 1 bottle cooking oil
 
-**QUICK MEAL IDEAS:**
-- Scrambled eggs with vegetables
-- Rice bowls with protein and veggies
-- Simple sandwiches
-- Fruit and yogurt snacks
-
-**BUDGET: ~$40-50**
-**SERVES: 2-3 people for one week**
-
-This list covers basic nutrition needs while staying budget-friendly and versatile for different cooking styles.`;
+This list covers basic nutrition needs while staying budget-friendly.`;
 }
 
+console.log('✅ AI routes loaded successfully');
 module.exports = router;

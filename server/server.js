@@ -1,19 +1,80 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const aiRoutes = require('./routes/ai');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+console.log('🚀 Starting Cart Smash server...');
+
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://your-domain.com'] 
+    : ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true
+}));
 
-// Routes
-app.use('/api/ai', aiRoutes);
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Enhanced grocery parsing function
+// Logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// Basic routes
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Cart Smash API is running! 💥',
+    version: '1.0.0',
+    endpoints: {
+      health: 'GET /health',
+      cartParse: 'POST /api/cart/parse',
+      cartCurrent: 'GET /api/cart/current',
+      aiClaude: 'POST /api/ai/claude',
+      aiChatGPT: 'POST /api/ai/chatgpt'
+    }
+  });
+});
+
+app.get('/health', (req, res) => {
+  console.log('✅ Health check requested');
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    apis: {
+      openai: !!process.env.OPENAI_API_KEY,
+      anthropic: !!process.env.ANTHROPIC_API_KEY
+    }
+  });
+});
+
+// Load routes with proper error handling
+console.log('📦 Loading routes...');
+
+// Cart routes
+try {
+  const cartRoutes = require('./routes/cart');
+  app.use('/api/cart', cartRoutes);
+  console.log('✅ Cart routes loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load cart routes:', error.message);
+}
+
+// AI routes  
+try {
+  const aiRoutes = require('./routes/ai');
+  app.use('/api/ai', aiRoutes);
+  console.log('✅ AI routes loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load AI routes:', error.message);
+  console.error('📁 Make sure ./routes/ai.js exists and exports a router');
+}
+
+// Enhanced grocery parsing function (moved from old server.js)
 function parseGroceryItem(line) {
   let cleaned = line.trim()
     .replace(/^[-*•·◦▪▫◆◇→➤➢>]\s*/, '')
@@ -21,48 +82,23 @@ function parseGroceryItem(line) {
     .replace(/^[a-z]\)\s*/i, '')
     .trim();
 
-  const quantityPatterns = [
-    /(\d+(?:\.\d+)?)\s*(lb|lbs|pound|pounds|oz|ounce|ounces|kg|kilogram|kilograms|g|gram|grams)/i,
-    /(\d+(?:\.\d+)?)\s*(l|liter|liters|ml|milliliter|milliliters|gal|gallon|gallons)/i,
-    /(\d+(?:\.\d+)?)\s*(cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons)/i,
-    /(\d+)\s*(pack|packs|package|packages|bag|bags|box|boxes|can|cans|jar|jars|bottle|bottles)/i,
-    /(\d+)\s*(dozen|doz)/i,
-    /(\d+)\s+(.+)/,
-    /(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(.+)/i,
-    /(\d+\/\d+)\s+(.+)/,
-    /(\d+\s+\d+\/\d+)\s+(.+)/,
-  ];
-
+  // Simple quantity extraction
+  const quantityMatch = cleaned.match(/^(\d+(?:\.\d+)?)\s*(.+)/);
   let quantity = null;
-  let unit = null;
   let itemName = cleaned;
-
-  for (const pattern of quantityPatterns) {
-    const match = cleaned.match(pattern);
-    if (match) {
-      quantity = match[1];
-      if (match[2]) {
-        const unitMatch = match[2].match(/^(lb|lbs|pound|pounds|oz|ounce|ounces|kg|kilogram|kilograms|g|gram|grams|l|liter|liters|ml|milliliter|milliliters|gal|gallon|gallons|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|pack|packs|package|packages|bag|bags|box|boxes|can|cans|jar|jars|bottle|bottles|dozen|doz)s?\s*(.*)$/i);
-        
-        if (unitMatch) {
-          unit = unitMatch[1];
-          itemName = unitMatch[2] || match[2];
-        } else {
-          itemName = match[2];
-        }
-      }
-      break;
-    }
+  
+  if (quantityMatch) {
+    quantity = quantityMatch[1];
+    itemName = quantityMatch[2];
   }
 
-  // Determine category
+  // Simple category determination
   let category = 'other';
   const itemLower = itemName.toLowerCase();
   
   if (itemLower.match(/milk|cheese|yogurt|butter|cream|eggs/)) category = 'dairy';
   else if (itemLower.match(/bread|bagel|muffin|cake|cookie/)) category = 'bakery';
-  else if (itemLower.match(/apple|banana|orange|strawberry|grape|fruit/)) category = 'produce';
-  else if (itemLower.match(/carrot|lettuce|tomato|potato|onion|vegetable|salad/)) category = 'produce';
+  else if (itemLower.match(/apple|banana|orange|fruit|vegetable|carrot|lettuce|tomato|potato|onion/)) category = 'produce';
   else if (itemLower.match(/chicken|beef|pork|turkey|fish|salmon|meat/)) category = 'meat';
   else if (itemLower.match(/cereal|pasta|rice|beans|soup|sauce/)) category = 'pantry';
   else if (itemLower.match(/frozen|ice cream/)) category = 'frozen';
@@ -71,58 +107,36 @@ function parseGroceryItem(line) {
     original: line.trim(),
     itemName: itemName.trim(),
     quantity: quantity,
-    unit: unit,
     category: category
   };
 }
 
-// Routes
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Cart Smash API is running! 💥',
-    version: '1.0.0',
-    endpoints: {
-      health: 'GET /health',
-      parse: 'POST /api/grocery-list/parse',
-      parseAdvanced: 'POST /api/grocery-list/parse-advanced',
-      search: 'POST /api/instacart/search'
-    }
-  });
-});
-
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
-    timestamp: new Date(),
-    uptime: process.uptime()
-  });
-});
-
-app.post('/api/grocery-list/parse', (req, res) => {
+// Fallback routes (if cart routes fail to load)
+app.post('/api/cart/parse', (req, res) => {
+  console.log('📝 Fallback cart parse request');
   try {
-    const { listText } = req.body;
+    const { listText, action = 'replace' } = req.body;
     
-    if (!listText || typeof listText !== 'string') {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Please provide a valid grocery list' 
-      });
+    if (!listText) {
+      return res.status(400).json({ error: 'listText required' });
     }
-
-    const items = listText
-      .split('\n')
+    
+    const items = listText.split('\n')
       .filter(line => line.trim())
       .map((line, index) => ({
         id: `item_${Date.now()}_${index}`,
-        original: line.trim(),
-        itemName: line.replace(/^[-*•]\s*/, '').trim()
+        ...parseGroceryItem(line),
+        timestamp: new Date().toISOString()
       }));
-
+    
+    console.log(`✅ Parsed ${items.length} items`);
+    
     res.json({
       success: true,
-      items,
-      itemCount: items.length,
-      timestamp: new Date()
+      cart: items,
+      action: action,
+      itemsAdded: items.length,
+      totalItems: items.length
     });
   } catch (error) {
     console.error('Parse error:', error);
@@ -133,110 +147,76 @@ app.post('/api/grocery-list/parse', (req, res) => {
   }
 });
 
-app.post('/api/grocery-list/parse-advanced', (req, res) => {
-  try {
-    const { listText, options = {} } = req.body;
-    
-    if (!listText || typeof listText !== 'string') {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Please provide a valid grocery list' 
+// Debug route to see all registered routes
+app.get('/debug/routes', (req, res) => {
+  const routes = [];
+  
+  app._router.stack.forEach(function(middleware) {
+    if (middleware.route) {
+      routes.push({
+        path: middleware.route.path,
+        methods: Object.keys(middleware.route.methods)
+      });
+    } else if (middleware.name === 'router') {
+      middleware.handle.stack.forEach(function(handler) {
+        if (handler.route) {
+          const basePath = middleware.regexp.source
+            .replace('\\/?(?=\\/|$)', '')
+            .replace('^', '')
+            .replace('\\', '');
+          routes.push({
+            path: basePath + handler.route.path,
+            methods: Object.keys(handler.route.methods)
+          });
+        }
       });
     }
-
-    const lines = listText
-      .split(/[\n;,]/)
-      .map(line => line.trim())
-      .filter(line => line && !line.match(/^(grocery list|shopping list|to buy|items needed):?$/i));
-
-    const items = lines.map((line, index) => ({
-      id: `item_${Date.now()}_${index}`,
-      ...parseGroceryItem(line)
-    }));
-
-    let result = {
-      success: true,
-      items,
-      itemCount: items.length,
-      timestamp: new Date()
-    };
-
-    if (options.groupByCategory) {
-      const grouped = items.reduce((acc, item) => {
-        if (!acc[item.category]) acc[item.category] = [];
-        acc[item.category].push(item);
-        return acc;
-      }, {});
-      
-      result.itemsByCategory = grouped;
-      result.categories = Object.keys(grouped);
-    }
-
-    res.json(result);
-  } catch (error) {
-    console.error('Parse error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to parse grocery list' 
-    });
-  }
-});
-
-app.post('/api/instacart/search', (req, res) => {
-  try {
-    const { query, limit = 5 } = req.body;
-    
-    // Mock search results for development
-    const mockResults = [
-      {
-        id: `mock_${Date.now()}_1`,
-        name: query,
-        price: (Math.random() * 10 + 1).toFixed(2),
-        unit: 'each',
-        inStock: Math.random() > 0.2,
-        imageUrl: `https://via.placeholder.com/150?text=${encodeURIComponent(query)}`
-      },
-      {
-        id: `mock_${Date.now()}_2`,
-        name: `Organic ${query}`,
-        price: (Math.random() * 15 + 5).toFixed(2),
-        unit: 'each',
-        inStock: Math.random() > 0.1,
-        imageUrl: `https://via.placeholder.com/150?text=Organic+${encodeURIComponent(query)}`
-      }
-    ];
-
-    res.json({
-      success: true,
-      query,
-      results: mockResults,
-      resultCount: mockResults.length
-    });
-  } catch (error) {
-    console.error('Search error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Search failed' 
-    });
-  }
-});
-
-app.use((req, res) => {
-  res.status(404).json({ 
-    success: false, 
-    error: 'Endpoint not found' 
+  });
+  
+  res.json({ 
+    totalRoutes: routes.length,
+    routes: routes.sort((a, b) => a.path.localeCompare(b.path))
   });
 });
 
+// Error handling
 app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({ 
-    success: false, 
-    error: 'Internal server error' 
+  console.error('💥 Server error:', err);
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🤖 AI APIs: ${process.env.OPENAI_API_KEY ? '✅' : '❌'} OpenAI, ${process.env.ANTHROPIC_API_KEY ? '✅' : '❌'} Anthropic`);
+// 404 handler
+app.use('*', (req, res) => {
+  console.log(`❌ 404: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found',
+    path: req.originalUrl,
+    availableEndpoints: [
+      'GET /health',
+      'GET /debug/routes',
+      'POST /api/cart/parse',
+      'POST /api/ai/claude',
+      'POST /api/ai/chatgpt'
+    ]
+  });
 });
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`\n🚀 Cart Smash server running!`);
+  console.log(`🌍 URL: http://localhost:${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🤖 APIs: ${process.env.OPENAI_API_KEY ? '✅' : '❌'} OpenAI, ${process.env.ANTHROPIC_API_KEY ? '✅' : '❌'} Anthropic`);
+  console.log(`\n📋 Test these URLs:`);
+  console.log(`   - http://localhost:${PORT}/health`);
+  console.log(`   - http://localhost:${PORT}/debug/routes`);
+  console.log(`   - http://localhost:${PORT}/api/ai/claude (POST)`);
+  console.log(`   - http://localhost:${PORT}/api/ai/chatgpt (POST)\n`);
+});
+
+module.exports = app;
