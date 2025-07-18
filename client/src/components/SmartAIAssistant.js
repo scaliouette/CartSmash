@@ -1,4 +1,4 @@
-// client/src/components/SmartAIAssistant.js
+// client/src/components/SmartAIAssistant.js - FIXED VERSION
 import React, { useState, useRef, useEffect } from 'react';
 
 function SmartAIAssistant({ onGroceryListGenerated }) {
@@ -31,37 +31,37 @@ function SmartAIAssistant({ onGroceryListGenerated }) {
     {
       icon: '📅',
       title: 'Weekly Meal Plan',
-      prompt: 'Create a healthy 7-day meal plan with complete grocery shopping list for a family of 4. Include breakfast, lunch, dinner, and snacks.',
+      prompt: 'Create a healthy 7-day meal plan with complete grocery shopping list for a family of 4. Include breakfast, lunch, dinner, and snacks. Format the grocery list as individual items, one per line.',
       category: 'planning'
     },
     {
       icon: '💰',
       title: 'Budget Shopping',
-      prompt: 'Create a budget-friendly grocery list for $75 per week for 2 people. Focus on nutritious, filling meals.',
+      prompt: 'Create a budget-friendly grocery list for $75 per week for 2 people. Focus on nutritious, filling meals. Format as a simple grocery list with each item on a separate line.',
       category: 'budget'
     },
     {
       icon: '⚡',
       title: 'Quick Dinners',
-      prompt: 'Give me 5 quick 30-minute dinner recipes with a complete shopping list. Family-friendly options please.',
+      prompt: 'Give me 5 quick 30-minute dinner recipes with a complete shopping list. Family-friendly options please. Provide just the grocery list at the end, one item per line.',
       category: 'quick'
     },
     {
       icon: '🌱',
       title: 'Healthy Options',
-      prompt: 'Create a clean eating grocery list focused on whole foods, lean proteins, and fresh vegetables for one week.',
+      prompt: 'Create a clean eating grocery list focused on whole foods, lean proteins, and fresh vegetables for one week. List each grocery item on a separate line.',
       category: 'health'
     },
     {
       icon: '🎉',
       title: 'Party Planning',
-      prompt: 'Plan a birthday party for 15 people with appetizers, main course, and desserts. Include complete shopping list.',
+      prompt: 'Plan a birthday party for 15 people with appetizers, main course, and desserts. Include complete shopping list with each item on a separate line.',
       category: 'party'
     },
     {
       icon: '🥗',
       title: 'Special Diet',
-      prompt: 'Create a keto-friendly grocery list and meal plan for one week with all necessary ingredients.',
+      prompt: 'Create a keto-friendly grocery list and meal plan for one week with all necessary ingredients. List each grocery item on a separate line.',
       category: 'diet'
     }
   ];
@@ -72,6 +72,88 @@ function SmartAIAssistant({ onGroceryListGenerated }) {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // ✅ IMPROVED: Enhanced grocery list extraction
+  const extractGroceryItems = (text) => {
+    console.log('🔍 Extracting grocery items from AI response...');
+    
+    const lines = text.split('\n');
+    const groceryItems = [];
+    let inGrocerySection = false;
+    
+    // Keywords that indicate grocery list sections
+    const groceryHeaders = ['shopping list', 'grocery list', 'ingredients', 'you need', 'buy', 'purchase'];
+    const excludePatterns = [
+      /recipe/i, /instructions/i, /directions/i, /steps/i, /method/i,
+      /monday|tuesday|wednesday|thursday|friday|saturday|sunday/i,
+      /breakfast|lunch|dinner|snack/i, /day \d+/i, /week \d+/i,
+      /serves/i, /calories/i, /prep time/i, /cook time/i, /total:/i
+    ];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Skip empty lines
+      if (!line) continue;
+      
+      // Check if we're entering a grocery list section
+      if (groceryHeaders.some(header => line.toLowerCase().includes(header))) {
+        inGrocerySection = true;
+        continue;
+      }
+      
+      // If we hit a new section header, we might be leaving grocery section
+      if (line.match(/^\*\*[^*]+\*\*$/) || line.match(/^#{1,6}\s/)) {
+        if (!groceryHeaders.some(header => line.toLowerCase().includes(header))) {
+          inGrocerySection = false;
+        }
+        continue;
+      }
+      
+      // Look for bullet points, numbers, or dashes (grocery list items)
+      const bulletMatch = line.match(/^[•\-\*\d+\.\)\s]*(.+)$/);
+      if (bulletMatch) {
+        let cleanedItem = bulletMatch[1].trim();
+        
+        // Remove markdown formatting
+        cleanedItem = cleanedItem.replace(/\*\*/g, '').replace(/\*/g, '');
+        
+        // Skip if it matches exclude patterns
+        if (excludePatterns.some(pattern => pattern.test(cleanedItem))) {
+          continue;
+        }
+        
+        // Skip if it's too short or looks like a header
+        if (cleanedItem.length < 3 || cleanedItem.endsWith(':')) {
+          continue;
+        }
+        
+        // Skip if it contains cooking instructions
+        if (cleanedItem.toLowerCase().includes('cook') || 
+            cleanedItem.toLowerCase().includes('bake') ||
+            cleanedItem.toLowerCase().includes('heat') ||
+            cleanedItem.toLowerCase().includes('serve')) {
+          continue;
+        }
+        
+        // Check if it looks like a grocery item
+        const hasQuantity = /^\d+/.test(cleanedItem) || 
+                           cleanedItem.match(/\b\d+\s*(lb|lbs|oz|cup|cups|tbsp|tsp|clove|cloves|bunch|bag|container|jar|can|bottle|loaf|dozen|pack)\b/i);
+        
+        const hasCommonFood = /\b(chicken|beef|pork|fish|salmon|turkey|eggs|milk|cheese|bread|rice|pasta|oil|onion|garlic|tomato|potato|apple|banana|spinach|lettuce|yogurt|butter|flour|sugar|salt|pepper|beans|lentils|quinoa|oats|carrot|broccoli|avocado|strawberry|blueberry)\b/i.test(cleanedItem);
+        
+        // If we're in a grocery section OR it has quantity OR it's a common food, include it
+        if (inGrocerySection || hasQuantity || hasCommonFood) {
+          if (!groceryItems.includes(cleanedItem)) {
+            groceryItems.push(cleanedItem);
+          }
+        }
+      }
+    }
+    
+    console.log(`✅ Extracted ${groceryItems.length} grocery items:`, groceryItems.slice(0, 5));
+    return groceryItems;
   };
 
   const handleSendMessage = async (message = inputText) => {
@@ -90,6 +172,8 @@ function SmartAIAssistant({ onGroceryListGenerated }) {
 
     try {
       const selectedModelData = aiModels[selectedModel];
+      console.log(`🤖 Sending request to ${selectedModelData.name}...`);
+      
       const response = await fetch(selectedModelData.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,31 +188,54 @@ function SmartAIAssistant({ onGroceryListGenerated }) {
       }
 
       const data = await response.json();
+      console.log('🎯 AI Response received:', data);
+      
+      // ✅ IMPROVED: Extract grocery items from the response text
+      const aiResponseText = data.response || data.message || '';
+      let extractedItems = [];
+      
+      // First try the server-provided grocery list
+      if (data.groceryList && Array.isArray(data.groceryList) && data.groceryList.length > 0) {
+        extractedItems = data.groceryList;
+      } else {
+        // If no grocery list provided, extract from the response text
+        extractedItems = extractGroceryItems(aiResponseText);
+      }
       
       const aiMessage = {
         role: 'assistant',
-        content: data.response || data.message,
+        content: aiResponseText,
         timestamp: new Date(),
         model: selectedModel,
-        groceryList: data.groceryList // Backend should extract grocery items
+        groceryList: extractedItems,
+        isFallback: data.fallback || false
       };
 
       setMessages(prev => [...prev, aiMessage]);
 
-      // If the response contains a grocery list, offer to add it to cart
-      if (data.groceryList && data.groceryList.length > 0) {
+      // ✅ IMPROVED: Auto-offer to add grocery items if found
+      if (extractedItems && extractedItems.length > 0) {
+        console.log(`🛒 Found ${extractedItems.length} grocery items, offering to add to cart...`);
         setTimeout(() => {
-          if (window.confirm(`Found ${data.groceryList.length} grocery items! Add them to your cart?`)) {
-            onGroceryListGenerated(data.groceryList.join('\n'));
+          const confirmMessage = `Found ${extractedItems.length} grocery items! Add them to your cart?\n\nFirst few items:\n${extractedItems.slice(0, 3).map(item => `• ${item}`).join('\n')}${extractedItems.length > 3 ? '\n...and more' : ''}`;
+          
+          if (window.confirm(confirmMessage)) {
+            // Format the items properly for the main form
+            const formattedList = extractedItems.join('\n');
+            console.log('📝 Sending grocery list to main form:', formattedList);
+            
+            onGroceryListGenerated(formattedList);
             setIsOpen(false);
           }
         }, 1000);
+      } else {
+        console.log('⚠️ No grocery items found in AI response');
       }
 
     } catch (error) {
-      console.error('AI request failed:', error);
+      console.error('🚨 AI request failed:', error);
       
-      // Fallback: Extract grocery items from a mock response
+      // ✅ IMPROVED: Better fallback with more realistic grocery extraction
       const fallbackResponse = generateFallbackResponse(message);
       
       setMessages(prev => [...prev, {
@@ -137,7 +244,8 @@ function SmartAIAssistant({ onGroceryListGenerated }) {
         timestamp: new Date(),
         model: selectedModel,
         groceryList: fallbackResponse.groceryList,
-        isFallback: true
+        isFallback: true,
+        error: true
       }]);
 
       if (fallbackResponse.groceryList.length > 0) {
@@ -153,26 +261,33 @@ function SmartAIAssistant({ onGroceryListGenerated }) {
     }
   };
 
+  // ✅ IMPROVED: Better fallback response generation
   const generateFallbackResponse = (prompt) => {
-    // This would normally come from your AI backend
-    // For demo purposes, generating a realistic response
+    console.log('🔄 Generating fallback response for:', prompt.substring(0, 50));
     
-    const groceryItems = [
-      '2 lbs chicken breast',
-      '1 lb ground turkey',
-      '2 cups quinoa', 
-      '1 bag spinach',
-      '3 bell peppers',
-      '2 onions',
-      '1 dozen eggs',
-      '1 container Greek yogurt',
-      '2 lbs sweet potatoes',
-      '1 container olive oil',
-      '1 lb carrots',
-      '2 cans black beans'
-    ];
+    let groceryItems = [];
+    let response = '';
 
-    const response = `Here's a healthy meal plan with shopping list:
+    if (prompt.toLowerCase().includes('meal plan') || prompt.toLowerCase().includes('weekly')) {
+      groceryItems = [
+        '2 lbs chicken breast',
+        '1 lb ground turkey',
+        '2 cups quinoa', 
+        '1 bag spinach (5oz)',
+        '3 bell peppers',
+        '2 large onions',
+        '1 dozen eggs',
+        '1 container Greek yogurt (32oz)',
+        '2 lbs sweet potatoes',
+        '1 bottle olive oil',
+        '2 lbs carrots',
+        '2 cans black beans',
+        '1 loaf whole grain bread',
+        '1 gallon milk',
+        '1 lb cheddar cheese'
+      ];
+
+      response = `Here's a healthy weekly meal plan with shopping list:
 
 **WEEKLY MEAL PLAN**
 
@@ -185,12 +300,84 @@ function SmartAIAssistant({ onGroceryListGenerated }) {
 **SHOPPING LIST:**
 ${groceryItems.map(item => `• ${item}`).join('\n')}
 
-This plan focuses on lean proteins, complex carbs, and plenty of vegetables for balanced nutrition throughout the week.`;
+This plan focuses on lean proteins, complex carbs, and plenty of vegetables for balanced nutrition.`;
 
-    return {
-      content: response,
-      groceryList: groceryItems
-    };
+    } else if (prompt.toLowerCase().includes('budget')) {
+      groceryItems = [
+        '3 lbs ground turkey',
+        '1 whole chicken',
+        '2 dozen eggs',
+        '1 lb dried black beans',
+        '5 lb bag potatoes',
+        '2 lb bag carrots',
+        '1 bag yellow onions',
+        '1 head cabbage',
+        '3 lbs bananas',
+        '5 lbs rice',
+        '2 lbs pasta',
+        '1 container oats',
+        '1 jar peanut butter',
+        '1 bottle cooking oil'
+      ];
+
+      response = `Budget-friendly grocery plan for the week:
+
+**BUDGET GROCERIES ($75 total)**
+
+${groceryItems.map(item => `• ${item}`).join('\n')}
+
+This plan maximizes nutrition per dollar while providing satisfying, filling meals.`;
+
+    } else if (prompt.toLowerCase().includes('quick') || prompt.toLowerCase().includes('30 minute')) {
+      groceryItems = [
+        '2 lbs ground beef',
+        '2 lbs chicken thighs',
+        '1 dozen eggs',
+        '2 lbs spaghetti',
+        '2 cups jasmine rice',
+        '8 flour tortillas',
+        '3 bell peppers',
+        '1 bag frozen mixed vegetables',
+        '6 cloves garlic',
+        '1 large onion',
+        '1 bottle soy sauce',
+        '1 bottle olive oil',
+        '1 bag shredded cheese'
+      ];
+
+      response = `Quick 30-minute dinner shopping list:
+
+**QUICK MEAL INGREDIENTS:**
+
+${groceryItems.map(item => `• ${item}`).join('\n')}
+
+Perfect for busy weeknights with simple, fast preparation!`;
+
+    } else {
+      // Default response
+      groceryItems = [
+        '2 lbs protein of choice',
+        '1 bag mixed vegetables',
+        '3 pieces fruit',
+        '1 dozen eggs',
+        '1 gallon milk',
+        '2 cups rice',
+        '1 loaf bread',
+        '1 bottle olive oil',
+        '1 onion',
+        '2 cloves garlic'
+      ];
+
+      response = `Here's a basic grocery list based on your request:
+
+**ESSENTIAL GROCERIES:**
+
+${groceryItems.map(item => `• ${item}`).join('\n')}
+
+This covers basic nutrition needs with flexibility for various meals.`;
+    }
+
+    return { content: response, groceryList: groceryItems };
   };
 
   const handleQuickPrompt = (prompt) => {
@@ -200,24 +387,6 @@ This plan focuses on lean proteins, complex carbs, and plenty of vegetables for 
   const clearChat = () => {
     setMessages([]);
     setShowQuickPrompts(true);
-  };
-
-  const extractGroceryList = (content) => {
-    // Simple extraction - look for bullet points or numbered lists
-    const lines = content.split('\n');
-    const groceryItems = [];
-    
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.match(/^[•\-\*\d+\.]/)) {
-        const cleaned = trimmed.replace(/^[•\-\*\d+\.\s]+/, '');
-        if (cleaned && !cleaned.toLowerCase().includes('meal') && !cleaned.toLowerCase().includes('day')) {
-          groceryItems.push(cleaned);
-        }
-      }
-    }
-    
-    return groceryItems;
   };
 
   const selectedModelData = aiModels[selectedModel];
@@ -464,6 +633,17 @@ This plan focuses on lean proteins, complex carbs, and plenty of vegetables for 
                                 Demo Mode
                               </span>
                             )}
+                            {message.error && (
+                              <span style={{ 
+                                background: '#dc3545', 
+                                color: 'white', 
+                                padding: '2px 6px', 
+                                borderRadius: '4px',
+                                fontSize: '10px'
+                              }}>
+                                Error - Using Fallback
+                              </span>
+                            )}
                           </div>
                         )}
                         
@@ -476,25 +656,33 @@ This plan focuses on lean proteins, complex carbs, and plenty of vegetables for 
                         </div>
                         
                         {message.groceryList && message.groceryList.length > 0 && (
-                          <button
-                            onClick={() => {
-                              onGroceryListGenerated(message.groceryList.join('\n'));
-                              setIsOpen(false);
-                            }}
-                            style={{
-                              marginTop: '15px',
-                              padding: '10px 15px',
-                              backgroundColor: '#28a745',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '8px',
-                              cursor: 'pointer',
-                              fontSize: '14px',
-                              fontWeight: 'bold'
-                            }}
-                          >
-                            🛒 Add {message.groceryList.length} Items to Cart
-                          </button>
+                          <div style={{ marginTop: '15px' }}>
+                            <div style={{
+                              fontSize: '12px',
+                              color: '#666',
+                              marginBottom: '8px'
+                            }}>
+                              ✅ Found {message.groceryList.length} grocery items
+                            </div>
+                            <button
+                              onClick={() => {
+                                onGroceryListGenerated(message.groceryList.join('\n'));
+                                setIsOpen(false);
+                              }}
+                              style={{
+                                padding: '10px 15px',
+                                backgroundColor: '#28a745',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              🛒 Add {message.groceryList.length} Items to Cart
+                            </button>
+                          </div>
                         )}
                         
                         <div style={{
