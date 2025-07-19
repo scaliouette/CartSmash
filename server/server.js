@@ -95,6 +95,15 @@ try {
   console.error('📁 Make sure ./routes/settings.js exists and exports a router');
 }
 
+// Kroger API routes
+try {
+  const krogerRoutes = require('./routes/kroger');
+  app.use('/api/kroger', krogerRoutes);
+  console.log('✅ Kroger API routes loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load Kroger routes:', error.message);
+}
+
 // Enhanced grocery parsing function (moved from old server.js)
 function parseGroceryItem(line) {
   let cleaned = line.trim()
