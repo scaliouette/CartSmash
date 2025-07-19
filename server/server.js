@@ -34,7 +34,8 @@ app.get('/', (req, res) => {
       cartParse: 'POST /api/cart/parse',
       cartCurrent: 'GET /api/cart/current',
       aiClaude: 'POST /api/ai/claude',
-      aiChatGPT: 'POST /api/ai/chatgpt'
+      aiChatGPT: 'POST /api/ai/chatgpt',
+      analytics: 'GET /api/analytics/parsing'
     }
   });
 });
@@ -72,6 +73,26 @@ try {
 } catch (error) {
   console.error('❌ Failed to load AI routes:', error.message);
   console.error('📁 Make sure ./routes/ai.js exists and exports a router');
+}
+
+// Analytics routes
+try {
+  const analyticsRoutes = require('./routes/analytics');
+  app.use('/api/analytics', analyticsRoutes);
+  console.log('✅ Analytics routes loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load analytics routes:', error.message);
+  console.error('📁 Make sure ./routes/analytics.js exists and exports a router');
+}
+
+// Settings routes
+try {
+  const settingsRoutes = require('./routes/settings');
+  app.use('/api/settings', settingsRoutes);
+  console.log('✅ Settings routes loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load settings routes:', error.message);
+  console.error('📁 Make sure ./routes/settings.js exists and exports a router');
 }
 
 // Enhanced grocery parsing function (moved from old server.js)
@@ -147,6 +168,126 @@ app.post('/api/cart/parse', (req, res) => {
   }
 });
 
+// Fallback analytics route (if analytics routes fail to load)
+app.get('/api/analytics/parsing', (req, res) => {
+  console.log('📊 Fallback analytics request');
+  try {
+    const mockAnalytics = {
+      overview: {
+        totalLists: 1247,
+        totalItems: 8934,
+        accuracyRate: 89.4,
+        avgConfidence: 0.847,
+        topCategory: 'produce',
+        improvementTrend: '+12.3%'
+      },
+      parsing: {
+        intelligentParsing: {
+          used: 1156,
+          accuracy: 91.2,
+          avgProcessingTime: 1.8,
+          filteringEfficiency: '87.3%'
+        },
+        fallbackParsing: {
+          used: 91,
+          accuracy: 67.8,
+          avgProcessingTime: 0.3,
+          filteringEfficiency: '43.2%'
+        }
+      },
+      confidence: {
+        high: { count: 6723, percentage: 75.3 },
+        medium: { count: 1587, percentage: 17.8 },
+        low: { count: 624, percentage: 6.9 }
+      },
+      categories: {
+        produce: { count: 2145, accuracy: 94.2 },
+        dairy: { count: 1567, accuracy: 92.8 },
+        meat: { count: 1234, accuracy: 88.9 },
+        pantry: { count: 2089, accuracy: 87.3 },
+        beverages: { count: 892, accuracy: 85.1 },
+        other: { count: 1007, accuracy: 79.4 }
+      },
+      userFeedback: {
+        accepted: 7834,
+        edited: 645,
+        rejected: 455,
+        satisfactionScore: 4.6
+      },
+      performance: {
+        avgResponseTime: 2.1,
+        apiUptime: 99.7,
+        errorRate: 0.8,
+        cachehitRate: 67.3
+      },
+      trends: {
+        daily: [
+          { date: '2024-01-15', accuracy: 87.2, items: 234 },
+          { date: '2024-01-16', accuracy: 88.1, items: 267 },
+          { date: '2024-01-17', accuracy: 89.4, items: 289 },
+          { date: '2024-01-18', accuracy: 90.1, items: 245 },
+          { date: '2024-01-19', accuracy: 91.3, items: 298 },
+          { date: '2024-01-20', accuracy: 89.7, items: 312 },
+          { date: '2024-01-21', accuracy: 92.1, items: 334 }
+        ]
+      }
+    };
+
+    res.json({
+      success: true,
+      ...mockAnalytics,
+      fallback: true,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Fallback analytics error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to generate analytics data' 
+    });
+  }
+});
+
+// Fallback settings route
+app.get('/api/settings/:section?', (req, res) => {
+  console.log('⚙️ Fallback settings request');
+  const { section } = req.params;
+  
+  const defaultSettings = {
+    aiParsing: {
+      strictMode: true,
+      confidenceThreshold: 0.6,
+      enableAIValidation: true,
+      preferredAI: 'claude'
+    },
+    system: {
+      environment: 'development',
+      logLevel: 'info'
+    }
+  };
+
+  if (section && defaultSettings[section]) {
+    res.json({
+      success: true,
+      section: section,
+      settings: defaultSettings[section],
+      fallback: true
+    });
+  } else if (!section) {
+    res.json({
+      success: true,
+      settings: defaultSettings,
+      fallback: true
+    });
+  } else {
+    res.status(404).json({
+      success: false,
+      error: `Settings section '${section}' not found`,
+      availableSections: Object.keys(defaultSettings)
+    });
+  }
+});
+
 // Debug route to see all registered routes
 app.get('/debug/routes', (req, res) => {
   const routes = [];
@@ -200,8 +341,11 @@ app.use('*', (req, res) => {
       'GET /health',
       'GET /debug/routes',
       'POST /api/cart/parse',
+      'GET /api/cart/current',
       'POST /api/ai/claude',
-      'POST /api/ai/chatgpt'
+      'POST /api/ai/chatgpt',
+      'GET /api/analytics/parsing',
+      'GET /api/settings'
     ]
   });
 });
@@ -215,6 +359,8 @@ app.listen(PORT, () => {
   console.log(`\n📋 Test these URLs:`);
   console.log(`   - http://localhost:${PORT}/health`);
   console.log(`   - http://localhost:${PORT}/debug/routes`);
+  console.log(`   - http://localhost:${PORT}/api/analytics/parsing`);
+  console.log(`   - http://localhost:${PORT}/api/settings`);
   console.log(`   - http://localhost:${PORT}/api/ai/claude (POST)`);
   console.log(`   - http://localhost:${PORT}/api/ai/chatgpt (POST)\n`);
 });

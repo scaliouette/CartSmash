@@ -1,11 +1,11 @@
-// client/src/components/ParsingAnalyticsDashboard.js - Analytics for AI parsing performance
+// client/src/components/ParsingAnalyticsDashboard.js - Fixed with proper null checking
 import React, { useState, useEffect } from 'react';
 
 function ParsingAnalyticsDashboard({ onClose }) {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [timeRange, setTimeRange] = useState('24h');
-  const [selectedMetric, setSelectedMetric] = useState('accuracy');
 
   useEffect(() => {
     loadAnalytics();
@@ -13,15 +13,19 @@ function ParsingAnalyticsDashboard({ onClose }) {
 
   const loadAnalytics = async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch(`/api/analytics/parsing?range=${timeRange}`);
       if (response.ok) {
         const data = await response.json();
         setAnalytics(data);
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
       console.error('Failed to load analytics:', error);
-      // Generate mock data for demo
+      setError(error.message);
+      // Always provide mock data as fallback
       setAnalytics(generateMockAnalytics());
     } finally {
       setLoading(false);
@@ -98,217 +102,254 @@ function ParsingAnalyticsDashboard({ onClose }) {
     return '#17a2b8';
   };
 
-  const renderOverviewCards = () => (
-    <div style={styles.cardsGrid}>
-      <div style={styles.overviewCard}>
-        <div style={styles.cardIcon}>📊</div>
-        <div style={styles.cardContent}>
-          <h3 style={styles.cardTitle}>Lists Processed</h3>
-          <div style={styles.cardValue}>{analytics.overview.totalLists.toLocaleString()}</div>
-          <div style={styles.cardSubtext}>+{analytics.overview.improvementTrend} vs last period</div>
-        </div>
-      </div>
+  const renderOverviewCards = () => {
+    // Add null checking here
+    if (!analytics || !analytics.overview) {
+      return <div>No analytics data available</div>;
+    }
 
-      <div style={styles.overviewCard}>
-        <div style={styles.cardIcon}>🎯</div>
-        <div style={styles.cardContent}>
-          <h3 style={styles.cardTitle}>Parsing Accuracy</h3>
-          <div style={{
-            ...styles.cardValue,
-            color: getMetricColor(analytics.overview.accuracyRate)
-          }}>
-            {analytics.overview.accuracyRate}%
-          </div>
-          <div style={styles.cardSubtext}>Average confidence: {(analytics.overview.avgConfidence * 100).toFixed(1)}%</div>
-        </div>
-      </div>
-
-      <div style={styles.overviewCard}>
-        <div style={styles.cardIcon}>📦</div>
-        <div style={styles.cardContent}>
-          <h3 style={styles.cardTitle}>Items Extracted</h3>
-          <div style={styles.cardValue}>{analytics.overview.totalItems.toLocaleString()}</div>
-          <div style={styles.cardSubtext}>Top category: {analytics.overview.topCategory}</div>
-        </div>
-      </div>
-
-      <div style={styles.overviewCard}>
-        <div style={styles.cardIcon}>😊</div>
-        <div style={styles.cardContent}>
-          <h3 style={styles.cardTitle}>User Satisfaction</h3>
-          <div style={styles.cardValue}>{analytics.userFeedback.satisfactionScore}/5.0</div>
-          <div style={styles.cardSubtext}>{analytics.userFeedback.accepted} items accepted</div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderParsingComparison = () => (
-    <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>🧠 Intelligent vs Fallback Parsing</h3>
-      <div style={styles.comparisonGrid}>
-        <div style={styles.comparisonCard}>
-          <h4 style={{...styles.comparisonTitle, color: '#28a745'}}>Intelligent Parsing</h4>
-          <div style={styles.comparisonStats}>
-            <div style={styles.stat}>
-              <span style={styles.statLabel}>Usage:</span>
-              <span style={styles.statValue}>{analytics.parsing.intelligentParsing.used} lists</span>
-            </div>
-            <div style={styles.stat}>
-              <span style={styles.statLabel}>Accuracy:</span>
-              <span style={{...styles.statValue, color: '#28a745'}}>
-                {analytics.parsing.intelligentParsing.accuracy}%
-              </span>
-            </div>
-            <div style={styles.stat}>
-              <span style={styles.statLabel}>Efficiency:</span>
-              <span style={styles.statValue}>{analytics.parsing.intelligentParsing.filteringEfficiency}</span>
-            </div>
-            <div style={styles.stat}>
-              <span style={styles.statLabel}>Avg Time:</span>
-              <span style={styles.statValue}>{analytics.parsing.intelligentParsing.avgProcessingTime}s</span>
-            </div>
+    return (
+      <div style={styles.cardsGrid}>
+        <div style={styles.overviewCard}>
+          <div style={styles.cardIcon}>📊</div>
+          <div style={styles.cardContent}>
+            <h3 style={styles.cardTitle}>Lists Processed</h3>
+            <div style={styles.cardValue}>{analytics.overview.totalLists?.toLocaleString() || 0}</div>
+            <div style={styles.cardSubtext}>+{analytics.overview.improvementTrend || '0%'} vs last period</div>
           </div>
         </div>
 
-        <div style={styles.comparisonCard}>
-          <h4 style={{...styles.comparisonTitle, color: '#ffc107'}}>Fallback Parsing</h4>
-          <div style={styles.comparisonStats}>
-            <div style={styles.stat}>
-              <span style={styles.statLabel}>Usage:</span>
-              <span style={styles.statValue}>{analytics.parsing.fallbackParsing.used} lists</span>
+        <div style={styles.overviewCard}>
+          <div style={styles.cardIcon}>🎯</div>
+          <div style={styles.cardContent}>
+            <h3 style={styles.cardTitle}>Parsing Accuracy</h3>
+            <div style={{
+              ...styles.cardValue,
+              color: getMetricColor(analytics.overview.accuracyRate || 0)
+            }}>
+              {analytics.overview.accuracyRate || 0}%
             </div>
-            <div style={styles.stat}>
-              <span style={styles.statLabel}>Accuracy:</span>
-              <span style={{...styles.statValue, color: '#ffc107'}}>
-                {analytics.parsing.fallbackParsing.accuracy}%
-              </span>
-            </div>
-            <div style={styles.stat}>
-              <span style={styles.statLabel}>Efficiency:</span>
-              <span style={styles.statValue}>{analytics.parsing.fallbackParsing.filteringEfficiency}</span>
-            </div>
-            <div style={styles.stat}>
-              <span style={styles.statLabel}>Avg Time:</span>
-              <span style={styles.statValue}>{analytics.parsing.fallbackParsing.avgProcessingTime}s</span>
-            </div>
+            <div style={styles.cardSubtext}>Average confidence: {((analytics.overview.avgConfidence || 0) * 100).toFixed(1)}%</div>
+          </div>
+        </div>
+
+        <div style={styles.overviewCard}>
+          <div style={styles.cardIcon}>📦</div>
+          <div style={styles.cardContent}>
+            <h3 style={styles.cardTitle}>Items Extracted</h3>
+            <div style={styles.cardValue}>{analytics.overview.totalItems?.toLocaleString() || 0}</div>
+            <div style={styles.cardSubtext}>Top category: {analytics.overview.topCategory || 'N/A'}</div>
+          </div>
+        </div>
+
+        <div style={styles.overviewCard}>
+          <div style={styles.cardIcon}>😊</div>
+          <div style={styles.cardContent}>
+            <h3 style={styles.cardTitle}>User Satisfaction</h3>
+            <div style={styles.cardValue}>{analytics.userFeedback?.satisfactionScore || 0}/5.0</div>
+            <div style={styles.cardSubtext}>{analytics.userFeedback?.accepted || 0} items accepted</div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const renderConfidenceDistribution = () => (
-    <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>📈 Confidence Score Distribution</h3>
-      <div style={styles.confidenceChart}>
-        {Object.entries(analytics.confidence).map(([level, data]) => (
-          <div key={level} style={styles.confidenceBar}>
-            <div style={styles.confidenceLabel}>
-              <span style={styles.confidenceLevelName}>
-                {level === 'high' ? '✅ High (80-100%)' : 
-                 level === 'medium' ? '⚠️ Medium (60-79%)' : 
-                 '🔍 Low (<60%)'}
-              </span>
-              <span style={styles.confidenceCount}>{data.count} items</span>
-            </div>
-            <div style={styles.confidenceBarContainer}>
-              <div 
-                style={{
-                  ...styles.confidenceBarFill,
-                  width: `${data.percentage}%`,
-                  backgroundColor: level === 'high' ? '#28a745' : 
-                                   level === 'medium' ? '#ffc107' : '#dc3545'
-                }}
-              />
-            </div>
-            <span style={styles.confidencePercentage}>{data.percentage}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  const renderParsingComparison = () => {
+    if (!analytics || !analytics.parsing) {
+      return <div>No parsing data available</div>;
+    }
 
-  const renderCategoryBreakdown = () => (
-    <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>🏷️ Category Performance</h3>
-      <div style={styles.categoryGrid}>
-        {Object.entries(analytics.categories).map(([category, data]) => (
-          <div key={category} style={styles.categoryCard}>
-            <div style={styles.categoryHeader}>
-              <span style={styles.categoryEmoji}>
-                {category === 'produce' ? '🥬' :
-                 category === 'dairy' ? '🥛' :
-                 category === 'meat' ? '🥩' :
-                 category === 'pantry' ? '🥫' :
-                 category === 'beverages' ? '🥤' : '📦'}
-              </span>
-              <span style={styles.categoryName}>{category}</span>
-            </div>
-            <div style={styles.categoryStats}>
-              <div style={styles.categoryCount}>{data.count} items</div>
-              <div style={{
-                ...styles.categoryAccuracy,
-                color: getMetricColor(data.accuracy)
-              }}>
-                {data.accuracy}% accuracy
+    return (
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>🧠 Intelligent vs Fallback Parsing</h3>
+        <div style={styles.comparisonGrid}>
+          <div style={styles.comparisonCard}>
+            <h4 style={{...styles.comparisonTitle, color: '#28a745'}}>Intelligent Parsing</h4>
+            <div style={styles.comparisonStats}>
+              <div style={styles.stat}>
+                <span style={styles.statLabel}>Usage:</span>
+                <span style={styles.statValue}>{analytics.parsing.intelligentParsing?.used || 0} lists</span>
+              </div>
+              <div style={styles.stat}>
+                <span style={styles.statLabel}>Accuracy:</span>
+                <span style={{...styles.statValue, color: '#28a745'}}>
+                  {analytics.parsing.intelligentParsing?.accuracy || 0}%
+                </span>
+              </div>
+              <div style={styles.stat}>
+                <span style={styles.statLabel}>Efficiency:</span>
+                <span style={styles.statValue}>{analytics.parsing.intelligentParsing?.filteringEfficiency || '0%'}</span>
+              </div>
+              <div style={styles.stat}>
+                <span style={styles.statLabel}>Avg Time:</span>
+                <span style={styles.statValue}>{analytics.parsing.intelligentParsing?.avgProcessingTime || 0}s</span>
               </div>
             </div>
           </div>
-        ))}
-      </div>
-    </div>
-  );
 
-  const renderTrendChart = () => (
-    <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>📊 7-Day Trend</h3>
-      <div style={styles.trendChart}>
-        {analytics.trends.daily.map((day, index) => (
-          <div key={index} style={styles.trendDay}>
-            <div style={styles.trendBar}>
-              <div 
-                style={{
-                  ...styles.trendBarFill,
-                  height: `${(day.accuracy / 100) * 80}px`,
-                  backgroundColor: getMetricColor(day.accuracy)
-                }}
-              />
-            </div>
-            <div style={styles.trendLabel}>
-              <div style={styles.trendDate}>{day.date.slice(-2)}</div>
-              <div style={styles.trendAccuracy}>{day.accuracy}%</div>
-              <div style={styles.trendItems}>{day.items}</div>
+          <div style={styles.comparisonCard}>
+            <h4 style={{...styles.comparisonTitle, color: '#ffc107'}}>Fallback Parsing</h4>
+            <div style={styles.comparisonStats}>
+              <div style={styles.stat}>
+                <span style={styles.statLabel}>Usage:</span>
+                <span style={styles.statValue}>{analytics.parsing.fallbackParsing?.used || 0} lists</span>
+              </div>
+              <div style={styles.stat}>
+                <span style={styles.statLabel}>Accuracy:</span>
+                <span style={{...styles.statValue, color: '#ffc107'}}>
+                  {analytics.parsing.fallbackParsing?.accuracy || 0}%
+                </span>
+              </div>
+              <div style={styles.stat}>
+                <span style={styles.statLabel}>Efficiency:</span>
+                <span style={styles.statValue}>{analytics.parsing.fallbackParsing?.filteringEfficiency || '0%'}</span>
+              </div>
+              <div style={styles.stat}>
+                <span style={styles.statLabel}>Avg Time:</span>
+                <span style={styles.statValue}>{analytics.parsing.fallbackParsing?.avgProcessingTime || 0}s</span>
+              </div>
             </div>
           </div>
-        ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const renderPerformanceMetrics = () => (
-    <div style={styles.section}>
-      <h3 style={styles.sectionTitle}>⚡ System Performance</h3>
-      <div style={styles.performanceGrid}>
-        <div style={styles.performanceMetric}>
-          <div style={styles.performanceValue}>{analytics.performance.avgResponseTime}s</div>
-          <div style={styles.performanceLabel}>Avg Response Time</div>
-        </div>
-        <div style={styles.performanceMetric}>
-          <div style={styles.performanceValue}>{analytics.performance.apiUptime}%</div>
-          <div style={styles.performanceLabel}>API Uptime</div>
-        </div>
-        <div style={styles.performanceMetric}>
-          <div style={styles.performanceValue}>{analytics.performance.errorRate}%</div>
-          <div style={styles.performanceLabel}>Error Rate</div>
-        </div>
-        <div style={styles.performanceMetric}>
-          <div style={styles.performanceValue}>{analytics.performance.cachehitRate}%</div>
-          <div style={styles.performanceLabel}>Cache Hit Rate</div>
+  const renderConfidenceDistribution = () => {
+    if (!analytics || !analytics.confidence) {
+      return <div>No confidence data available</div>;
+    }
+
+    return (
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>📈 Confidence Score Distribution</h3>
+        <div style={styles.confidenceChart}>
+          {Object.entries(analytics.confidence).map(([level, data]) => (
+            <div key={level} style={styles.confidenceBar}>
+              <div style={styles.confidenceLabel}>
+                <span style={styles.confidenceLevelName}>
+                  {level === 'high' ? '✅ High (80-100%)' : 
+                   level === 'medium' ? '⚠️ Medium (60-79%)' : 
+                   '🔍 Low (<60%)'}
+                </span>
+                <span style={styles.confidenceCount}>{data?.count || 0} items</span>
+              </div>
+              <div style={styles.confidenceBarContainer}>
+                <div 
+                  style={{
+                    ...styles.confidenceBarFill,
+                    width: `${data?.percentage || 0}%`,
+                    backgroundColor: level === 'high' ? '#28a745' : 
+                                     level === 'medium' ? '#ffc107' : '#dc3545'
+                  }}
+                />
+              </div>
+              <span style={styles.confidencePercentage}>{data?.percentage || 0}%</span>
+            </div>
+          ))}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  const renderCategoryBreakdown = () => {
+    if (!analytics || !analytics.categories) {
+      return <div>No category data available</div>;
+    }
+
+    return (
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>🏷️ Category Performance</h3>
+        <div style={styles.categoryGrid}>
+          {Object.entries(analytics.categories).map(([category, data]) => (
+            <div key={category} style={styles.categoryCard}>
+              <div style={styles.categoryHeader}>
+                <span style={styles.categoryEmoji}>
+                  {category === 'produce' ? '🥬' :
+                   category === 'dairy' ? '🥛' :
+                   category === 'meat' ? '🥩' :
+                   category === 'pantry' ? '🥫' :
+                   category === 'beverages' ? '🥤' : '📦'}
+                </span>
+                <span style={styles.categoryName}>{category}</span>
+              </div>
+              <div style={styles.categoryStats}>
+                <div style={styles.categoryCount}>{data?.count || 0} items</div>
+                <div style={{
+                  ...styles.categoryAccuracy,
+                  color: getMetricColor(data?.accuracy || 0)
+                }}>
+                  {data?.accuracy || 0}% accuracy
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderTrendChart = () => {
+    if (!analytics || !analytics.trends || !analytics.trends.daily) {
+      return <div>No trend data available</div>;
+    }
+
+    return (
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>📊 7-Day Trend</h3>
+        <div style={styles.trendChart}>
+          {analytics.trends.daily.map((day, index) => (
+            <div key={index} style={styles.trendDay}>
+              <div style={styles.trendBar}>
+                <div 
+                  style={{
+                    ...styles.trendBarFill,
+                    height: `${((day?.accuracy || 0) / 100) * 80}px`,
+                    backgroundColor: getMetricColor(day?.accuracy || 0)
+                  }}
+                />
+              </div>
+              <div style={styles.trendLabel}>
+                <div style={styles.trendDate}>{day?.date?.slice(-2) || '--'}</div>
+                <div style={styles.trendAccuracy}>{day?.accuracy || 0}%</div>
+                <div style={styles.trendItems}>{day?.items || 0}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderPerformanceMetrics = () => {
+    if (!analytics || !analytics.performance) {
+      return <div>No performance data available</div>;
+    }
+
+    return (
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>⚡ System Performance</h3>
+        <div style={styles.performanceGrid}>
+          <div style={styles.performanceMetric}>
+            <div style={styles.performanceValue}>{analytics.performance.avgResponseTime || 0}s</div>
+            <div style={styles.performanceLabel}>Avg Response Time</div>
+          </div>
+          <div style={styles.performanceMetric}>
+            <div style={styles.performanceValue}>{analytics.performance.apiUptime || 0}%</div>
+            <div style={styles.performanceLabel}>API Uptime</div>
+          </div>
+          <div style={styles.performanceMetric}>
+            <div style={styles.performanceValue}>{analytics.performance.errorRate || 0}%</div>
+            <div style={styles.performanceLabel}>Error Rate</div>
+          </div>
+          <div style={styles.performanceMetric}>
+            <div style={styles.performanceValue}>{analytics.performance.cachehitRate || 0}%</div>
+            <div style={styles.performanceLabel}>Cache Hit Rate</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -329,6 +370,9 @@ function ParsingAnalyticsDashboard({ onClose }) {
         <div style={styles.header}>
           <h2 style={styles.title}>📊 Parsing Analytics Dashboard</h2>
           <div style={styles.headerControls}>
+            {error && (
+              <span style={styles.errorBadge}>Using demo data - API unavailable</span>
+            )}
             <select 
               value={timeRange} 
               onChange={(e) => setTimeRange(e.target.value)}
@@ -368,6 +412,7 @@ function ParsingAnalyticsDashboard({ onClose }) {
   );
 }
 
+// Styles remain the same...
 const styles = {
   overlay: {
     position: 'fixed',
@@ -415,6 +460,15 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '15px'
+  },
+
+  errorBadge: {
+    padding: '4px 8px',
+    backgroundColor: 'rgba(255, 193, 7, 0.2)',
+    color: '#856404',
+    borderRadius: '4px',
+    fontSize: '12px',
+    fontWeight: 'bold'
   },
 
   timeSelect: {
