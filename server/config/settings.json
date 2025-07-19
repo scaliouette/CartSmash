@@ -1,0 +1,73 @@
+{
+  "aiParsing": {
+    "strictMode": true,
+    "confidenceThreshold": 0.6,
+    "enableAIValidation": true,
+    "fallbackToSimple": true,
+    "maxProcessingTime": 30,
+    "enableCaching": true,
+    "batchSize": 50,
+    "enableProductValidation": true,
+    "enablePriceCheck": true,
+    "enableAlternatives": true,
+    "showConfidenceScores": true,
+    "autoReviewLowConfidence": true,
+    "enableSmartSuggestions": true,
+    "preferredAI": "claude",
+    "enableGeminiValidation": false,
+    "apiTimeout": 10,
+    "excludePatterns": [
+      "cooking instructions",
+      "meal descriptions",
+      "day names",
+      "time references",
+      "recipe steps",
+      "preparation methods"
+    ],
+    "includePatterns": [
+      "quantity + product",
+      "measurements",
+      "food keywords",
+      "grocery terms"
+    ],
+    "enableAutoCategories": true,
+    "customCategories": [],
+    "cacheExpiryMinutes": 60,
+    "maxConcurrentRequests": 10,
+    "exportFormat": "json"
+  },
+  "productValidation": {
+    "enableRealTimeValidation": true,
+    "enablePriceChecking": true,
+    "enableAvailabilityCheck": true,
+    "preferredStores": [
+      "instacart",
+      "walmart"
+    ],
+    "maxAlternatives": 5,
+    "priceThreshold": 100,
+    "validationTimeout": 5
+  },
+  "userInterface": {
+    "theme": "light",
+    "showAdvancedFeatures": true,
+    "enableAnimations": true,
+    "autoSaveInterval": 30,
+    "showParsingStats": true,
+    "enableNotifications": true
+  },
+  "analytics": {
+    "enableTracking": true,
+    "enablePerformanceMonitoring": true,
+    "enableUserFeedbackCollection": true,
+    "retentionDays": 30,
+    "enableExport": true
+  },
+  "system": {
+    "environment": "development",
+    "logLevel": "info",
+    "enableDebugMode": false,
+    "enableAPIRateLimiting": true,
+    "maxRequestsPerMinute": 100
+  }
+}
