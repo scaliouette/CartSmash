@@ -35,7 +35,11 @@ app.get('/', (req, res) => {
       cartCurrent: 'GET /api/cart/current',
       aiClaude: 'POST /api/ai/claude',
       aiChatGPT: 'POST /api/ai/chatgpt',
-      analytics: 'GET /api/analytics/parsing'
+      analytics: 'GET /api/analytics/parsing',
+      // NEW: OAuth endpoints
+      krogerAuth: 'POST /api/auth/kroger/login',
+      krogerCallback: 'GET /api/auth/kroger/callback',
+      krogerOrders: 'POST /api/kroger-orders/workflow/complete'
     }
   });
 });
@@ -48,7 +52,9 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     apis: {
       openai: !!process.env.OPENAI_API_KEY,
-      anthropic: !!process.env.ANTHROPIC_API_KEY
+      anthropic: !!process.env.ANTHROPIC_API_KEY,
+      // NEW: Kroger API status
+      kroger: !!(process.env.KROGER_CLIENT_ID && process.env.KROGER_CLIENT_SECRET)
     }
   });
 });
@@ -95,13 +101,35 @@ try {
   console.error('📁 Make sure ./routes/settings.js exists and exports a router');
 }
 
-// Kroger API routes
+// 🔐 NEW: Authentication routes (OAuth2)
+try {
+  const authRoutes = require('./routes/auth');
+  app.use('/api/auth', authRoutes);
+  console.log('✅ Authentication routes loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load authentication routes:', error.message);
+  console.error('📁 Make sure ./routes/auth.js exists and exports a router');
+  console.error('💡 Create ./routes/auth.js from the OAuth2 implementation');
+}
+
+// Kroger API routes (existing)
 try {
   const krogerRoutes = require('./routes/kroger');
   app.use('/api/kroger', krogerRoutes);
   console.log('✅ Kroger API routes loaded successfully');
 } catch (error) {
   console.error('❌ Failed to load Kroger routes:', error.message);
+}
+
+// 🛍️ NEW: Kroger Order routes (OAuth-enabled ordering)
+try {
+  const krogerOrderRoutes = require('./routes/kroger-orders');
+  app.use('/api/kroger-orders', krogerOrderRoutes);
+  console.log('✅ Kroger Order routes loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load Kroger Order routes:', error.message);
+  console.error('📁 Make sure ./routes/kroger-orders.js exists and exports a router');
+  console.error('💡 Create ./routes/kroger-orders.js from the order service implementation');
 }
 
 // Enhanced grocery parsing function (moved from old server.js)
@@ -297,6 +325,28 @@ app.get('/api/settings/:section?', (req, res) => {
   }
 });
 
+// 🧪 NEW: Auth testing fallback (if auth routes fail to load)
+app.post('/api/auth/kroger/login', (req, res) => {
+  console.log('🔐 Fallback auth login request');
+  res.status(503).json({
+    success: false,
+    error: 'Authentication service not configured',
+    message: 'Please create ./routes/auth.js and ./services/KrogerAuthService.js',
+    setup: {
+      files: [
+        'server/routes/auth.js',
+        'server/services/KrogerAuthService.js'
+      ],
+      env: [
+        'KROGER_CLIENT_ID',
+        'KROGER_CLIENT_SECRET', 
+        'KROGER_REDIRECT_URI',
+        'JWT_SECRET'
+      ]
+    }
+  });
+});
+
 // Debug route to see all registered routes
 app.get('/debug/routes', (req, res) => {
   const routes = [];
@@ -325,7 +375,13 @@ app.get('/debug/routes', (req, res) => {
   
   res.json({ 
     totalRoutes: routes.length,
-    routes: routes.sort((a, b) => a.path.localeCompare(b.path))
+    routes: routes.sort((a, b) => a.path.localeCompare(b.path)),
+    // NEW: OAuth status
+    oauth: {
+      authRoutesLoaded: routes.some(r => r.path.includes('/api/auth/')),
+      orderRoutesLoaded: routes.some(r => r.path.includes('/api/kroger-orders/')),
+      envConfigured: !!(process.env.KROGER_CLIENT_ID && process.env.KROGER_CLIENT_SECRET)
+    }
   });
 });
 
@@ -354,7 +410,13 @@ app.use('*', (req, res) => {
       'POST /api/ai/claude',
       'POST /api/ai/chatgpt',
       'GET /api/analytics/parsing',
-      'GET /api/settings'
+      'GET /api/settings',
+      // NEW: OAuth endpoints
+      'POST /api/auth/kroger/login',
+      'GET /api/auth/kroger/callback',
+      'GET /api/auth/kroger/status',
+      'POST /api/kroger-orders/cart/send',
+      'POST /api/kroger-orders/workflow/complete'
     ]
   });
 });
@@ -365,13 +427,20 @@ app.listen(PORT, () => {
   console.log(`🌍 URL: http://localhost:${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🤖 APIs: ${process.env.OPENAI_API_KEY ? '✅' : '❌'} OpenAI, ${process.env.ANTHROPIC_API_KEY ? '✅' : '❌'} Anthropic`);
+  // NEW: OAuth status
+  console.log(`🔐 OAuth: ${process.env.KROGER_CLIENT_ID ? '✅' : '❌'} Kroger configured`);
   console.log(`\n📋 Test these URLs:`);
   console.log(`   - http://localhost:${PORT}/health`);
   console.log(`   - http://localhost:${PORT}/debug/routes`);
   console.log(`   - http://localhost:${PORT}/api/analytics/parsing`);
   console.log(`   - http://localhost:${PORT}/api/settings`);
   console.log(`   - http://localhost:${PORT}/api/ai/claude (POST)`);
-  console.log(`   - http://localhost:${PORT}/api/ai/chatgpt (POST)\n`);
+  console.log(`   - http://localhost:${PORT}/api/ai/chatgpt (POST)`);
+  // NEW: OAuth test URLs
+  console.log(`\n🔐 OAuth Test URLs:`);
+  console.log(`   - http://localhost:${PORT}/api/auth/kroger/login (POST)`);
+  console.log(`   - http://localhost:${PORT}/api/auth/kroger/status (GET)`);
+  console.log(`   - http://localhost:${PORT}/api/kroger-orders/health (GET)\n`);
 });
 
 module.exports = app;

@@ -1,93 +1,57 @@
-// server/routes/auth.js - Enhanced OAuth2 authentication routes
+// server/routes/auth.js - Express routes using your existing KrogerAuthService
 const express = require('express');
 const router = express.Router();
-const rateLimit = require('express-rate-limit');
 
-console.log('🔐 Loading enhanced authentication routes...');
+console.log('🔐 Loading auth routes...');
 
-// Import services
+// Import your existing auth service
 let KrogerAuthService;
 try {
   KrogerAuthService = require('../services/KrogerAuthService');
-  console.log('✅ Kroger Auth Service loaded');
+  console.log('✅ KrogerAuthService loaded successfully');
 } catch (error) {
-  console.error('❌ Kroger Auth Service not found:', error.message);
+  console.error('❌ Failed to load KrogerAuthService:', error.message);
 }
 
-// Initialize auth service
+// Initialize the service
 const authService = KrogerAuthService ? new KrogerAuthService() : null;
 
-// Rate limiting for auth endpoints
-const authRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 requests per windowMs
-  message: {
-    success: false,
-    error: 'Too many authentication attempts, please try again later',
-    retryAfter: '15 minutes'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
-// Middleware to check if auth service is available
+// Middleware
 const requireAuthService = (req, res, next) => {
   if (!authService) {
     return res.status(503).json({
       success: false,
       error: 'Authentication service not available',
-      message: 'Please ensure Kroger Auth Service is properly configured'
+      message: 'KrogerAuthService failed to initialize'
     });
   }
   next();
 };
 
-// Middleware to extract and validate user ID
 const getUserId = (req, res, next) => {
-  const userId = req.headers['user-id'] || 
+  req.userId = req.headers['user-id'] || 
                 req.body.userId || 
                 req.query.userId || 
-                req.session?.userId ||
-                req.user?.id || // If using passport or similar
-                'demo-user'; // Fallback for development
-  
-  if (!userId || userId.length < 1) {
-    return res.status(400).json({
-      success: false,
-      error: 'User ID is required',
-      message: 'Please provide a valid user identifier'
-    });
-  }
-  
-  req.userId = userId;
+                'demo-user';
   next();
 };
 
-// Apply middleware
 router.use(requireAuthService);
 router.use(getUserId);
 
-// Run periodic cleanup every 30 minutes
-setInterval(() => {
-  if (authService) {
-    authService.cleanup();
-  }
-}, 30 * 60 * 1000);
-
 /**
- * Health check for authentication service
+ * Health check for auth service
  */
 router.get('/health', (req, res) => {
   console.log('🏥 Auth service health check');
   
   try {
     const health = authService.getServiceHealth();
-    
     res.json({
       success: true,
-      ...health
+      ...health,
+      timestamp: new Date().toISOString()
     });
-    
   } catch (error) {
     console.error('❌ Auth health check failed:', error);
     res.status(500).json({
@@ -99,53 +63,60 @@ router.get('/health', (req, res) => {
 });
 
 /**
- * Start Kroger OAuth2 authentication flow
+ * Start Kroger OAuth2 authentication
  */
-router.post('/kroger/login', authRateLimit, async (req, res) => {
-  const {
-    scopes = null,
-    forceReauth = false,
-    returnUrl = null
-  } = req.body;
+router.post('/kroger/login', (req, res) => {
+  const { scopes = ['cart.basic:write', 'order.basic:write'], forceReauth = false } = req.body;
   
   console.log(`🔐 Starting Kroger OAuth for user: ${req.userId}`);
   
   try {
     // Check if user is already authenticated (unless force reauth)
     if (!forceReauth) {
-      const authStatus = await authService.isUserAuthenticated(req.userId);
-      if (authStatus.authenticated) {
-        return res.json({
+      authService.isUserAuthenticated(req.userId).then(authStatus => {
+        if (authStatus.authenticated) {
+          return res.json({
+            success: true,
+            alreadyAuthenticated: true,
+            message: 'User is already authenticated with Kroger',
+            tokenInfo: authStatus.tokenInfo,
+            suggestion: 'Use forceReauth=true to re-authenticate'
+          });
+        }
+        
+        // Generate new auth URL
+        const authInfo = authService.generateAuthURL(req.userId, scopes, { forceReauth });
+        
+        res.json({
           success: true,
-          alreadyAuthenticated: true,
-          message: 'User is already authenticated with Kroger',
-          tokenInfo: authStatus.tokenInfo,
-          suggestion: 'Use forceReauth=true to re-authenticate'
+          message: 'Redirect user to authURL to complete Kroger authentication',
+          ...authInfo,
+          instructions: {
+            step1: 'Open the authURL in a popup window',
+            step2: 'User completes authentication on Kroger',
+            step3: 'Kroger redirects to callback URL',
+            step4: 'Popup will notify parent window of success/failure'
+          }
         });
-      }
+      }).catch(error => {
+        // If auth check fails, just generate new auth URL
+        const authInfo = authService.generateAuthURL(req.userId, scopes, { forceReauth });
+        res.json({
+          success: true,
+          message: 'Redirect user to authURL to complete Kroger authentication',
+          ...authInfo
+        });
+      });
+    } else {
+      // Force reauth - generate new auth URL
+      const authInfo = authService.generateAuthURL(req.userId, scopes, { forceReauth });
+      
+      res.json({
+        success: true,
+        message: 'Redirect user to authURL to complete Kroger authentication',
+        ...authInfo
+      });
     }
-    
-    // Generate OAuth2 authorization URL
-    const authInfo = authService.generateAuthURL(req.userId, scopes, {
-      forceReauth: forceReauth
-    });
-    
-    // Store return URL in session if provided
-    if (returnUrl && req.session) {
-      req.session.krogerReturnUrl = returnUrl;
-    }
-    
-    res.json({
-      success: true,
-      message: 'Redirect user to authURL to complete Kroger authentication',
-      ...authInfo,
-      instructions: {
-        step1: 'Redirect user to the provided authURL',
-        step2: 'User completes authentication on Kroger',
-        step3: 'Kroger redirects to callback URL with authorization code',
-        step4: 'Call /auth/kroger/callback to exchange code for tokens'
-      }
-    });
     
   } catch (error) {
     console.error('❌ Auth start failed:', error);
@@ -158,14 +129,14 @@ router.post('/kroger/login', authRateLimit, async (req, res) => {
 });
 
 /**
- * Handle Kroger OAuth2 callback
+ * Handle Kroger OAuth2 callback (serves HTML page)
  */
-router.get('/kroger/callback', async (req, res) => {
+router.get('/kroger/callback', (req, res) => {
   const { code, state, error, error_description } = req.query;
   
-  console.log(`🔄 Handling Kroger OAuth callback`);
+  console.log('🔄 Handling Kroger OAuth callback');
   
-  // Serve the callback HTML page that will process the authentication
+  // Serve the callback HTML page
   const callbackHTML = `
     <!DOCTYPE html>
     <html lang="en">
@@ -184,7 +155,6 @@ router.get('/kroger/callback', async (req, res) => {
                 min-height: 100vh;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             }
-
             .auth-container {
                 background: white;
                 padding: 40px;
@@ -194,11 +164,9 @@ router.get('/kroger/callback', async (req, res) => {
                 max-width: 500px;
                 width: 90%;
             }
-
             .logo { font-size: 48px; margin-bottom: 20px; }
             .title { font-size: 24px; font-weight: bold; color: #333; margin-bottom: 10px; }
             .subtitle { color: #666; margin-bottom: 30px; line-height: 1.5; }
-
             .status {
                 display: flex;
                 align-items: center;
@@ -209,25 +177,21 @@ router.get('/kroger/callback', async (req, res) => {
                 margin-bottom: 20px;
                 font-weight: 500;
             }
-
             .status.processing {
                 background: #fef3c7;
                 color: #d97706;
                 border: 1px solid #fbbf24;
             }
-
             .status.success {
                 background: #dcfce7;
                 color: #16a34a;
                 border: 1px solid #22c55e;
             }
-
             .status.error {
                 background: #fef2f2;
                 color: #dc2626;
                 border: 1px solid #ef4444;
             }
-
             .spinner {
                 width: 20px;
                 height: 20px;
@@ -236,12 +200,10 @@ router.get('/kroger/callback', async (req, res) => {
                 border-radius: 50%;
                 animation: spin 1s linear infinite;
             }
-
             @keyframes spin {
                 0% { transform: rotate(0deg); }
                 100% { transform: rotate(360deg); }
             }
-
             .action-button {
                 background: #3b82f6;
                 color: white;
@@ -254,7 +216,6 @@ router.get('/kroger/callback', async (req, res) => {
                 transition: background-color 0.2s;
                 margin: 10px;
             }
-
             .action-button:hover { background: #2563eb; }
         </style>
     </head>
@@ -287,7 +248,6 @@ router.get('/kroger/callback', async (req, res) => {
                 const actionsEl = document.getElementById('actions');
 
                 if (error) {
-                    // Handle OAuth error
                     statusEl.className = 'status error';
                     statusEl.innerHTML = '<span style="font-size: 24px;">❌</span><span>Authentication failed: ' + (errorDescription || error) + '</span>';
                     
@@ -336,7 +296,11 @@ router.get('/kroger/callback', async (req, res) => {
                         }
 
                         setTimeout(() => {
-                            window.close();
+                            if (window.opener) {
+                                window.close();
+                            } else {
+                                window.location.href = '/';
+                            }
                         }, 3000);
 
                     } else {
@@ -379,7 +343,7 @@ router.get('/kroger/callback', async (req, res) => {
 /**
  * Process OAuth2 callback (API endpoint)
  */
-router.post('/kroger/callback', authRateLimit, async (req, res) => {
+router.post('/kroger/callback', async (req, res) => {
   const { code, state } = req.body;
   
   if (!code || !state) {
@@ -395,17 +359,10 @@ router.post('/kroger/callback', authRateLimit, async (req, res) => {
   try {
     const result = await authService.exchangeCodeForToken(code, state);
     
-    // Get return URL from session
-    const returnUrl = req.session?.krogerReturnUrl;
-    if (returnUrl) {
-      delete req.session.krogerReturnUrl;
-    }
-    
     res.json({
       success: true,
       message: 'Authentication completed successfully',
       ...result,
-      returnUrl: returnUrl,
       nextSteps: {
         makeAuthenticatedRequests: 'Use the stored tokens to make API calls',
         checkStatus: '/api/auth/kroger/status',
@@ -449,43 +406,6 @@ router.get('/kroger/status', async (req, res) => {
 });
 
 /**
- * Refresh user tokens
- */
-router.post('/kroger/refresh', authRateLimit, async (req, res) => {
-  console.log(`🔄 Refreshing tokens for user: ${req.userId}`);
-  
-  try {
-    const tokenInfo = await authService.getValidToken(req.userId);
-    
-    if (!tokenInfo) {
-      return res.status(401).json({
-        success: false,
-        error: 'No valid tokens found',
-        message: 'User needs to re-authenticate'
-      });
-    }
-    
-    res.json({
-      success: true,
-      message: 'Tokens refreshed successfully',
-      tokenInfo: {
-        expiresAt: tokenInfo.expiresAt,
-        scope: tokenInfo.scope,
-        lastRefreshed: tokenInfo.lastRefreshed
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Token refresh failed:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Token refresh failed',
-      message: error.message
-    });
-  }
-});
-
-/**
  * Logout user
  */
 router.post('/kroger/logout', (req, res) => {
@@ -493,11 +413,6 @@ router.post('/kroger/logout', (req, res) => {
   
   try {
     const result = authService.logoutUser(req.userId);
-    
-    // Clear session data
-    if (req.session) {
-      delete req.session.krogerReturnUrl;
-    }
     
     res.json({
       success: true,
@@ -515,82 +430,5 @@ router.post('/kroger/logout', (req, res) => {
   }
 });
 
-/**
- * Test authenticated API call
- */
-router.get('/kroger/test', async (req, res) => {
-  const { endpoint = '/profile' } = req.query;
-  
-  console.log(`🧪 Testing authenticated API call for user: ${req.userId}`);
-  
-  try {
-    const result = await authService.makeAuthenticatedRequest(
-      req.userId, 
-      'GET', 
-      endpoint
-    );
-    
-    res.json({
-      success: true,
-      endpoint: endpoint,
-      result: result,
-      message: 'Authenticated API call successful'
-    });
-    
-  } catch (error) {
-    console.error('❌ Test API call failed:', error);
-    
-    if (error.message.includes('not authenticated')) {
-      return res.status(401).json({
-        success: false,
-        error: 'Authentication required',
-        message: 'Please authenticate with Kroger first',
-        authUrl: '/api/auth/kroger/login'
-      });
-    }
-    
-    res.status(500).json({
-      success: false,
-      error: 'API call failed',
-      message: error.message
-    });
-  }
-});
-
-/**
- * Get authentication statistics (admin only)
- */
-router.get('/stats', (req, res) => {
-  // In production, add admin authentication check here
-  
-  console.log('📊 Auth statistics requested');
-  
-  try {
-    const health = authService.getServiceHealth();
-    
-    res.json({
-      success: true,
-      ...health,
-      endpoints: [
-        'POST /auth/kroger/login',
-        'GET /auth/kroger/callback',
-        'POST /auth/kroger/callback', 
-        'GET /auth/kroger/status',
-        'POST /auth/kroger/refresh',
-        'POST /auth/kroger/logout',
-        'GET /auth/kroger/test'
-      ]
-    });
-    
-  } catch (error) {
-    console.error('❌ Stats request failed:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get statistics',
-      message: error.message
-    });
-  }
-});
-
-console.log('✅ Enhanced authentication routes loaded');
+console.log('✅ Auth routes loaded successfully');
 module.exports = router;

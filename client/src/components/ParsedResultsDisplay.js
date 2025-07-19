@@ -28,7 +28,7 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
   // Validate products against real database
   const validateProducts = async () => {
     try {
-      const response = await fetch('/api/products/validate', {
+      const response = await fetch('/api/kroger/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ products: items })
