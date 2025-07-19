@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿// client/src/App.js - Updated with Kroger integration
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import ParsedResultsDisplay from './components/ParsedResultsDisplay';
@@ -11,6 +12,9 @@ import ParsingAnalyticsDashboard from './components/ParsingAnalyticsDashboard';
 import SmartParsingDemo from './components/SmartParsingDemo';
 import AIParsingSettings from './components/AIParsingSettings';
 import AdminDashboard from './components/AdminDashboard';
+
+// 🆕 NEW: Import Kroger integration
+import KrogerOrderFlow from './components/KrogerOrderFlow';
 
 import confetti from 'canvas-confetti';
 
@@ -116,6 +120,108 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
         </div>
       )}
     </button>
+  );
+}
+
+// 🆕 NEW: Kroger Quick Order Button Component
+function KrogerQuickOrderButton({ cartItems, currentUser, isVisible = true }) {
+  const [showKrogerFlow, setShowKrogerFlow] = useState(false);
+  const [krogerAuthStatus, setKrogerAuthStatus] = useState(null);
+
+  useEffect(() => {
+    if (isVisible && cartItems.length > 0) {
+      checkKrogerAuth();
+    }
+  }, [isVisible, cartItems.length]);
+
+  const checkKrogerAuth = async () => {
+    try {
+      const response = await fetch('/api/auth/kroger/status', {
+        headers: {
+          'User-ID': currentUser?.uid || 'demo-user'
+        }
+      });
+      const data = await response.json();
+      setKrogerAuthStatus(data);
+    } catch (error) {
+      console.warn('Failed to check Kroger auth status:', error);
+    }
+  };
+
+  if (!isVisible || cartItems.length === 0) {
+    return null;
+  }
+
+  const handleKrogerOrder = () => {
+    setShowKrogerFlow(true);
+  };
+
+  return (
+    <>
+      <div style={styles.krogerOrderSection}>
+        <div style={styles.krogerOrderHeader}>
+          <h3 style={styles.krogerOrderTitle}>🏪 Order with Kroger</h3>
+          <p style={styles.krogerOrderSubtitle}>
+            Send your validated cart directly to Kroger for pickup or delivery
+          </p>
+        </div>
+
+        <div style={styles.krogerOrderContent}>
+          <div style={styles.krogerOrderStats}>
+            <div style={styles.orderStat}>
+              <span style={styles.orderStatNumber}>{cartItems.length}</span>
+              <span style={styles.orderStatLabel}>Items Ready</span>
+            </div>
+            <div style={styles.orderStat}>
+              <span style={styles.orderStatNumber}>
+                {cartItems.filter(item => item.realPrice).length}
+              </span>
+              <span style={styles.orderStatLabel}>With Pricing</span>
+            </div>
+            <div style={styles.orderStat}>
+              <span style={styles.orderStatNumber}>
+                ${cartItems.reduce((sum, item) => sum + (item.realPrice || 0) * (item.quantity || 1), 0).toFixed(2)}
+              </span>
+              <span style={styles.orderStatLabel}>Estimated Total</span>
+            </div>
+          </div>
+
+          <div style={styles.krogerOrderActions}>
+            <button 
+              onClick={handleKrogerOrder}
+              style={styles.krogerOrderButton}
+            >
+              {krogerAuthStatus?.authenticated ? (
+                <>🛒 Send to Kroger Cart</>
+              ) : (
+                <>🔐 Connect & Order with Kroger</>
+              )}
+            </button>
+            
+            {krogerAuthStatus?.authenticated && (
+              <div style={styles.authStatus}>
+                ✅ Connected to Kroger
+              </div>
+            )}
+          </div>
+
+          <div style={styles.krogerFeatures}>
+            <div style={styles.feature}>✅ Real-time pricing</div>
+            <div style={styles.feature}>🚗 Pickup or delivery</div>
+            <div style={styles.feature}>🔒 Secure checkout</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Kroger Order Flow Modal */}
+      {showKrogerFlow && (
+        <KrogerOrderFlow
+          cartItems={cartItems}
+          currentUser={currentUser}
+          onClose={() => setShowKrogerFlow(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -590,6 +696,13 @@ The AI will ignore 'Monday: Chicken dinner' and extract: '2 lbs chicken breast',
         />
       )}
 
+      {/* 🆕 NEW: Kroger Integration - Shows when you have parsed items */}
+      <KrogerQuickOrderButton 
+        cartItems={parsedItems}
+        currentUser={currentUser}
+        isVisible={showResults && parsedItems.length > 0}
+      />
+
       {/* Product Validator Modal */}
       {showValidator && (
         <ProductValidator
@@ -827,6 +940,113 @@ const styles = {
   container: {
     width: '100%',
     position: 'relative',
+  },
+
+  // 🆕 NEW: Kroger Order Styles
+  krogerOrderSection: {
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    padding: '32px',
+    marginTop: '32px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+    border: '2px solid #10b981',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+
+  krogerOrderHeader: {
+    textAlign: 'center',
+    marginBottom: '24px',
+  },
+
+  krogerOrderTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '28px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+
+  krogerOrderSubtitle: {
+    margin: 0,
+    fontSize: '16px',
+    color: '#6b7280',
+    lineHeight: '1.5',
+  },
+
+  krogerOrderContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+  },
+
+  krogerOrderStats: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+    gap: '16px',
+  },
+
+  orderStat: {
+    textAlign: 'center',
+    padding: '16px',
+    backgroundColor: '#f0f9ff',
+    borderRadius: '12px',
+    border: '1px solid #0ea5e9',
+  },
+
+  orderStatNumber: {
+    display: 'block',
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#0c4a6e',
+    marginBottom: '4px',
+  },
+
+  orderStatLabel: {
+    fontSize: '12px',
+    color: '#0369a1',
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+  },
+
+  krogerOrderActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '12px',
+  },
+
+  krogerOrderButton: {
+    padding: '16px 32px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
+    minWidth: '280px',
+  },
+
+  authStatus: {
+    fontSize: '14px',
+    color: '#10b981',
+    fontWeight: '500',
+  },
+
+  krogerFeatures: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '24px',
+    flexWrap: 'wrap',
+  },
+
+  feature: {
+    fontSize: '14px',
+    color: '#6b7280',
+    fontWeight: '500',
   },
 
   // Admin Menu Styles
@@ -1289,6 +1509,12 @@ styleSheet.textContent = `
   
   .admin-menu-button:hover {
     background-color: #f3f4f6 !important;
+  }
+  
+  .kroger-order-button:hover {
+    background-color: #059669 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
   }
 `;
 document.head.appendChild(styleSheet);
