@@ -23,7 +23,16 @@ class KrogerAuthService {
     this.tokenRefreshBuffer = 5 * 60 * 1000; // Refresh 5 minutes before expiry
     
     console.log('🔐 Kroger Auth Service initialized');
+    // CHANGE FROM:
     this.validateConfiguration();
+
+    // TO:
+    try {
+      this.validateConfiguration();
+    } catch (error) {
+      console.warn('⚠️ Kroger OAuth not fully configured:', error.message);
+      console.warn('⚠️ Routes will load but OAuth will not work until credentials are set');
+    }
   }
 
   /**

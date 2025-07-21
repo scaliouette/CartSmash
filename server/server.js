@@ -1,5 +1,13 @@
-require('dotenv').config();
+require('dotenv').config({ path: '../.env' });
+
+// Debug: Check if environment variables are loaded
+console.log('🔍 Debug: Environment variables loaded:');
+console.log('  KROGER_CLIENT_ID:', process.env.KROGER_CLIENT_ID ? '✅ SET' : '❌ MISSING');
+console.log('  KROGER_CLIENT_SECRET:', process.env.KROGER_CLIENT_SECRET ? '✅ SET' : '❌ MISSING');
+console.log('  KROGER_REDIRECT_URI:', process.env.KROGER_REDIRECT_URI ? '✅ SET' : '❌ MISSING');
+
 const express = require('express');
+
 const cors = require('cors');
 
 const app = express();

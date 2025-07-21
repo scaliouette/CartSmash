@@ -405,6 +405,8 @@ router.get('/kroger/status', async (req, res) => {
   }
 });
 
+
+
 /**
  * Logout user
  */
