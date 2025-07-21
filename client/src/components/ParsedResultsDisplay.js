@@ -4,9 +4,8 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
   const [sortBy, setSortBy] = useState('confidence');
   const [filterBy, setFilterBy] = useState('all');
   const [showStats, setShowStats] = useState(false); // ✅ FIX: Hidden by default
-  const [realPrices, setRealPrices] = useState({});
-  const [validationResults, setValidationResults] = useState({});
   const [isMobile, setIsMobile] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
 
   // ✅ FIX: Mobile detection
   useEffect(() => {
@@ -19,55 +18,36 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Calculate real total price
-  const calculateRealTotal = async () => {
-    const prices = {};
-    for (const item of items) {
-      try {
-        const response = await fetch(`/api/products/pricing?productName=${encodeURIComponent(item.productName || item.itemName)}`);
-        if (response.ok) {
-          const data = await response.json();
-          prices[item.id] = data.pricing?.price || 0;
-        }
-      } catch (error) {
-        console.warn('Failed to fetch price for:', item.productName);
-        prices[item.id] = 0;
-      }
-    }
-    setRealPrices(prices);
-  };
-
-  // Validate products against real database
-  const validateProducts = async () => {
-    try {
-      const response = await fetch('/api/kroger/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ products: items })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const validationMap = {};
-        data.validatedProducts.forEach(product => {
-          validationMap[product.id] = {
-            isValid: product.isValid,
-            confidence: product.confidence
-          };
-        });
-        setValidationResults(validationMap);
-      }
-    } catch (error) {
-      console.warn('Product validation failed:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (items.length > 0) {
-      calculateRealTotal();
-      validateProducts();
-    }
-  }, [items]);
+  // ✅ NEW: Common units for dropdown
+  const commonUnits = [
+    { value: 'each', label: 'each' },
+    { value: 'lbs', label: 'lbs' },
+    { value: 'oz', label: 'oz' },
+    { value: 'kg', label: 'kg' },
+    { value: 'g', label: 'g' },
+    { value: 'cups', label: 'cups' },
+    { value: 'tbsp', label: 'tbsp' },
+    { value: 'tsp', label: 'tsp' },
+    { value: 'l', label: 'liters' },
+    { value: 'ml', label: 'ml' },
+    { value: 'gal', label: 'gallons' },
+    { value: 'qt', label: 'quarts' },
+    { value: 'pt', label: 'pints' },
+    { value: 'fl oz', label: 'fl oz' },
+    { value: 'dozen', label: 'dozen' },
+    { value: 'can', label: 'can' },
+    { value: 'bottle', label: 'bottle' },
+    { value: 'bag', label: 'bag' },
+    { value: 'box', label: 'box' },
+    { value: 'jar', label: 'jar' },
+    { value: 'pack', label: 'pack' },
+    { value: 'container', label: 'container' },
+    { value: 'bunch', label: 'bunch' },
+    { value: 'head', label: 'head' },
+    { value: 'loaf', label: 'loaf' },
+    { value: 'piece', label: 'piece' },
+    { value: 'clove', label: 'clove' }
+  ];
 
   // Filter and sort items
   const filteredAndSortedItems = items
@@ -75,12 +55,17 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
       if (filterBy === 'all') return true;
       if (filterBy === 'high-confidence') return (item.confidence || 0) >= 0.8;
       if (filterBy === 'needs-review') return (item.confidence || 0) < 0.6;
-      if (filterBy === 'category') return item.category === filterBy;
-      return true;
+      if (filterBy === item.category) return true;
+      return false;
     })
     .sort((a, b) => {
       if (sortBy === 'confidence') return (b.confidence || 0) - (a.confidence || 0);
-      if (sortBy === 'category') return (a.category || '').localeCompare(b.category || '');
+      if (sortBy === 'category') {
+        const catCompare = (a.category || '').localeCompare(b.category || '');
+        if (catCompare !== 0) return catCompare;
+        // Secondary sort by name within category
+        return (a.productName || a.itemName || '').localeCompare(b.productName || b.itemName || '');
+      }
       if (sortBy === 'name') return (a.productName || a.itemName || '').localeCompare(b.productName || b.itemName || '');
       return 0;
     });
@@ -94,7 +79,12 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     categories: [...new Set(items.map(item => item.category))].length,
     averageConfidence: items.length > 0 ? 
       items.reduce((sum, item) => sum + (item.confidence || 0), 0) / items.length : 0,
-    totalEstimatedPrice: Object.values(realPrices).reduce((sum, price) => sum + price, 0)
+    totalEstimatedPrice: items.reduce((sum, item) => {
+      if (item.realPrice) {
+        return sum + (item.realPrice * (item.quantity || 1));
+      }
+      return sum;
+    }, 0)
   };
 
   const getConfidenceColor = (confidence) => {
@@ -105,11 +95,11 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
 
   const getConfidenceLabel = (confidence) => {
     if (confidence >= 0.8) return 'High';
-    if (confidence >= 0.6) return 'Medium';
+    if (confidence >= 0.6) return 'Med';
     return 'Low';
   };
 
-  // ✅ FIX: Mobile-friendly category icons
+  // ✅ NEW: Get category icon
   const getCategoryIcon = (category) => {
     const icons = {
       'produce': '🥬',
@@ -125,11 +115,29 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     return icons[category] || '📦';
   };
 
-  const handleItemEdit = (itemId, field, value) => {
+  // ✅ ENHANCED: Item edit with server update
+  const handleItemEdit = async (itemId, field, value) => {
+    // Update locally first for immediate UI response
     const updatedItems = items.map(item => 
       item.id === itemId ? { ...item, [field]: value } : item
     );
     onItemsChange(updatedItems);
+    
+    // Update on server
+    try {
+      const response = await fetch(`/api/cart/items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value })
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to update item on server');
+        // Could revert the change here if needed
+      }
+    } catch (error) {
+      console.error('Error updating item:', error);
+    }
   };
 
   const handleRemoveItem = (itemId) => {
@@ -139,86 +147,181 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     }
   };
 
-  const exportToPDF = () => {
-    const content = `
-Cart Smash - Grocery List
-Generated: ${new Date().toLocaleDateString()}
-
-ITEMS (${items.length}):
-${items.map(item => `• ${item.quantity || 1} ${item.unit || ''} ${item.productName || item.itemName}`).join('\n')}
-
-STATISTICS:
-• Total Items: ${stats.total}
-• High Confidence: ${stats.highConfidence}
-• Categories: ${stats.categories}
-• Average Confidence: ${(stats.averageConfidence * 100).toFixed(1)}%
-• Estimated Total: $${stats.totalEstimatedPrice.toFixed(2)}
-
-Generated by Cart Smash AI
-    `;
+  const exportToCSV = () => {
+    const headers = ['Product Name', 'Quantity', 'Unit', 'Category', 'Confidence'];
+    const csvContent = [
+      headers.join(','),
+      ...items.map(item => [
+        `"${item.productName || item.itemName}"`,
+        item.quantity || 1,
+        item.unit || 'each',
+        item.category || 'other',
+        ((item.confidence || 0) * 100).toFixed(0) + '%'
+      ].join(','))
+    ].join('\n');
     
-    const blob = new Blob([content], { type: 'text/plain' });
+    const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `smart-cart-${new Date().toISOString().split('T')[0]}.txt`;
+    a.download = `grocery-list-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  // Group items by category when sorting by category
+  const renderGroupedItems = () => {
+    const grouped = {};
+    filteredAndSortedItems.forEach(item => {
+      const category = item.category || 'other';
+      if (!grouped[category]) grouped[category] = [];
+      grouped[category].push(item);
+    });
+
+    return Object.entries(grouped).map(([category, categoryItems]) => (
+      <div key={category}>
+        <div style={styles.categoryHeader}>
+          <span style={styles.categoryIcon}>{getCategoryIcon(category)}</span>
+          <span style={styles.categoryName}>{category.charAt(0).toUpperCase() + category.slice(1)}</span>
+          <span style={styles.categoryCount}>({categoryItems.length} items)</span>
+        </div>
+        {categoryItems.map((item, index) => renderItem(item, index))}
+      </div>
+    ));
+  };
+
+  // ✅ NEW: Render individual item as line item
+  const renderItem = (item, index) => (
+    <div 
+      key={item.id || index} 
+      style={{
+        ...styles.itemRow,
+        ...(index % 2 === 0 ? styles.itemRowEven : {}),
+        ...(editingItem === item.id ? styles.itemRowEditing : {})
+      }}
+    >
+      {/* Category Icon */}
+      <div style={styles.itemCategory}>
+        <span title={item.category}>{getCategoryIcon(item.category)}</span>
+      </div>
+
+      {/* Product Name */}
+      <div style={styles.itemName}>
+        {editingItem === item.id ? (
+          <input
+            type="text"
+            value={item.productName || item.itemName || ''}
+            onChange={(e) => handleItemEdit(item.id, 'productName', e.target.value)}
+            onBlur={() => setEditingItem(null)}
+            onKeyPress={(e) => e.key === 'Enter' && setEditingItem(null)}
+            style={styles.itemNameInput}
+            autoFocus
+          />
+        ) : (
+          <span 
+            onClick={() => setEditingItem(item.id)}
+            style={styles.itemNameText}
+            title="Click to edit"
+          >
+            {item.productName || item.itemName}
+          </span>
+        )}
+      </div>
+
+      {/* Quantity */}
+      <div style={styles.itemQuantity}>
+        <input
+          type="number"
+          value={item.quantity || 1}
+          onChange={(e) => handleItemEdit(item.id, 'quantity', parseFloat(e.target.value) || 1)}
+          style={styles.quantityInput}
+          min="0"
+          step="0.25"
+        />
+      </div>
+
+      {/* Unit */}
+      <div style={styles.itemUnit}>
+        <select
+          value={item.unit || 'each'}
+          onChange={(e) => handleItemEdit(item.id, 'unit', e.target.value)}
+          style={styles.unitSelect}
+        >
+          {commonUnits.map(unit => (
+            <option key={unit.value} value={unit.value}>
+              {unit.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Confidence */}
+      <div style={styles.itemConfidence}>
+        <span 
+          style={{
+            ...styles.confidenceBadge,
+            backgroundColor: getConfidenceColor(item.confidence || 0)
+          }}
+        >
+          {getConfidenceLabel(item.confidence || 0)}
+        </span>
+      </div>
+
+      {/* Price (if available) */}
+      {item.realPrice && (
+        <div style={styles.itemPrice}>
+          ${(item.realPrice * (item.quantity || 1)).toFixed(2)}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={styles.itemActions}>
+        <button
+          onClick={() => handleRemoveItem(item.id)}
+          style={styles.removeButton}
+          title="Remove item"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{
       ...styles.container,
       ...(isMobile ? styles.containerMobile : {})
     }}>
-      {/* ✅ FIX: Mobile-optimized header */}
+      {/* Header */}
       <div style={{
         ...styles.header,
         ...(isMobile ? styles.headerMobile : {})
       }}>
-        <h3 style={{
-          ...styles.title,
-          ...(isMobile ? styles.titleMobile : {})
-        }}>
-          ✅ Cart Smash Results ({items.length} items)
+        <h3 style={styles.title}>
+          ✅ Smart Cart Results ({items.length} items)
         </h3>
-        <div style={{
-          ...styles.headerActions,
-          ...(isMobile ? styles.headerActionsMobile : {})
-        }}>
+        <div style={styles.headerActions}>
           <button 
             onClick={() => setShowStats(!showStats)} 
-            style={{
-              ...styles.toggleButton,
-              ...(isMobile ? styles.toggleButtonMobile : {})
-            }}
+            style={styles.toggleButton}
           >
             {showStats ? '📊 Hide Stats' : '📊 Show Stats'}
           </button>
           <button 
-            onClick={exportToPDF} 
-            style={{
-              ...styles.exportButton,
-              ...(isMobile ? styles.exportButtonMobile : {})
-            }}
+            onClick={exportToCSV} 
+            style={styles.exportButton}
           >
-            📄 Export
+            📄 Export CSV
           </button>
         </div>
       </div>
 
-      {/* ✅ FIX: Collapsible Statistics Panel - Hidden by default */}
+      {/* Stats Panel (Collapsible) */}
       {showStats && (
-        <div style={{
-          ...styles.statsPanel,
-          ...(isMobile ? styles.statsPanelMobile : {})
-        }}>
+        <div style={styles.statsPanel}>
           <h4 style={styles.statsTitle}>📊 Parsing Statistics</h4>
           
-          <div style={{
-            ...styles.statsGrid,
-            ...(isMobile ? styles.statsGridMobile : {})
-          }}>
+          <div style={styles.statsGrid}>
             <div style={styles.statCard}>
               <div style={styles.statValue}>{stats.total}</div>
               <div style={styles.statLabel}>Total Items</div>
@@ -249,44 +352,21 @@ Generated by Cart Smash AI
               <div style={styles.statLabel}>Avg Confidence</div>
             </div>
           </div>
-
-          {parsingStats && (
-            <div style={{
-              ...styles.parsingMetrics,
-              ...(isMobile ? styles.parsingMetricsMobile : {})
-            }}>
-              <h5 style={styles.metricsTitle}>🎯 AI Processing Metrics</h5>
-              <div style={{
-                ...styles.metricsRow,
-                ...(isMobile ? styles.metricsRowMobile : {})
-              }}>
-                <span>Filtering Efficiency: <strong>{parsingStats.processingMetrics?.filteringEfficiency || 'N/A'}</strong></span>
-                <span>High Confidence Products: <strong>{parsingStats.highConfidence || 0}</strong></span>
-                <span>Categories Detected: <strong>{parsingStats.categoriesFound?.length || 0}</strong></span>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
-      {/* ✅ FIX: Mobile-optimized controls */}
-      <div style={{
-        ...styles.controls,
-        ...(isMobile ? styles.controlsMobile : {})
-      }}>
+      {/* Controls */}
+      <div style={styles.controls}>
         <div style={styles.controlGroup}>
           <label style={styles.controlLabel}>Sort by:</label>
           <select 
             value={sortBy} 
             onChange={(e) => setSortBy(e.target.value)}
-            style={{
-              ...styles.select,
-              ...(isMobile ? styles.selectMobile : {})
-            }}
+            style={styles.select}
           >
-            <option value="confidence">Confidence</option>
-            <option value="category">Category</option>
-            <option value="name">Name</option>
+            <option value="confidence">Confidence (High to Low)</option>
+            <option value="category">Category (A to Z)</option>
+            <option value="name">Name (A to Z)</option>
           </select>
         </div>
 
@@ -295,158 +375,47 @@ Generated by Cart Smash AI
           <select 
             value={filterBy} 
             onChange={(e) => setFilterBy(e.target.value)}
-            style={{
-              ...styles.select,
-              ...(isMobile ? styles.selectMobile : {})
-            }}
+            style={styles.select}
           >
             <option value="all">All Items</option>
-            <option value="high-confidence">High Confidence</option>
-            <option value="needs-review">Needs Review</option>
+            <option value="high-confidence">High Confidence Only</option>
+            <option value="needs-review">Needs Review Only</option>
+            <optgroup label="By Category">
+              <option value="produce">🥬 Produce</option>
+              <option value="dairy">🥛 Dairy</option>
+              <option value="meat">🥩 Meat</option>
+              <option value="pantry">🥫 Pantry</option>
+              <option value="beverages">🥤 Beverages</option>
+              <option value="frozen">🧊 Frozen</option>
+              <option value="bakery">🍞 Bakery</option>
+              <option value="snacks">🍿 Snacks</option>
+              <option value="other">📦 Other</option>
+            </optgroup>
           </select>
         </div>
       </div>
 
-      {/* ✅ FIX: Mobile-optimized clean result cards */}
-      <div style={{
-        ...styles.itemsGrid,
-        ...(isMobile ? styles.itemsGridMobile : {})
-      }}>
-        {filteredAndSortedItems.map((item, index) => (
-          <div key={item.id || index} style={{
-            ...styles.itemCard,
-            ...(isMobile ? styles.itemCardMobile : {}),
-            borderColor: getConfidenceColor(item.confidence || 0)
-          }}>
-            {/* ✅ FIX: Clean card header without images */}
-            <div style={styles.itemCardHeader}>
-              <div style={styles.itemCardTitle}>
-                <span style={styles.categoryIcon}>
-                  {getCategoryIcon(item.category)}
-                </span>
-                <input
-                  type="text"
-                  value={item.productName || item.itemName || ''}
-                  onChange={(e) => handleItemEdit(item.id, 'productName', e.target.value)}
-                  style={{
-                    ...styles.itemNameInput,
-                    ...(isMobile ? styles.itemNameInputMobile : {})
-                  }}
-                />
-              </div>
-              
-              {/* ✅ FIX: Mobile-friendly confidence badge */}
-              <div style={{
-                ...styles.confidenceBadge,
-                backgroundColor: getConfidenceColor(item.confidence || 0)
-              }}>
-                {getConfidenceLabel(item.confidence || 0)}
-                <span style={styles.confidencePercentage}>
-                  {((item.confidence || 0) * 100).toFixed(0)}%
-                </span>
-              </div>
-            </div>
-
-            {/* ✅ FIX: Clean item details */}
-            <div style={{
-              ...styles.itemContent,
-              ...(isMobile ? styles.itemContentMobile : {})
-            }}>
-              <div style={{
-                ...styles.itemDetails,
-                ...(isMobile ? styles.itemDetailsMobile : {})
-              }}>
-                <div style={styles.itemDetail}>
-                  <span style={styles.detailLabel}>Quantity:</span>
-                  <input
-                    type="text"
-                    value={item.quantity || '1'}
-                    onChange={(e) => handleItemEdit(item.id, 'quantity', e.target.value)}
-                    style={{
-                      ...styles.quantityInput,
-                      ...(isMobile ? styles.quantityInputMobile : {})
-                    }}
-                  />
-                  <input
-                    type="text"
-                    value={item.unit || ''}
-                    onChange={(e) => handleItemEdit(item.id, 'unit', e.target.value)}
-                    placeholder="unit"
-                    style={{
-                      ...styles.unitInput,
-                      ...(isMobile ? styles.unitInputMobile : {})
-                    }}
-                  />
-                </div>
-
-                <div style={styles.itemDetail}>
-                  <span style={styles.detailLabel}>Category:</span>
-                  <select
-                    value={item.category || 'other'}
-                    onChange={(e) => handleItemEdit(item.id, 'category', e.target.value)}
-                    style={{
-                      ...styles.categorySelect,
-                      ...(isMobile ? styles.categorySelectMobile : {})
-                    }}
-                  >
-                    <option value="produce">🥬 Produce</option>
-                    <option value="dairy">🥛 Dairy</option>
-                    <option value="meat">🥩 Meat</option>
-                    <option value="pantry">🥫 Pantry</option>
-                    <option value="beverages">🥤 Beverages</option>
-                    <option value="frozen">🧊 Frozen</option>
-                    <option value="bakery">🍞 Bakery</option>
-                    <option value="snacks">🍿 Snacks</option>
-                    <option value="other">📦 Other</option>
-                  </select>
-                </div>
-
-                {realPrices[item.id] && (
-                  <div style={styles.itemDetail}>
-                    <span style={styles.detailLabel}>Price:</span>
-                    <span style={styles.priceDisplay}>${realPrices[item.id].toFixed(2)}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* ✅ FIX: Clean original text display */}
-              {item.original && (
-                <div style={{
-                  ...styles.originalText,
-                  ...(isMobile ? styles.originalTextMobile : {})
-                }}>
-                  <span style={styles.originalLabel}>Original:</span>
-                  <span style={styles.originalValue}>{item.original}</span>
-                </div>
-              )}
-            </div>
-
-            {/* ✅ FIX: Mobile-friendly item actions */}
-            <div style={{
-              ...styles.itemActions,
-              ...(isMobile ? styles.itemActionsMobile : {})
-            }}>
-              <button
-                onClick={() => handleRemoveItem(item.id)}
-                style={{
-                  ...styles.removeButton,
-                  ...(isMobile ? styles.removeButtonMobile : {})
-                }}
-                title="Remove item"
-              >
-                🗑️ Remove
-              </button>
-            </div>
-          </div>
-        ))}
+      {/* List Header */}
+      <div style={styles.listHeader}>
+        <div style={styles.headerCategory}></div>
+        <div style={styles.headerName}>Product Name</div>
+        <div style={styles.headerQuantity}>Qty</div>
+        <div style={styles.headerUnit}>Unit</div>
+        <div style={styles.headerConfidence}>Status</div>
+        {items.some(item => item.realPrice) && (
+          <div style={styles.headerPrice}>Price</div>
+        )}
+        <div style={styles.headerActions}></div>
       </div>
 
-      {/* ✅ FIX: Mobile-optimized total summary */}
+      {/* Items List */}
+      <div style={styles.itemsList}>
+        {sortBy === 'category' ? renderGroupedItems() : filteredAndSortedItems.map((item, index) => renderItem(item, index))}
+      </div>
+
+      {/* Total Summary */}
       {stats.totalEstimatedPrice > 0 && (
-        <div style={{
-          ...styles.totalSummary,
-          ...(isMobile ? styles.totalSummaryMobile : {})
-        }}>
+        <div style={styles.totalSummary}>
           <h4 style={styles.totalTitle}>💰 Estimated Total: ${stats.totalEstimatedPrice.toFixed(2)}</h4>
           <p style={styles.totalNote}>
             *Prices are estimates and may vary by location and availability
@@ -467,7 +436,6 @@ const styles = {
     border: '1px solid #e5e7eb'
   },
 
-  // ✅ MOBILE: Container optimizations
   containerMobile: {
     margin: '10px 0',
     padding: '15px',
@@ -483,12 +451,10 @@ const styles = {
     gap: '10px'
   },
 
-  // ✅ MOBILE: Header optimizations
   headerMobile: {
     flexDirection: 'column',
     alignItems: 'stretch',
-    gap: '15px',
-    marginBottom: '15px'
+    gap: '15px'
   },
 
   title: {
@@ -498,21 +464,9 @@ const styles = {
     fontWeight: 'bold'
   },
 
-  // ✅ MOBILE: Title optimizations
-  titleMobile: {
-    fontSize: '20px',
-    textAlign: 'center'
-  },
-
   headerActions: {
     display: 'flex',
     gap: '10px'
-  },
-
-  // ✅ MOBILE: Header actions optimizations
-  headerActionsMobile: {
-    justifyContent: 'center',
-    flexWrap: 'wrap'
   },
 
   toggleButton: {
@@ -526,13 +480,6 @@ const styles = {
     fontWeight: '500'
   },
 
-  // ✅ MOBILE: Button optimizations
-  toggleButtonMobile: {
-    padding: '12px 16px',
-    fontSize: '16px',
-    minWidth: '130px'
-  },
-
   exportButton: {
     padding: '8px 16px',
     backgroundColor: '#10b981',
@@ -544,25 +491,12 @@ const styles = {
     fontWeight: '500'
   },
 
-  // ✅ MOBILE: Export button optimizations
-  exportButtonMobile: {
-    padding: '12px 16px',
-    fontSize: '16px',
-    minWidth: '100px'
-  },
-
   statsPanel: {
     background: '#f9fafb',
     padding: '20px',
     borderRadius: '8px',
     marginBottom: '20px',
     border: '1px solid #e5e7eb'
-  },
-
-  // ✅ MOBILE: Stats panel optimizations
-  statsPanelMobile: {
-    padding: '15px',
-    marginBottom: '15px'
   },
 
   statsTitle: {
@@ -575,15 +509,7 @@ const styles = {
   statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-    gap: '15px',
-    marginBottom: '20px'
-  },
-
-  // ✅ MOBILE: Stats grid optimizations
-  statsGridMobile: {
-    gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-    gap: '10px',
-    marginBottom: '15px'
+    gap: '15px'
   },
 
   statCard: {
@@ -608,53 +534,11 @@ const styles = {
     letterSpacing: '0.5px'
   },
 
-  parsingMetrics: {
-    background: 'white',
-    padding: '15px',
-    borderRadius: '8px',
-    border: '1px solid #d1d5db'
-  },
-
-  // ✅ MOBILE: Parsing metrics optimizations
-  parsingMetricsMobile: {
-    padding: '12px'
-  },
-
-  metricsTitle: {
-    color: '#374151',
-    margin: '0 0 10px 0',
-    fontSize: '16px',
-    fontWeight: 'bold'
-  },
-
-  metricsRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: '10px',
-    fontSize: '14px',
-    color: '#6b7280'
-  },
-
-  // ✅ MOBILE: Metrics row optimizations
-  metricsRowMobile: {
-    flexDirection: 'column',
-    gap: '5px',
-    fontSize: '13px'
-  },
-
   controls: {
     display: 'flex',
     gap: '20px',
     marginBottom: '20px',
     flexWrap: 'wrap'
-  },
-
-  // ✅ MOBILE: Controls optimizations
-  controlsMobile: {
-    flexDirection: 'column',
-    gap: '10px',
-    marginBottom: '15px'
   },
 
   controlGroup: {
@@ -666,8 +550,7 @@ const styles = {
   controlLabel: {
     fontSize: '14px',
     fontWeight: '500',
-    color: '#374151',
-    minWidth: '60px'
+    color: '#374151'
   },
 
   select: {
@@ -678,131 +561,120 @@ const styles = {
     backgroundColor: 'white'
   },
 
-  // ✅ MOBILE: Select optimizations
-  selectMobile: {
-    padding: '10px 12px',
-    fontSize: '16px',
-    flex: 1
-  },
-
-  itemsGrid: {
+  // ✅ NEW: List styles
+  listHeader: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-    gap: '20px',
-    marginBottom: '20px'
+    gridTemplateColumns: '40px 1fr 80px 120px 70px 80px 40px',
+    gap: '10px',
+    padding: '10px 15px',
+    backgroundColor: '#f3f4f6',
+    borderRadius: '8px 8px 0 0',
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#374151',
+    borderBottom: '2px solid #e5e7eb'
   },
 
-  // ✅ MOBILE: Items grid optimizations
-  itemsGridMobile: {
-    gridTemplateColumns: '1fr',
-    gap: '15px',
-    marginBottom: '15px'
+  headerCategory: { textAlign: 'center' },
+  headerName: {},
+  headerQuantity: { textAlign: 'center' },
+  headerUnit: { textAlign: 'center' },
+  headerConfidence: { textAlign: 'center' },
+  headerPrice: { textAlign: 'right' },
+  headerActions: { textAlign: 'center' },
+
+  itemsList: {
+    maxHeight: '600px',
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    borderRadius: '0 0 8px 8px',
+    border: '1px solid #e5e7eb',
+    borderTop: 'none'
   },
 
-  itemCard: {
-    position: 'relative',
-    background: 'white',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    padding: '15px',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-  },
-
-  // ✅ MOBILE: Item card optimizations
-  itemCardMobile: {
-    padding: '12px',
-    borderRadius: '6px'
-  },
-
-  // ✅ NEW: Clean card header
-  itemCardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '12px',
-    gap: '10px'
-  },
-
-  itemCardTitle: {
+  // ✅ NEW: Category header styles
+  categoryHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    flex: 1
+    padding: '10px 15px',
+    backgroundColor: '#f9fafb',
+    borderBottom: '1px solid #e5e7eb',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#4b5563',
+    position: 'sticky',
+    top: 0,
+    zIndex: 10
   },
 
   categoryIcon: {
-    fontSize: '20px',
-    flexShrink: 0
+    fontSize: '18px'
   },
 
-  // ✅ FIX: Clean confidence badge
-  confidenceBadge: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: '6px 8px',
-    borderRadius: '8px',
-    fontSize: '10px',
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-    minWidth: '50px'
+  categoryName: {
+    textTransform: 'capitalize'
   },
 
-  confidencePercentage: {
+  categoryCount: {
     fontSize: '12px',
-    marginTop: '2px'
+    color: '#9ca3af',
+    fontWeight: 'normal'
   },
 
-  itemContent: {
-    marginTop: '8px'
+  // ✅ NEW: Item row styles
+  itemRow: {
+    display: 'grid',
+    gridTemplateColumns: '40px 1fr 80px 120px 70px 80px 40px',
+    gap: '10px',
+    padding: '10px 15px',
+    borderBottom: '1px solid #f3f4f6',
+    alignItems: 'center',
+    transition: 'background-color 0.2s',
+    cursor: 'default'
   },
 
-  // ✅ MOBILE: Item content optimizations
-  itemContentMobile: {
-    marginTop: '12px'
+  itemRowEven: {
+    backgroundColor: '#fafafa'
+  },
+
+  itemRowEditing: {
+    backgroundColor: '#f0f9ff',
+    boxShadow: 'inset 0 0 0 2px #3b82f6'
+  },
+
+  itemCategory: {
+    textAlign: 'center',
+    fontSize: '18px'
+  },
+
+  itemName: {
+    overflow: 'hidden'
+  },
+
+  itemNameText: {
+    cursor: 'pointer',
+    color: '#1f2937',
+    fontSize: '14px',
+    fontWeight: '500',
+    textOverflow: 'ellipsis',
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+    display: 'block'
   },
 
   itemNameInput: {
-    flex: 1,
-    padding: '8px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
-    fontSize: '16px',
-    fontWeight: '500',
-    color: '#1f2937'
-  },
-
-  // ✅ MOBILE: Item name input optimizations
-  itemNameInputMobile: {
-    padding: '10px 12px',
-    fontSize: '16px'
-  },
-
-  itemDetails: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  },
-
-  // ✅ MOBILE: Item details optimizations
-  itemDetailsMobile: {
-    gap: '12px'
-  },
-
-  itemDetail: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    flexWrap: 'wrap'
-  },
-
-  detailLabel: {
+    width: '100%',
+    padding: '4px 8px',
+    border: '1px solid #3b82f6',
+    borderRadius: '4px',
     fontSize: '14px',
     fontWeight: '500',
-    color: '#6b7280',
-    minWidth: '70px'
+    outline: 'none'
+  },
+
+  itemQuantity: {
+    textAlign: 'center'
   },
 
   quantityInput: {
@@ -814,29 +686,12 @@ const styles = {
     textAlign: 'center'
   },
 
-  // ✅ MOBILE: Quantity input optimizations
-  quantityInputMobile: {
-    width: '50px',
-    padding: '8px',
-    fontSize: '16px'
+  itemUnit: {
+    textAlign: 'center'
   },
 
-  unitInput: {
-    width: '80px',
-    padding: '4px 8px',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '14px'
-  },
-
-  // ✅ MOBILE: Unit input optimizations
-  unitInputMobile: {
-    width: '70px',
-    padding: '8px',
-    fontSize: '16px'
-  },
-
-  categorySelect: {
+  unitSelect: {
+    width: '100%',
     padding: '4px 8px',
     border: '1px solid #d1d5db',
     borderRadius: '4px',
@@ -844,56 +699,29 @@ const styles = {
     backgroundColor: 'white'
   },
 
-  // ✅ MOBILE: Category select optimizations
-  categorySelectMobile: {
-    padding: '8px',
-    fontSize: '16px',
-    flex: 1
+  itemConfidence: {
+    textAlign: 'center'
   },
 
-  priceDisplay: {
-    fontSize: '16px',
+  confidenceBadge: {
+    display: 'inline-block',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    fontSize: '11px',
     fontWeight: 'bold',
-    color: '#10b981'
+    color: 'white',
+    textTransform: 'uppercase'
   },
 
-  originalText: {
-    marginTop: '12px',
-    padding: '8px',
-    background: '#f9fafb',
-    borderRadius: '4px',
-    border: '1px solid #e5e7eb'
-  },
-
-  // ✅ MOBILE: Original text optimizations
-  originalTextMobile: {
-    marginTop: '10px',
-    padding: '6px'
-  },
-
-  originalLabel: {
-    fontSize: '12px',
-    fontWeight: '500',
-    color: '#6b7280',
-    marginRight: '8px'
-  },
-
-  originalValue: {
-    fontSize: '12px',
-    color: '#374151',
-    fontStyle: 'italic'
+  itemPrice: {
+    textAlign: 'right',
+    fontWeight: '600',
+    color: '#059669',
+    fontSize: '14px'
   },
 
   itemActions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    marginTop: '12px'
-  },
-
-  // ✅ MOBILE: Item actions optimizations
-  itemActionsMobile: {
-    justifyContent: 'center',
-    marginTop: '15px'
+    textAlign: 'center'
   },
 
   removeButton: {
@@ -901,19 +729,15 @@ const styles = {
     color: 'white',
     border: 'none',
     borderRadius: '4px',
-    padding: '6px 12px',
+    width: '28px',
+    height: '28px',
     cursor: 'pointer',
-    fontSize: '12px',
-    fontWeight: '500',
-    opacity: 0.8,
+    fontSize: '18px',
+    fontWeight: 'bold',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     transition: 'opacity 0.2s'
-  },
-
-  // ✅ MOBILE: Remove button optimizations
-  removeButtonMobile: {
-    padding: '10px 16px',
-    fontSize: '14px',
-    borderRadius: '6px'
   },
 
   totalSummary: {
@@ -921,13 +745,8 @@ const styles = {
     padding: '20px',
     borderRadius: '8px',
     textAlign: 'center',
-    border: '1px solid #93c5fd'
-  },
-
-  // ✅ MOBILE: Total summary optimizations
-  totalSummaryMobile: {
-    padding: '15px',
-    borderRadius: '6px'
+    border: '1px solid #93c5fd',
+    marginTop: '20px'
   },
 
   totalTitle: {

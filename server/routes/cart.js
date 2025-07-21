@@ -1,8 +1,8 @@
-// server/routes/cart.js - ENHANCED with Better Container/Packaging Unit Detection
+// server/routes/cart.js - ENHANCED with Better Unit Recognition & Defaults
 const express = require('express');
 const router = express.Router();
 
-console.log('🛒 Loading Enhanced Cart routes with improved container parsing...');
+console.log('🛒 Loading Enhanced Cart routes with improved unit parsing...');
 
 // Import services
 let AIProductParser, KrogerAPIService;
@@ -175,7 +175,7 @@ function parseQuantityAndUnit(text) {
   return { quantity: 1, unit: detectedUnit, remaining: cleanText };
 }
 
-// ✅ ENHANCED: Better unit extraction with container priority
+// ✅ ENHANCED: Better unit extraction with full word recognition
 function extractUnit(text, preDetectedUnit = '') {
   // If we already detected a container unit, use it
   if (preDetectedUnit) {
@@ -183,28 +183,35 @@ function extractUnit(text, preDetectedUnit = '') {
   }
   
   const commonUnits = [
-    // Volume
-    { patterns: ['cup', 'cups', 'c'], unit: 'cups' },
-    { patterns: ['tablespoon', 'tablespoons', 'tbsp', 'tbs'], unit: 'tbsp' },
-    { patterns: ['teaspoon', 'teaspoons', 'tsp'], unit: 'tsp' },
-    { patterns: ['gallon', 'gallons', 'gal'], unit: 'gal' },
-    { patterns: ['quart', 'quarts', 'qt'], unit: 'qt' },
-    { patterns: ['pint', 'pints', 'pt'], unit: 'pt' },
-    { patterns: ['fluid ounce', 'fluid ounces', 'fl oz', 'floz'], unit: 'fl oz' },
-    { patterns: ['liter', 'liters', 'l'], unit: 'l' },
-    { patterns: ['milliliter', 'milliliters', 'ml'], unit: 'ml' },
+    // Volume - with full word support
+    { patterns: ['cups', 'cup', 'c'], unit: 'cups' },
+    { patterns: ['tablespoons', 'tablespoon', 'tbsp', 'tbs', 'tbls'], unit: 'tbsp' },
+    { patterns: ['teaspoons', 'teaspoon', 'tsp', 'tsps'], unit: 'tsp' },
+    { patterns: ['gallons', 'gallon', 'gal'], unit: 'gal' },
+    { patterns: ['quarts', 'quart', 'qts', 'qt'], unit: 'qt' },
+    { patterns: ['pints', 'pint', 'pts', 'pt'], unit: 'pt' },
+    { patterns: ['fluid ounces', 'fluid ounce', 'fl oz', 'floz', 'fl. oz.'], unit: 'fl oz' },
+    { patterns: ['liters', 'liter', 'litres', 'litre', 'l'], unit: 'l' },
+    { patterns: ['milliliters', 'milliliter', 'millilitres', 'millilitre', 'mls', 'ml'], unit: 'ml' },
     
-    // Weight
-    { patterns: ['pound', 'pounds', 'lb', 'lbs'], unit: 'lbs' },
-    { patterns: ['ounce', 'ounces', 'oz'], unit: 'oz' },
-    { patterns: ['kilogram', 'kilograms', 'kg'], unit: 'kg' },
-    { patterns: ['gram', 'grams', 'g'], unit: 'g' },
+    // Weight - ENHANCED with full word support
+    { patterns: ['pounds', 'pound', 'lbs', 'lb', 'lbs.', 'lb.'], unit: 'lbs' },
+    { patterns: ['ounces', 'ounce', 'ozs', 'oz', 'oz.'], unit: 'oz' },
+    { patterns: ['kilograms', 'kilogram', 'kgs', 'kg'], unit: 'kg' },
+    { patterns: ['grams', 'gram', 'gms', 'gm', 'g'], unit: 'g' },
+    { patterns: ['milligrams', 'milligram', 'mgs', 'mg'], unit: 'mg' },
     
     // Count
-    { patterns: ['dozen', 'doz'], unit: 'dozen' },
-    { patterns: ['piece', 'pieces', 'pc'], unit: 'piece' },
-    { patterns: ['each', 'ea'], unit: 'each' },
-    { patterns: ['clove', 'cloves'], unit: 'clove' },
+    { patterns: ['dozens', 'dozen', 'doz'], unit: 'dozen' },
+    { patterns: ['pieces', 'piece', 'pcs', 'pc'], unit: 'piece' },
+    { patterns: ['each', 'package', 'ea', 'cans', 'can'], unit: 'each' },
+    { patterns: ['cloves', 'clove'], unit: 'clove' },
+    { patterns: ['heads', 'head'], unit: 'head' },
+    { patterns: ['jar'], unit: 'jar' },
+    { patterns: ['box', 'boxes'], unit: 'box' },
+    { patterns: ['bunches', 'bunch'], unit: 'bunch' },
+    { patterns: ['stalks', 'stalk'], unit: 'stalk' },
+    { patterns: ['sprigs', 'sprig'], unit: 'sprig' },
     
     // ✅ NEW: Check for container patterns again if not already detected
     ...containerPatterns.map(cp => ({
@@ -215,10 +222,14 @@ function extractUnit(text, preDetectedUnit = '') {
 
   const lowerText = text.toLowerCase();
   
+  // ✅ ENHANCED: Check for exact word matches first (e.g., "pound" not just "lb")
   for (const unitGroup of commonUnits) {
     for (const pattern of unitGroup.patterns) {
-      if (lowerText.includes(pattern)) {
-        const remaining = text.replace(new RegExp(pattern, 'gi'), '').trim();
+      // Create regex for word boundary matching
+      const regex = new RegExp(`\\b${pattern}\\b`, 'i');
+      if (regex.test(lowerText)) {
+        const remaining = text.replace(regex, '').trim();
+        console.log(`📏 Detected unit: ${unitGroup.unit} from pattern "${pattern}"`);
         return { unit: unitGroup.unit, remaining };
       }
     }
@@ -253,7 +264,7 @@ function cleanProductName(text) {
   return cleaned;
 }
 
-// ✅ ENHANCED: Improved parsing function with container detection
+// ✅ ENHANCED: Improved parsing function with container detection and better defaults
 function parseGroceryItemEnhanced(line, index, userId) {
   console.log(`🔍 Enhanced parsing for line ${index}: "${line}"`);
   
@@ -309,21 +320,33 @@ function parseGroceryItemEnhanced(line, index, userId) {
   else if (itemLower.match(/frozen|ice cream/)) category = 'frozen';
   else if (itemLower.match(/chips|crackers|nuts|candy|snack/)) category = 'snacks';
 
+  // ✅ NEW: Calculate confidence based on what we found
+  let confidence = 0.75; // Base confidence
+  if (unit) confidence += 0.1; // Boost if we found a unit
+  if (containerUnit) confidence += 0.05; // Extra boost for container detection
+  if (quantity > 0 && quantity !== 1) confidence += 0.05; // Boost if we parsed a specific quantity
+  
+  // ✅ NEW: Default to "each" for low confidence items without units
+  if (!unit && confidence < 0.6) {
+    unit = 'each';
+    console.log(`📌 Low confidence item without unit, defaulting to "each"`);
+  }
+
   const parsedItem = {
     id: `item_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
     original: line.trim(),
     itemName: productName,
     productName: productName,
     quantity: quantity,
-    unit: unit,
+    unit: unit || 'each', // ✅ CHANGED: Default to 'each' if no unit
     category: category,
-    confidence: unit ? 0.85 : 0.75, // Higher confidence if we detected a container unit
+    confidence: Math.min(confidence, 1), // Cap at 1.0
     timestamp: new Date().toISOString(),
     userId: userId,
     addedBy: 'enhanced_parser',
     parsingMethod: 'enhanced_container_parsing',
     containerDetected: !!containerUnit, // ✅ NEW: Track if container was detected
-    needsReview: quantity < 0.1 || productName.length < 3 || !unit, // Flag items without units
+    needsReview: quantity < 0.1 || productName.length < 3, // Don't flag for missing units anymore
     validationSources: ['enhanced_parser']
   };
   
@@ -383,7 +406,8 @@ router.post('/parse', async (req, res) => {
         strictMode: options.strictMode !== false,
         userId: userId,
         enhancedQuantityParsing: true,
-        detectContainers: true // ✅ NEW: Enable container detection
+        detectContainers: true, // ✅ NEW: Enable container detection
+        defaultUnit: 'each' // ✅ NEW: Default to 'each' for low confidence
       });
     } else {
       // ✅ ENHANCED: Use improved fallback parsing
@@ -428,6 +452,9 @@ router.post('/parse', async (req, res) => {
           const krogerConfidence = validation.confidence || 0;
           const combinedConfidence = (aiConfidence * 0.6) + (krogerConfidence * 0.4);
           
+          // ✅ NEW: Default to 'each' for low confidence items without units
+          let finalUnit = item.unit || (combinedConfidence < 0.6 ? 'each' : '');
+          
           return {
             ...item,
             
@@ -453,11 +480,12 @@ router.post('/parse', async (req, res) => {
             
             // Combined metrics
             confidence: combinedConfidence,
+            unit: finalUnit,
             validationSources: ['enhanced_parser', validation.isValid ? 'kroger' : null].filter(Boolean),
             
             // Suggestions for improvement
             suggestions: validation.alternatives || [],
-            needsReview: combinedConfidence < 0.6 || (!validation.isValid && aiConfidence < 0.8) || !item.unit
+            needsReview: combinedConfidence < 0.6 || (!validation.isValid && aiConfidence < 0.8)
           };
         });
         
@@ -495,7 +523,7 @@ router.post('/parse', async (req, res) => {
       itemName: item.productName || item.itemName || 'Unknown Item',
       productName: item.productName || item.itemName || 'Unknown Item',
       quantity: parseFloat(item.quantity) || 1,
-      unit: item.unit || null,
+      unit: item.unit || 'each', // ✅ CHANGED: Default to 'each'
       category: item.category || 'other',
       
       // Confidence and validation
@@ -691,6 +719,43 @@ router.post('/parse', async (req, res) => {
       });
     }
   }
+});
+
+// ✅ NEW: Update cart item endpoint
+router.put('/items/:id', (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+  
+  console.log(`📝 Update cart item request: ${id}`, updates);
+  
+  const itemIndex = cart.findIndex(item => item.id === id);
+  
+  if (itemIndex === -1) {
+    return res.status(404).json({
+      success: false,
+      error: 'Item not found'
+    });
+  }
+  
+  // Update the item
+  cart[itemIndex] = {
+    ...cart[itemIndex],
+    ...updates,
+    lastModified: new Date().toISOString()
+  };
+  
+  // Update cart metadata
+  cartMetadata.lastModified = new Date().toISOString();
+  cartMetadata.estimatedValue = cart.reduce((sum, item) => {
+    const price = item.realPrice || item.estimatedPrice || 0;
+    return sum + (price * item.quantity);
+  }, 0);
+  
+  res.json({
+    success: true,
+    item: cart[itemIndex],
+    message: 'Item updated successfully'
+  });
 });
 
 // ✅ NEW: Recipe management endpoints
@@ -965,5 +1030,5 @@ router.post('/clear', (req, res) => {
 // Enhanced search endpoint would go here...
 // (keeping all other existing endpoints)
 
-console.log('✅ Enhanced Cart routes loaded with container detection and better unit parsing');
+console.log('✅ Enhanced Cart routes loaded with improved unit parsing and defaults');
 module.exports = router;
