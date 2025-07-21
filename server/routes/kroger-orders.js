@@ -67,7 +67,7 @@ router.get('/health', (req, res) => {
 });
 
 /**
- * Send Smart Cart to Kroger
+ * Send Cart Smash to Kroger
  */
 router.post('/cart/send', async (req, res) => {
   const { 
@@ -346,7 +346,7 @@ router.post('/orders/:orderId/cancel', async (req, res) => {
 });
 
 /**
- * Complete workflow: Smart Cart to Kroger Order
+ * Complete workflow: Cart Smash to Kroger Order
  */
 router.post('/workflow/complete', async (req, res) => {
   const {

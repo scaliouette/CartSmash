@@ -129,7 +129,7 @@ router.post('/auth/callback', async (req, res) => {
   }
 });
 
-// Step 3: Send Smart Cart to Kroger
+// Step 3: Send Cart Smash to Kroger
 router.post('/cart/send', async (req, res) => {
   const { 
     cartItems, 
@@ -396,7 +396,7 @@ router.post('/orders/:orderId/cancel', async (req, res) => {
   }
 });
 
-// Complete workflow: Smart Cart to Kroger Order
+// Complete workflow: Cart Smash to Kroger Order
 router.post('/workflow/complete', async (req, res) => {
   const {
     cartItems,

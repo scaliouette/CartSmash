@@ -320,7 +320,7 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
       <div style={styles.stepHeader}>
         <h3 style={styles.stepTitle}>🏪 Order with Kroger</h3>
         <p style={styles.stepSubtitle}>
-          Send your Smart Cart directly to Kroger for pickup or delivery
+          Send your Cart Smash directly to Kroger for pickup or delivery
         </p>
       </div>
 
@@ -393,7 +393,7 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
         </div>
         <div style={styles.instruction}>
           <span style={styles.stepNumber}>2</span>
-          <span>Authorize Smart Cart to access your Kroger account</span>
+          <span>Authorize Cart Smash to access your Kroger account</span>
         </div>
         <div style={styles.instruction}>
           <span style={styles.stepNumber}>3</span>
@@ -573,7 +573,7 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
         <div style={styles.optionGrid}>
           <div style={styles.option}>
             <h5>🛍️ Complete Order Here</h5>
-            <p>Place your order directly through Smart Cart</p>
+            <p>Place your order directly through Cart Smash</p>
             <button
               onClick={placeOrder}
               disabled={loading}

@@ -1,4 +1,4 @@
-﻿// client/src/App.js - Updated with Kroger integration
+﻿// client/src/App.js - ENHANCED with Authentication Consolidation + Simplified Cart Action
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
@@ -225,6 +225,58 @@ function KrogerQuickOrderButton({ cartItems, currentUser, isVisible = true }) {
   );
 }
 
+// ✅ NEW: Recipe Manager Widget
+function RecipeManagerWidget({ savedRecipes, onRecipeSelect, onToggleRecipeManager }) {
+  if (savedRecipes.length === 0) {
+    return null;
+  }
+
+  return (
+    <div style={styles.recipeWidget}>
+      <div style={styles.recipeWidgetHeader}>
+        <h4 style={styles.recipeWidgetTitle}>📝 Saved Recipes ({savedRecipes.length})</h4>
+        <button
+          onClick={onToggleRecipeManager}
+          style={styles.recipeWidgetToggle}
+        >
+          View All
+        </button>
+      </div>
+      
+      <div style={styles.recipeWidgetContent}>
+        {savedRecipes.slice(0, 3).map(recipe => (
+          <div key={recipe.id} style={styles.recipeWidgetItem}>
+            <div style={styles.recipeWidgetItemInfo}>
+              <span style={styles.recipeWidgetItemTitle}>{recipe.title}</span>
+              <span style={styles.recipeWidgetItemMeta}>
+                {recipe.ingredients.length} ingredients • 
+                <span style={{
+                  color: recipe.ingredientChoice === 'basic' ? '#3b82f6' : '#f59e0b',
+                  marginLeft: '4px'
+                }}>
+                  {recipe.ingredientChoice === 'basic' ? '🏪' : '🏠'}
+                </span>
+              </span>
+            </div>
+            <button
+              onClick={() => onRecipeSelect(recipe)}
+              style={styles.recipeWidgetButton}
+            >
+              Use
+            </button>
+          </div>
+        ))}
+        
+        {savedRecipes.length > 3 && (
+          <div style={styles.recipeWidgetMore}>
+            +{savedRecipes.length - 3} more recipes
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Admin Menu Component
 function AdminMenu({ currentUser, onShowAnalytics, onShowDemo, onShowSettings, onShowAdmin }) {
   const [isVisible, setIsVisible] = useState(false);
@@ -317,17 +369,24 @@ function AdminMenu({ currentUser, onShowAnalytics, onShowDemo, onShowSettings, o
   );
 }
 
-// Enhanced Grocery List Form with Intelligence
+// Enhanced Grocery List Form with Intelligence + Recipe Integration
 function GroceryListForm() {
   const [inputText, setInputText] = useState('');
   const [parsedItems, setParsedItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [cartAction, setCartAction] = useState('merge');
+  
+  // ✅ SIMPLIFIED: Single toggle instead of radio buttons
+  const [mergeCart, setMergeCart] = useState(true);
+  
   const [showResults, setShowResults] = useState(false);
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [intelligenceEnabled, setIntelligenceEnabled] = useState(true);
+
+  // ✅ NEW: Recipe management state
+  const [savedRecipes, setSavedRecipes] = useState([]);
+  const [showRecipeManager, setShowRecipeManager] = useState(false);
 
   // Admin component states
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -337,8 +396,34 @@ function GroceryListForm() {
   
   const { currentUser, saveCartToFirebase } = useAuth();
 
-  // Enhanced submission logic with intelligence
-  const submitGroceryList = async (listText) => {
+  // ✅ NEW: Load saved recipes on component mount
+  useEffect(() => {
+    loadSavedRecipes();
+  }, []);
+
+  const loadSavedRecipes = async () => {
+    try {
+      const response = await fetch('/api/cart/recipes');
+      if (response.ok) {
+        const data = await response.json();
+        setSavedRecipes(data.recipes || []);
+      }
+    } catch (error) {
+      console.warn('Failed to load saved recipes:', error);
+      // Fallback to localStorage
+      const saved = localStorage.getItem('cart-smash-recipes');
+      if (saved) {
+        try {
+          setSavedRecipes(JSON.parse(saved));
+        } catch (parseError) {
+          console.warn('Failed to parse saved recipes from localStorage:', parseError);
+        }
+      }
+    }
+  };
+
+  // ✅ ENHANCED: Enhanced submission logic with recipe preservation
+  const submitGroceryList = async (listText, recipeInfo = null) => {
     if (!listText.trim()) {
       setError('Please enter a grocery list');
       return;
@@ -358,11 +443,13 @@ function GroceryListForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           listText: listText,
-          action: cartAction,
+          action: mergeCart ? 'merge' : 'replace', // ✅ SIMPLIFIED
           userId: currentUser?.uid || null,
+          recipeInfo: recipeInfo, // ✅ NEW: Include recipe information
           options: {
             strictMode: intelligenceEnabled,
-            enableValidation: true
+            enableValidation: true,
+            enhancedQuantityParsing: true // ✅ NEW: Enable enhanced quantity parsing
           }
         }),
       });
@@ -380,8 +467,14 @@ function GroceryListForm() {
         
         console.log(`✅ Intelligent parsing complete:`);
         console.log(`   - Products extracted: ${data.cart.length}`);
-        console.log(`   - Filtering efficiency: ${data.parsing?.filteringEfficiency || 'N/A'}`);
+        console.log(`   - Quantity parsing accuracy: ${data.quality?.quantityParsingAccuracy || 'N/A'}`);
         console.log(`   - Average confidence: ${(data.parsing?.averageConfidence * 100 || 0).toFixed(1)}%`);
+        
+        // ✅ NEW: Handle recipe saving
+        if (data.recipe && data.recipe.saved) {
+          console.log(`📝 Recipe saved: "${data.recipe.title}"`);
+          loadSavedRecipes(); // Refresh the recipes list
+        }
         
         // Show intelligence summary
         if (data.parsing) {
@@ -392,6 +485,14 @@ function GroceryListForm() {
                 setShowValidator(true);
               }
             }, 1000);
+          } else {
+            // Show enhanced parsing success message
+            setTimeout(() => {
+              const quantityAccuracy = data.quality?.quantityParsingAccuracy || 0;
+              if (quantityAccuracy > 0.8) {
+                alert(`🎉 Enhanced parsing successful! All quantities parsed correctly. ${data.cart.length} items ready to go!`);
+              }
+            }, 500);
           }
         }
         
@@ -421,13 +522,38 @@ function GroceryListForm() {
     await submitGroceryList(inputText);
   };
 
-  // AI-generated grocery list handler
+  // ✅ ENHANCED: AI-generated grocery list handler with recipe preservation
   const handleAIGroceryList = async (aiGeneratedList) => {
     setInputText(aiGeneratedList);
     
     if (aiGeneratedList.trim()) {
       setTimeout(async () => {
         await submitGroceryList(aiGeneratedList);
+      }, 500);
+    }
+  };
+
+  // ✅ NEW: Recipe generated handler
+  const handleRecipeGenerated = async (recipe) => {
+    console.log('📝 Recipe generated from AI:', recipe.title);
+    setSavedRecipes(prev => [...prev, recipe]);
+    
+    // Optionally auto-populate the grocery list with recipe ingredients
+    if (recipe.ingredients && recipe.ingredients.length > 0) {
+      const ingredientsList = recipe.ingredients.join('\n');
+      setInputText(ingredientsList);
+    }
+  };
+
+  // ✅ NEW: Recipe selection handler
+  const handleRecipeSelect = (recipe) => {
+    if (recipe.ingredients && recipe.ingredients.length > 0) {
+      const ingredientsList = recipe.ingredients.join('\n');
+      setInputText(ingredientsList);
+      
+      // Auto-submit the recipe ingredients
+      setTimeout(async () => {
+        await submitGroceryList(ingredientsList, recipe);
       }, 500);
     }
   };
@@ -548,20 +674,28 @@ function GroceryListForm() {
         </p>
       </div>
 
+      {/* ✅ NEW: Recipe Manager Widget */}
+      <RecipeManagerWidget
+        savedRecipes={savedRecipes}
+        onRecipeSelect={handleRecipeSelect}
+        onToggleRecipeManager={() => setShowRecipeManager(true)}
+      />
+
       {/* Intelligence Features Banner */}
       <div style={styles.intelligenceBanner}>
         <div style={styles.bannerContent}>
           <div style={styles.bannerText}>
-            <h3 style={styles.bannerTitle}>🧠 Powered by AI Intelligence</h3>
+            <h3 style={styles.bannerTitle}>🧠 Powered by Enhanced AI Intelligence</h3>
             <p style={styles.bannerSubtitle}>
-              • Filters out meal descriptions and cooking instructions<br />
-              • Validates products against real grocery databases<br />
+              • Advanced quantity parsing (handles fractions like "1 /4 cup")<br />
+              • Recipe information preservation for future cooking<br />
+              • Smart ingredient choice (basic vs homemade)<br />
               • Confidence scoring for every item<br />
               • Smart duplicate detection and merging
             </p>
           </div>
           <div style={styles.bannerIndicator}>
-            <span style={styles.indicatorText}>Smart parsing enabled</span>
+            <span style={styles.indicatorText}>Enhanced parsing enabled</span>
             <span style={styles.indicatorIcon}>🎯</span>
           </div>
         </div>
@@ -577,46 +711,43 @@ function GroceryListForm() {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             style={styles.textarea}
-            placeholder="Paste any grocery list here - our AI will intelligently extract only the products you can actually buy:
+            placeholder="Paste any grocery list here - our enhanced AI will intelligently extract products with correct quantities:
 
-Example:
+Example with improved parsing:
 Monday: Chicken dinner with vegetables
 - 2 lbs chicken breast
-- 3 bell peppers  
-- 1 onion
+- 1/4 cup soy sauce  ✅ (now handles fractions correctly)
+- 1 1/2 cups rice    ✅ (mixed numbers work too)
+- 3 bell peppers
 Tuesday: Pasta night
 - 1 lb pasta
 - pasta sauce
-- parmesan cheese
 
-The AI will ignore 'Monday: Chicken dinner' and extract: '2 lbs chicken breast', '3 bell peppers', etc."
-            rows="10"
+The AI will ignore 'Monday: Chicken dinner' and extract: '2 lbs chicken breast', '0.25 cups soy sauce', etc."
+            rows="12"
           />
         </div>
         
-        {/* Enhanced Controls */}
+        {/* ✅ SIMPLIFIED: Single toggle for cart action */}
         <div style={styles.controlsSection}>
-          <div style={styles.actionSelector}>
-            <label style={styles.actionLabel}>Cart Action:</label>
-            <div style={styles.actionOptions}>
-              <label style={styles.actionOption}>
-                <input
-                  type="radio"
-                  value="merge"
-                  checked={cartAction === 'merge'}
-                  onChange={(e) => setCartAction(e.target.value)}
-                />
-                <span>🔀 Smart merge with existing cart</span>
-              </label>
-              <label style={styles.actionOption}>
-                <input
-                  type="radio"
-                  value="replace"
-                  checked={cartAction === 'replace'}
-                  onChange={(e) => setCartAction(e.target.value)}
-                />
-                <span>🔥 Replace entire cart</span>
-              </label>
+          <div style={styles.cartActionToggle}>
+            <label style={styles.toggleLabel}>
+              <input
+                type="checkbox"
+                checked={mergeCart}
+                onChange={(e) => setMergeCart(e.target.checked)}
+                style={styles.toggleCheckbox}
+              />
+              <span style={styles.toggleSlider}></span>
+              <span style={styles.toggleText}>
+                {mergeCart ? '🔀 Merge with existing cart' : '🔥 Replace entire cart'}
+              </span>
+            </label>
+            <div style={styles.toggleDescription}>
+              {mergeCart 
+                ? 'New items will be added to your existing cart, avoiding duplicates'
+                : 'Your current cart will be completely replaced with new items'
+              }
             </div>
           </div>
 
@@ -627,7 +758,7 @@ The AI will ignore 'Monday: Chicken dinner' and extract: '2 lbs chicken breast',
                 checked={intelligenceEnabled}
                 onChange={(e) => setIntelligenceEnabled(e.target.checked)}
               />
-              <span>🎯 Enhanced AI parsing (recommended)</span>
+              <span>🎯 Enhanced AI parsing with recipe preservation (recommended)</span>
             </label>
           </div>
         </div>
@@ -720,8 +851,11 @@ The AI will ignore 'Monday: Chicken dinner' and extract: '2 lbs chicken breast',
         />
       )}
 
-      {/* Smart AI Assistant - Floating Button */}
-      <SmartAIAssistant onGroceryListGenerated={handleAIGroceryList} />
+      {/* ✅ ENHANCED: Smart AI Assistant with recipe preservation */}
+      <SmartAIAssistant 
+        onGroceryListGenerated={handleAIGroceryList}
+        onRecipeGenerated={handleRecipeGenerated}
+      />
 
       {/* Admin Dashboard Modals */}
       {showAnalytics && (
@@ -747,53 +881,132 @@ The AI will ignore 'Monday: Chicken dinner' and extract: '2 lbs chicken breast',
           currentUser={currentUser}
         />
       )}
+
+      {/* ✅ NEW: Recipe Manager Modal */}
+      {showRecipeManager && (
+        <div style={styles.recipeModalOverlay}>
+          <div style={styles.recipeModal}>
+            <div style={styles.recipeModalHeader}>
+              <h3 style={styles.recipeModalTitle}>
+                📝 Recipe Manager ({savedRecipes.length} saved)
+              </h3>
+              <button
+                onClick={() => setShowRecipeManager(false)}
+                style={styles.recipeModalClose}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div style={styles.recipeModalContent}>
+              {savedRecipes.length === 0 ? (
+                <div style={styles.recipeModalEmpty}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+                  <h4>No saved recipes yet</h4>
+                  <p>Use the AI assistant to create meal plans and recipes!</p>
+                </div>
+              ) : (
+                <div style={styles.recipesList}>
+                  {savedRecipes.map(recipe => (
+                    <div key={recipe.id} style={styles.recipeItem}>
+                      <div style={styles.recipeItemHeader}>
+                        <h4 style={styles.recipeItemTitle}>{recipe.title}</h4>
+                        <div style={styles.recipeItemActions}>
+                          <button
+                            onClick={() => handleRecipeSelect(recipe)}
+                            style={styles.recipeUseButton}
+                          >
+                            🛒 Use Ingredients
+                          </button>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(recipe.fullText);
+                              alert('Recipe copied to clipboard!');
+                            }}
+                            style={styles.recipeCopyButton}
+                          >
+                            📋 Copy
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div style={styles.recipeItemMeta}>
+                        {recipe.ingredients.length} ingredients • {recipe.instructions.length} steps •
+                        <span style={{
+                          color: recipe.ingredientChoice === 'basic' ? '#3b82f6' : '#f59e0b',
+                          marginLeft: '4px'
+                        }}>
+                          {recipe.ingredientChoice === 'basic' ? '🏪 Basic' : '🏠 Homemade'}
+                        </span>
+                      </div>
+                      
+                      <div style={styles.recipeItemPreview}>
+                        {recipe.fullText.substring(0, 200)}...
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// Auth Status Component
-function AuthStatus() {
+// ✅ CONSOLIDATED: Single Auth Component in Header
+function Header() {
   const { currentUser, signOut, isLoading } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  if (isLoading) return (
-    <div style={styles.authStatus}>
-      Loading...
-    </div>
-  );
-
-  if (currentUser) {
-    return (
-      <div style={styles.authStatusLoggedIn}>
-        <span style={styles.userGreeting}>
-          👋 {currentUser.displayName || currentUser.email.split('@')[0]}
-        </span>
-        <button 
-          onClick={signOut}
-          style={styles.signOutButton}
-        >
-          Sign Out
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <>
-      <div style={styles.authStatus}>
-        <button
-          onClick={() => setShowAuthModal(true)}
-          style={styles.signInButton}
-        >
-          🔐 Sign In to Save Carts
-        </button>
+    <header style={styles.header}>
+      <div style={styles.headerContent}>
+        <div style={styles.logo}>
+          <div style={styles.logoIcon}>🎯</div>
+          <span style={styles.logoText}>SMART CART</span>
+        </div>
+        
+        <div style={styles.headerActions}>
+          {isLoading ? (
+            <span style={styles.loadingText}>Loading...</span>
+          ) : currentUser ? (
+            <div style={styles.userMenu}>
+              <span style={styles.userGreeting}>
+                👋 {currentUser.displayName || currentUser.email.split('@')[0]}
+              </span>
+              <button 
+                onClick={signOut}
+                style={styles.signOutButton}
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowAuthModal(true)}
+                style={styles.loginButton}
+              >
+                Log In
+              </button>
+              <button 
+                onClick={() => setShowAuthModal(true)}
+                style={styles.ctaButton}
+              >
+                🔐 Sign In to Save
+              </button>
+            </>
+          )}
+        </div>
       </div>
       
       <AuthModal 
         isOpen={showAuthModal} 
         onClose={() => setShowAuthModal(false)} 
       />
-    </>
+    </header>
   );
 }
 
@@ -802,22 +1015,8 @@ function App() {
   return (
     <AuthProvider>
       <div style={styles.app}>
-        {/* Header */}
-        <header style={styles.header}>
-          <div style={styles.headerContent}>
-            <div style={styles.logo}>
-              <div style={styles.logoIcon}>🎯</div>
-              <span style={styles.logoText}>SMART CART</span>
-            </div>
-            
-            <div style={styles.headerActions}>
-              <button style={styles.loginButton}>Log In</button>
-              <button style={styles.ctaButton}>Start Smart Parsing</button>
-            </div>
-          </div>
-        </header>
-
-        <AuthStatus />
+        {/* ✅ CONSOLIDATED: Single auth location in header */}
+        <Header />
         
         <main style={styles.main}>
           <GroceryListForm />
@@ -827,18 +1026,26 @@ function App() {
         <section style={styles.featuresSection}>
           <div style={styles.featuresGrid}>
             <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>🧠</div>
-              <h3 style={styles.featureTitle}>AI-Powered Intelligence</h3>
+              <div style={styles.featureIcon}>🔢</div>
+              <h3 style={styles.featureTitle}>Enhanced Quantity Parsing</h3>
               <p style={styles.featureDescription}>
-                Advanced parsing that distinguishes between actual products and meal descriptions
+                Correctly handles fractions like "1/4 cup" and "2 1/2 lbs" with advanced parsing logic
               </p>
             </div>
             
             <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>🎯</div>
-              <h3 style={styles.featureTitle}>Confidence Scoring</h3>
+              <div style={styles.featureIcon}>📝</div>
+              <h3 style={styles.featureTitle}>Recipe Preservation</h3>
               <p style={styles.featureDescription}>
-                Every item gets a confidence score so you know which products need review
+                Saves cooking instructions and recipes for future reference while extracting ingredients
+              </p>
+            </div>
+            
+            <div style={styles.featureCard}>
+              <div style={styles.featureIcon}>🏪</div>
+              <h3 style={styles.featureTitle}>Basic vs Homemade Choice</h3>
+              <p style={styles.featureDescription}>
+                Choose between convenient store-bought items or from-scratch cooking ingredients
               </p>
             </div>
             
@@ -847,14 +1054,6 @@ function App() {
               <h3 style={styles.featureTitle}>Product Validation</h3>
               <p style={styles.featureDescription}>
                 Real-time validation against grocery databases with pricing and availability
-              </p>
-            </div>
-            
-            <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>🔄</div>
-              <h3 style={styles.featureTitle}>Smart Duplicate Detection</h3>
-              <p style={styles.featureDescription}>
-                Automatically merges similar items and suggests alternatives
               </p>
             </div>
           </div>
@@ -875,6 +1074,9 @@ const styles = {
     backgroundColor: 'white',
     boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
     padding: '16px 24px',
+    position: 'sticky',
+    top: 0,
+    zIndex: 100,
   },
   
   headerContent: {
@@ -910,6 +1112,40 @@ const styles = {
     gap: '16px',
   },
   
+  // ✅ NEW: User menu styles
+  userMenu: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '8px 16px',
+    backgroundColor: '#f0f9ff',
+    borderRadius: '8px',
+    border: '1px solid #3b82f6',
+  },
+  
+  userGreeting: {
+    color: '#1e40af',
+    fontWeight: '600',
+    fontSize: '14px',
+  },
+  
+  signOutButton: {
+    padding: '6px 12px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'background-color 0.2s',
+  },
+  
+  loadingText: {
+    color: '#6b7280',
+    fontSize: '14px',
+  },
+  
   loginButton: {
     color: '#6b7280',
     backgroundColor: 'transparent',
@@ -918,6 +1154,7 @@ const styles = {
     fontWeight: '500',
     cursor: 'pointer',
     transition: 'color 0.2s',
+    fontSize: '14px',
   },
   
   ctaButton: {
@@ -926,9 +1163,10 @@ const styles = {
     border: 'none',
     padding: '12px 24px',
     borderRadius: '8px',
-    fontWeight: '500',
+    fontWeight: '600',
     cursor: 'pointer',
     transition: 'background-color 0.2s',
+    fontSize: '14px',
   },
   
   main: {
@@ -942,7 +1180,267 @@ const styles = {
     position: 'relative',
   },
 
-  // 🆕 NEW: Kroger Order Styles
+  // ✅ NEW: Cart action toggle styles
+  cartActionToggle: {
+    backgroundColor: '#f9fafb',
+    padding: '20px',
+    borderRadius: '12px',
+    border: '1px solid #e5e7eb',
+  },
+  
+  toggleLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    cursor: 'pointer',
+    position: 'relative',
+  },
+  
+  toggleCheckbox: {
+    position: 'absolute',
+    opacity: 0,
+    width: 0,
+    height: 0,
+  },
+  
+  toggleSlider: {
+    display: 'inline-block',
+    width: '50px',
+    height: '28px',
+    backgroundColor: '#e5e7eb',
+    borderRadius: '14px',
+    position: 'relative',
+    transition: 'background-color 0.3s',
+    flexShrink: 0,
+  },
+  
+  toggleText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  
+  toggleDescription: {
+    marginTop: '8px',
+    marginLeft: '62px',
+    fontSize: '14px',
+    color: '#6b7280',
+    lineHeight: '1.4',
+  },
+
+  // ✅ NEW: Recipe widget styles
+  recipeWidget: {
+    backgroundColor: '#f0f9ff',
+    borderRadius: '12px',
+    padding: '20px',
+    marginBottom: '32px',
+    border: '2px solid #3b82f6',
+    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.1)'
+  },
+
+  recipeWidgetHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '16px'
+  },
+
+  recipeWidgetTitle: {
+    margin: 0,
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#1e40af'
+  },
+
+  recipeWidgetToggle: {
+    padding: '6px 12px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  recipeWidgetContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+
+  recipeWidgetItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    border: '1px solid #bfdbfe'
+  },
+
+  recipeWidgetItemInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+
+  recipeWidgetItemTitle: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#1f2937'
+  },
+
+  recipeWidgetItemMeta: {
+    fontSize: '12px',
+    color: '#6b7280'
+  },
+
+  recipeWidgetButton: {
+    padding: '6px 12px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '500'
+  },
+
+  recipeWidgetMore: {
+    fontSize: '12px',
+    color: '#6b7280',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: '8px'
+  },
+
+  // ✅ NEW: Recipe modal styles
+  recipeModalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    zIndex: 3000,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '20px'
+  },
+
+  recipeModal: {
+    backgroundColor: 'white',
+    borderRadius: '15px',
+    width: '90%',
+    maxWidth: '700px',
+    maxHeight: '80vh',
+    overflow: 'hidden',
+    boxShadow: '0 10px 50px rgba(0,0,0,0.3)'
+  },
+
+  recipeModalHeader: {
+    padding: '20px',
+    borderBottom: '1px solid #eee',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa'
+  },
+
+  recipeModalTitle: {
+    margin: 0,
+    fontSize: '20px',
+    color: '#333'
+  },
+
+  recipeModalClose: {
+    background: 'none',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    color: '#666'
+  },
+
+  recipeModalContent: {
+    padding: '20px',
+    maxHeight: '60vh',
+    overflowY: 'auto'
+  },
+
+  recipeModalEmpty: {
+    textAlign: 'center',
+    padding: '40px',
+    color: '#666'
+  },
+
+  recipesList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px'
+  },
+
+  recipeItem: {
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    padding: '16px',
+    backgroundColor: '#f9fafb'
+  },
+
+  recipeItemHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '12px'
+  },
+
+  recipeItemTitle: {
+    margin: 0,
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#1f2937'
+  },
+
+  recipeItemActions: {
+    display: 'flex',
+    gap: '8px'
+  },
+
+  recipeUseButton: {
+    padding: '6px 12px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 'bold'
+  },
+
+  recipeCopyButton: {
+    padding: '6px 12px',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '12px'
+  },
+
+  recipeItemMeta: {
+    fontSize: '12px',
+    color: '#666',
+    marginBottom: '12px'
+  },
+
+  recipeItemPreview: {
+    fontSize: '14px',
+    color: '#374151',
+    lineHeight: '1.4'
+  },
+
+  // Kroger Order Styles
   krogerOrderSection: {
     backgroundColor: 'white',
     borderRadius: '16px',
@@ -1264,50 +1762,11 @@ const styles = {
     gap: '20px',
   },
   
-  actionSelector: {
-    marginBottom: '15px',
-  },
-  
-  actionLabel: {
-    display: 'block',
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: '12px',
-  },
-  
-  actionOptions: {
-    display: 'flex',
-    gap: '16px',
-    flexWrap: 'wrap',
-  },
-  
-  actionOption: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '12px 16px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'border-color 0.2s',
-  },
-  
   intelligenceToggle: {
     padding: '15px',
     background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
     borderRadius: '10px',
     border: '2px solid #0ea5e9',
-  },
-  
-  toggleLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#0c4a6e',
-    cursor: 'pointer',
   },
   
   errorMessage: {
@@ -1438,60 +1897,9 @@ const styles = {
     color: '#6b7280',
     lineHeight: '1.5',
   },
-  
-  authStatus: {
-    position: 'fixed',
-    top: '20px',
-    right: '20px',
-    zIndex: 1000,
-  },
-  
-  authStatusLoggedIn: {
-    position: 'fixed',
-    top: '20px',
-    right: '20px',
-    background: 'linear-gradient(135deg, #d4edda, #c3e6cb)',
-    padding: '12px 16px',
-    borderRadius: '10px',
-    border: '2px solid #c3e6cb',
-    boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
-    zIndex: 1000,
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-  },
-  
-  userGreeting: {
-    color: '#155724',
-    fontWeight: 'bold',
-  },
-  
-  signOutButton: {
-    padding: '6px 12px',
-    backgroundColor: '#dc3545',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: 'bold',
-  },
-  
-  signInButton: {
-    padding: '12px 20px',
-    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '14px',
-    boxShadow: '0 4px 10px rgba(255, 107, 53, 0.3)',
-    transition: 'transform 0.2s ease',
-  },
 };
 
-// Add animations
+// Add animations and enhanced toggle styles
 const styleSheet = document.createElement('style');
 styleSheet.textContent = `
   @keyframes shake {
@@ -1515,6 +1923,37 @@ styleSheet.textContent = `
     background-color: #059669 !important;
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  }
+  
+  /* Enhanced toggle slider styles */
+  input[type="checkbox"]:checked + span {
+    background-color: #3b82f6 !important;
+  }
+  
+  input[type="checkbox"]:checked + span::after {
+    content: '';
+    position: absolute;
+    left: 24px;
+    top: 3px;
+    width: 22px;
+    height: 22px;
+    background-color: white;
+    border-radius: 50%;
+    transition: all 0.3s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  
+  input[type="checkbox"] + span::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 22px;
+    height: 22px;
+    background-color: white;
+    border-radius: 50%;
+    transition: all 0.3s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   }
 `;
 document.head.appendChild(styleSheet);

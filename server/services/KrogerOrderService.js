@@ -254,10 +254,10 @@ class KrogerOrderService {
   }
 
   /**
-   * Convert Smart Cart items to Kroger cart format
+   * Convert Cart Smash items to Kroger cart format
    */
   async prepareCartItems(smartCartItems, storeId) {
-    console.log(`🔄 Preparing ${smartCartItems.length} Smart Cart items for Kroger`);
+    console.log(`🔄 Preparing ${smartCartItems.length} Cart Smash items for Kroger`);
     
     const preparedItems = [];
     const failedItems = [];
@@ -332,7 +332,7 @@ class KrogerOrderService {
   }
 
   /**
-   * Send complete Smart Cart to Kroger
+   * Send complete Cart Smash to Kroger
    */
   async sendCartToKroger(userId, smartCartItems, options = {}) {
     try {
@@ -342,10 +342,10 @@ class KrogerOrderService {
         clearExistingCart = false
       } = options;
       
-      console.log(`🚀 Sending Smart Cart to Kroger for user ${userId}`);
+      console.log(`🚀 Sending Cart Smash to Kroger for user ${userId}`);
       console.log(`📍 Store: ${storeId}, Modality: ${modality}`);
       
-      // Step 1: Prepare Smart Cart items for Kroger
+      // Step 1: Prepare Cart Smash items for Kroger
       const preparation = await this.prepareCartItems(smartCartItems, storeId);
       
       if (preparation.preparedItems.length === 0) {
