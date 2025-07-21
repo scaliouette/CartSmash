@@ -653,7 +653,7 @@ function GroceryListForm() {
       {/* Hero Section */}
       <div style={styles.heroSection}>
         <h1 style={styles.heroTitle}>
-          Smart Cart.
+          CART SMASH.
           <br />
           <span style={styles.heroAccent}>Instantly.</span>
         </h1>
@@ -943,7 +943,7 @@ function Header() {
       <div style={styles.headerContent}>
         <div style={styles.logo}>
           <div style={styles.logoIcon}>🎯</div>
-          <span style={styles.logoText}>SMART CART</span>
+          <span style={styles.logoText}>CART SMASH</span>
         </div>
         
         <div style={styles.headerActions}>

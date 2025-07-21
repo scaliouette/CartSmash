@@ -298,7 +298,7 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
         ...(isMobile ? styles.headerMobile : {})
       }}>
         <h3 style={styles.title}>
-          ✅ Smart Cart Results ({items.length} items)
+          ✅ CART SMASH Results ({items.length} items)
         </h3>
         <div style={styles.headerActions}>
           <button 
