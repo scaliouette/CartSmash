@@ -18,10 +18,10 @@ import KrogerOrderFlow from './components/KrogerOrderFlow';
 
 import confetti from 'canvas-confetti';
 
-// Enhanced SMASH Button with viral effects
+// Enhanced SMASH Button with AI-powered parsing
 function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
   const [isSmashing, setIsSmashing] = useState(false);
-  const [buttonText, setButtonText] = useState('🎯 SMART SMASH 🎯');
+  const [buttonText, setButtonText] = useState('🎯 SMART PARSE 🎯');
 
   const triggerConfetti = () => {
     const count = 200;
@@ -64,10 +64,10 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
     }
     
     const smashTexts = [
-      '🎯 SMART ANALYZING! 🎯',
-      '🧠 AI PROCESSING! 🧠', 
-      '⚡ INTELLIGENCE ACTIVE! ⚡',
-      '🚀 VALIDATING PRODUCTS! 🚀'
+      '🎯 AI ANALYZING! 🎯',
+      '🧠 SMART PROCESSING! 🧠', 
+      '📦 DETECTING CONTAINERS! 📦',
+      '✨ PARSING QUANTITIES! ✨'
     ];
     
     let textIndex = 0;
@@ -88,7 +88,7 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
       }, 500);
     } finally {
       clearInterval(textInterval);
-      setButtonText('🎯 SMART SMASH 🎯');
+      setButtonText('🎯 SMART PARSE 🎯');
       setIsSmashing(false);
     }
   };
@@ -114,9 +114,9 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
           marginTop: '4px',
           opacity: 0.9,
           fontWeight: '600',
-          letterSpacing: '1px',
+          letterSpacing: '1px'
         }}>
-          {itemCount} ITEMS • AI READY
+          {itemCount} ITEMS • READY TO PARSE
         </div>
       )}
     </button>
@@ -382,7 +382,6 @@ function GroceryListForm() {
   const [showResults, setShowResults] = useState(false);
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
-  const [intelligenceEnabled, setIntelligenceEnabled] = useState(true);
 
   // ✅ NEW: Recipe management state
   const [savedRecipes, setSavedRecipes] = useState([]);
@@ -447,9 +446,10 @@ function GroceryListForm() {
           userId: currentUser?.uid || null,
           recipeInfo: recipeInfo, // ✅ NEW: Include recipe information
           options: {
-            strictMode: intelligenceEnabled,
+            strictMode: true, // Always use enhanced parsing
             enableValidation: true,
-            enhancedQuantityParsing: true // ✅ NEW: Enable enhanced quantity parsing
+            enhancedQuantityParsing: true, // ✅ NEW: Enable enhanced quantity parsing
+            detectContainers: true // ✅ NEW: Enable container detection
           }
         }),
       });
@@ -476,24 +476,13 @@ function GroceryListForm() {
           loadSavedRecipes(); // Refresh the recipes list
         }
         
-        // Show intelligence summary
-        if (data.parsing) {
-          const needsReview = data.quality?.needsReviewItems || 0;
-          if (needsReview > 0) {
-            setTimeout(() => {
-              if (window.confirm(`🎯 Smart parsing complete! ${needsReview} items need review. Would you like to review them now for better accuracy?`)) {
-                setShowValidator(true);
-              }
-            }, 1000);
-          } else {
-            // Show enhanced parsing success message
-            setTimeout(() => {
-              const quantityAccuracy = data.quality?.quantityParsingAccuracy || 0;
-              if (quantityAccuracy > 0.8) {
-                alert(`🎉 Enhanced parsing successful! All quantities parsed correctly. ${data.cart.length} items ready to go!`);
-              }
-            }, 500);
-          }
+        // Show success message if all items parsed well
+        const needsReview = data.quality?.needsReviewItems || 0;
+        if (needsReview === 0 && data.cart.length > 0) {
+          setTimeout(() => {
+            const quantityAccuracy = data.quality?.quantityParsingAccuracy || 0;
+            console.log(`🎉 All ${data.cart.length} items parsed successfully with ${(quantityAccuracy * 100).toFixed(0)}% quantity accuracy!`);
+          }, 500);
         }
         
         // Save to Firebase
@@ -685,18 +674,18 @@ function GroceryListForm() {
       <div style={styles.intelligenceBanner}>
         <div style={styles.bannerContent}>
           <div style={styles.bannerText}>
-            <h3 style={styles.bannerTitle}>🧠 Powered by Enhanced AI Intelligence</h3>
+            <h3 style={styles.bannerTitle}>🧠 AI-Powered Smart Parsing</h3>
             <p style={styles.bannerSubtitle}>
-              • Advanced quantity parsing (handles fractions like "1 /4 cup")<br />
+              • Advanced quantity parsing (handles fractions like "1/4 cup")<br />
+              • Smart container detection (recognizes cans, bottles, bags, etc.)<br />
               • Recipe information preservation for future cooking<br />
-              • Smart ingredient choice (basic vs homemade)<br />
               • Confidence scoring for every item<br />
-              • Smart duplicate detection and merging
+              • Automatic duplicate detection and merging
             </p>
           </div>
           <div style={styles.bannerIndicator}>
-            <span style={styles.indicatorText}>Enhanced parsing enabled</span>
             <span style={styles.indicatorIcon}>🎯</span>
+            <span style={styles.indicatorText}>Always Active</span>
           </div>
         </div>
       </div>
@@ -711,19 +700,19 @@ function GroceryListForm() {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             style={styles.textarea}
-            placeholder="Paste any grocery list here - our enhanced AI will intelligently extract products with correct quantities:
+            placeholder="Paste any grocery list here - our AI will intelligently extract products with correct quantities and containers:
 
-Example with improved parsing:
-Monday: Chicken dinner with vegetables
+Example:
+Monday: Chicken dinner
 - 2 lbs chicken breast
-- 1/4 cup soy sauce  ✅ (now handles fractions correctly)
-- 1 1/2 cups rice    ✅ (mixed numbers work too)
-- 3 bell peppers
+- 1/4 cup soy sauce  ✅ (handles fractions)
+- 1 bottle of mirin  ✅ (detects containers)
+- 1 8oz can tomatoes ✅ (unit: can, not oz)
 Tuesday: Pasta night
-- 1 lb pasta
-- pasta sauce
+- 1 box pasta
+- 1 jar pasta sauce
 
-The AI will ignore 'Monday: Chicken dinner' and extract: '2 lbs chicken breast', '0.25 cups soy sauce', etc."
+The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mirin', etc."
             rows="12"
           />
         </div>
@@ -749,17 +738,6 @@ The AI will ignore 'Monday: Chicken dinner' and extract: '2 lbs chicken breast',
                 : 'Your current cart will be completely replaced with new items'
               }
             </div>
-          </div>
-
-          <div style={styles.intelligenceToggle}>
-            <label style={styles.toggleLabel}>
-              <input
-                type="checkbox"
-                checked={intelligenceEnabled}
-                onChange={(e) => setIntelligenceEnabled(e.target.checked)}
-              />
-              <span>🎯 Enhanced AI parsing with recipe preservation (recommended)</span>
-            </label>
           </div>
         </div>
 
@@ -995,7 +973,7 @@ function Header() {
                 onClick={() => setShowAuthModal(true)}
                 style={styles.ctaButton}
               >
-                🔐 Sign In to Save
+                🔐 Sign In to Save Carts
               </button>
             </>
           )}
@@ -1027,9 +1005,9 @@ function App() {
           <div style={styles.featuresGrid}>
             <div style={styles.featureCard}>
               <div style={styles.featureIcon}>🔢</div>
-              <h3 style={styles.featureTitle}>Enhanced Quantity Parsing</h3>
+              <h3 style={styles.featureTitle}>Smart Quantity & Container Parsing</h3>
               <p style={styles.featureDescription}>
-                Correctly handles fractions like "1/4 cup" and "2 1/2 lbs" with advanced parsing logic
+                Handles fractions like "1/4 cup" and detects containers like "bottle", "can", "bag" automatically
               </p>
             </div>
             
@@ -1760,13 +1738,6 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '20px',
-  },
-  
-  intelligenceToggle: {
-    padding: '15px',
-    background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
-    borderRadius: '10px',
-    border: '2px solid #0ea5e9',
   },
   
   errorMessage: {
