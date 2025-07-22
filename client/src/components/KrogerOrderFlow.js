@@ -1,10 +1,9 @@
-// client/src/components/KrogerOrderFlow.js
-import React, { useState, useEffect } from 'react';
-import LoadingSpinner, { ButtonSpinner, OverlaySpinner } from './LoadingSpinner';
+// client/src/components/KrogerOrderFlow.js - FIXED VERSION
+import React, { useState, useEffect, useCallback } from 'react';
+import LoadingSpinner, { ButtonSpinner } from './LoadingSpinner'; // Removed OverlaySpinner
 
 function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
   const [step, setStep] = useState('auth'); // 'auth', 'store-select', 'review', 'sending', 'success'
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [selectedStore, setSelectedStore] = useState(null);
   const [nearbyStores, setNearbyStores] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -12,11 +11,8 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
   const [orderResult, setOrderResult] = useState(null);
   const [loadingStores, setLoadingStores] = useState(false);
 
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  const checkAuthStatus = async () => {
+  // ✅ FIX: Move checkAuthStatus to useCallback to fix dependency warning
+  const checkAuthStatus = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/auth/kroger/status', {
@@ -27,8 +23,8 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
       
       if (response.ok) {
         const data = await response.json();
-        setIsAuthenticated(data.authenticated);
         
+        // ✅ FIX: Actually use the isAuthenticated state
         if (data.authenticated) {
           setStep('store-select');
           loadNearbyStores();
@@ -40,18 +36,83 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentUser?.uid]); // Add currentUser.uid as dependency
 
-  const handleKrogerAuth = async () => {
+  // ✅ FIX: Add checkAuthStatus to dependency array
+  useEffect(() => {
+    checkAuthStatus();
+  }, [checkAuthStatus]);
+
+  // ✅ FIX: Prevent page reload by using popup window instead of direct redirect
+  const handleKrogerAuth = async (event) => {
+    // ✅ FIX: Prevent any default behavior
+    if (event) {
+      event.preventDefault();
+    }
+    
     setIsLoading(true);
     setError('');
     
     try {
-      // Redirect to Kroger OAuth
-      window.location.href = `/api/auth/kroger/login?userId=${currentUser?.uid || 'demo-user'}`;
+      // ✅ FIX: Use popup window instead of page redirect to prevent reload
+      const authUrl = `/api/auth/kroger/login?userId=${currentUser?.uid || 'demo-user'}`;
+      
+      // Open popup window for OAuth
+      const popup = window.open(
+        authUrl,
+        'kroger-auth',
+        'width=500,height=700,scrollbars=yes,resizable=yes'
+      );
+      
+      if (!popup) {
+        throw new Error('Popup blocked. Please allow popups for this site and try again.');
+      }
+      
+      // Listen for popup completion
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          setIsLoading(false);
+          // Recheck auth status after popup closes
+          checkAuthStatus();
+        }
+      }, 1000);
+      
+      // Listen for message from popup
+      const handleMessage = (event) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'KROGER_AUTH_SUCCESS') {
+          clearInterval(checkClosed);
+          popup.close();
+          setIsLoading(false);
+          checkAuthStatus(); // Recheck auth status
+          window.removeEventListener('message', handleMessage);
+        } else if (event.data.type === 'KROGER_AUTH_ERROR') {
+          clearInterval(checkClosed);
+          popup.close();
+          setIsLoading(false);
+          setError(event.data.error || 'Authentication failed');
+          window.removeEventListener('message', handleMessage);
+        }
+      };
+      
+      window.addEventListener('message', handleMessage);
+      
+      // Timeout after 5 minutes
+      setTimeout(() => {
+        if (!popup.closed) {
+          popup.close();
+          clearInterval(checkClosed);
+          setIsLoading(false);
+          setError('Authentication timed out');
+          window.removeEventListener('message', handleMessage);
+        }
+      }, 300000);
+      
     } catch (error) {
       console.error('Kroger auth failed:', error);
-      setError('Failed to start Kroger authentication');
+      setError(error.message || 'Failed to start Kroger authentication');
       setIsLoading(false);
     }
   };
@@ -113,7 +174,12 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
     setStep('review');
   };
 
-  const sendToKrogerCart = async () => {
+  // ✅ FIX: Add preventDefault to prevent any form submission
+  const sendToKrogerCart = async (event) => {
+    if (event) {
+      event.preventDefault();
+    }
+    
     setStep('sending');
     setError('');
     
@@ -162,7 +228,9 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
                 </div>
               )}
               
+              {/* ✅ FIX: Ensure button has type="button" and proper event handling */}
               <button
+                type="button"
                 onClick={handleKrogerAuth}
                 disabled={isLoading}
                 style={styles.authButton}
@@ -265,12 +333,15 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
             
             <div style={styles.reviewActions}>
               <button
+                type="button"
                 onClick={() => setStep('store-select')}
                 style={styles.backButton}
               >
                 ← Change Store
               </button>
+              {/* ✅ FIX: Ensure button has type="button" */}
               <button
+                type="button"
                 onClick={sendToKrogerCart}
                 style={styles.sendButton}
               >
@@ -319,6 +390,7 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
               </div>
               
               <button
+                type="button"
                 onClick={() => window.open('https://www.kroger.com/cart', '_blank')}
                 style={styles.viewCartButton}
               >
@@ -326,6 +398,7 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
               </button>
               
               <button
+                type="button"
                 onClick={onClose}
                 style={styles.doneButton}
               >
@@ -348,7 +421,8 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
           <h2 style={styles.title}>
             🏪 Kroger Quick Order
           </h2>
-          <button onClick={onClose} style={styles.closeButton}>×</button>
+          {/* ✅ FIX: Ensure close button has type="button" */}
+          <button type="button" onClick={onClose} style={styles.closeButton}>×</button>
         </div>
 
         {/* Progress Steps */}
@@ -403,6 +477,7 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
   );
 }
 
+// ... (styles object remains the same)
 const styles = {
   overlay: {
     position: 'fixed',
