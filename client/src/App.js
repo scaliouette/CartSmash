@@ -14,8 +14,8 @@ import AIParsingSettings from './components/AIParsingSettings';
 import AdminDashboard from './components/AdminDashboard';
 
 // 🆕 NEW: Import Loading and Auto-Save
-import LoadingSpinner, { ButtonSpinner, OverlaySpinner } from './components/LoadingSpinner';
-import { useGroceryListAutoSave } from './hooks/useAutoSave';
+import LoadingSpinner, { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './components/LoadingSpinner';
+import { useGroceryListAutoSave, useCartAutoSave, useSettingsAutoSave } from './hooks/useAutoSave';
 
 // 🆕 NEW: Import Kroger integration
 import KrogerOrderFlow from './components/KrogerOrderFlow';
@@ -183,10 +183,37 @@ function getTimeAgo(date) {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
-// 🆕 NEW: Kroger Quick Order Button Component (unchanged)
+// 🆕 NEW: Sync Status Indicator
+function SyncStatusIndicator({ isSyncing, lastSync, error }) {
+  if (!isSyncing && !lastSync && !error) return null;
+
+  return (
+    <div style={styles.syncStatus}>
+      {isSyncing && (
+        <div style={styles.syncStatusSyncing}>
+          <ButtonSpinner color="#3b82f6" />
+          <span>Saving...</span>
+        </div>
+      )}
+      {!isSyncing && lastSync && !error && (
+        <div style={styles.syncStatusSuccess}>
+          ✅ Saved {getTimeAgo(lastSync)}
+        </div>
+      )}
+      {error && (
+        <div style={styles.syncStatusError}>
+          ⚠️ Save failed (saved locally)
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 🆕 NEW: Kroger Quick Order Button Component
 function KrogerQuickOrderButton({ cartItems, currentUser, isVisible = true }) {
   const [showKrogerFlow, setShowKrogerFlow] = useState(false);
   const [krogerAuthStatus, setKrogerAuthStatus] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(false);
 
   useEffect(() => {
     if (isVisible && cartItems.length > 0) {
@@ -195,6 +222,7 @@ function KrogerQuickOrderButton({ cartItems, currentUser, isVisible = true }) {
   }, [isVisible, cartItems.length]);
 
   const checkKrogerAuth = async () => {
+    setCheckingAuth(true);
     try {
       const response = await fetch('/api/auth/kroger/status', {
         headers: {
@@ -205,6 +233,8 @@ function KrogerQuickOrderButton({ cartItems, currentUser, isVisible = true }) {
       setKrogerAuthStatus(data);
     } catch (error) {
       console.warn('Failed to check Kroger auth status:', error);
+    } finally {
+      setCheckingAuth(false);
     }
   };
 
@@ -250,8 +280,11 @@ function KrogerQuickOrderButton({ cartItems, currentUser, isVisible = true }) {
             <button 
               onClick={handleKrogerOrder}
               style={styles.krogerOrderButton}
+              disabled={checkingAuth}
             >
-              {krogerAuthStatus?.authenticated ? (
+              {checkingAuth ? (
+                <ButtonSpinner />
+              ) : krogerAuthStatus?.authenticated ? (
                 <>🛒 Send to Kroger Cart</>
               ) : (
                 <>🔐 Connect & Order with Kroger</>
@@ -285,7 +318,7 @@ function KrogerQuickOrderButton({ cartItems, currentUser, isVisible = true }) {
   );
 }
 
-// ✅ NEW: Recipe Manager Widget (unchanged)
+// ✅ NEW: Recipe Manager Widget
 function RecipeManagerWidget({ savedRecipes, onRecipeSelect, onToggleRecipeManager }) {
   if (savedRecipes.length === 0) {
     return null;
@@ -337,7 +370,7 @@ function RecipeManagerWidget({ savedRecipes, onRecipeSelect, onToggleRecipeManag
   );
 }
 
-// Admin Menu Component (unchanged)
+// Admin Menu Component
 function AdminMenu({ currentUser, onShowAnalytics, onShowDemo, onShowSettings, onShowAdmin }) {
   const [isVisible, setIsVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -446,6 +479,7 @@ function GroceryListForm() {
   // ✅ NEW: Recipe management state
   const [savedRecipes, setSavedRecipes] = useState([]);
   const [showRecipeManager, setShowRecipeManager] = useState(false);
+  const [loadingRecipes, setLoadingRecipes] = useState(false);
 
   // Admin component states
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -456,6 +490,7 @@ function GroceryListForm() {
   // 🆕 NEW: Loading states for individual operations
   const [validatingAll, setValidatingAll] = useState(false);
   const [reparsing, setReparsing] = useState(false);
+  const [savingRecipe, setSavingRecipe] = useState(false);
   
   const { currentUser, saveCartToFirebase } = useAuth();
 
@@ -464,8 +499,23 @@ function GroceryListForm() {
     draft, 
     clearDraft, 
     showDraftBanner, 
-    setShowDraftBanner 
+    setShowDraftBanner,
+    isSaving: isDraftSaving,
+    lastSaved: draftLastSaved
   } = useGroceryListAutoSave(inputText);
+
+  // 🆕 NEW: Cart auto-save
+  const {
+    isSyncing: isCartSyncing,
+    lastSync: cartLastSync,
+    syncError: cartSyncError
+  } = useCartAutoSave(parsedItems, currentUser?.uid);
+
+  // 🆕 NEW: Settings auto-save
+  const {
+    loadSettings,
+    isSaving: isSettingsSaving
+  } = useSettingsAutoSave(null);
 
   // ✅ NEW: Load saved recipes on component mount
   useEffect(() => {
@@ -473,6 +523,7 @@ function GroceryListForm() {
   }, []);
 
   const loadSavedRecipes = async () => {
+    setLoadingRecipes(true);
     try {
       const response = await fetch('/api/cart/recipes');
       if (response.ok) {
@@ -490,6 +541,8 @@ function GroceryListForm() {
           console.warn('Failed to parse saved recipes from localStorage:', parseError);
         }
       }
+    } finally {
+      setLoadingRecipes(false);
     }
   };
 
@@ -501,6 +554,10 @@ function GroceryListForm() {
       clearDraft();
     }
   };
+
+  // 🆕 NEW: Progress tracking for parsing
+  const [parsingProgress, setParsingProgress] = useState(0);
+  const [showProgress, setShowProgress] = useState(false);
 
   // ✅ ENHANCED: Enhanced submission logic with recipe preservation
   const submitGroceryList = async (listText, recipeInfo = null) => {
@@ -514,9 +571,16 @@ function GroceryListForm() {
     setParsedItems([]);
     setShowResults(false);
     setParsingStats(null);
+    setShowProgress(true);
+    setParsingProgress(0);
 
     try {
       console.log('🎯 Starting intelligent grocery list processing...');
+      
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setParsingProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
       
       const response = await fetch('/api/cart/parse', {
         method: 'POST',
@@ -534,6 +598,9 @@ function GroceryListForm() {
           }
         }),
       });
+
+      clearInterval(progressInterval);
+      setParsingProgress(100);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -586,6 +653,8 @@ function GroceryListForm() {
       setError(`Failed to process grocery list: ${err.message}`);
     } finally {
       setIsLoading(false);
+      setShowProgress(false);
+      setParsingProgress(0);
     }
   };
 
@@ -609,12 +678,18 @@ function GroceryListForm() {
   // ✅ NEW: Recipe generated handler
   const handleRecipeGenerated = async (recipe) => {
     console.log('📝 Recipe generated from AI:', recipe.title);
-    setSavedRecipes(prev => [...prev, recipe]);
+    setSavingRecipe(true);
     
-    // Optionally auto-populate the grocery list with recipe ingredients
-    if (recipe.ingredients && recipe.ingredients.length > 0) {
-      const ingredientsList = recipe.ingredients.join('\n');
-      setInputText(ingredientsList);
+    try {
+      setSavedRecipes(prev => [...prev, recipe]);
+      
+      // Optionally auto-populate the grocery list with recipe ingredients
+      if (recipe.ingredients && recipe.ingredients.length > 0) {
+        const ingredientsList = recipe.ingredients.join('\n');
+        setInputText(ingredientsList);
+      }
+    } finally {
+      setSavingRecipe(false);
     }
   };
 
@@ -731,6 +806,16 @@ function GroceryListForm() {
         <OverlaySpinner text="Processing your grocery list..." />
       )}
 
+      {/* 🆕 NEW: Progress overlay for parsing */}
+      {showProgress && (
+        <div style={styles.progressOverlay}>
+          <ProgressSpinner 
+            progress={parsingProgress} 
+            text="Analyzing your grocery list..."
+          />
+        </div>
+      )}
+
       {/* Admin Menu */}
       <AdminMenu
         currentUser={currentUser}
@@ -798,6 +883,11 @@ function GroceryListForm() {
             {draft && draft.content && (
               <span style={styles.autoSaveIndicator}>
                 💾 Auto-saved
+              </span>
+            )}
+            {isDraftSaving && (
+              <span style={styles.autoSaveIndicator}>
+                <ButtonSpinner color="#10b981" /> Saving...
               </span>
             )}
           </label>
@@ -898,6 +988,13 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
             </div>
           )}
         </div>
+
+        {/* 🆕 NEW: Sync Status */}
+        <SyncStatusIndicator 
+          isSyncing={isCartSyncing}
+          lastSync={cartLastSync}
+          error={cartSyncError}
+        />
       </div>
 
       {/* Enhanced Results Display */}
@@ -982,7 +1079,11 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
             </div>
             
             <div style={styles.recipeModalContent}>
-              {savedRecipes.length === 0 ? (
+              {loadingRecipes ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <LoadingSpinner text="Loading recipes..." />
+                </div>
+              ) : savedRecipes.length === 0 ? (
                 <div style={styles.recipeModalEmpty}>
                   <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
                   <h4>No saved recipes yet</h4>
@@ -1053,7 +1154,9 @@ function Header() {
         
         <div style={styles.headerActions}>
           {isLoading ? (
-            <span style={styles.loadingText}>Loading...</span>
+            <span style={styles.loadingText}>
+              <ButtonSpinner color="#6b7280" /> Loading...
+            </span>
           ) : currentUser ? (
             <div style={styles.userMenu}>
               <span style={styles.userGreeting}>
@@ -1133,10 +1236,10 @@ function App() {
             </div>
             
             <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>✅</div>
-              <h3 style={styles.featureTitle}>Product Validation</h3>
+              <div style={styles.featureIcon}>💾</div>
+              <h3 style={styles.featureTitle}>Auto-Save Everything</h3>
               <p style={styles.featureDescription}>
-                Real-time validation against grocery databases with pricing and availability
+                Never lose your work with automatic draft saving and cloud sync for your carts
               </p>
             </div>
           </div>
@@ -1227,6 +1330,9 @@ const styles = {
   loadingText: {
     color: '#6b7280',
     fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
   
   loginButton: {
@@ -1261,6 +1367,21 @@ const styles = {
   container: {
     width: '100%',
     position: 'relative',
+  },
+
+  // 🆕 NEW: Progress overlay
+  progressOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(4px)',
+    zIndex: 9999,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // 🆕 NEW: Draft banner styles
@@ -1337,6 +1458,34 @@ const styles = {
     color: '#10b981',
     fontWeight: 'normal',
     opacity: 0.8,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+  },
+
+  // 🆕 NEW: Sync status styles
+  syncStatus: {
+    marginTop: '12px',
+    textAlign: 'center',
+    fontSize: '12px',
+  },
+
+  syncStatusSyncing: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
+
+  syncStatusSuccess: {
+    color: '#10b981',
+    fontWeight: '500',
+  },
+
+  syncStatusError: {
+    color: '#f59e0b',
+    fontWeight: '500',
   },
 
   // ✅ NEW: Cart action toggle styles
@@ -1685,6 +1834,9 @@ const styles = {
     transition: 'all 0.3s ease',
     boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
     minWidth: '280px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   authStatus: {

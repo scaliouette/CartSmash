@@ -1,91 +1,133 @@
 // client/src/hooks/useAutoSave.js
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const STORAGE_PREFIX = 'cart-smash-';
-const DEBOUNCE_DELAY = 1000; // 1 second
+// Constants
+const DRAFT_KEY = 'cart-smash-draft';
+const AUTO_SAVE_DELAY = 1000; // 1 second delay
+const MIN_CONTENT_LENGTH = 5; // Minimum characters to save
 
-// Hook for grocery list auto-save
-export function useGroceryListAutoSave(inputText) {
+// Generic auto-save hook
+export function useAutoSave(value, key, delay = AUTO_SAVE_DELAY) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
+  const [error, setError] = useState(null);
+  const timeoutRef = useRef(null);
+
+  useEffect(() => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Don't save empty values
+    if (!value || value.length < MIN_CONTENT_LENGTH) {
+      return;
+    }
+
+    // Set up new timeout
+    timeoutRef.current = setTimeout(async () => {
+      setIsSaving(true);
+      setError(null);
+
+      try {
+        localStorage.setItem(key, JSON.stringify({
+          value,
+          timestamp: new Date().toISOString()
+        }));
+        setLastSaved(new Date());
+        console.log(`✅ Auto-saved to ${key}`);
+      } catch (err) {
+        console.error('Auto-save failed:', err);
+        setError(err);
+      } finally {
+        setIsSaving(false);
+      }
+    }, delay);
+
+    // Cleanup on unmount
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [value, key, delay]);
+
+  // Load saved value
+  const loadSaved = useCallback(() => {
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed;
+      }
+    } catch (err) {
+      console.error('Failed to load saved value:', err);
+      setError(err);
+    }
+    return null;
+  }, [key]);
+
+  // Clear saved value
+  const clearSaved = useCallback(() => {
+    try {
+      localStorage.removeItem(key);
+      setLastSaved(null);
+      console.log(`🗑️ Cleared saved data for ${key}`);
+    } catch (err) {
+      console.error('Failed to clear saved value:', err);
+      setError(err);
+    }
+  }, [key]);
+
+  return {
+    isSaving,
+    lastSaved,
+    error,
+    loadSaved,
+    clearSaved
+  };
+}
+
+// Specialized hook for grocery list auto-save
+export function useGroceryListAutoSave(groceryList) {
   const [draft, setDraft] = useState(null);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
-  const saveTimeoutRef = useRef(null);
+  const mountedRef = useRef(false);
+
+  const { isSaving, lastSaved, error, loadSaved, clearSaved } = useAutoSave(
+    groceryList,
+    DRAFT_KEY,
+    AUTO_SAVE_DELAY
+  );
 
   // Load draft on mount
   useEffect(() => {
-    const loadDraft = () => {
-      try {
-        const savedDraft = localStorage.getItem(`${STORAGE_PREFIX}grocery-list-draft`);
-        if (savedDraft) {
-          const parsedDraft = JSON.parse(savedDraft);
-          setDraft(parsedDraft);
-          
-          // Only show banner if draft is not empty and not too old
-          const draftAge = Date.now() - new Date(parsedDraft.timestamp).getTime();
-          const oneWeek = 7 * 24 * 60 * 60 * 1000;
-          
-          if (parsedDraft.content && parsedDraft.content.trim() && draftAge < oneWeek) {
-            setShowDraftBanner(true);
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to load draft:', error);
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      
+      const savedDraft = loadSaved();
+      if (savedDraft && savedDraft.value && savedDraft.value !== groceryList) {
+        setDraft({
+          content: savedDraft.value,
+          timestamp: savedDraft.timestamp
+        });
+        setShowDraftBanner(true);
+        console.log('📝 Found saved draft');
       }
-    };
-
-    loadDraft();
-  }, []);
-
-  // Save draft with debouncing
-  useEffect(() => {
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
     }
-
-    // Set new timeout
-    saveTimeoutRef.current = setTimeout(() => {
-      if (inputText && inputText.trim()) {
-        try {
-          const draftData = {
-            content: inputText,
-            timestamp: new Date().toISOString(),
-            itemCount: inputText.split('\n').filter(line => line.trim()).length
-          };
-          
-          localStorage.setItem(
-            `${STORAGE_PREFIX}grocery-list-draft`,
-            JSON.stringify(draftData)
-          );
-          
-          setDraft(draftData);
-          console.log('💾 Draft auto-saved');
-        } catch (error) {
-          console.warn('Failed to save draft:', error);
-        }
-      }
-    }, DEBOUNCE_DELAY);
-
-    // Cleanup
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [inputText]);
+  }, [loadSaved, groceryList]);
 
   // Clear draft
   const clearDraft = useCallback(() => {
-    try {
-      localStorage.removeItem(`${STORAGE_PREFIX}grocery-list-draft`);
-      setDraft(null);
-      setShowDraftBanner(false);
-      console.log('🗑️ Draft cleared');
-    } catch (error) {
-      console.warn('Failed to clear draft:', error);
-    }
-  }, []);
+    clearSaved();
+    setDraft(null);
+    setShowDraftBanner(false);
+  }, [clearSaved]);
 
   return {
+    isSaving,
+    lastSaved,
+    error,
     draft,
     clearDraft,
     showDraftBanner,
@@ -93,95 +135,174 @@ export function useGroceryListAutoSave(inputText) {
   };
 }
 
-// Hook for general form auto-save
-export function useAutoSave(key, value, options = {}) {
-  const {
-    delay = 1000,
-    onSave = null,
-    onRestore = null,
-    serialize = JSON.stringify,
-    deserialize = JSON.parse
-  } = options;
+// Auto-save hook for cart items
+export function useCartAutoSave(cartItems, userId) {
+  const [lastSync, setLastSync] = useState(null);
+  const [syncError, setSyncError] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const syncTimeoutRef = useRef(null);
 
-  const [isRestored, setIsRestored] = useState(false);
-  const saveTimeoutRef = useRef(null);
-
-  // Load saved value on mount
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
-      if (saved && onRestore) {
-        const restored = deserialize(saved);
-        onRestore(restored);
-        setIsRestored(true);
-      }
-    } catch (error) {
-      console.warn(`Failed to restore ${key}:`, error);
-    }
-  }, [key, onRestore, deserialize]);
-
-  // Save value with debouncing
-  useEffect(() => {
-    if (!isRestored) return; // Don't save until after restoration
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+    // Don't sync if no items or no user
+    if (!cartItems || cartItems.length === 0 || !userId) {
+      return;
     }
 
-    saveTimeoutRef.current = setTimeout(() => {
+    // Clear existing timeout
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+
+    // Set up sync timeout
+    syncTimeoutRef.current = setTimeout(async () => {
+      setIsSyncing(true);
+      setSyncError(null);
+
       try {
-        if (value !== null && value !== undefined && value !== '') {
-          const serialized = serialize(value);
-          localStorage.setItem(`${STORAGE_PREFIX}${key}`, serialized);
-          
-          if (onSave) {
-            onSave(value);
-          }
+        const response = await fetch('/api/cart/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-ID': userId
+          },
+          body: JSON.stringify({ cart: cartItems })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to sync cart');
         }
-      } catch (error) {
-        console.warn(`Failed to save ${key}:`, error);
+
+        setLastSync(new Date());
+        console.log('✅ Cart synced to server');
+      } catch (err) {
+        console.error('Cart sync failed:', err);
+        setSyncError(err);
+        
+        // Fall back to local storage
+        try {
+          localStorage.setItem(`cart-${userId}`, JSON.stringify({
+            items: cartItems,
+            timestamp: new Date().toISOString()
+          }));
+          console.log('💾 Cart saved locally as fallback');
+        } catch (localErr) {
+          console.error('Local save also failed:', localErr);
+        }
+      } finally {
+        setIsSyncing(false);
       }
-    }, delay);
+    }, 2000); // 2 second delay for cart sync
 
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
       }
     };
-  }, [key, value, delay, onSave, serialize, isRestored]);
+  }, [cartItems, userId]);
 
-  // Clear saved value
-  const clear = useCallback(() => {
+  return {
+    isSyncing,
+    lastSync,
+    syncError
+  };
+}
+
+// Auto-save hook for AI conversations
+export function useConversationAutoSave(messages, conversationId) {
+  const CONVERSATION_KEY = `ai-conversation-${conversationId}`;
+  
+  const { isSaving, lastSaved, error, loadSaved, clearSaved } = useAutoSave(
+    messages,
+    CONVERSATION_KEY,
+    2000 // 2 second delay for conversations
+  );
+
+  // Load conversation history
+  const loadConversation = useCallback(() => {
+    const saved = loadSaved();
+    if (saved && saved.value) {
+      return saved.value;
+    }
+    return [];
+  }, [loadSaved]);
+
+  // Get all saved conversations
+  const getAllConversations = useCallback(() => {
+    const conversations = [];
+    
     try {
-      localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
-    } catch (error) {
-      console.warn(`Failed to clear ${key}:`, error);
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('ai-conversation-')) {
+          const data = localStorage.getItem(key);
+          if (data) {
+            const parsed = JSON.parse(data);
+            conversations.push({
+              id: key.replace('ai-conversation-', ''),
+              messages: parsed.value,
+              timestamp: parsed.timestamp
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load conversations:', err);
     }
-  }, [key]);
 
-  return { clear, isRestored };
+    return conversations.sort((a, b) => 
+      new Date(b.timestamp) - new Date(a.timestamp)
+    );
+  }, []);
+
+  return {
+    isSaving,
+    lastSaved,
+    error,
+    loadConversation,
+    clearConversation: clearSaved,
+    getAllConversations
+  };
 }
 
-// Hook for saving cart items
-export function useCartAutoSave(cartItems, userId) {
-  const key = userId ? `cart-${userId}` : 'cart-guest';
+// Settings auto-save hook - Also exported as usePreferencesAutoSave for compatibility
+export function useSettingsAutoSave(settings) {
+  const SETTINGS_KEY = 'cart-smash-settings';
+  
+  const { isSaving, lastSaved, error, loadSaved, clearSaved } = useAutoSave(
+    settings,
+    SETTINGS_KEY,
+    500 // Quick save for settings
+  );
 
-  useAutoSave(key, cartItems, {
-    delay: 2000, // Save less frequently for cart items
-    onSave: (items) => {
-      console.log(`💾 Cart saved: ${items.length} items`);
+  // Load settings with defaults
+  const loadSettings = useCallback(() => {
+    const saved = loadSaved();
+    if (saved && saved.value) {
+      return saved.value;
     }
-  });
+    
+    // Return default settings
+    return {
+      theme: 'light',
+      autoParseClipboard: false,
+      defaultUnit: 'each',
+      enableKrogerValidation: true,
+      showConfidenceScores: true,
+      enableAutoSave: true,
+      ingredientChoice: 'basic'
+    };
+  }, [loadSaved]);
+
+  return {
+    isSaving,
+    lastSaved,
+    error,
+    loadSettings,
+    resetSettings: clearSaved
+  };
 }
 
-// Hook for saving user preferences
-export function usePreferencesAutoSave(preferences) {
-  useAutoSave('preferences', preferences, {
-    delay: 500,
-    onSave: () => {
-      console.log('⚙️ Preferences saved');
-    }
-  });
-}
+// Export with alternative name for compatibility
+export const usePreferencesAutoSave = useSettingsAutoSave;
 
 export default useAutoSave;
