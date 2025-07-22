@@ -1,5 +1,6 @@
-// client/src/components/SmartAIAssistant.js - ENHANCED VERSION with Recipe Preservation
+// client/src/components/SmartAIAssistant.js - ENHANCED VERSION with Loading States
 import React, { useState, useRef, useEffect } from 'react';
+import LoadingSpinner, { InlineSpinner, ButtonSpinner } from './LoadingSpinner';
 
 function SmartAIAssistant({ onGroceryListGenerated, onRecipeGenerated }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,6 +14,9 @@ function SmartAIAssistant({ onGroceryListGenerated, onRecipeGenerated }) {
   const [ingredientChoice, setIngredientChoice] = useState('basic'); // 'basic' or 'homemade'
   const [savedRecipes, setSavedRecipes] = useState([]);
   const [showRecipeManager, setShowRecipeManager] = useState(false);
+  
+  // 🆕 NEW: Loading state for recipes
+  const [loadingRecipes, setLoadingRecipes] = useState(false);
   
   const messagesEndRef = useRef(null);
 
@@ -96,15 +100,22 @@ Provide recipes with instructions and list each grocery item on a separate line.
 
   useEffect(() => {
     // Load saved recipes from localStorage
-    const saved = localStorage.getItem('cart-smash-recipes');
-    if (saved) {
-      try {
-        setSavedRecipes(JSON.parse(saved));
-      } catch (error) {
-        console.warn('Failed to load saved recipes:', error);
-      }
-    }
+    loadSavedRecipes();
   }, []);
+
+  const loadSavedRecipes = async () => {
+    setLoadingRecipes(true);
+    try {
+      const saved = localStorage.getItem('cart-smash-recipes');
+      if (saved) {
+        setSavedRecipes(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.warn('Failed to load saved recipes:', error);
+    } finally {
+      setLoadingRecipes(false);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -996,17 +1007,12 @@ This covers basic nutrition needs with ${isBasic ? 'minimal prep required' : 'fl
                         alignItems: 'center',
                         gap: '10px'
                       }}>
-                        <div style={{
-                          width: '20px',
-                          height: '20px',
-                          border: `3px solid ${selectedModelData.color}`,
-                          borderTop: '3px solid transparent',
-                          borderRadius: '50%',
-                          animation: 'spin 1s linear infinite'
-                        }} />
-                        <span style={{ color: '#666' }}>
-                          {selectedModelData.name.split(' ')[0]} is thinking...
-                        </span>
+                        <LoadingSpinner 
+                          size="small" 
+                          color={selectedModelData.color}
+                          text={`${selectedModelData.name.split(' ')[0]} is thinking...`}
+                          inline
+                        />
                       </div>
                     </div>
                   )}
@@ -1066,11 +1072,22 @@ This covers basic nutrition needs with ${isBasic ? 'minimal prep required' : 'fl
                     fontSize: '16px',
                     fontWeight: 'bold',
                     cursor: !inputText.trim() || isLoading ? 'not-allowed' : 'pointer',
-                    minWidth: '80px',
-                    transition: 'background-color 0.2s ease'
+                    minWidth: '120px',
+                    transition: 'background-color 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
                   }}
                 >
-                  {isLoading ? '...' : '🚀 Send'}
+                  {isLoading ? (
+                    <>
+                      <ButtonSpinner />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <>🚀 Send</>
+                  )}
                 </button>
               </div>
             </div>
@@ -1132,7 +1149,11 @@ This covers basic nutrition needs with ${isBasic ? 'minimal prep required' : 'fl
               maxHeight: '60vh',
               overflowY: 'auto'
             }}>
-              {savedRecipes.length === 0 ? (
+              {loadingRecipes ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <LoadingSpinner text="Loading recipes..." />
+                </div>
+              ) : savedRecipes.length === 0 ? (
                 <div style={{
                   textAlign: 'center',
                   padding: '40px',
@@ -1271,15 +1292,6 @@ This covers basic nutrition needs with ${isBasic ? 'minimal prep required' : 'fl
           </div>
         </div>
       )}
-
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}
-      </style>
     </>
   );
 }

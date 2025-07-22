@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { InlineSpinner } from './LoadingSpinner';
 
 function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats }) {
   const [sortBy, setSortBy] = useState('confidence');
@@ -6,6 +7,11 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
   const [showStats, setShowStats] = useState(false); // ✅ FIX: Hidden by default
   const [isMobile, setIsMobile] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  
+  // 🆕 NEW: Loading states for individual items
+  const [updatingItems, setUpdatingItems] = useState(new Set());
+  const [fetchingPrices, setFetchingPrices] = useState(new Set());
+  const [exportingCSV, setExportingCSV] = useState(false);
 
   // ✅ FIX: Mobile detection
   useEffect(() => {
@@ -17,6 +23,64 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // 🆕 NEW: Fetch real-time prices on mount
+  useEffect(() => {
+    const itemsNeedingPrices = items.filter(item => !item.realPrice && item.productName);
+    if (itemsNeedingPrices.length > 0) {
+      fetchRealTimePrices(itemsNeedingPrices);
+    }
+  }, [items.length]); // Only run when items count changes
+
+  // 🆕 NEW: Fetch real-time prices for items
+  const fetchRealTimePrices = async (itemsToFetch) => {
+    const itemIds = itemsToFetch.map(item => item.id);
+    
+    // Add to fetching set
+    setFetchingPrices(prev => new Set([...prev, ...itemIds]));
+
+    try {
+      const response = await fetch('/api/cart/fetch-prices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: itemsToFetch.map(item => ({
+            id: item.id,
+            name: item.productName || item.itemName
+          }))
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Update items with fetched prices
+        const updatedItems = items.map(item => {
+          const priceData = data.prices[item.id];
+          if (priceData) {
+            return {
+              ...item,
+              realPrice: priceData.price,
+              salePrice: priceData.salePrice,
+              availability: priceData.availability
+            };
+          }
+          return item;
+        });
+
+        onItemsChange(updatedItems);
+      }
+    } catch (error) {
+      console.error('Failed to fetch prices:', error);
+    } finally {
+      // Remove from fetching set
+      setFetchingPrices(prev => {
+        const newSet = new Set(prev);
+        itemIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+    }
+  };
 
   // ✅ NEW: Common units for dropdown
   const commonUnits = [
@@ -115,8 +179,11 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     return icons[category] || '📦';
   };
 
-  // ✅ ENHANCED: Item edit with server update
+  // ✅ ENHANCED: Item edit with server update and loading state
   const handleItemEdit = async (itemId, field, value) => {
+    // Add to updating set
+    setUpdatingItems(prev => new Set([...prev, itemId]));
+
     // Update locally first for immediate UI response
     const updatedItems = items.map(item => 
       item.id === itemId ? { ...item, [field]: value } : item
@@ -137,36 +204,62 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
       }
     } catch (error) {
       console.error('Error updating item:', error);
+    } finally {
+      // Remove from updating set
+      setUpdatingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
     }
   };
 
-  const handleRemoveItem = (itemId) => {
+  const handleRemoveItem = async (itemId) => {
     if (window.confirm('Are you sure you want to remove this item?')) {
-      const updatedItems = items.filter(item => item.id !== itemId);
-      onItemsChange(updatedItems);
+      // Add to updating set
+      setUpdatingItems(prev => new Set([...prev, itemId]));
+
+      try {
+        const updatedItems = items.filter(item => item.id !== itemId);
+        onItemsChange(updatedItems);
+      } finally {
+        // Remove from updating set
+        setUpdatingItems(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(itemId);
+          return newSet;
+        });
+      }
     }
   };
 
-  const exportToCSV = () => {
-    const headers = ['Product Name', 'Quantity', 'Unit', 'Category', 'Confidence'];
-    const csvContent = [
-      headers.join(','),
-      ...items.map(item => [
-        `"${item.productName || item.itemName}"`,
-        item.quantity || 1,
-        item.unit || 'each',
-        item.category || 'other',
-        ((item.confidence || 0) * 100).toFixed(0) + '%'
-      ].join(','))
-    ].join('\n');
+  const exportToCSV = async () => {
+    setExportingCSV(true);
     
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `grocery-list-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const headers = ['Product Name', 'Quantity', 'Unit', 'Category', 'Confidence', 'Price'];
+      const csvContent = [
+        headers.join(','),
+        ...items.map(item => [
+          `"${item.productName || item.itemName}"`,
+          item.quantity || 1,
+          item.unit || 'each',
+          item.category || 'other',
+          ((item.confidence || 0) * 100).toFixed(0) + '%',
+          item.realPrice ? `$${item.realPrice.toFixed(2)}` : 'N/A'
+        ].join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `grocery-list-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportingCSV(false);
+    }
   };
 
   // Group items by category when sorting by category
@@ -190,102 +283,128 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     ));
   };
 
-  // ✅ NEW: Render individual item as line item
-  const renderItem = (item, index) => (
-    <div 
-      key={item.id || index} 
-      style={{
-        ...styles.itemRow,
-        ...(index % 2 === 0 ? styles.itemRowEven : {}),
-        ...(editingItem === item.id ? styles.itemRowEditing : {})
-      }}
-    >
-      {/* Category Icon */}
-      <div style={styles.itemCategory}>
-        <span title={item.category}>{getCategoryIcon(item.category)}</span>
-      </div>
+  // 🆕 NEW: Refresh prices for items without prices
+  const handleRefreshPrices = async () => {
+    const itemsNeedingPrices = filteredAndSortedItems.filter(item => !item.realPrice && item.productName);
+    if (itemsNeedingPrices.length > 0) {
+      await fetchRealTimePrices(itemsNeedingPrices);
+    } else {
+      alert('All items already have pricing information!');
+    }
+  };
 
-      {/* Product Name */}
-      <div style={styles.itemName}>
-        {editingItem === item.id ? (
-          <input
-            type="text"
-            value={item.productName || item.itemName || ''}
-            onChange={(e) => handleItemEdit(item.id, 'productName', e.target.value)}
-            onBlur={() => setEditingItem(null)}
-            onKeyPress={(e) => e.key === 'Enter' && setEditingItem(null)}
-            style={styles.itemNameInput}
-            autoFocus
-          />
-        ) : (
-          <span 
-            onClick={() => setEditingItem(item.id)}
-            style={styles.itemNameText}
-            title="Click to edit"
-          >
-            {item.productName || item.itemName}
-          </span>
-        )}
-      </div>
+  // ✅ NEW: Render individual item as line item with loading states
+  const renderItem = (item, index) => {
+    const isUpdating = updatingItems.has(item.id);
+    const isFetchingPrice = fetchingPrices.has(item.id);
 
-      {/* Quantity */}
-      <div style={styles.itemQuantity}>
-        <input
-          type="number"
-          value={item.quantity || 1}
-          onChange={(e) => handleItemEdit(item.id, 'quantity', parseFloat(e.target.value) || 1)}
-          style={styles.quantityInput}
-          min="0"
-          step="0.25"
-        />
-      </div>
-
-      {/* Unit */}
-      <div style={styles.itemUnit}>
-        <select
-          value={item.unit || 'each'}
-          onChange={(e) => handleItemEdit(item.id, 'unit', e.target.value)}
-          style={styles.unitSelect}
-        >
-          {commonUnits.map(unit => (
-            <option key={unit.value} value={unit.value}>
-              {unit.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Confidence */}
-      <div style={styles.itemConfidence}>
-        <span 
-          style={{
-            ...styles.confidenceBadge,
-            backgroundColor: getConfidenceColor(item.confidence || 0)
-          }}
-        >
-          {getConfidenceLabel(item.confidence || 0)}
-        </span>
-      </div>
-
-      {/* Price (if available) */}
-      {item.realPrice && (
-        <div style={styles.itemPrice}>
-          ${(item.realPrice * (item.quantity || 1)).toFixed(2)}
+    return (
+      <div 
+        key={item.id || index} 
+        style={{
+          ...styles.itemRow,
+          ...(index % 2 === 0 ? styles.itemRowEven : {}),
+          ...(editingItem === item.id ? styles.itemRowEditing : {}),
+          ...(isUpdating ? styles.itemRowUpdating : {})
+        }}
+      >
+        {/* Category Icon */}
+        <div style={styles.itemCategory}>
+          <span title={item.category}>{getCategoryIcon(item.category)}</span>
         </div>
-      )}
 
-      {/* Actions */}
-      <div style={styles.itemActions}>
-        <button
-          onClick={() => handleRemoveItem(item.id)}
-          style={styles.removeButton}
-          title="Remove item"
-        >
-          ×
-        </button>
+        {/* Product Name */}
+        <div style={styles.itemName}>
+          {editingItem === item.id ? (
+            <input
+              type="text"
+              value={item.productName || item.itemName || ''}
+              onChange={(e) => handleItemEdit(item.id, 'productName', e.target.value)}
+              onBlur={() => setEditingItem(null)}
+              onKeyPress={(e) => e.key === 'Enter' && setEditingItem(null)}
+              style={styles.itemNameInput}
+              autoFocus
+            />
+          ) : (
+            <span 
+              onClick={() => setEditingItem(item.id)}
+              style={styles.itemNameText}
+              title="Click to edit"
+            >
+              {item.productName || item.itemName}
+            </span>
+          )}
+        </div>
+
+        {/* Quantity */}
+        <div style={styles.itemQuantity}>
+          <input
+            type="number"
+            value={item.quantity || 1}
+            onChange={(e) => handleItemEdit(item.id, 'quantity', parseFloat(e.target.value) || 1)}
+            style={styles.quantityInput}
+            min="0"
+            step="0.25"
+            disabled={isUpdating}
+          />
+        </div>
+
+        {/* Unit */}
+        <div style={styles.itemUnit}>
+          <select
+            value={item.unit || 'each'}
+            onChange={(e) => handleItemEdit(item.id, 'unit', e.target.value)}
+            style={styles.unitSelect}
+            disabled={isUpdating}
+          >
+            {commonUnits.map(unit => (
+              <option key={unit.value} value={unit.value}>
+                {unit.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Confidence */}
+        <div style={styles.itemConfidence}>
+          <span 
+            style={{
+              ...styles.confidenceBadge,
+              backgroundColor: getConfidenceColor(item.confidence || 0)
+            }}
+          >
+            {getConfidenceLabel(item.confidence || 0)}
+          </span>
+        </div>
+
+        {/* Price (if available) with loading state */}
+        <div style={styles.itemPrice}>
+          {isFetchingPrice ? (
+            <InlineSpinner text="" color="#10b981" />
+          ) : item.realPrice ? (
+            <span>${(item.realPrice * (item.quantity || 1)).toFixed(2)}</span>
+          ) : (
+            <span style={{ color: '#9ca3af' }}>--</span>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div style={styles.itemActions}>
+          {isUpdating ? (
+            <InlineSpinner text="" color="#6b7280" />
+          ) : (
+            <button
+              onClick={() => handleRemoveItem(item.id)}
+              style={styles.removeButton}
+              title="Remove item"
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div style={{
@@ -308,10 +427,18 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
             {showStats ? '📊 Hide Stats' : '📊 Show Stats'}
           </button>
           <button 
+            onClick={handleRefreshPrices}
+            style={styles.refreshButton}
+            disabled={fetchingPrices.size > 0}
+          >
+            {fetchingPrices.size > 0 ? <InlineSpinner text="Fetching..." /> : '💰 Get Prices'}
+          </button>
+          <button 
             onClick={exportToCSV} 
             style={styles.exportButton}
+            disabled={exportingCSV}
           >
-            📄 Export CSV
+            {exportingCSV ? <InlineSpinner text="Exporting..." /> : '📄 Export CSV'}
           </button>
         </div>
       </div>
@@ -402,9 +529,7 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
         <div style={styles.headerQuantity}>Qty</div>
         <div style={styles.headerUnit}>Unit</div>
         <div style={styles.headerConfidence}>Status</div>
-        {items.some(item => item.realPrice) && (
-          <div style={styles.headerPrice}>Price</div>
-        )}
+        <div style={styles.headerPrice}>Price</div>
         <div style={styles.headerActions}></div>
       </div>
 
@@ -466,7 +591,8 @@ const styles = {
 
   headerActions: {
     display: 'flex',
-    gap: '10px'
+    gap: '10px',
+    alignItems: 'center',
   },
 
   toggleButton: {
@@ -480,6 +606,22 @@ const styles = {
     fontWeight: '500'
   },
 
+  // 🆕 NEW: Refresh button
+  refreshButton: {
+    padding: '8px 16px',
+    backgroundColor: '#f59e0b',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    minWidth: '120px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   exportButton: {
     padding: '8px 16px',
     backgroundColor: '#10b981',
@@ -488,7 +630,11 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '14px',
-    fontWeight: '500'
+    fontWeight: '500',
+    minWidth: '120px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   statsPanel: {
@@ -643,6 +789,12 @@ const styles = {
     boxShadow: 'inset 0 0 0 2px #3b82f6'
   },
 
+  // 🆕 NEW: Updating row style
+  itemRowUpdating: {
+    opacity: 0.7,
+    pointerEvents: 'none'
+  },
+
   itemCategory: {
     textAlign: 'center',
     fontSize: '18px'
@@ -717,11 +869,18 @@ const styles = {
     textAlign: 'right',
     fontWeight: '600',
     color: '#059669',
-    fontSize: '14px'
+    fontSize: '14px',
+    minWidth: '80px',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
   },
 
   itemActions: {
-    textAlign: 'center'
+    textAlign: 'center',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   removeButton: {

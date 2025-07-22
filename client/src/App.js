@@ -1,4 +1,4 @@
-﻿// client/src/App.js - ENHANCED with Authentication Consolidation + Simplified Cart Action
+﻿// client/src/App.js - ENHANCED with Loading States + Auto-Save
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
@@ -12,6 +12,10 @@ import ParsingAnalyticsDashboard from './components/ParsingAnalyticsDashboard';
 import SmartParsingDemo from './components/SmartParsingDemo';
 import AIParsingSettings from './components/AIParsingSettings';
 import AdminDashboard from './components/AdminDashboard';
+
+// 🆕 NEW: Import Loading and Auto-Save
+import LoadingSpinner, { ButtonSpinner, OverlaySpinner } from './components/LoadingSpinner';
+import { useGroceryListAutoSave } from './hooks/useAutoSave';
 
 // 🆕 NEW: Import Kroger integration
 import KrogerOrderFlow from './components/KrogerOrderFlow';
@@ -107,23 +111,79 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
         animation: isSmashing ? 'shake 0.5s ease-in-out infinite' : 'none',
       }}
     >
-      {buttonText}
-      {itemCount > 0 && !isSmashing && (
-        <div style={{ 
-          fontSize: '14px', 
-          marginTop: '4px',
-          opacity: 0.9,
-          fontWeight: '600',
-          letterSpacing: '1px'
-        }}>
-          {itemCount} ITEMS • READY TO PARSE
+      {isLoading ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+          <ButtonSpinner />
+          <span>PARSING...</span>
         </div>
+      ) : (
+        <>
+          {buttonText}
+          {itemCount > 0 && !isSmashing && (
+            <div style={{ 
+              fontSize: '14px', 
+              marginTop: '4px',
+              opacity: 0.9,
+              fontWeight: '600'
+            }}>
+              {itemCount} items to parse
+            </div>
+          )}
+        </>
       )}
     </button>
   );
 }
 
-// 🆕 NEW: Kroger Quick Order Button Component
+// 🆕 NEW: Draft Restoration Banner Component
+function DraftRestorationBanner({ draft, onRestore, onDismiss }) {
+  if (!draft || !draft.content) return null;
+
+  const savedDate = new Date(draft.timestamp);
+  const timeAgo = getTimeAgo(savedDate);
+
+  return (
+    <div style={styles.draftBanner}>
+      <div style={styles.draftBannerContent}>
+        <div style={styles.draftBannerText}>
+          <div style={styles.draftBannerTitle}>
+            📝 Draft found from {timeAgo}
+          </div>
+          <div style={styles.draftBannerPreview}>
+            {draft.content.split('\n').slice(0, 2).join(' • ')}
+            {draft.content.split('\n').length > 2 && '...'}
+          </div>
+        </div>
+        <div style={styles.draftBannerActions}>
+          <button
+            onClick={onRestore}
+            style={styles.restoreButton}
+          >
+            Restore Draft
+          </button>
+          <button
+            onClick={onDismiss}
+            style={styles.dismissButton}
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Helper function for time ago
+function getTimeAgo(date) {
+  const seconds = Math.floor((new Date() - date) / 1000);
+  
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+  return `${Math.floor(seconds / 86400)} days ago`;
+}
+
+// 🆕 NEW: Kroger Quick Order Button Component (unchanged)
 function KrogerQuickOrderButton({ cartItems, currentUser, isVisible = true }) {
   const [showKrogerFlow, setShowKrogerFlow] = useState(false);
   const [krogerAuthStatus, setKrogerAuthStatus] = useState(null);
@@ -225,7 +285,7 @@ function KrogerQuickOrderButton({ cartItems, currentUser, isVisible = true }) {
   );
 }
 
-// ✅ NEW: Recipe Manager Widget
+// ✅ NEW: Recipe Manager Widget (unchanged)
 function RecipeManagerWidget({ savedRecipes, onRecipeSelect, onToggleRecipeManager }) {
   if (savedRecipes.length === 0) {
     return null;
@@ -277,7 +337,7 @@ function RecipeManagerWidget({ savedRecipes, onRecipeSelect, onToggleRecipeManag
   );
 }
 
-// Admin Menu Component
+// Admin Menu Component (unchanged)
 function AdminMenu({ currentUser, onShowAnalytics, onShowDemo, onShowSettings, onShowAdmin }) {
   const [isVisible, setIsVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -393,7 +453,19 @@ function GroceryListForm() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   
+  // 🆕 NEW: Loading states for individual operations
+  const [validatingAll, setValidatingAll] = useState(false);
+  const [reparsing, setReparsing] = useState(false);
+  
   const { currentUser, saveCartToFirebase } = useAuth();
+
+  // 🆕 NEW: Auto-save integration
+  const { 
+    draft, 
+    clearDraft, 
+    showDraftBanner, 
+    setShowDraftBanner 
+  } = useGroceryListAutoSave(inputText);
 
   // ✅ NEW: Load saved recipes on component mount
   useEffect(() => {
@@ -418,6 +490,15 @@ function GroceryListForm() {
           console.warn('Failed to parse saved recipes from localStorage:', parseError);
         }
       }
+    }
+  };
+
+  // 🆕 NEW: Handle draft restoration
+  const handleRestoreDraft = () => {
+    if (draft && draft.content) {
+      setInputText(draft.content);
+      setShowDraftBanner(false);
+      clearDraft();
     }
   };
 
@@ -464,6 +545,9 @@ function GroceryListForm() {
         setParsedItems(data.cart);
         setParsingStats(data.parsing?.stats || null);
         setShowResults(true);
+        
+        // 🆕 NEW: Clear draft after successful parsing
+        clearDraft();
         
         console.log(`✅ Intelligent parsing complete:`);
         console.log(`   - Products extracted: ${data.cart.length}`);
@@ -560,11 +644,11 @@ function GroceryListForm() {
     }
   };
 
-  // Smart reparse function
+  // Smart reparse function with loading state
   const handleSmartReparse = async () => {
     if (!parsedItems || parsedItems.length === 0) return;
     
-    setIsLoading(true);
+    setReparsing(true);
     try {
       const response = await fetch('/api/cart/smart-reparse', {
         method: 'POST',
@@ -586,15 +670,15 @@ function GroceryListForm() {
       console.error('❌ Smart reparse failed:', error);
       setError('Smart reparse failed. Please try again.');
     } finally {
-      setIsLoading(false);
+      setReparsing(false);
     }
   };
 
-  // Validate all products
+  // Validate all products with loading state
   const handleValidateAll = async () => {
     if (!parsedItems || parsedItems.length === 0) return;
     
-    setIsLoading(true);
+    setValidatingAll(true);
     try {
       const response = await fetch('/api/cart/validate-all', {
         method: 'POST',
@@ -614,7 +698,7 @@ function GroceryListForm() {
       console.error('❌ Validation failed:', error);
       setError('Product validation failed. Please try again.');
     } finally {
-      setIsLoading(false);
+      setValidatingAll(false);
     }
   };
 
@@ -625,6 +709,7 @@ function GroceryListForm() {
     setError('');
     setParsingStats(null);
     setShowValidator(false);
+    clearDraft(); // 🆕 NEW: Clear draft when starting new list
   };
 
   const handleShowValidator = () => {
@@ -641,6 +726,11 @@ function GroceryListForm() {
 
   return (
     <div style={styles.container}>
+      {/* 🆕 NEW: Loading overlay during parsing */}
+      {isLoading && (
+        <OverlaySpinner text="Processing your grocery list..." />
+      )}
+
       {/* Admin Menu */}
       <AdminMenu
         currentUser={currentUser}
@@ -653,7 +743,7 @@ function GroceryListForm() {
       {/* Hero Section */}
       <div style={styles.heroSection}>
         <h1 style={styles.heroTitle}>
-          CART SMASH.
+          Smart Cart.
           <br />
           <span style={styles.heroAccent}>Instantly.</span>
         </h1>
@@ -692,9 +782,24 @@ function GroceryListForm() {
 
       {/* Main Input Section */}
       <div style={styles.mainForm}>
+        {/* 🆕 NEW: Draft Restoration Banner */}
+        <DraftRestorationBanner 
+          draft={showDraftBanner ? draft : null}
+          onRestore={handleRestoreDraft}
+          onDismiss={() => {
+            setShowDraftBanner(false);
+            clearDraft();
+          }}
+        />
+
         <div style={styles.inputSection}>
           <label style={styles.inputLabel}>
             Paste or Create Grocery List
+            {draft && draft.content && (
+              <span style={styles.autoSaveIndicator}>
+                💾 Auto-saved
+              </span>
+            )}
           </label>
           <textarea
             value={inputText}
@@ -768,19 +873,19 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
               <button
                 type="button"
                 onClick={handleSmartReparse}
-                disabled={isLoading}
+                disabled={isLoading || reparsing}
                 style={styles.smartButton}
               >
-                🎯 Smart Reparse
+                {reparsing ? <ButtonSpinner /> : '🎯'} Smart Reparse
               </button>
               
               <button
                 type="button"
                 onClick={handleValidateAll}
-                disabled={isLoading}
+                disabled={isLoading || validatingAll}
                 style={styles.validateButton}
               >
-                🔍 Validate All
+                {validatingAll ? <ButtonSpinner /> : '🔍'} Validate All
               </button>
               
               <button
@@ -943,7 +1048,7 @@ function Header() {
       <div style={styles.headerContent}>
         <div style={styles.logo}>
           <div style={styles.logoIcon}>🎯</div>
-          <span style={styles.logoText}>CART SMASH</span>
+          <span style={styles.logoText}>SMART CART</span>
         </div>
         
         <div style={styles.headerActions}>
@@ -1156,6 +1261,82 @@ const styles = {
   container: {
     width: '100%',
     position: 'relative',
+  },
+
+  // 🆕 NEW: Draft banner styles
+  draftBanner: {
+    backgroundColor: '#fef3c7',
+    border: '1px solid #fbbf24',
+    borderRadius: '8px',
+    padding: '16px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(251, 191, 36, 0.2)',
+  },
+
+  draftBannerContent: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '12px',
+  },
+
+  draftBannerText: {
+    flex: 1,
+  },
+
+  draftBannerTitle: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#92400e',
+    marginBottom: '4px',
+  },
+
+  draftBannerPreview: {
+    fontSize: '14px',
+    color: '#78350f',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    maxWidth: '400px',
+  },
+
+  draftBannerActions: {
+    display: 'flex',
+    gap: '10px',
+  },
+
+  restoreButton: {
+    padding: '8px 16px',
+    backgroundColor: '#f59e0b',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+  },
+
+  dismissButton: {
+    padding: '8px 16px',
+    backgroundColor: 'transparent',
+    color: '#92400e',
+    border: '1px solid #f59e0b',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+
+  // 🆕 NEW: Auto-save indicator
+  autoSaveIndicator: {
+    marginLeft: '10px',
+    fontSize: '12px',
+    color: '#10b981',
+    fontWeight: 'normal',
+    opacity: 0.8,
   },
 
   // ✅ NEW: Cart action toggle styles
@@ -1704,6 +1885,7 @@ const styles = {
     padding: '32px',
     boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
     marginBottom: '48px',
+    position: 'relative',
   },
   
   inputSection: {
@@ -1711,7 +1893,8 @@ const styles = {
   },
   
   inputLabel: {
-    display: 'block',
+    display: 'flex',
+    alignItems: 'center',
     fontSize: '18px',
     fontWeight: '600',
     color: '#1f2937',
@@ -1800,6 +1983,9 @@ const styles = {
     cursor: 'pointer',
     fontWeight: 'bold',
     fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
   
   validateButton: {
@@ -1811,6 +1997,9 @@ const styles = {
     cursor: 'pointer',
     fontWeight: 'bold',
     fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
   
   reviewButton: {
