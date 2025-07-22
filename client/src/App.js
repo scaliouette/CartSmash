@@ -1,5 +1,5 @@
 ﻿// client/src/App.js - ENHANCED with Loading States + Auto-Save
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import ParsedResultsDisplay from './components/ParsedResultsDisplay';
@@ -15,7 +15,7 @@ import AdminDashboard from './components/AdminDashboard';
 
 // 🆕 NEW: Import Loading and Auto-Save
 import LoadingSpinner, { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './components/LoadingSpinner';
-import { useGroceryListAutoSave, useCartAutoSave, useSettingsAutoSave } from './hooks/useAutoSave';
+import { useGroceryListAutoSave, useCartAutoSave } from './hooks/useAutoSave';
 
 // 🆕 NEW: Import Kroger integration
 import KrogerOrderFlow from './components/KrogerOrderFlow';
@@ -215,13 +215,7 @@ function KrogerQuickOrderButton({ cartItems, currentUser, isVisible = true }) {
   const [krogerAuthStatus, setKrogerAuthStatus] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(false);
 
-  useEffect(() => {
-    if (isVisible && cartItems.length > 0) {
-      checkKrogerAuth();
-    }
-  }, [isVisible, cartItems.length]);
-
-  const checkKrogerAuth = async () => {
+  const checkKrogerAuth = useCallback(async () => {
     setCheckingAuth(true);
     try {
       const response = await fetch('/api/auth/kroger/status', {
@@ -236,7 +230,13 @@ function KrogerQuickOrderButton({ cartItems, currentUser, isVisible = true }) {
     } finally {
       setCheckingAuth(false);
     }
-  };
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
+    if (isVisible && cartItems.length > 0) {
+      checkKrogerAuth();
+    }
+  }, [isVisible, cartItems.length, checkKrogerAuth]);
 
   if (!isVisible || cartItems.length === 0) {
     return null;
@@ -489,8 +489,6 @@ function GroceryListForm() {
   
   // 🆕 NEW: Loading states for individual operations
   const [validatingAll, setValidatingAll] = useState(false);
-  const [reparsing, setReparsing] = useState(false);
-  const [savingRecipe, setSavingRecipe] = useState(false);
   
   const { currentUser, saveCartToFirebase } = useAuth();
 
@@ -500,8 +498,7 @@ function GroceryListForm() {
     clearDraft, 
     showDraftBanner, 
     setShowDraftBanner,
-    isSaving: isDraftSaving,
-    lastSaved: draftLastSaved
+    isSaving: isDraftSaving
   } = useGroceryListAutoSave(inputText);
 
   // 🆕 NEW: Cart auto-save
@@ -510,12 +507,6 @@ function GroceryListForm() {
     lastSync: cartLastSync,
     syncError: cartSyncError
   } = useCartAutoSave(parsedItems, currentUser?.uid);
-
-  // 🆕 NEW: Settings auto-save
-  const {
-    loadSettings,
-    isSaving: isSettingsSaving
-  } = useSettingsAutoSave(null);
 
   // ✅ NEW: Load saved recipes on component mount
   useEffect(() => {
@@ -678,18 +669,32 @@ function GroceryListForm() {
   // ✅ NEW: Recipe generated handler
   const handleRecipeGenerated = async (recipe) => {
     console.log('📝 Recipe generated from AI:', recipe.title);
-    setSavingRecipe(true);
+    setSavedRecipes(prev => [...prev, recipe]);
     
+    // Save to server
     try {
-      setSavedRecipes(prev => [...prev, recipe]);
+      const response = await fetch('/api/cart/recipes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipeInfo: recipe,
+          userId: currentUser?.uid || null
+        })
+      });
       
-      // Optionally auto-populate the grocery list with recipe ingredients
-      if (recipe.ingredients && recipe.ingredients.length > 0) {
-        const ingredientsList = recipe.ingredients.join('\n');
-        setInputText(ingredientsList);
+      if (response.ok) {
+        console.log('✅ Recipe saved to server');
+        loadSavedRecipes(); // Refresh from server
       }
-    } finally {
-      setSavingRecipe(false);
+    } catch (error) {
+      console.error('Failed to save recipe to server:', error);
+      // Still keep it in local state
+    }
+    
+    // Optionally auto-populate the grocery list with recipe ingredients
+    if (recipe.ingredients && recipe.ingredients.length > 0) {
+      const ingredientsList = recipe.ingredients.join('\n');
+      setInputText(ingredientsList);
     }
   };
 
@@ -716,36 +721,6 @@ function GroceryListForm() {
       } catch (firebaseError) {
         console.warn('Failed to save updated cart to Firebase:', firebaseError);
       }
-    }
-  };
-
-  // Smart reparse function with loading state
-  const handleSmartReparse = async () => {
-    if (!parsedItems || parsedItems.length === 0) return;
-    
-    setReparsing(true);
-    try {
-      const response = await fetch('/api/cart/smart-reparse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setParsedItems(data.cart);
-        setParsingStats(data.reparse?.stats || null);
-        
-        console.log(`🎯 Smart reparse complete: ${data.reparse?.originalItemCount} → ${data.reparse?.newItemCount} items`);
-        
-        if (data.reparse?.improvement > 0) {
-          alert(`🎉 Smart reparse improved your list! Found ${data.reparse.improvement} additional valid products.`);
-        }
-      }
-    } catch (error) {
-      console.error('❌ Smart reparse failed:', error);
-      setError('Smart reparse failed. Please try again.');
-    } finally {
-      setReparsing(false);
     }
   };
 
@@ -958,15 +933,6 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
                 style={styles.newListButton}
               >
                 📝 New List
-              </button>
-              
-              <button
-                type="button"
-                onClick={handleSmartReparse}
-                disabled={isLoading || reparsing}
-                style={styles.smartButton}
-              >
-                {reparsing ? <ButtonSpinner /> : '🎯'} Smart Reparse
               </button>
               
               <button
