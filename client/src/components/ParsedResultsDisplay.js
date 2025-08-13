@@ -4,16 +4,24 @@ import { InlineSpinner } from './LoadingSpinner';
 function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats }) {
   const [sortBy, setSortBy] = useState('confidence');
   const [filterBy, setFilterBy] = useState('all');
-  const [showStats, setShowStats] = useState(false); // ✅ FIX: Hidden by default
+  const [showStats, setShowStats] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   
-  // 🆕 NEW: Loading states for individual items
+  // State management
   const [updatingItems, setUpdatingItems] = useState(new Set());
   const [fetchingPrices, setFetchingPrices] = useState(new Set());
   const [exportingCSV, setExportingCSV] = useState(false);
+  const [selectedItems, setSelectedItems] = useState(new Set());
+  const [priceHistory, setPriceHistory] = useState({});
+  const [showPriceHistory, setShowPriceHistory] = useState(null);
+  const [mealGroups, setMealGroups] = useState({});
+  const [showMealPlanner, setShowMealPlanner] = useState(false);
+  const [newMealName, setNewMealName] = useState('');
+  const [viewMealGroups, setViewMealGroups] = useState(false);
+  const [validatingAll, setValidatingAll] = useState(false);
 
-  // ✅ FIX: Mobile detection
+  // Mobile detection
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -24,19 +32,42 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // 🆕 NEW: Fetch real-time prices on mount
+  // Fetch real-time prices on mount
   useEffect(() => {
     const itemsNeedingPrices = items.filter(item => !item.realPrice && item.productName);
     if (itemsNeedingPrices.length > 0) {
       fetchRealTimePrices(itemsNeedingPrices);
     }
-  }, [items.length]); // Only run when items count changes
+  }, [items.length]);
 
-  // 🆕 NEW: Fetch real-time prices for items
+  // Load meal groups from localStorage
+  useEffect(() => {
+    const savedMealGroups = localStorage.getItem('cartsmash-meal-groups');
+    if (savedMealGroups) {
+      try {
+        setMealGroups(JSON.parse(savedMealGroups));
+      } catch (e) {
+        console.error('Failed to load meal groups:', e);
+      }
+    }
+  }, []);
+
+  // Auto-save to localStorage whenever items change
+  useEffect(() => {
+    if (items && items.length > 0) {
+      try {
+        localStorage.setItem('cartsmash-current-cart', JSON.stringify(items));
+        console.log('✅ Cart saved locally');
+      } catch (e) {
+        console.error('Failed to save cart locally:', e);
+      }
+    }
+  }, [items]);
+
+  // Fetch real-time prices for items
   const fetchRealTimePrices = async (itemsToFetch) => {
     const itemIds = itemsToFetch.map(item => item.id);
     
-    // Add to fetching set
     setFetchingPrices(prev => new Set([...prev, ...itemIds]));
 
     try {
@@ -54,10 +85,23 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
       if (response.ok) {
         const data = await response.json();
         
-        // Update items with fetched prices
+        // Update items with fetched prices and save price history
         const updatedItems = items.map(item => {
           const priceData = data.prices[item.id];
           if (priceData) {
+            // Save to price history
+            setPriceHistory(prev => ({
+              ...prev,
+              [item.id]: [
+                ...(prev[item.id] || []),
+                {
+                  date: new Date().toISOString(),
+                  price: priceData.price,
+                  salePrice: priceData.salePrice
+                }
+              ]
+            }));
+            
             return {
               ...item,
               realPrice: priceData.price,
@@ -73,7 +117,6 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     } catch (error) {
       console.error('Failed to fetch prices:', error);
     } finally {
-      // Remove from fetching set
       setFetchingPrices(prev => {
         const newSet = new Set(prev);
         itemIds.forEach(id => newSet.delete(id));
@@ -82,21 +125,145 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     }
   };
 
-  // ✅ NEW: Common units for dropdown
+  // Smart unit detection using AI logic
+  const smartDetectUnit = (itemText) => {
+    const unitPatterns = {
+      weight: {
+        pattern: /(\d+(?:\.\d+)?)\s*(lbs?|pounds?|oz|ounces?|kg|kilograms?|g|grams?)/i,
+        units: ['lb', 'oz', 'kg', 'g']
+      },
+      volume: {
+        pattern: /(\d+(?:\.\d+)?)\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|ml|milliliters?|l|liters?|gal|gallons?|qt|quarts?|pt|pints?|fl\s*oz)/i,
+        units: ['cup', 'tbsp', 'tsp', 'ml', 'l', 'gal', 'qt', 'pt', 'fl oz']
+      },
+      container: {
+        pattern: /(cans?|bottles?|jars?|boxes?|bags?|packages?|containers?|cartons?|bunches?|heads?|loaves?)\s+of/i,
+        units: ['can', 'bottle', 'jar', 'box', 'bag', 'package', 'container']
+      },
+      count: {
+        pattern: /(\d+)\s*(dozen|pack|piece|clove)/i,
+        units: ['dozen', 'pack', 'piece', 'clove']
+      }
+    };
+
+    for (const [type, config] of Object.entries(unitPatterns)) {
+      const match = itemText.match(config.pattern);
+      if (match) {
+        const unit = match[2] || match[1];
+        // Normalize unit
+        if (unit.toLowerCase().includes('pound')) return 'lb';
+        if (unit.toLowerCase().includes('ounce')) return 'oz';
+        if (unit.toLowerCase().includes('gram')) return 'g';
+        if (unit.toLowerCase().includes('kilogram')) return 'kg';
+        if (unit.toLowerCase().includes('tablespoon')) return 'tbsp';
+        if (unit.toLowerCase().includes('teaspoon')) return 'tsp';
+        return unit.toLowerCase();
+      }
+    }
+    
+    return 'each'; // default
+  };
+
+  // Batch operations
+  const handleBulkOperation = (operation) => {
+    let updatedItems = [...items];
+    let message = '';
+
+    switch (operation) {
+      case 'delete-low-confidence':
+        const lowConfItems = items.filter(item => (item.confidence || 0) < 0.6);
+        if (lowConfItems.length > 0 && window.confirm(`Remove ${lowConfItems.length} low confidence items?`)) {
+          updatedItems = items.filter(item => (item.confidence || 0) >= 0.6);
+          message = `Removed ${lowConfItems.length} items`;
+        }
+        break;
+
+      case 'delete-selected':
+        if (selectedItems.size > 0 && window.confirm(`Remove ${selectedItems.size} selected items?`)) {
+          updatedItems = items.filter(item => !selectedItems.has(item.id));
+          message = `Removed ${selectedItems.size} items`;
+          setSelectedItems(new Set());
+        }
+        break;
+
+      case 'validate-all':
+        setValidatingAll(true);
+        // Validate and auto-detect units for all items
+        updatedItems = items.map(item => {
+          const detectedUnit = smartDetectUnit(item.original || item.itemName || item.name);
+          return {
+            ...item,
+            unit: item.unit === 'unit' || !item.unit ? detectedUnit : item.unit,
+            confidence: Math.min((item.confidence || 0.7) + 0.2, 1),
+            needsReview: false,
+            validated: true
+          };
+        });
+        message = 'All items validated and units detected';
+        setTimeout(() => setValidatingAll(false), 1000);
+        break;
+
+      default:
+        break;
+    }
+
+    if (message) {
+      onItemsChange(updatedItems);
+      // Save to localStorage immediately
+      localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+    }
+  };
+
+  // Add items to meal group
+  const addToMealGroup = (mealName) => {
+    if (!mealName || selectedItems.size === 0) return;
+
+    const selectedItemsList = items
+      .filter(item => selectedItems.has(item.id))
+      .map(item => ({
+        id: item.id,
+        name: item.productName || item.itemName,
+        quantity: item.quantity,
+        unit: item.unit,
+        category: item.category
+      }));
+
+    const updatedMealGroups = {
+      ...mealGroups,
+      [mealName]: [...(mealGroups[mealName] || []), ...selectedItemsList]
+    };
+
+    setMealGroups(updatedMealGroups);
+    localStorage.setItem('cartsmash-meal-groups', JSON.stringify(updatedMealGroups));
+    setSelectedItems(new Set());
+    setNewMealName('');
+    alert(`Added ${selectedItemsList.length} items to "${mealName}"`);
+  };
+
+  // Toggle all items selection
+  const toggleSelectAll = () => {
+    if (selectedItems.size === filteredAndSortedItems.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(filteredAndSortedItems.map(item => item.id)));
+    }
+  };
+
+  // Common units for dropdown
   const commonUnits = [
     { value: 'each', label: 'each' },
-    { value: 'lbs', label: 'lbs' },
+    { value: 'lb', label: 'lb' },
     { value: 'oz', label: 'oz' },
     { value: 'kg', label: 'kg' },
     { value: 'g', label: 'g' },
-    { value: 'cups', label: 'cups' },
+    { value: 'cup', label: 'cup' },
     { value: 'tbsp', label: 'tbsp' },
     { value: 'tsp', label: 'tsp' },
-    { value: 'l', label: 'liters' },
+    { value: 'l', label: 'liter' },
     { value: 'ml', label: 'ml' },
-    { value: 'gal', label: 'gallons' },
-    { value: 'qt', label: 'quarts' },
-    { value: 'pt', label: 'pints' },
+    { value: 'gal', label: 'gallon' },
+    { value: 'qt', label: 'quart' },
+    { value: 'pt', label: 'pint' },
     { value: 'fl oz', label: 'fl oz' },
     { value: 'dozen', label: 'dozen' },
     { value: 'can', label: 'can' },
@@ -109,8 +276,7 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     { value: 'bunch', label: 'bunch' },
     { value: 'head', label: 'head' },
     { value: 'loaf', label: 'loaf' },
-    { value: 'piece', label: 'piece' },
-    { value: 'clove', label: 'clove' }
+    { value: 'piece', label: 'piece' }
   ];
 
   // Filter and sort items
@@ -127,10 +293,10 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
       if (sortBy === 'category') {
         const catCompare = (a.category || '').localeCompare(b.category || '');
         if (catCompare !== 0) return catCompare;
-        // Secondary sort by name within category
         return (a.productName || a.itemName || '').localeCompare(b.productName || b.itemName || '');
       }
       if (sortBy === 'name') return (a.productName || a.itemName || '').localeCompare(b.productName || b.itemName || '');
+      if (sortBy === 'price') return (b.realPrice || 0) - (a.realPrice || 0);
       return 0;
     });
 
@@ -148,7 +314,8 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
         return sum + (item.realPrice * (item.quantity || 1));
       }
       return sum;
-    }, 0)
+    }, 0),
+    selectedCount: selectedItems.size
   };
 
   const getConfidenceColor = (confidence) => {
@@ -163,7 +330,6 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     return 'Low';
   };
 
-  // ✅ NEW: Get category icon
   const getCategoryIcon = (category) => {
     const icons = {
       'produce': '🥬',
@@ -179,18 +345,17 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     return icons[category] || '📦';
   };
 
-  // ✅ ENHANCED: Item edit with server update and loading state
   const handleItemEdit = async (itemId, field, value) => {
-    // Add to updating set
     setUpdatingItems(prev => new Set([...prev, itemId]));
 
-    // Update locally first for immediate UI response
     const updatedItems = items.map(item => 
       item.id === itemId ? { ...item, [field]: value } : item
     );
     onItemsChange(updatedItems);
     
-    // Update on server
+    // Save to localStorage
+    localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+    
     try {
       const response = await fetch(`/api/cart/items/${itemId}`, {
         method: 'PUT',
@@ -200,12 +365,10 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
       
       if (!response.ok) {
         console.error('Failed to update item on server');
-        // Could revert the change here if needed
       }
     } catch (error) {
       console.error('Error updating item:', error);
     } finally {
-      // Remove from updating set
       setUpdatingItems(prev => {
         const newSet = new Set(prev);
         newSet.delete(itemId);
@@ -216,14 +379,13 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
 
   const handleRemoveItem = async (itemId) => {
     if (window.confirm('Are you sure you want to remove this item?')) {
-      // Add to updating set
       setUpdatingItems(prev => new Set([...prev, itemId]));
 
       try {
         const updatedItems = items.filter(item => item.id !== itemId);
         onItemsChange(updatedItems);
+        localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
       } finally {
-        // Remove from updating set
         setUpdatingItems(prev => {
           const newSet = new Set(prev);
           newSet.delete(itemId);
@@ -237,17 +399,24 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     setExportingCSV(true);
     
     try {
-      const headers = ['Product Name', 'Quantity', 'Unit', 'Category', 'Confidence', 'Price'];
+      const headers = ['Product Name', 'Quantity', 'Unit', 'Category', 'Confidence', 'Price', 'Meal Group'];
       const csvContent = [
         headers.join(','),
-        ...items.map(item => [
-          `"${item.productName || item.itemName}"`,
-          item.quantity || 1,
-          item.unit || 'each',
-          item.category || 'other',
-          ((item.confidence || 0) * 100).toFixed(0) + '%',
-          item.realPrice ? `$${item.realPrice.toFixed(2)}` : 'N/A'
-        ].join(','))
+        ...items.map(item => {
+          const mealGroup = Object.entries(mealGroups).find(([meal, mealItems]) => 
+            mealItems.some(i => i.id === item.id)
+          );
+          
+          return [
+            `"${item.productName || item.itemName}"`,
+            item.quantity || 1,
+            item.unit || 'each',
+            item.category || 'other',
+            ((item.confidence || 0) * 100).toFixed(0) + '%',
+            item.realPrice ? `$${item.realPrice.toFixed(2)}` : 'N/A',
+            mealGroup ? `"${mealGroup[0]}"` : ''
+          ].join(',');
+        })
       ].join('\n');
       
       const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -283,7 +452,6 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     ));
   };
 
-  // 🆕 NEW: Refresh prices for items without prices
   const handleRefreshPrices = async () => {
     const itemsNeedingPrices = filteredAndSortedItems.filter(item => !item.realPrice && item.productName);
     if (itemsNeedingPrices.length > 0) {
@@ -293,115 +461,170 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
     }
   };
 
-  // ✅ NEW: Render individual item as line item with loading states
+  // Render individual item
   const renderItem = (item, index) => {
     const isUpdating = updatingItems.has(item.id);
     const isFetchingPrice = fetchingPrices.has(item.id);
+    const isSelected = selectedItems.has(item.id);
+    const itemPriceHistory = priceHistory[item.id] || [];
 
     return (
-      <div 
-        key={item.id || index} 
-        style={{
-          ...styles.itemRow,
-          ...(index % 2 === 0 ? styles.itemRowEven : {}),
-          ...(editingItem === item.id ? styles.itemRowEditing : {}),
-          ...(isUpdating ? styles.itemRowUpdating : {})
-        }}
-      >
-        {/* Category Icon */}
-        <div style={styles.itemCategory}>
-          <span title={item.category}>{getCategoryIcon(item.category)}</span>
-        </div>
-
-        {/* Product Name */}
-        <div style={styles.itemName}>
-          {editingItem === item.id ? (
-            <input
-              type="text"
-              value={item.productName || item.itemName || ''}
-              onChange={(e) => handleItemEdit(item.id, 'productName', e.target.value)}
-              onBlur={() => setEditingItem(null)}
-              onKeyPress={(e) => e.key === 'Enter' && setEditingItem(null)}
-              style={styles.itemNameInput}
-              autoFocus
-            />
-          ) : (
-            <span 
-              onClick={() => setEditingItem(item.id)}
-              style={styles.itemNameText}
-              title="Click to edit"
-            >
-              {item.productName || item.itemName}
-            </span>
-          )}
-        </div>
-
-        {/* Quantity */}
-        <div style={styles.itemQuantity}>
-          <input
-            type="number"
-            value={item.quantity || 1}
-            onChange={(e) => handleItemEdit(item.id, 'quantity', parseFloat(e.target.value) || 1)}
-            style={styles.quantityInput}
-            min="0"
-            step="0.25"
-            disabled={isUpdating}
-          />
-        </div>
-
-        {/* Unit */}
-        <div style={styles.itemUnit}>
-          <select
-            value={item.unit || 'each'}
-            onChange={(e) => handleItemEdit(item.id, 'unit', e.target.value)}
-            style={styles.unitSelect}
-            disabled={isUpdating}
-          >
-            {commonUnits.map(unit => (
-              <option key={unit.value} value={unit.value}>
-                {unit.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Confidence */}
-        <div style={styles.itemConfidence}>
-          <span 
+      <div key={item.id || index}>
+        <div 
+          style={{
+            ...styles.itemRow,
+            ...(index % 2 === 0 ? styles.itemRowEven : {}),
+            ...(editingItem === item.id ? styles.itemRowEditing : {}),
+            ...(isUpdating ? styles.itemRowUpdating : {}),
+            ...(isSelected ? styles.itemRowSelected : {})
+          }}
+        >
+          {/* Selection checkbox with better visual */}
+          <div 
             style={{
-              ...styles.confidenceBadge,
-              backgroundColor: getConfidenceColor(item.confidence || 0)
+              ...styles.itemCheckbox,
+              ...(isSelected ? styles.itemCheckboxSelected : {})
+            }}
+            onClick={() => {
+              const newSelected = new Set(selectedItems);
+              if (isSelected) {
+                newSelected.delete(item.id);
+              } else {
+                newSelected.add(item.id);
+              }
+              setSelectedItems(newSelected);
             }}
           >
-            {getConfidenceLabel(item.confidence || 0)}
-          </span>
-        </div>
+            <div style={{
+              ...styles.checkboxVisual,
+              ...(isSelected ? styles.checkboxVisualSelected : {})
+            }}>
+              {isSelected && '✓'}
+            </div>
+          </div>
 
-        {/* Price (if available) with loading state */}
-        <div style={styles.itemPrice}>
-          {isFetchingPrice ? (
-            <InlineSpinner text="" color="#10b981" />
-          ) : item.realPrice ? (
-            <span>${(item.realPrice * (item.quantity || 1)).toFixed(2)}</span>
-          ) : (
-            <span style={{ color: '#9ca3af' }}>--</span>
-          )}
-        </div>
+          {/* Category Icon */}
+          <div style={styles.itemCategory}>
+            <span title={item.category}>{getCategoryIcon(item.category)}</span>
+          </div>
 
-        {/* Actions */}
-        <div style={styles.itemActions}>
-          {isUpdating ? (
-            <InlineSpinner text="" color="#6b7280" />
-          ) : (
-            <button
-              onClick={() => handleRemoveItem(item.id)}
-              style={styles.removeButton}
-              title="Remove item"
+          {/* Product Name */}
+          <div style={styles.itemName}>
+            {editingItem === item.id ? (
+              <input
+                type="text"
+                value={item.productName || item.itemName || ''}
+                onChange={(e) => handleItemEdit(item.id, 'productName', e.target.value)}
+                onBlur={() => setEditingItem(null)}
+                onKeyPress={(e) => e.key === 'Enter' && setEditingItem(null)}
+                style={styles.itemNameInput}
+                autoFocus
+              />
+            ) : (
+              <span 
+                onClick={() => setEditingItem(item.id)}
+                style={styles.itemNameText}
+                title="Click to edit"
+              >
+                {item.productName || item.itemName}
+              </span>
+            )}
+          </div>
+
+          {/* Quantity */}
+          <div style={styles.itemQuantity}>
+            <input
+              type="number"
+              value={item.quantity || 1}
+              onChange={(e) => handleItemEdit(item.id, 'quantity', parseFloat(e.target.value) || 1)}
+              style={styles.quantityInput}
+              min="0"
+              step="0.25"
+              disabled={isUpdating}
+            />
+          </div>
+
+          {/* Unit */}
+          <div style={styles.itemUnit}>
+            <select
+              value={item.unit || 'each'}
+              onChange={(e) => handleItemEdit(item.id, 'unit', e.target.value)}
+              style={styles.unitSelect}
+              disabled={isUpdating}
             >
-              ×
-            </button>
-          )}
+              {commonUnits.map(unit => (
+                <option key={unit.value} value={unit.value}>
+                  {unit.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Confidence */}
+          <div style={styles.itemConfidence}>
+            <span 
+              style={{
+                ...styles.confidenceBadge,
+                backgroundColor: getConfidenceColor(item.confidence || 0)
+              }}
+            >
+              {getConfidenceLabel(item.confidence || 0)}
+            </span>
+          </div>
+
+          {/* Price with history button */}
+          <div style={styles.itemPrice}>
+            {isFetchingPrice ? (
+              <InlineSpinner text="" color="#10b981" />
+            ) : item.realPrice ? (
+              <>
+                <span>${(item.realPrice * (item.quantity || 1)).toFixed(2)}</span>
+                {itemPriceHistory.length > 0 && (
+                  <button
+                    onClick={() => setShowPriceHistory(showPriceHistory === item.id ? null : item.id)}
+                    style={styles.priceHistoryButton}
+                    title="View price history"
+                  >
+                    📈
+                  </button>
+                )}
+              </>
+            ) : (
+              <span style={{ color: '#9ca3af' }}>--</span>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div style={styles.itemActions}>
+            {isUpdating ? (
+              <InlineSpinner text="" color="#6b7280" />
+            ) : (
+              <button
+                onClick={() => handleRemoveItem(item.id)}
+                style={styles.removeButton}
+                title="Remove item"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Price history panel */}
+        {showPriceHistory === item.id && itemPriceHistory.length > 0 && (
+          <div style={styles.priceHistoryPanel}>
+            <div style={styles.priceHistoryHeader}>📈 Price History:</div>
+            <div style={styles.priceHistoryList}>
+              {itemPriceHistory.slice(-5).reverse().map((history, idx) => (
+                <div key={idx} style={styles.priceHistoryItem}>
+                  <span>{new Date(history.date).toLocaleDateString()}</span>
+                  <span>${history.price.toFixed(2)}</span>
+                  {history.salePrice && <span style={styles.salePrice}>Sale: ${history.salePrice.toFixed(2)}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -442,6 +665,156 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
           </button>
         </div>
       </div>
+
+      {/* Batch Operations Bar */}
+      {(selectedItems.size > 0 || items.some(i => i.confidence < 0.6)) && (
+        <div style={styles.batchOperationsBar}>
+          <div style={styles.batchOperationsTitle}>
+            {selectedItems.size > 0 ? `${selectedItems.size} items selected` : 'Batch Operations:'}
+          </div>
+          <div style={styles.batchOperationsButtons}>
+            {selectedItems.size > 0 && (
+              <>
+                <button
+                  onClick={() => handleBulkOperation('delete-selected')}
+                  style={styles.batchButton}
+                >
+                  🗑️ Delete Selected
+                </button>
+                <button
+                  onClick={() => setShowMealPlanner(true)}
+                  style={styles.batchButton}
+                >
+                  🍽️ Add to Meal
+                </button>
+                <button
+                  onClick={() => setViewMealGroups(!viewMealGroups)}
+                  style={styles.batchButton}
+                >
+                  👁️ View Meals
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => handleBulkOperation('validate-all')}
+              style={styles.batchButtonSuccess}
+              disabled={validatingAll}
+            >
+              {validatingAll ? <InlineSpinner text="Validating..." /> : '✅ Validate All'}
+            </button>
+            {items.some(i => (i.confidence || 0) < 0.6) && (
+              <button
+                onClick={() => handleBulkOperation('delete-low-confidence')}
+                style={styles.batchButtonDanger}
+              >
+                ⚠️ Remove Low Confidence
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Meal Planner Modal */}
+      {showMealPlanner && (
+        <div style={styles.mealPlannerModal}>
+          <div style={styles.mealPlannerContent}>
+            <h4 style={styles.mealPlannerTitle}>🍽️ Add to Meal Plan</h4>
+            <p>Adding {selectedItems.size} items to meal:</p>
+            
+            <input
+              type="text"
+              placeholder="Enter meal name (e.g., Monday Dinner)"
+              value={newMealName}
+              onChange={(e) => setNewMealName(e.target.value)}
+              style={styles.mealNameInput}
+            />
+            
+            {Object.keys(mealGroups).length > 0 && (
+              <div style={styles.existingMeals}>
+                <p>Or add to existing meal:</p>
+                {Object.keys(mealGroups).map(meal => (
+                  <button
+                    key={meal}
+                    onClick={() => {
+                      addToMealGroup(meal);
+                      setShowMealPlanner(false);
+                    }}
+                    style={styles.existingMealButton}
+                  >
+                    {meal} ({mealGroups[meal].length} items)
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            <div style={styles.mealPlannerActions}>
+              <button
+                onClick={() => {
+                  if (newMealName) {
+                    addToMealGroup(newMealName);
+                    setShowMealPlanner(false);
+                  }
+                }}
+                style={styles.mealPlannerSave}
+                disabled={!newMealName}
+              >
+                Save to Meal
+              </button>
+              <button
+                onClick={() => setShowMealPlanner(false)}
+                style={styles.mealPlannerCancel}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Meal Groups Modal */}
+      {viewMealGroups && Object.keys(mealGroups).length > 0 && (
+        <div style={styles.mealGroupsModal}>
+          <div style={styles.mealGroupsContent}>
+            <h4 style={styles.mealGroupsTitle}>🍽️ Meal Groups</h4>
+            <button
+              onClick={() => setViewMealGroups(false)}
+              style={styles.mealGroupsClose}
+            >
+              ×
+            </button>
+            
+            {Object.entries(mealGroups).map(([meal, mealItems]) => (
+              <div key={meal} style={styles.mealGroupSection}>
+                <div style={styles.mealGroupHeader}>
+                  <h5 style={styles.mealGroupName}>{meal}</h5>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Remove meal group "${meal}"?`)) {
+                        const updated = { ...mealGroups };
+                        delete updated[meal];
+                        setMealGroups(updated);
+                        localStorage.setItem('cartsmash-meal-groups', JSON.stringify(updated));
+                      }
+                    }}
+                    style={styles.mealGroupDeleteButton}
+                  >
+                    Delete Meal
+                  </button>
+                </div>
+                <div style={styles.mealItemsList}>
+                  {mealItems.map((item, idx) => (
+                    <div key={idx} style={styles.mealItem}>
+                      <span>{getCategoryIcon(item.category)}</span>
+                      <span>{item.quantity} {item.unit}</span>
+                      <span>{item.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats Panel (Collapsible) */}
       {showStats && (
@@ -494,6 +867,7 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
             <option value="confidence">Confidence (High to Low)</option>
             <option value="category">Category (A to Z)</option>
             <option value="name">Name (A to Z)</option>
+            <option value="price">Price (High to Low)</option>
           </select>
         </div>
 
@@ -524,6 +898,17 @@ function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats 
 
       {/* List Header */}
       <div style={styles.listHeader}>
+        <div 
+          style={styles.headerCheckbox}
+          onClick={toggleSelectAll}
+        >
+          <div style={{
+            ...styles.checkboxVisual,
+            ...(selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? styles.checkboxVisualSelected : {})
+          }}>
+            {selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 && '✓'}
+          </div>
+        </div>
         <div style={styles.headerCategory}></div>
         <div style={styles.headerName}>Product Name</div>
         <div style={styles.headerQuantity}>Qty</div>
@@ -606,7 +991,6 @@ const styles = {
     fontWeight: '500'
   },
 
-  // 🆕 NEW: Refresh button
   refreshButton: {
     padding: '8px 16px',
     backgroundColor: '#f59e0b',
@@ -635,6 +1019,245 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // Batch operations styles
+  batchOperationsBar: {
+    background: '#fef3c7',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    marginBottom: '16px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '10px',
+    border: '1px solid #fbbf24'
+  },
+
+  batchOperationsTitle: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#92400e'
+  },
+
+  batchOperationsButtons: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap'
+  },
+
+  batchButton: {
+    padding: '6px 12px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '500'
+  },
+
+  batchButtonSuccess: {
+    padding: '6px 12px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '500',
+    minWidth: '110px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  batchButtonDanger: {
+    padding: '6px 12px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '500'
+  },
+
+  // Meal planner modal styles
+  mealPlannerModal: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 3000
+  },
+
+  mealPlannerContent: {
+    backgroundColor: 'white',
+    padding: '24px',
+    borderRadius: '12px',
+    width: '90%',
+    maxWidth: '400px',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+  },
+
+  mealPlannerTitle: {
+    margin: '0 0 16px 0',
+    fontSize: '20px',
+    color: '#1f2937'
+  },
+
+  mealNameInput: {
+    width: '100%',
+    padding: '10px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px',
+    marginTop: '8px'
+  },
+
+  existingMeals: {
+    marginTop: '16px',
+    paddingTop: '16px',
+    borderTop: '1px solid #e5e7eb'
+  },
+
+  existingMealButton: {
+    display: 'block',
+    width: '100%',
+    padding: '8px',
+    marginTop: '8px',
+    backgroundColor: '#f3f4f6',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    textAlign: 'left'
+  },
+
+  mealPlannerActions: {
+    display: 'flex',
+    gap: '10px',
+    marginTop: '20px'
+  },
+
+  mealPlannerSave: {
+    flex: 1,
+    padding: '10px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: '500'
+  },
+
+  mealPlannerCancel: {
+    flex: 1,
+    padding: '10px',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: '500'
+  },
+
+  // Meal groups modal
+  mealGroupsModal: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 3000
+  },
+
+  mealGroupsContent: {
+    backgroundColor: 'white',
+    padding: '24px',
+    borderRadius: '12px',
+    width: '90%',
+    maxWidth: '600px',
+    maxHeight: '80vh',
+    overflowY: 'auto',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+    position: 'relative'
+  },
+
+  mealGroupsTitle: {
+    margin: '0 0 20px 0',
+    fontSize: '24px',
+    color: '#1f2937'
+  },
+
+  mealGroupsClose: {
+    position: 'absolute',
+    top: '20px',
+    right: '20px',
+    background: 'none',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    color: '#6b7280'
+  },
+
+  mealGroupSection: {
+    marginBottom: '20px',
+    padding: '16px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '8px',
+    border: '1px solid #e5e7eb'
+  },
+
+  mealGroupHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px'
+  },
+
+  mealGroupName: {
+    margin: 0,
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#1f2937'
+  },
+
+  mealGroupDeleteButton: {
+    padding: '6px 12px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '500'
+  },
+
+  mealItemsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+
+  mealItem: {
+    display: 'flex',
+    gap: '12px',
+    padding: '8px',
+    backgroundColor: 'white',
+    borderRadius: '6px',
+    fontSize: '14px',
+    alignItems: 'center'
   },
 
   statsPanel: {
@@ -707,10 +1330,9 @@ const styles = {
     backgroundColor: 'white'
   },
 
-  // ✅ NEW: List styles
   listHeader: {
     display: 'grid',
-    gridTemplateColumns: '40px 1fr 80px 120px 70px 80px 40px',
+    gridTemplateColumns: '40px 40px 1fr 80px 120px 70px 80px 40px',
     gap: '10px',
     padding: '10px 15px',
     backgroundColor: '#f3f4f6',
@@ -718,9 +1340,16 @@ const styles = {
     fontSize: '13px',
     fontWeight: '600',
     color: '#374151',
-    borderBottom: '2px solid #e5e7eb'
+    borderBottom: '2px solid #e5e7eb',
+    alignItems: 'center'
   },
 
+  headerCheckbox: { 
+    textAlign: 'center',
+    cursor: 'pointer',
+    display: 'flex',
+    justifyContent: 'center'
+  },
   headerCategory: { textAlign: 'center' },
   headerName: {},
   headerQuantity: { textAlign: 'center' },
@@ -738,7 +1367,6 @@ const styles = {
     borderTop: 'none'
   },
 
-  // ✅ NEW: Category header styles
   categoryHeader: {
     display: 'flex',
     alignItems: 'center',
@@ -768,10 +1396,9 @@ const styles = {
     fontWeight: 'normal'
   },
 
-  // ✅ NEW: Item row styles
   itemRow: {
     display: 'grid',
-    gridTemplateColumns: '40px 1fr 80px 120px 70px 80px 40px',
+    gridTemplateColumns: '40px 40px 1fr 80px 120px 70px 80px 40px',
     gap: '10px',
     padding: '10px 15px',
     borderBottom: '1px solid #f3f4f6',
@@ -789,10 +1416,48 @@ const styles = {
     boxShadow: 'inset 0 0 0 2px #3b82f6'
   },
 
-  // 🆕 NEW: Updating row style
   itemRowUpdating: {
     opacity: 0.7,
     pointerEvents: 'none'
+  },
+
+  itemRowSelected: {
+    backgroundColor: '#fef3c7'
+  },
+
+  itemCheckbox: {
+    textAlign: 'center',
+    cursor: 'pointer',
+    padding: '4px',
+    borderRadius: '4px',
+    transition: 'background-color 0.2s',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+
+  itemCheckboxSelected: {
+    backgroundColor: 'rgba(251, 191, 36, 0.2)'
+  },
+
+  checkboxVisual: {
+    width: '20px',
+    height: '20px',
+    border: '2px solid #d1d5db',
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    transition: 'all 0.2s',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: 'white'
+  },
+
+  checkboxVisualSelected: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6'
   },
 
   itemCategory: {
@@ -801,7 +1466,10 @@ const styles = {
   },
 
   itemName: {
-    overflow: 'hidden'
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
   },
 
   itemNameText: {
@@ -874,6 +1542,15 @@ const styles = {
     display: 'flex',
     justifyContent: 'flex-end',
     alignItems: 'center',
+    gap: '4px'
+  },
+
+  priceHistoryButton: {
+    padding: '2px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '14px'
   },
 
   itemActions: {
@@ -897,6 +1574,43 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     transition: 'opacity 0.2s'
+  },
+
+  priceHistoryPanel: {
+    background: '#ecfdf5',
+    padding: '12px',
+    marginLeft: '80px',
+    marginRight: '15px',
+    marginBottom: '8px',
+    borderRadius: '8px',
+    border: '1px solid #10b981'
+  },
+
+  priceHistoryHeader: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#065f46',
+    marginBottom: '8px'
+  },
+
+  priceHistoryList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    fontSize: '13px'
+  },
+
+  priceHistoryItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '4px 8px',
+    backgroundColor: 'white',
+    borderRadius: '4px'
+  },
+
+  salePrice: {
+    color: '#ef4444',
+    fontWeight: '600'
   },
 
   totalSummary: {
