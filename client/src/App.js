@@ -885,7 +885,9 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
   // Load saved recipes function
   const loadSavedRecipes = async () => {
     try {
-      const response = await fetch('/api/cart/recipes');
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/cart/recipes`);
+      
       if (response.ok) {
         const data = await response.json();
         setSavedRecipes(data.recipes || []);
@@ -1307,7 +1309,8 @@ function App() {
   useEffect(() => {
     const loadSavedRecipes = async () => {
       try {
-        const response = await fetch('/api/cart/recipes');
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+        const response = await fetch(`${API_URL}/api/cart/recipes`);
         if (response.ok) {
           const data = await response.json();
           setSavedRecipes(data.recipes || []);
