@@ -1,7 +1,41 @@
 // client/src/contexts/AuthContext.js
-import React, { createContext, useState, useContext, useEffect } from 'react';
+// HYBRID VERSION - Works with or without Firebase
 
-const AuthContext = createContext();
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
+// Try to import Firebase, but don't fail if it's not configured
+let firebaseAuth = null;
+let GoogleAuthProvider = null;
+let signInWithPopup = null;
+let createUserWithEmailAndPassword = null;
+let signInWithEmailAndPassword = null;
+let firebaseSignOut = null;
+let onAuthStateChanged = null;
+let updateProfile = null;
+
+try {
+  const firebaseAuthModule = require('firebase/auth');
+  GoogleAuthProvider = firebaseAuthModule.GoogleAuthProvider;
+  signInWithPopup = firebaseAuthModule.signInWithPopup;
+  createUserWithEmailAndPassword = firebaseAuthModule.createUserWithEmailAndPassword;
+  signInWithEmailAndPassword = firebaseAuthModule.signInWithEmailAndPassword;
+  firebaseSignOut = firebaseAuthModule.signOut;
+  onAuthStateChanged = firebaseAuthModule.onAuthStateChanged;
+  updateProfile = firebaseAuthModule.updateProfile;
+  
+  // Try to get auth instance
+  try {
+    const { auth } = require('../firebase');
+    firebaseAuth = auth;
+    console.log('✅ Firebase Auth loaded successfully');
+  } catch (e) {
+    console.warn('⚠️ Firebase not configured, using mock auth');
+  }
+} catch (error) {
+  console.warn('⚠️ Firebase Auth not available, using mock auth');
+}
+
+const AuthContext = createContext({});
 
 export function useAuth() {
   return useContext(AuthContext);
@@ -9,353 +43,232 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [userProfile, setUserProfile] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isUsingMockAuth, setIsUsingMockAuth] = useState(!firebaseAuth);
 
-  // Check for existing session on mount
-  useEffect(() => {
-    const token = localStorage.getItem('cartsmash-token');
-    const user = localStorage.getItem('cartsmash-user');
-    
-    if (token && user) {
-      try {
-        const userData = JSON.parse(user);
-        setCurrentUser(userData);
-        loadUserProfile(userData.id);
-      } catch (error) {
-        console.error('Error loading user session:', error);
-        localStorage.removeItem('cartsmash-token');
-        localStorage.removeItem('cartsmash-user');
-      }
-    }
-    setLoading(false);
-  }, []);
-
-  // Load user profile from backend
-  const loadUserProfile = async (userId) => {
+  // Sign up with email and password
+  async function signUpWithEmail(email, password, displayName = '') {
     try {
-      const response = await fetch(`/api/users/${userId}/profile`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('cartsmash-token')}`
-        }
-      });
+      setError('');
       
-      if (response.ok) {
-        const profile = await response.json();
-        setUserProfile(profile);
-        
-        // Load user-specific data
-        loadUserData(userId);
-      }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
-    }
-  };
-
-  // Load all user data (lists, meals, recipes, etc.)
-  const loadUserData = async (userId) => {
-    try {
-      // Load saved lists
-      const listsResponse = await fetch(`/api/users/${userId}/lists`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('cartsmash-token')}`
+      if (firebaseAuth && createUserWithEmailAndPassword) {
+        // Use real Firebase
+        const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        if (displayName && userCredential.user) {
+          await updateProfile(userCredential.user, { displayName });
         }
-      });
-      
-      if (listsResponse.ok) {
-        const lists = await listsResponse.json();
-        localStorage.setItem('cartsmash-saved-lists', JSON.stringify(lists));
-      }
-
-      // Load meal plans
-      const mealsResponse = await fetch(`/api/users/${userId}/meals`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('cartsmash-token')}`
-        }
-      });
-      
-      if (mealsResponse.ok) {
-        const meals = await mealsResponse.json();
-        localStorage.setItem('cartsmash-meal-groups', JSON.stringify(meals));
-      }
-
-      // Load recipes
-      const recipesResponse = await fetch(`/api/users/${userId}/recipes`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('cartsmash-token')}`
-        }
-      });
-      
-      if (recipesResponse.ok) {
-        const recipes = await recipesResponse.json();
-        localStorage.setItem('cartsmash-recipes', JSON.stringify(recipes));
-      }
-    } catch (error) {
-      console.error('Error loading user data:', error);
-    }
-  };
-
-  // Sign up
-  const signup = async (email, password, displayName) => {
-    try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, displayName })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Store token and user
-        localStorage.setItem('cartsmash-token', data.token);
-        localStorage.setItem('cartsmash-user', JSON.stringify(data.user));
-        
-        setCurrentUser(data.user);
-        loadUserProfile(data.user.id);
-        
-        return { success: true };
+        return userCredential.user;
       } else {
-        const error = await response.json();
-        return { success: false, error: error.message };
+        // Use mock auth
+        console.log('📧 Mock Sign Up:', email);
+        const mockUser = {
+          uid: 'mock-' + Date.now(),
+          email: email,
+          displayName: displayName || email.split('@')[0]
+        };
+        setCurrentUser(mockUser);
+        localStorage.setItem('mockUser', JSON.stringify(mockUser));
+        alert(`✅ Demo Mode: Signed up as ${email}\n(No real account created)`);
+        return mockUser;
       }
     } catch (error) {
-      console.error('Signup error:', error);
-      return { success: false, error: 'Failed to create account' };
+      console.error('Sign up error:', error);
+      setError(error.message);
+      throw error;
     }
-  };
+  }
 
-  // Sign in
-  const signin = async (email, password) => {
+  // Sign in with email and password
+  async function signInWithEmail(email, password) {
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Store token and user
-        localStorage.setItem('cartsmash-token', data.token);
-        localStorage.setItem('cartsmash-user', JSON.stringify(data.user));
-        
-        setCurrentUser(data.user);
-        loadUserProfile(data.user.id);
-        
-        return { success: true };
+      setError('');
+      
+      if (firebaseAuth && signInWithEmailAndPassword) {
+        // Use real Firebase
+        const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+        return userCredential.user;
       } else {
-        const error = await response.json();
-        return { success: false, error: error.message };
+        // Use mock auth
+        console.log('📧 Mock Sign In:', email);
+        const mockUser = {
+          uid: 'mock-' + Date.now(),
+          email: email,
+          displayName: email.split('@')[0]
+        };
+        setCurrentUser(mockUser);
+        localStorage.setItem('mockUser', JSON.stringify(mockUser));
+        alert(`✅ Demo Mode: Signed in as ${email}`);
+        return mockUser;
       }
     } catch (error) {
-      console.error('Signin error:', error);
-      return { success: false, error: 'Failed to sign in' };
+      console.error('Sign in error:', error);
+      setError(error.message);
+      throw error;
     }
-  };
+  }
+
+  // Sign in with Google
+  async function signInWithGoogle() {
+    try {
+      setError('');
+      
+      if (firebaseAuth && GoogleAuthProvider && signInWithPopup) {
+        // Try real Google sign in
+        console.log('Attempting real Google sign in...');
+        const googleProvider = new GoogleAuthProvider();
+        googleProvider.setCustomParameters({ prompt: 'select_account' });
+        const result = await signInWithPopup(firebaseAuth, googleProvider);
+        console.log('Google sign in successful:', result.user.email);
+        return result.user;
+      } else {
+        // Use mock Google sign in
+        console.log('🔵 Mock Google Sign In');
+        const mockUser = {
+          uid: 'google-mock-' + Date.now(),
+          email: 'demo.user@gmail.com',
+          displayName: 'Demo User',
+          photoURL: 'https://via.placeholder.com/96'
+        };
+        setCurrentUser(mockUser);
+        localStorage.setItem('mockUser', JSON.stringify(mockUser));
+        alert('✅ Demo Mode: Signed in with Google\nEmail: demo.user@gmail.com');
+        return mockUser;
+      }
+    } catch (error) {
+      console.error('Google sign in error:', error);
+      
+      // If real Google sign in fails, fall back to mock
+      if (error.code === 'auth/configuration-not-found' || 
+          error.message?.includes('Cannot read properties')) {
+        console.log('Falling back to mock Google sign in...');
+        const mockUser = {
+          uid: 'google-mock-' + Date.now(),
+          email: 'demo.user@gmail.com',
+          displayName: 'Demo User',
+          photoURL: 'https://via.placeholder.com/96'
+        };
+        setCurrentUser(mockUser);
+        localStorage.setItem('mockUser', JSON.stringify(mockUser));
+        alert('✅ Demo Mode: Signed in with Google\n(Firebase not configured)');
+        return mockUser;
+      }
+      
+      setError(error.message);
+      throw error;
+    }
+  }
 
   // Sign out
-  const signout = async () => {
+  async function signOut() {
     try {
-      // Clear local storage
-      localStorage.removeItem('cartsmash-token');
-      localStorage.removeItem('cartsmash-user');
+      setError('');
       
-      // Clear user state
+      if (firebaseAuth && firebaseSignOut) {
+        await firebaseSignOut(firebaseAuth);
+      }
+      
       setCurrentUser(null);
-      setUserProfile(null);
-      
-      // Optional: Call backend logout endpoint
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('cartsmash-token')}`
+      localStorage.removeItem('mockUser');
+      localStorage.removeItem('mockCart');
+      console.log('✅ Signed out successfully');
+    } catch (error) {
+      console.error('Sign out error:', error);
+      setError(error.message);
+      throw error;
+    }
+  }
+
+  // Save cart
+  async function saveCartToFirebase(cartItems) {
+    if (!currentUser) {
+      console.warn('No user logged in, cannot save cart');
+      return;
+    }
+
+    const cartKey = `cart-${currentUser.uid}`;
+    localStorage.setItem(cartKey, JSON.stringify({
+      items: cartItems,
+      updatedAt: new Date().toISOString(),
+      userId: currentUser.uid
+    }));
+    
+    console.log('💾 Cart saved:', cartItems.length, 'items');
+  }
+
+  // Load cart
+  async function loadCartFromFirebase() {
+    if (!currentUser) {
+      console.warn('No user logged in, cannot load cart');
+      return null;
+    }
+
+    const cartKey = `cart-${currentUser.uid}`;
+    const savedCart = localStorage.getItem(cartKey);
+    
+    if (savedCart) {
+      const cartData = JSON.parse(savedCart);
+      console.log('📦 Cart loaded:', cartData.items.length, 'items');
+      return cartData.items;
+    }
+    
+    return null;
+  }
+
+  // Set up auth state observer
+  useEffect(() => {
+    let unsubscribe = () => {};
+    
+    if (firebaseAuth && onAuthStateChanged) {
+      // Use real Firebase auth state
+      unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+        setCurrentUser(user);
+        setIsLoading(false);
+        setIsUsingMockAuth(false);
+      });
+    } else {
+      // Use mock auth state from localStorage
+      const savedUser = localStorage.getItem('mockUser');
+      if (savedUser) {
+        try {
+          setCurrentUser(JSON.parse(savedUser));
+        } catch (e) {
+          console.error('Failed to parse saved user:', e);
         }
-      });
-      
-      return { success: true };
-    } catch (error) {
-      console.error('Signout error:', error);
-      return { success: false, error: 'Failed to sign out' };
-    }
-  };
-
-  // Update user profile
-  const updateUserProfile = async (updates) => {
-    try {
-      const response = await fetch(`/api/users/${currentUser.id}/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('cartsmash-token')}`
-        },
-        body: JSON.stringify(updates)
-      });
-
-      if (response.ok) {
-        const updatedProfile = await response.json();
-        setUserProfile(updatedProfile);
-        
-        // Update current user if display name changed
-        if (updates.displayName) {
-          const updatedUser = { ...currentUser, displayName: updates.displayName };
-          setCurrentUser(updatedUser);
-          localStorage.setItem('cartsmash-user', JSON.stringify(updatedUser));
-        }
-        
-        return { success: true };
-      } else {
-        const error = await response.json();
-        return { success: false, error: error.message };
       }
-    } catch (error) {
-      console.error('Update profile error:', error);
-      return { success: false, error: 'Failed to update profile' };
+      setIsLoading(false);
+      setIsUsingMockAuth(true);
     }
-  };
 
-  // Save shopping list
-  const saveShoppingList = async (listData) => {
-    try {
-      const response = await fetch(`/api/users/${currentUser.id}/lists`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('cartsmash-token')}`
-        },
-        body: JSON.stringify(listData)
-      });
+    return unsubscribe;
+  }, []);
 
-      if (response.ok) {
-        const savedList = await response.json();
-        
-        // Update local storage
-        const lists = JSON.parse(localStorage.getItem('cartsmash-saved-lists') || '[]');
-        lists.unshift(savedList);
-        localStorage.setItem('cartsmash-saved-lists', JSON.stringify(lists));
-        
-        return { success: true, list: savedList };
-      } else {
-        const error = await response.json();
-        return { success: false, error: error.message };
-      }
-    } catch (error) {
-      console.error('Save list error:', error);
-      return { success: false, error: 'Failed to save list' };
+  // Show mode in console
+  useEffect(() => {
+    if (isUsingMockAuth) {
+      console.log('🎭 Running in DEMO MODE - No real authentication');
+      console.log('To enable real auth, configure Firebase in .env.local');
+    } else {
+      console.log('🔥 Running with Firebase Authentication');
     }
-  };
-
-  // Save meal plan
-  const saveMealPlan = async (mealData) => {
-    try {
-      const response = await fetch(`/api/users/${currentUser.id}/meals`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('cartsmash-token')}`
-        },
-        body: JSON.stringify(mealData)
-      });
-
-      if (response.ok) {
-        const savedMeal = await response.json();
-        
-        // Update local storage
-        const meals = JSON.parse(localStorage.getItem('cartsmash-meal-groups') || '{}');
-        meals[savedMeal.name] = savedMeal.items;
-        localStorage.setItem('cartsmash-meal-groups', JSON.stringify(meals));
-        
-        return { success: true, meal: savedMeal };
-      } else {
-        const error = await response.json();
-        return { success: false, error: error.message };
-      }
-    } catch (error) {
-      console.error('Save meal error:', error);
-      return { success: false, error: 'Failed to save meal plan' };
-    }
-  };
-
-  // Save recipe
-  const saveRecipe = async (recipeData) => {
-    try {
-      const response = await fetch(`/api/users/${currentUser.id}/recipes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('cartsmash-token')}`
-        },
-        body: JSON.stringify(recipeData)
-      });
-
-      if (response.ok) {
-        const savedRecipe = await response.json();
-        
-        // Update local storage
-        const recipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
-        recipes.unshift(savedRecipe);
-        localStorage.setItem('cartsmash-recipes', JSON.stringify(recipes));
-        
-        return { success: true, recipe: savedRecipe };
-      } else {
-        const error = await response.json();
-        return { success: false, error: error.message };
-      }
-    } catch (error) {
-      console.error('Save recipe error:', error);
-      return { success: false, error: 'Failed to save recipe' };
-    }
-  };
-
-  // Add to shopping history
-  const addToHistory = async (historyData) => {
-    try {
-      const response = await fetch(`/api/users/${currentUser.id}/history`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('cartsmash-token')}`
-        },
-        body: JSON.stringify(historyData)
-      });
-
-      if (response.ok) {
-        const historyEntry = await response.json();
-        
-        // Update local storage
-        const history = JSON.parse(localStorage.getItem('cartsmash-history') || '[]');
-        history.unshift(historyEntry);
-        localStorage.setItem('cartsmash-history', JSON.stringify(history));
-        
-        return { success: true, entry: historyEntry };
-      } else {
-        const error = await response.json();
-        return { success: false, error: error.message };
-      }
-    } catch (error) {
-      console.error('Add history error:', error);
-      return { success: false, error: 'Failed to add to history' };
-    }
-  };
+  }, [isUsingMockAuth]);
 
   const value = {
     currentUser,
-    userProfile,
-    loading,
-    signup,
-    signin,
-    signout,
-    updateUserProfile,
-    saveShoppingList,
-    saveMealPlan,
-    saveRecipe,
-    addToHistory
+    isLoading,
+    error,
+    signUpWithEmail,
+    signInWithEmail,
+    signInWithGoogle,
+    signOut,
+    saveCartToFirebase,
+    loadCartFromFirebase,
+    isUsingMockAuth // Expose this so components can show appropriate UI
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

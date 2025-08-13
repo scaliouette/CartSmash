@@ -23,6 +23,9 @@ import KrogerOrderFlow from './components/KrogerOrderFlow';
 
 import confetti from 'canvas-confetti';
 
+// Import debug component (remove after testing)
+// import AuthDebug from './components/AuthDebug';
+
 // Define styles OUTSIDE of components at module level
 const styles = {
   app: {
@@ -894,6 +897,15 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
     }
   };
 
+  // Handle draft restoration
+  const handleRestoreDraft = () => {
+    if (draft && draft.content) {
+      setInputText(draft.content);
+      setShowDraftBanner(false);
+      clearDraft();
+    }
+  };
+
   const submitGroceryList = async (listText, recipeInfo = null) => {
     if (!listText.trim()) {
       setError('Please enter a grocery list');
@@ -1091,6 +1103,16 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
       </div>
 
       <div style={styles.mainForm}>
+        {/* Draft Restoration Banner */}
+        <DraftRestorationBanner 
+          draft={showDraftBanner ? draft : null}
+          onRestore={handleRestoreDraft}
+          onDismiss={() => {
+            setShowDraftBanner(false);
+            clearDraft();
+          }}
+        />
+
         <div style={styles.inputSection}>
           <label style={styles.inputLabel}>
             Paste or Create Grocery List
@@ -1187,6 +1209,13 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
             </div>
           )}
         </div>
+
+        {/* Sync Status */}
+        <SyncStatusIndicator 
+          isSyncing={isCartSyncing}
+          lastSync={cartLastSync}
+          error={cartSyncError}
+        />
       </div>
 
       {/* ParsedResultsDisplay - The key component for showing results */}
@@ -1321,6 +1350,9 @@ function App() {
             </div>
           </section>
         )}
+        
+        {/* Debug component - REMOVE AFTER TESTING */}
+        {/* {process.env.NODE_ENV === 'development' && <AuthDebug />} */}
       </div>
     </AuthProvider>
   );
