@@ -1,20 +1,12 @@
 {
   "name": "cartsmash",
   "version": "1.0.0",
-  "description": "AI-powered grocery list converter for Instacart",
-  "private": true,
   "scripts": {
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
     "server:dev": "cd server && npm run dev",
     "client:dev": "cd client && npm start",
-    "install:all": "npm install && cd server && npm install && cd client && npm install",
-    "build": "cd client && npm run build",
-    "start": "cd server && npm start",
-    "test": "npm run test:server && npm run test:client",
-    "test:server": "cd server && npm test",
-    "test:client": "cd client && npm test",
-    "clean": "rm -rf node_modules server/node_modules client/node_modules",
-    "fresh-install": "npm run clean && npm run install:all"
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install"
+
   },
   "devDependencies": {
     "concurrently": "^7.6.0"
