@@ -409,6 +409,146 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// POST /api/cart/parse - Parse grocery list and add to cart
+router.post('/parse', async (req, res) => {
+  try {
+    const { listText, action = 'merge', userId } = req.body;
+    
+    if (!listText || listText.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No text provided to parse'
+      });
+    }
+
+    console.log('📝 Parsing grocery list:', listText.substring(0, 100) + '...');
+
+    // Parse the grocery list text
+    const lines = listText.split('\n').filter(line => line.trim());
+    const parsedItems = [];
+    
+    for (const line of lines) {
+      const cleaned = line.trim()
+        .replace(/^[-•*\d+\.\)]\s*/, '') // Remove bullets
+        .replace(/\*\*/g, ''); // Remove markdown
+      
+      if (!cleaned || cleaned.length < 2) continue;
+      
+      // Parse quantity, handling fractions like "1/4"
+      const quantityMatch = cleaned.match(/^(\d+(?:\/\d+)?|\d+\.\d+)\s*([a-zA-Z]*)\s*(.+)$/);
+      
+      let quantity = 1;
+      let unit = null;
+      let productName = cleaned;
+      
+      if (quantityMatch) {
+        // Handle fractions like "1/4" or "1/2"
+        const quantityStr = quantityMatch[1];
+        if (quantityStr.includes('/')) {
+          const [numerator, denominator] = quantityStr.split('/');
+          quantity = parseFloat(numerator) / parseFloat(denominator);
+        } else {
+          quantity = parseFloat(quantityStr);
+        }
+        
+        // Check if second group is a unit
+        const possibleUnit = quantityMatch[2];
+        const validUnits = ['lb', 'lbs', 'oz', 'cup', 'cups', 'tbsp', 'tsp', 'can', 'bottle', 'jar', 'bag', 'box', 'package', 'dozen', 'bunch', 'head'];
+        
+        if (possibleUnit && validUnits.some(u => possibleUnit.toLowerCase().includes(u))) {
+          unit = possibleUnit.toLowerCase();
+          productName = quantityMatch[3];
+        } else {
+          // No unit, just quantity + product
+          productName = (possibleUnit + ' ' + quantityMatch[3]).trim();
+        }
+      }
+      
+      // Detect category
+      const category = detectCategory(productName);
+      
+      parsedItems.push({
+        id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        productName: productName,
+        quantity: quantity,
+        unit: unit || 'each',
+        original: line,
+        confidence: 0.8,
+        needsReview: false,
+        category: category,
+        addedAt: new Date().toISOString()
+      });
+    }
+
+    // Get user's existing cart
+    const userIdToUse = userId || getUserId(req);
+    let existingCart = cartItems.get(userIdToUse) || [];
+    
+    // Handle merge vs replace
+    let finalCart;
+    if (action === 'merge') {
+      finalCart = [...existingCart, ...parsedItems];
+      console.log(`✅ Merged ${parsedItems.length} items with existing ${existingCart.length} items`);
+    } else {
+      finalCart = parsedItems;
+      console.log(`✅ Replaced cart with ${parsedItems.length} new items`);
+    }
+    
+    // Save the cart
+    cartItems.set(userIdToUse, finalCart);
+    
+    res.json({
+      success: true,
+      cart: finalCart,
+      itemsAdded: parsedItems.length,
+      totalItems: finalCart.length,
+      parsing: {
+        stats: {
+          totalLines: lines.length,
+          parsedItems: parsedItems.length,
+          confidence: 0.8
+        },
+        averageConfidence: 0.8
+      },
+      quality: {
+        quantityParsingAccuracy: 'High'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error parsing grocery list:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to parse grocery list',
+      message: error.message
+    });
+  }
+});
+
+// Helper function to detect category (add this if it doesn't exist)
+function detectCategory(productName) {
+  const name = productName.toLowerCase();
+  
+  const categories = {
+    produce: ['apple', 'banana', 'orange', 'lettuce', 'tomato', 'carrot', 'onion', 'potato', 'spinach', 'broccoli', 'pepper', 'cucumber', 'avocado', 'berry', 'berries', 'grape', 'lemon', 'lime'],
+    dairy: ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'eggs', 'cottage', 'sour cream'],
+    meat: ['chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'tuna', 'bacon', 'ham', 'sausage', 'ground'],
+    pantry: ['rice', 'pasta', 'bread', 'flour', 'sugar', 'oil', 'sauce', 'vinegar', 'salt', 'pepper', 'spice'],
+    beverages: ['water', 'juice', 'soda', 'coffee', 'tea', 'beer', 'wine'],
+    frozen: ['frozen', 'ice cream'],
+    bakery: ['bread', 'bagel', 'muffin', 'roll', 'bun', 'cake', 'cookie'],
+    snacks: ['chips', 'crackers', 'nuts', 'popcorn', 'candy', 'chocolate']
+  };
+  
+  for (const [category, keywords] of Object.entries(categories)) {
+    if (keywords.some(keyword => name.includes(keyword))) {
+      return category;
+    }
+  }
+  
+  return 'other';
+}
+
 // POST /api/cart/save-template - Save cart as template
 router.post('/save-template', async (req, res) => {
   try {

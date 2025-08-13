@@ -7,6 +7,8 @@ import InstacartIntegration from './components/InstacartIntegration';
 import SmartAIAssistant from './components/SmartAIAssistant';
 import ProductValidator from './components/ProductValidator';
 import MyAccount from './components/MyAccount';
+import FirebaseDebug from './components/FirebaseDebug';
+
 
 // Import the enhanced components
 import ParsingAnalyticsDashboard from './components/ParsingAnalyticsDashboard';
@@ -25,6 +27,7 @@ import confetti from 'canvas-confetti';
 
 // Import debug component (remove after testing)
 // import AuthDebug from './components/AuthDebug';
+
 
 // Define styles OUTSIDE of components at module level
 const styles = {
@@ -592,6 +595,7 @@ function getTimeAgo(date) {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
+
 // Sync Status Indicator Component
 function SyncStatusIndicator({ isSyncing, lastSync, error }) {
   if (!isSyncing && !lastSync && !error) return null;
@@ -655,6 +659,8 @@ function DraftRestorationBanner({ draft, onRestore, onDismiss }) {
     </div>
   );
 }
+
+
 
 // Enhanced SMASH Button Component
 function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
@@ -927,7 +933,8 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
         setParsingProgress(prev => Math.min(prev + 10, 90));
       }, 200);
       
-      const response = await fetch('/api/cart/parse', {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/cart/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -944,12 +951,15 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
         }),
       });
 
+      
+
       clearInterval(progressInterval);
       setParsingProgress(100);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
 
       const data = await response.json();
       
@@ -1012,7 +1022,8 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
     
     setValidatingAll(true);
     try {
-      const response = await fetch('/api/cart/validate-all', {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/cart/validate-all`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -1265,6 +1276,32 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
 function App() {
   const [currentView, setCurrentView] = useState('home');
   const [savedRecipes, setSavedRecipes] = useState([]);
+
+   useEffect(() => {
+    console.log('Environment check:', {
+      apiKey: process.env.REACT_APP_FIREBASE_API_KEY ? '✅ Set' : '❌ Missing',
+      authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN ? '✅ Set' : '❌ Missing',
+      projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID ? '✅ Set' : '❌ Missing',
+    });
+    
+    // Check if Firebase is initialized
+    import('./firebase').then(module => {
+      console.log('📦 Firebase module:', {
+        hasAuth: !!module.auth,
+        hasApp: !!module.default
+      });
+      
+      if (module.auth) {
+        console.log('✅ Auth instance available');
+        // Try to get current user
+        module.auth.onAuthStateChanged(user => {
+          console.log('👤 Current auth state:', user ? user.email : 'No user');
+        });
+      }
+    }).catch(err => {
+      console.error('❌ Failed to load Firebase module:', err);
+    });
+  }, [])
   
   // Load saved recipes on mount
   useEffect(() => {
@@ -1353,6 +1390,7 @@ function App() {
         
         {/* Debug component - REMOVE AFTER TESTING */}
         {/* {process.env.NODE_ENV === 'development' && <AuthDebug />} */}
+        <FirebaseDebug />
       </div>
     </AuthProvider>
   );
