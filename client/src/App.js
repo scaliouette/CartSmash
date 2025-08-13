@@ -1,4 +1,4 @@
-﻿// client/src/App.js - ENHANCED with Loading States + Auto-Save
+﻿// client/src/App.js - FIXED STRUCTURE
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
@@ -6,6 +6,7 @@ import ParsedResultsDisplay from './components/ParsedResultsDisplay';
 import InstacartIntegration from './components/InstacartIntegration';
 import SmartAIAssistant from './components/SmartAIAssistant';
 import ProductValidator from './components/ProductValidator';
+import MyAccount from './components/MyAccount';
 
 // Import the enhanced components
 import ParsingAnalyticsDashboard from './components/ParsingAnalyticsDashboard';
@@ -13,16 +14,646 @@ import SmartParsingDemo from './components/SmartParsingDemo';
 import AIParsingSettings from './components/AIParsingSettings';
 import AdminDashboard from './components/AdminDashboard';
 
-// 🆕 NEW: Import Loading and Auto-Save
+// Import Loading and Auto-Save
 import LoadingSpinner, { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './components/LoadingSpinner';
 import { useGroceryListAutoSave, useCartAutoSave } from './hooks/useAutoSave';
 
-// 🆕 NEW: Import Kroger integration
+// Import Kroger integration
 import KrogerOrderFlow from './components/KrogerOrderFlow';
 
 import confetti from 'canvas-confetti';
 
-// Enhanced SMASH Button with AI-powered parsing
+// Define styles OUTSIDE of components at module level
+const styles = {
+  app: {
+    minHeight: '100vh',
+    backgroundColor: '#f8f9fa',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  },
+  
+  header: {
+    backgroundColor: 'white',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+    padding: '16px 24px',
+    position: 'sticky',
+    top: 0,
+    zIndex: 100,
+  },
+  
+  headerContent: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  
+  logoContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    cursor: 'pointer',
+    transition: 'opacity 0.2s',
+  },
+  
+  logoIcon: {
+    padding: '8px',
+    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
+    borderRadius: '8px',
+    fontSize: '20px',
+  },
+  
+  logoText: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  
+  userSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '8px 16px',
+    backgroundColor: '#f0f9ff',
+    borderRadius: '8px',
+    border: '1px solid #3b82f6',
+  },
+  
+  userName: {
+    color: '#1e40af',
+    fontWeight: '600',
+    fontSize: '14px',
+  },
+  
+  signOutBtn: {
+    padding: '6px 12px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'all 0.2s',
+  },
+  
+  nav: {
+    display: 'flex',
+    gap: '8px',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  
+  navButton: {
+    padding: '8px 20px',
+    backgroundColor: 'transparent',
+    color: '#6b7280',
+    border: '2px solid transparent',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '15px',
+    fontWeight: '500',
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  
+  navButtonActive: {
+    backgroundColor: '#f0f9ff',
+    color: '#1e40af',
+    borderColor: '#3b82f6',
+  },
+  
+  loadingText: {
+    color: '#6b7280',
+    fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  
+  ctaButton: {
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    padding: '12px 24px',
+    borderRadius: '8px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+    fontSize: '14px',
+  },
+  
+  main: {
+    maxWidth: '1000px',
+    margin: '0 auto',
+    padding: '40px 24px',
+  },
+  
+  container: {
+    width: '100%',
+    position: 'relative',
+  },
+
+  // Hero Section Styles
+  heroSection: {
+    textAlign: 'center',
+    marginBottom: '48px',
+  },
+  
+  heroTitle: {
+    fontSize: 'clamp(36px, 8vw, 64px)',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: '24px',
+    lineHeight: '1.1',
+  },
+  
+  heroAccent: {
+    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+  },
+  
+  heroSubtitle: {
+    fontSize: '20px',
+    color: '#6b7280',
+    maxWidth: '700px',
+    margin: '0 auto',
+    lineHeight: '1.6',
+  },
+
+  // Form Styles
+  mainForm: {
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    padding: '32px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+    marginBottom: '48px',
+    position: 'relative',
+  },
+  
+  inputSection: {
+    marginBottom: '24px',
+  },
+  
+  inputLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: '12px',
+  },
+  
+  textarea: {
+    width: '100%',
+    padding: '16px',
+    fontSize: '16px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '12px',
+    resize: 'vertical',
+    fontFamily: 'inherit',
+    lineHeight: '1.5',
+    minHeight: '200px',
+    transition: 'border-color 0.2s',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  
+  buttonGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px',
+    alignItems: 'center',
+  },
+  
+  smashButton: {
+    width: '100%',
+    border: 'none',
+    padding: '16px 32px',
+    color: 'white',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    transition: 'all 0.3s ease',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  
+  actionButtons: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  
+  newListButton: {
+    padding: '12px 20px',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '14px',
+  },
+  
+  validateButton: {
+    padding: '12px 20px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  
+  reviewButton: {
+    padding: '12px 20px',
+    backgroundColor: '#f59e0b',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '14px',
+  },
+  
+  // Features Section
+  featuresSection: {
+    padding: '48px 24px',
+    backgroundColor: '#f9fafb',
+  },
+  
+  featuresGrid: {
+    maxWidth: '1000px',
+    margin: '0 auto',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '32px',
+  },
+  
+  featureCard: {
+    textAlign: 'center',
+    padding: '24px',
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+  },
+  
+  featureIcon: {
+    width: '64px',
+    height: '64px',
+    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 16px',
+    fontSize: '24px',
+  },
+  
+  featureTitle: {
+    fontWeight: 'bold',
+    fontSize: '20px',
+    color: '#1f2937',
+    marginBottom: '8px',
+  },
+  
+  featureDescription: {
+    color: '#6b7280',
+    lineHeight: '1.5',
+  },
+
+  // Error and Control Styles
+  errorMessage: {
+    padding: '16px',
+    backgroundColor: '#fef2f2',
+    color: '#dc2626',
+    borderRadius: '8px',
+    border: '1px solid #fecaca',
+    marginBottom: '24px',
+    fontSize: '16px',
+  },
+  
+  controlsSection: {
+    marginBottom: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+  },
+
+  // Intelligence Banner
+  intelligenceBanner: {
+    background: 'linear-gradient(135deg, #e8f4fd, #d0ebf7)',
+    padding: '20px',
+    borderRadius: '15px',
+    marginBottom: '32px',
+    border: '2px solid #3b82f6',
+    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.2)',
+  },
+  
+  bannerContent: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '15px',
+  },
+  
+  bannerText: {
+    flex: 1,
+  },
+  
+  bannerTitle: {
+    color: '#1e40af',
+    margin: '0 0 8px 0',
+    fontSize: '20px',
+    fontWeight: 'bold',
+  },
+  
+  bannerSubtitle: {
+    color: '#3730a3',
+    margin: 0,
+    fontSize: '14px',
+    lineHeight: '1.4',
+  },
+  
+  bannerIndicator: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '5px',
+  },
+  
+  indicatorText: {
+    fontSize: '12px',
+    color: '#3730a3',
+    fontWeight: 'bold',
+  },
+  
+  indicatorIcon: {
+    fontSize: '24px',
+  },
+
+  // Cart Action Toggle
+  cartActionToggle: {
+    backgroundColor: '#f9fafb',
+    padding: '20px',
+    borderRadius: '12px',
+    border: '1px solid #e5e7eb',
+  },
+  
+  toggleLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    cursor: 'pointer',
+    position: 'relative',
+  },
+  
+  toggleCheckbox: {
+    position: 'absolute',
+    opacity: 0,
+    width: 0,
+    height: 0,
+  },
+  
+  toggleSlider: {
+    display: 'inline-block',
+    width: '50px',
+    height: '28px',
+    backgroundColor: '#e5e7eb',
+    borderRadius: '14px',
+    position: 'relative',
+    transition: 'background-color 0.3s',
+    flexShrink: 0,
+  },
+  
+  toggleText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  
+  toggleDescription: {
+    marginTop: '8px',
+    marginLeft: '62px',
+    fontSize: '14px',
+    color: '#6b7280',
+    lineHeight: '1.4',
+  },
+
+  // Auto-save and sync styles
+  autoSaveIndicator: {
+    marginLeft: '10px',
+    fontSize: '12px',
+    color: '#10b981',
+    fontWeight: 'normal',
+    opacity: 0.8,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+  },
+  
+  syncStatus: {
+    marginTop: '12px',
+    textAlign: 'center',
+    fontSize: '12px',
+  },
+  
+  syncStatusSyncing: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
+  
+  syncStatusSuccess: {
+    color: '#10b981',
+    fontWeight: '500',
+  },
+  
+  syncStatusError: {
+    color: '#f59e0b',
+    fontWeight: '500',
+  },
+
+  // Progress overlay
+  progressOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(4px)',
+    zIndex: 9999,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Draft banner styles
+  draftBanner: {
+    backgroundColor: '#fef3c7',
+    border: '1px solid #fbbf24',
+    borderRadius: '8px',
+    padding: '16px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(251, 191, 36, 0.2)',
+  },
+
+  draftBannerContent: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '12px',
+  },
+
+  draftBannerText: {
+    flex: 1,
+  },
+
+  draftBannerTitle: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#92400e',
+    marginBottom: '4px',
+  },
+
+  draftBannerPreview: {
+    fontSize: '14px',
+    color: '#78350f',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    maxWidth: '400px',
+  },
+
+  draftBannerActions: {
+    display: 'flex',
+    gap: '10px',
+  },
+
+  restoreButton: {
+    padding: '8px 16px',
+    backgroundColor: '#f59e0b',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+  },
+
+  dismissButton: {
+    padding: '8px 16px',
+    backgroundColor: 'transparent',
+    color: '#92400e',
+    border: '1px solid #f59e0b',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+};
+
+// Helper function for time ago
+function getTimeAgo(date) {
+  const seconds = Math.floor((new Date() - date) / 1000);
+  
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+  return `${Math.floor(seconds / 86400)} days ago`;
+}
+
+// Sync Status Indicator Component
+function SyncStatusIndicator({ isSyncing, lastSync, error }) {
+  if (!isSyncing && !lastSync && !error) return null;
+
+  return (
+    <div style={styles.syncStatus}>
+      {isSyncing && (
+        <div style={styles.syncStatusSyncing}>
+          <ButtonSpinner color="#3b82f6" />
+          <span>Saving...</span>
+        </div>
+      )}
+      {!isSyncing && lastSync && !error && (
+        <div style={styles.syncStatusSuccess}>
+          ✅ Saved {getTimeAgo(lastSync)}
+        </div>
+      )}
+      {error && (
+        <div style={styles.syncStatusError}>
+          ⚠️ Save failed (saved locally)
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Draft Restoration Banner Component
+function DraftRestorationBanner({ draft, onRestore, onDismiss }) {
+  if (!draft || !draft.content) return null;
+
+  const savedDate = new Date(draft.timestamp);
+  const timeAgo = getTimeAgo(savedDate);
+
+  return (
+    <div style={styles.draftBanner}>
+      <div style={styles.draftBannerContent}>
+        <div style={styles.draftBannerText}>
+          <div style={styles.draftBannerTitle}>
+            📝 Draft found from {timeAgo}
+          </div>
+          <div style={styles.draftBannerPreview}>
+            {draft.content.split('\n').slice(0, 2).join(' • ')}
+            {draft.content.split('\n').length > 2 && '...'}
+          </div>
+        </div>
+        <div style={styles.draftBannerActions}>
+          <button
+            onClick={onRestore}
+            style={styles.restoreButton}
+          >
+            Restore Draft
+          </button>
+          <button
+            onClick={onDismiss}
+            style={styles.dismissButton}
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Enhanced SMASH Button Component
 function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
   const [isSmashing, setIsSmashing] = useState(false);
   const [buttonText, setButtonText] = useState('🎯 SMART PARSE 🎯');
@@ -135,364 +766,98 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
   );
 }
 
-// 🆕 NEW: Draft Restoration Banner Component
-function DraftRestorationBanner({ draft, onRestore, onDismiss }) {
-  if (!draft || !draft.content) return null;
-
-  const savedDate = new Date(draft.timestamp);
-  const timeAgo = getTimeAgo(savedDate);
+// Header Component
+function Header({ currentView, onViewChange }) {
+  const { currentUser, signOut, isLoading } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   return (
-    <div style={styles.draftBanner}>
-      <div style={styles.draftBannerContent}>
-        <div style={styles.draftBannerText}>
-          <div style={styles.draftBannerTitle}>
-            📝 Draft found from {timeAgo}
-          </div>
-          <div style={styles.draftBannerPreview}>
-            {draft.content.split('\n').slice(0, 2).join(' • ')}
-            {draft.content.split('\n').length > 2 && '...'}
-          </div>
-        </div>
-        <div style={styles.draftBannerActions}>
-          <button
-            onClick={onRestore}
-            style={styles.restoreButton}
-          >
-            Restore Draft
-          </button>
-          <button
-            onClick={onDismiss}
-            style={styles.dismissButton}
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Helper function for time ago
-function getTimeAgo(date) {
-  const seconds = Math.floor((new Date() - date) / 1000);
-  
-  if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
-  return `${Math.floor(seconds / 86400)} days ago`;
-}
-
-// 🆕 NEW: Sync Status Indicator
-function SyncStatusIndicator({ isSyncing, lastSync, error }) {
-  if (!isSyncing && !lastSync && !error) return null;
-
-  return (
-    <div style={styles.syncStatus}>
-      {isSyncing && (
-        <div style={styles.syncStatusSyncing}>
-          <ButtonSpinner color="#3b82f6" />
-          <span>Saving...</span>
-        </div>
-      )}
-      {!isSyncing && lastSync && !error && (
-        <div style={styles.syncStatusSuccess}>
-          ✅ Saved {getTimeAgo(lastSync)}
-        </div>
-      )}
-      {error && (
-        <div style={styles.syncStatusError}>
-          ⚠️ Save failed (saved locally)
-        </div>
-      )}
-    </div>
-  );
-}
-
-// 🆕 NEW: Kroger Quick Order Button Component
-function KrogerQuickOrderButton({ cartItems, currentUser, isVisible = true }) {
-  const [showKrogerFlow, setShowKrogerFlow] = useState(false);
-  const [krogerAuthStatus, setKrogerAuthStatus] = useState(null);
-  const [checkingAuth, setCheckingAuth] = useState(false);
-
-  const checkKrogerAuth = useCallback(async () => {
-    setCheckingAuth(true);
-    try {
-      const response = await fetch('/api/auth/kroger/status', {
-        headers: {
-          'User-ID': currentUser?.uid || 'demo-user'
-        }
-      });
-      const data = await response.json();
-      setKrogerAuthStatus(data);
-    } catch (error) {
-      console.warn('Failed to check Kroger auth status:', error);
-    } finally {
-      setCheckingAuth(false);
-    }
-  }, [currentUser?.uid]);
-
-  useEffect(() => {
-    if (isVisible && cartItems.length > 0) {
-      checkKrogerAuth();
-    }
-  }, [isVisible, cartItems.length, checkKrogerAuth]);
-
-  if (!isVisible || cartItems.length === 0) {
-    return null;
-  }
-
-  const handleKrogerOrder = () => {
-    setShowKrogerFlow(true);
-  };
-
-  return (
-    <>
-      <div style={styles.krogerOrderSection}>
-        <div style={styles.krogerOrderHeader}>
-          <h3 style={styles.krogerOrderTitle}>🏪 Order with Kroger</h3>
-          <p style={styles.krogerOrderSubtitle}>
-            Send your validated cart directly to Kroger for pickup or delivery
-          </p>
-        </div>
-
-        <div style={styles.krogerOrderContent}>
-          <div style={styles.krogerOrderStats}>
-            <div style={styles.orderStat}>
-              <span style={styles.orderStatNumber}>{cartItems.length}</span>
-              <span style={styles.orderStatLabel}>Items Ready</span>
-            </div>
-            <div style={styles.orderStat}>
-              <span style={styles.orderStatNumber}>
-                {cartItems.filter(item => item.realPrice).length}
-              </span>
-              <span style={styles.orderStatLabel}>With Pricing</span>
-            </div>
-            <div style={styles.orderStat}>
-              <span style={styles.orderStatNumber}>
-                ${cartItems.reduce((sum, item) => sum + (item.realPrice || 0) * (item.quantity || 1), 0).toFixed(2)}
-              </span>
-              <span style={styles.orderStatLabel}>Estimated Total</span>
-            </div>
-          </div>
-
-          <div style={styles.krogerOrderActions}>
-            <button 
-              onClick={handleKrogerOrder}
-              style={styles.krogerOrderButton}
-              disabled={checkingAuth}
-            >
-              {checkingAuth ? (
-                <ButtonSpinner />
-              ) : krogerAuthStatus?.authenticated ? (
-                <>🛒 Send to Kroger Cart</>
-              ) : (
-                <>🔐 Connect & Order with Kroger</>
-              )}
-            </button>
-            
-            {krogerAuthStatus?.authenticated && (
-              <div style={styles.authStatus}>
-                ✅ Connected to Kroger
-              </div>
-            )}
-          </div>
-
-          <div style={styles.krogerFeatures}>
-            <div style={styles.feature}>✅ Real-time pricing</div>
-            <div style={styles.feature}>🚗 Pickup or delivery</div>
-            <div style={styles.feature}>🔒 Secure checkout</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Kroger Order Flow Modal */}
-      {showKrogerFlow && (
-        <KrogerOrderFlow
-          cartItems={cartItems}
-          currentUser={currentUser}
-          onClose={() => setShowKrogerFlow(false)}
-        />
-      )}
-    </>
-  );
-}
-
-// ✅ NEW: Recipe Manager Widget
-function RecipeManagerWidget({ savedRecipes, onRecipeSelect, onToggleRecipeManager }) {
-  if (savedRecipes.length === 0) {
-    return null;
-  }
-
-  return (
-    <div style={styles.recipeWidget}>
-      <div style={styles.recipeWidgetHeader}>
-        <h4 style={styles.recipeWidgetTitle}>📝 Saved Recipes ({savedRecipes.length})</h4>
-        <button
-          onClick={onToggleRecipeManager}
-          style={styles.recipeWidgetToggle}
+    <header style={styles.header}>
+      <div style={styles.headerContent}>
+        <div 
+          style={styles.logoContainer}
+          onClick={() => onViewChange('home')}
         >
-          View All
-        </button>
-      </div>
-      
-      <div style={styles.recipeWidgetContent}>
-        {savedRecipes.slice(0, 3).map(recipe => (
-          <div key={recipe.id} style={styles.recipeWidgetItem}>
-            <div style={styles.recipeWidgetItemInfo}>
-              <span style={styles.recipeWidgetItemTitle}>{recipe.title}</span>
-              <span style={styles.recipeWidgetItemMeta}>
-                {recipe.ingredients.length} ingredients • 
-                <span style={{
-                  color: recipe.ingredientChoice === 'basic' ? '#3b82f6' : '#f59e0b',
-                  marginLeft: '4px'
-                }}>
-                  {recipe.ingredientChoice === 'basic' ? '🏪' : '🏠'}
-                </span>
-              </span>
-            </div>
-            <button
-              onClick={() => onRecipeSelect(recipe)}
-              style={styles.recipeWidgetButton}
-            >
-              Use
-            </button>
-          </div>
-        ))}
-        
-        {savedRecipes.length > 3 && (
-          <div style={styles.recipeWidgetMore}>
-            +{savedRecipes.length - 3} more recipes
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Admin Menu Component
-function AdminMenu({ currentUser, onShowAnalytics, onShowDemo, onShowSettings, onShowAdmin }) {
-  const [isVisible, setIsVisible] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    // Check if user is admin (modify this logic as needed)
-    const adminEmails = ['admin@example.com', 'developer@example.com'];
-    setIsAdmin(currentUser && adminEmails.includes(currentUser.email));
-  }, [currentUser]);
-
-  // Always show in development, or if user is admin
-  if (!isAdmin && process.env.NODE_ENV === 'production') {
-    return null;
-  }
-
-  return (
-    <div style={styles.adminMenuContainer}>
-      <button 
-        onClick={() => setIsVisible(!isVisible)}
-        style={styles.adminMenuToggle}
-        title="Admin Menu"
-      >
-        🛠️ Admin
-      </button>
-      
-      {isVisible && (
-        <div style={styles.adminMenu}>
-          <div style={styles.adminMenuHeader}>
-            <h4 style={styles.adminMenuTitle}>Admin Tools</h4>
-            <button 
-              onClick={() => setIsVisible(false)}
-              style={styles.adminMenuClose}
-            >
-              ×
-            </button>
-          </div>
-          
-          <div style={styles.adminMenuButtons}>
-            <button 
-              onClick={() => {
-                onShowAnalytics(true);
-                setIsVisible(false);
-              }}
-              style={styles.adminMenuButton}
-            >
-              📊 Analytics Dashboard
-            </button>
-            
-            <button 
-              onClick={() => {
-                onShowDemo(true);
-                setIsVisible(false);
-              }}
-              style={styles.adminMenuButton}
-            >
-              🎯 Parsing Demo
-            </button>
-            
-            <button 
-              onClick={() => {
-                onShowSettings(true);
-                setIsVisible(false);
-              }}
-              style={styles.adminMenuButton}
-            >
-              ⚙️ AI Settings
-            </button>
-            
-            <button 
-              onClick={() => {
-                onShowAdmin(true);
-                setIsVisible(false);
-              }}
-              style={styles.adminMenuButton}
-            >
-              🖥️ Full Dashboard
-            </button>
-            
-            <div style={styles.adminMenuDivider} />
-            
-            <div style={styles.adminMenuInfo}>
-              <small>Admin: {currentUser?.email || 'Dev Mode'}</small>
-              <small>Environment: {process.env.NODE_ENV || 'development'}</small>
-            </div>
-          </div>
+          <div style={styles.logoIcon}>🎯</div>
+          <span style={styles.logoText}>SMART CART</span>
         </div>
-      )}
-    </div>
+        
+        {currentUser && (
+          <nav style={styles.nav}>
+            <button
+              onClick={() => onViewChange('home')}
+              style={{
+                ...styles.navButton,
+                ...(currentView === 'home' ? styles.navButtonActive : {})
+              }}
+            >
+              🏠 Home
+            </button>
+            <button
+              onClick={() => onViewChange('account')}
+              style={{
+                ...styles.navButton,
+                ...(currentView === 'account' ? styles.navButtonActive : {})
+              }}
+            >
+              👤 My Account
+            </button>
+          </nav>
+        )}
+        
+        <div style={styles.headerActions}>
+          {isLoading ? (
+            <span style={styles.loadingText}>
+              <ButtonSpinner color="#6b7280" /> Loading...
+            </span>
+          ) : currentUser ? (
+            <div style={styles.userSection}>
+              <span style={styles.userName}>
+                {currentUser.displayName || currentUser.email.split('@')[0]}
+              </span>
+              <button 
+                onClick={signOut}
+                style={styles.signOutBtn}
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAuthModal(true)}
+              style={styles.ctaButton}
+            >
+              🔐 Sign In
+            </button>
+          )}
+        </div>
+      </div>
+      
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
+    </header>
   );
 }
 
-// Enhanced Grocery List Form with Intelligence + Recipe Integration
-function GroceryListForm() {
+// Main Grocery List Form Component
+function GroceryListForm({ savedRecipes, setSavedRecipes }) {
   const [inputText, setInputText] = useState('');
   const [parsedItems, setParsedItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  // ✅ SIMPLIFIED: Single toggle instead of radio buttons
   const [mergeCart, setMergeCart] = useState(true);
-  
   const [showResults, setShowResults] = useState(false);
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
-
-  // ✅ NEW: Recipe management state
-  const [savedRecipes, setSavedRecipes] = useState([]);
-  const [showRecipeManager, setShowRecipeManager] = useState(false);
-  const [loadingRecipes, setLoadingRecipes] = useState(false);
-
-  // Admin component states
-  const [showAnalytics, setShowAnalytics] = useState(false);
-  const [showDemo, setShowDemo] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(false);
-  
-  // 🆕 NEW: Loading states for individual operations
   const [validatingAll, setValidatingAll] = useState(false);
-  
+  const [parsingProgress, setParsingProgress] = useState(0);
+  const [showProgress, setShowProgress] = useState(false);
+
   const { currentUser, saveCartToFirebase } = useAuth();
 
-  // 🆕 NEW: Auto-save integration
+  // Auto-save integration
   const { 
     draft, 
     clearDraft, 
@@ -501,20 +866,15 @@ function GroceryListForm() {
     isSaving: isDraftSaving
   } = useGroceryListAutoSave(inputText);
 
-  // 🆕 NEW: Cart auto-save
+  // Cart auto-save
   const {
     isSyncing: isCartSyncing,
     lastSync: cartLastSync,
     syncError: cartSyncError
   } = useCartAutoSave(parsedItems, currentUser?.uid);
 
-  // ✅ NEW: Load saved recipes on component mount
-  useEffect(() => {
-    loadSavedRecipes();
-  }, []);
-
+  // Load saved recipes function
   const loadSavedRecipes = async () => {
-    setLoadingRecipes(true);
     try {
       const response = await fetch('/api/cart/recipes');
       if (response.ok) {
@@ -523,34 +883,17 @@ function GroceryListForm() {
       }
     } catch (error) {
       console.warn('Failed to load saved recipes:', error);
-      // Fallback to localStorage
       const saved = localStorage.getItem('cart-smash-recipes');
       if (saved) {
         try {
           setSavedRecipes(JSON.parse(saved));
-        } catch (parseError) {
-          console.warn('Failed to parse saved recipes from localStorage:', parseError);
+        } catch (e) {
+          console.warn('Failed to parse saved recipes:', e);
         }
       }
-    } finally {
-      setLoadingRecipes(false);
     }
   };
 
-  // 🆕 NEW: Handle draft restoration
-  const handleRestoreDraft = () => {
-    if (draft && draft.content) {
-      setInputText(draft.content);
-      setShowDraftBanner(false);
-      clearDraft();
-    }
-  };
-
-  // 🆕 NEW: Progress tracking for parsing
-  const [parsingProgress, setParsingProgress] = useState(0);
-  const [showProgress, setShowProgress] = useState(false);
-
-  // ✅ ENHANCED: Enhanced submission logic with recipe preservation
   const submitGroceryList = async (listText, recipeInfo = null) => {
     if (!listText.trim()) {
       setError('Please enter a grocery list');
@@ -568,7 +911,6 @@ function GroceryListForm() {
     try {
       console.log('🎯 Starting intelligent grocery list processing...');
       
-      // Simulate progress for better UX
       const progressInterval = setInterval(() => {
         setParsingProgress(prev => Math.min(prev + 10, 90));
       }, 200);
@@ -578,14 +920,14 @@ function GroceryListForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           listText: listText,
-          action: mergeCart ? 'merge' : 'replace', // ✅ SIMPLIFIED
+          action: mergeCart ? 'merge' : 'replace',
           userId: currentUser?.uid || null,
-          recipeInfo: recipeInfo, // ✅ NEW: Include recipe information
+          recipeInfo: recipeInfo,
           options: {
-            strictMode: true, // Always use enhanced parsing
+            strictMode: true,
             enableValidation: true,
-            enhancedQuantityParsing: true, // ✅ NEW: Enable enhanced quantity parsing
-            detectContainers: true // ✅ NEW: Enable container detection
+            enhancedQuantityParsing: true,
+            detectContainers: true
           }
         }),
       });
@@ -603,8 +945,6 @@ function GroceryListForm() {
         setParsedItems(data.cart);
         setParsingStats(data.parsing?.stats || null);
         setShowResults(true);
-        
-        // 🆕 NEW: Clear draft after successful parsing
         clearDraft();
         
         console.log(`✅ Intelligent parsing complete:`);
@@ -612,22 +952,11 @@ function GroceryListForm() {
         console.log(`   - Quantity parsing accuracy: ${data.quality?.quantityParsingAccuracy || 'N/A'}`);
         console.log(`   - Average confidence: ${(data.parsing?.averageConfidence * 100 || 0).toFixed(1)}%`);
         
-        // ✅ NEW: Handle recipe saving
         if (data.recipe && data.recipe.saved) {
           console.log(`📝 Recipe saved: "${data.recipe.title}"`);
-          loadSavedRecipes(); // Refresh the recipes list
+          loadSavedRecipes();
         }
         
-        // Show success message if all items parsed well
-        const needsReview = data.quality?.needsReviewItems || 0;
-        if (needsReview === 0 && data.cart.length > 0) {
-          setTimeout(() => {
-            const quantityAccuracy = data.quality?.quantityParsingAccuracy || 0;
-            console.log(`🎉 All ${data.cart.length} items parsed successfully with ${(quantityAccuracy * 100).toFixed(0)}% quantity accuracy!`);
-          }, 500);
-        }
-        
-        // Save to Firebase
         if (currentUser && saveCartToFirebase) {
           try {
             await saveCartToFirebase(data.cart);
@@ -649,69 +978,11 @@ function GroceryListForm() {
     }
   };
 
-  // Form submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     await submitGroceryList(inputText);
   };
 
-  // ✅ ENHANCED: AI-generated grocery list handler with recipe preservation
-  const handleAIGroceryList = async (aiGeneratedList) => {
-    setInputText(aiGeneratedList);
-    
-    if (aiGeneratedList.trim()) {
-      setTimeout(async () => {
-        await submitGroceryList(aiGeneratedList);
-      }, 500);
-    }
-  };
-
-  // ✅ NEW: Recipe generated handler
-  const handleRecipeGenerated = async (recipe) => {
-    console.log('📝 Recipe generated from AI:', recipe.title);
-    setSavedRecipes(prev => [...prev, recipe]);
-    
-    // Save to server
-    try {
-      const response = await fetch('/api/cart/recipes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipeInfo: recipe,
-          userId: currentUser?.uid || null
-        })
-      });
-      
-      if (response.ok) {
-        console.log('✅ Recipe saved to server');
-        loadSavedRecipes(); // Refresh from server
-      }
-    } catch (error) {
-      console.error('Failed to save recipe to server:', error);
-      // Still keep it in local state
-    }
-    
-    // Optionally auto-populate the grocery list with recipe ingredients
-    if (recipe.ingredients && recipe.ingredients.length > 0) {
-      const ingredientsList = recipe.ingredients.join('\n');
-      setInputText(ingredientsList);
-    }
-  };
-
-  // ✅ NEW: Recipe selection handler
-  const handleRecipeSelect = (recipe) => {
-    if (recipe.ingredients && recipe.ingredients.length > 0) {
-      const ingredientsList = recipe.ingredients.join('\n');
-      setInputText(ingredientsList);
-      
-      // Auto-submit the recipe ingredients
-      setTimeout(async () => {
-        await submitGroceryList(ingredientsList, recipe);
-      }, 500);
-    }
-  };
-
-  // Handle items change from components
   const handleItemsChange = (updatedItems) => {
     setParsedItems(updatedItems);
     
@@ -724,7 +995,6 @@ function GroceryListForm() {
     }
   };
 
-  // Validate all products with loading state
   const handleValidateAll = async () => {
     if (!parsedItems || parsedItems.length === 0) return;
     
@@ -759,7 +1029,7 @@ function GroceryListForm() {
     setError('');
     setParsingStats(null);
     setShowValidator(false);
-    clearDraft(); // 🆕 NEW: Clear draft when starting new list
+    clearDraft();
   };
 
   const handleShowValidator = () => {
@@ -776,12 +1046,10 @@ function GroceryListForm() {
 
   return (
     <div style={styles.container}>
-      {/* 🆕 NEW: Loading overlay during parsing */}
       {isLoading && (
         <OverlaySpinner text="Processing your grocery list..." />
       )}
 
-      {/* 🆕 NEW: Progress overlay for parsing */}
       {showProgress && (
         <div style={styles.progressOverlay}>
           <ProgressSpinner 
@@ -791,16 +1059,6 @@ function GroceryListForm() {
         </div>
       )}
 
-      {/* Admin Menu */}
-      <AdminMenu
-        currentUser={currentUser}
-        onShowAnalytics={setShowAnalytics}
-        onShowDemo={setShowDemo}
-        onShowSettings={setShowSettings}
-        onShowAdmin={setShowAdmin}
-      />
-
-      {/* Hero Section */}
       <div style={styles.heroSection}>
         <h1 style={styles.heroTitle}>
           Smart Cart.
@@ -813,14 +1071,6 @@ function GroceryListForm() {
         </p>
       </div>
 
-      {/* ✅ NEW: Recipe Manager Widget */}
-      <RecipeManagerWidget
-        savedRecipes={savedRecipes}
-        onRecipeSelect={handleRecipeSelect}
-        onToggleRecipeManager={() => setShowRecipeManager(true)}
-      />
-
-      {/* Intelligence Features Banner */}
       <div style={styles.intelligenceBanner}>
         <div style={styles.bannerContent}>
           <div style={styles.bannerText}>
@@ -840,26 +1090,10 @@ function GroceryListForm() {
         </div>
       </div>
 
-      {/* Main Input Section */}
       <div style={styles.mainForm}>
-        {/* 🆕 NEW: Draft Restoration Banner */}
-        <DraftRestorationBanner 
-          draft={showDraftBanner ? draft : null}
-          onRestore={handleRestoreDraft}
-          onDismiss={() => {
-            setShowDraftBanner(false);
-            clearDraft();
-          }}
-        />
-
         <div style={styles.inputSection}>
           <label style={styles.inputLabel}>
             Paste or Create Grocery List
-            {draft && draft.content && (
-              <span style={styles.autoSaveIndicator}>
-                💾 Auto-saved
-              </span>
-            )}
             {isDraftSaving && (
               <span style={styles.autoSaveIndicator}>
                 <ButtonSpinner color="#10b981" /> Saving...
@@ -887,7 +1121,6 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
           />
         </div>
         
-        {/* ✅ SIMPLIFIED: Single toggle for cart action */}
         <div style={styles.controlsSection}>
           <div style={styles.cartActionToggle}>
             <label style={styles.toggleLabel}>
@@ -954,16 +1187,9 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
             </div>
           )}
         </div>
-
-        {/* 🆕 NEW: Sync Status */}
-        <SyncStatusIndicator 
-          isSyncing={isCartSyncing}
-          lastSync={cartLastSync}
-          error={cartSyncError}
-        />
       </div>
 
-      {/* Enhanced Results Display */}
+      {/* ParsedResultsDisplay - The key component for showing results */}
       {showResults && parsedItems.length > 0 && (
         <ParsedResultsDisplay 
           items={parsedItems} 
@@ -972,13 +1198,6 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
           parsingStats={parsingStats}
         />
       )}
-
-      {/* 🆕 NEW: Kroger Integration - Shows when you have parsed items */}
-      <KrogerQuickOrderButton 
-        cartItems={parsedItems}
-        currentUser={currentUser}
-        isVisible={showResults && parsedItems.length > 0}
-      />
 
       {/* Product Validator Modal */}
       {showValidator && (
@@ -997,1187 +1216,117 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
         />
       )}
 
-      {/* ✅ ENHANCED: Smart AI Assistant with recipe preservation */}
+      {/* Smart AI Assistant */}
       <SmartAIAssistant 
-        onGroceryListGenerated={handleAIGroceryList}
-        onRecipeGenerated={handleRecipeGenerated}
+        onGroceryListGenerated={(list) => {
+          setInputText(list);
+          if (list.trim()) {
+            setTimeout(() => submitGroceryList(list), 500);
+          }
+        }}
+        onRecipeGenerated={(recipe) => {
+          setSavedRecipes(prev => [...prev, recipe]);
+        }}
       />
-
-      {/* Admin Dashboard Modals */}
-      {showAnalytics && (
-        <ParsingAnalyticsDashboard onClose={() => setShowAnalytics(false)} />
-      )}
-
-      {showDemo && (
-        <SmartParsingDemo onClose={() => setShowDemo(false)} />
-      )}
-
-      {showSettings && (
-        <AIParsingSettings 
-          onClose={() => setShowSettings(false)}
-          onSettingsChange={(settings) => {
-            console.log('Settings updated:', settings);
-          }}
-        />
-      )}
-
-      {showAdmin && (
-        <AdminDashboard 
-          onClose={() => setShowAdmin(false)}
-          currentUser={currentUser}
-        />
-      )}
-
-      {/* ✅ NEW: Recipe Manager Modal */}
-      {showRecipeManager && (
-        <div style={styles.recipeModalOverlay}>
-          <div style={styles.recipeModal}>
-            <div style={styles.recipeModalHeader}>
-              <h3 style={styles.recipeModalTitle}>
-                📝 Recipe Manager ({savedRecipes.length} saved)
-              </h3>
-              <button
-                onClick={() => setShowRecipeManager(false)}
-                style={styles.recipeModalClose}
-              >
-                ×
-              </button>
-            </div>
-            
-            <div style={styles.recipeModalContent}>
-              {loadingRecipes ? (
-                <div style={{ textAlign: 'center', padding: '40px' }}>
-                  <LoadingSpinner text="Loading recipes..." />
-                </div>
-              ) : savedRecipes.length === 0 ? (
-                <div style={styles.recipeModalEmpty}>
-                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
-                  <h4>No saved recipes yet</h4>
-                  <p>Use the AI assistant to create meal plans and recipes!</p>
-                </div>
-              ) : (
-                <div style={styles.recipesList}>
-                  {savedRecipes.map(recipe => (
-                    <div key={recipe.id} style={styles.recipeItem}>
-                      <div style={styles.recipeItemHeader}>
-                        <h4 style={styles.recipeItemTitle}>{recipe.title}</h4>
-                        <div style={styles.recipeItemActions}>
-                          <button
-                            onClick={() => handleRecipeSelect(recipe)}
-                            style={styles.recipeUseButton}
-                          >
-                            🛒 Use Ingredients
-                          </button>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(recipe.fullText);
-                              alert('Recipe copied to clipboard!');
-                            }}
-                            style={styles.recipeCopyButton}
-                          >
-                            📋 Copy
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div style={styles.recipeItemMeta}>
-                        {recipe.ingredients.length} ingredients • {recipe.instructions.length} steps •
-                        <span style={{
-                          color: recipe.ingredientChoice === 'basic' ? '#3b82f6' : '#f59e0b',
-                          marginLeft: '4px'
-                        }}>
-                          {recipe.ingredientChoice === 'basic' ? '🏪 Basic' : '🏠 Homemade'}
-                        </span>
-                      </div>
-                      
-                      <div style={styles.recipeItemPreview}>
-                        {recipe.fullText.substring(0, 200)}...
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-// ✅ CONSOLIDATED: Single Auth Component in Header
-function Header() {
-  const { currentUser, signOut, isLoading } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-
-  return (
-    <header style={styles.header}>
-      <div style={styles.headerContent}>
-        <div style={styles.logo}>
-          <div style={styles.logoIcon}>🎯</div>
-          <span style={styles.logoText}>SMART CART</span>
-        </div>
-        
-        <div style={styles.headerActions}>
-          {isLoading ? (
-            <span style={styles.loadingText}>
-              <ButtonSpinner color="#6b7280" /> Loading...
-            </span>
-          ) : currentUser ? (
-            <div style={styles.userMenu}>
-              <span style={styles.userGreeting}>
-                👋 {currentUser.displayName || currentUser.email.split('@')[0]}
-              </span>
-              <button 
-                onClick={signOut}
-                style={styles.signOutButton}
-              >
-                Sign Out
-              </button>
-            </div>
-          ) : (
-            <>
-              <button
-                onClick={() => setShowAuthModal(true)}
-                style={styles.loginButton}
-              >
-                Log In
-              </button>
-              <button 
-                onClick={() => setShowAuthModal(true)}
-                style={styles.ctaButton}
-              >
-                🔐 Sign In to Save Carts
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-      
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-      />
-    </header>
-  );
-}
-
-// Main App Component
+// Main App Component - SINGLE DEFINITION
 function App() {
+  const [currentView, setCurrentView] = useState('home');
+  const [savedRecipes, setSavedRecipes] = useState([]);
+  
+  // Load saved recipes on mount
+  useEffect(() => {
+    const loadSavedRecipes = async () => {
+      try {
+        const response = await fetch('/api/cart/recipes');
+        if (response.ok) {
+          const data = await response.json();
+          setSavedRecipes(data.recipes || []);
+        }
+      } catch (error) {
+        console.warn('Failed to load saved recipes:', error);
+        const saved = localStorage.getItem('cart-smash-recipes');
+        if (saved) {
+          try {
+            setSavedRecipes(JSON.parse(saved));
+          } catch (e) {
+            console.warn('Failed to parse saved recipes:', e);
+          }
+        }
+      }
+    };
+    
+    loadSavedRecipes();
+  }, []);
+
   return (
     <AuthProvider>
       <div style={styles.app}>
-        {/* ✅ CONSOLIDATED: Single auth location in header */}
-        <Header />
+        <Header currentView={currentView} onViewChange={setCurrentView} />
         
         <main style={styles.main}>
-          <GroceryListForm />
+          {currentView === 'home' ? (
+            <GroceryListForm 
+              savedRecipes={savedRecipes}
+              setSavedRecipes={setSavedRecipes}
+            />
+          ) : currentView === 'account' ? (
+            <MyAccount 
+              savedRecipes={savedRecipes}
+              onRecipeSelect={(recipe) => {
+                setCurrentView('home');
+                // You could also pass this recipe to GroceryListForm via state
+              }}
+            />
+          ) : null}
         </main>
         
-        {/* Enhanced Features Section */}
-        <section style={styles.featuresSection}>
-          <div style={styles.featuresGrid}>
-            <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>🔢</div>
-              <h3 style={styles.featureTitle}>Smart Quantity & Container Parsing</h3>
-              <p style={styles.featureDescription}>
-                Handles fractions like "1/4 cup" and detects containers like "bottle", "can", "bag" automatically
-              </p>
+        {currentView === 'home' && (
+          <section style={styles.featuresSection}>
+            <div style={styles.featuresGrid}>
+              <div style={styles.featureCard}>
+                <div style={styles.featureIcon}>🔢</div>
+                <h3 style={styles.featureTitle}>Smart Quantity & Container Parsing</h3>
+                <p style={styles.featureDescription}>
+                  Handles fractions like "1/4 cup" and detects containers like "bottle", "can", "bag" automatically
+                </p>
+              </div>
+              
+              <div style={styles.featureCard}>
+                <div style={styles.featureIcon}>📝</div>
+                <h3 style={styles.featureTitle}>Recipe Preservation</h3>
+                <p style={styles.featureDescription}>
+                  Saves cooking instructions and recipes for future reference while extracting ingredients
+                </p>
+              </div>
+              
+              <div style={styles.featureCard}>
+                <div style={styles.featureIcon}>🏪</div>
+                <h3 style={styles.featureTitle}>Basic vs Homemade Choice</h3>
+                <p style={styles.featureDescription}>
+                  Choose between convenient store-bought items or from-scratch cooking ingredients
+                </p>
+              </div>
+              
+              <div style={styles.featureCard}>
+                <div style={styles.featureIcon}>💾</div>
+                <h3 style={styles.featureTitle}>Auto-Save Everything</h3>
+                <p style={styles.featureDescription}>
+                  Never lose your work with automatic draft saving and cloud sync for your carts
+                </p>
+              </div>
             </div>
-            
-            <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>📝</div>
-              <h3 style={styles.featureTitle}>Recipe Preservation</h3>
-              <p style={styles.featureDescription}>
-                Saves cooking instructions and recipes for future reference while extracting ingredients
-              </p>
-            </div>
-            
-            <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>🏪</div>
-              <h3 style={styles.featureTitle}>Basic vs Homemade Choice</h3>
-              <p style={styles.featureDescription}>
-                Choose between convenient store-bought items or from-scratch cooking ingredients
-              </p>
-            </div>
-            
-            <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>💾</div>
-              <h3 style={styles.featureTitle}>Auto-Save Everything</h3>
-              <p style={styles.featureDescription}>
-                Never lose your work with automatic draft saving and cloud sync for your carts
-              </p>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
       </div>
     </AuthProvider>
   );
 }
 
-const styles = {
-  app: {
-    minHeight: '100vh',
-    backgroundColor: '#f8f9fa',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  },
-  
-  header: {
-    backgroundColor: 'white',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-    padding: '16px 24px',
-    position: 'sticky',
-    top: 0,
-    zIndex: 100,
-  },
-  
-  headerContent: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  
-  logo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-  },
-  
-  logoIcon: {
-    padding: '8px',
-    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
-    borderRadius: '8px',
-    fontSize: '20px',
-  },
-  
-  logoText: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  
-  headerActions: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-  },
-  
-  // ✅ NEW: User menu styles
-  userMenu: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-    padding: '8px 16px',
-    backgroundColor: '#f0f9ff',
-    borderRadius: '8px',
-    border: '1px solid #3b82f6',
-  },
-  
-  userGreeting: {
-    color: '#1e40af',
-    fontWeight: '600',
-    fontSize: '14px',
-  },
-  
-  signOutButton: {
-    padding: '6px 12px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-    transition: 'background-color 0.2s',
-  },
-  
-  loadingText: {
-    color: '#6b7280',
-    fontSize: '14px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  
-  loginButton: {
-    color: '#6b7280',
-    backgroundColor: 'transparent',
-    border: 'none',
-    padding: '8px 16px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    transition: 'color 0.2s',
-    fontSize: '14px',
-  },
-  
-  ctaButton: {
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    padding: '12px 24px',
-    borderRadius: '8px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
-    fontSize: '14px',
-  },
-  
-  main: {
-    maxWidth: '1000px',
-    margin: '0 auto',
-    padding: '40px 24px',
-  },
-  
-  container: {
-    width: '100%',
-    position: 'relative',
-  },
-
-  // 🆕 NEW: Progress overlay
-  progressOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    backdropFilter: 'blur(4px)',
-    zIndex: 9999,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // 🆕 NEW: Draft banner styles
-  draftBanner: {
-    backgroundColor: '#fef3c7',
-    border: '1px solid #fbbf24',
-    borderRadius: '8px',
-    padding: '16px',
-    marginBottom: '20px',
-    boxShadow: '0 2px 8px rgba(251, 191, 36, 0.2)',
-  },
-
-  draftBannerContent: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: '12px',
-  },
-
-  draftBannerText: {
-    flex: 1,
-  },
-
-  draftBannerTitle: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#92400e',
-    marginBottom: '4px',
-  },
-
-  draftBannerPreview: {
-    fontSize: '14px',
-    color: '#78350f',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    maxWidth: '400px',
-  },
-
-  draftBannerActions: {
-    display: 'flex',
-    gap: '10px',
-  },
-
-  restoreButton: {
-    padding: '8px 16px',
-    backgroundColor: '#f59e0b',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
-  },
-
-  dismissButton: {
-    padding: '8px 16px',
-    backgroundColor: 'transparent',
-    color: '#92400e',
-    border: '1px solid #f59e0b',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-
-  // 🆕 NEW: Auto-save indicator
-  autoSaveIndicator: {
-    marginLeft: '10px',
-    fontSize: '12px',
-    color: '#10b981',
-    fontWeight: 'normal',
-    opacity: 0.8,
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
-
-  // 🆕 NEW: Sync status styles
-  syncStatus: {
-    marginTop: '12px',
-    textAlign: 'center',
-    fontSize: '12px',
-  },
-
-  syncStatusSyncing: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    color: '#3b82f6',
-    fontWeight: '500',
-  },
-
-  syncStatusSuccess: {
-    color: '#10b981',
-    fontWeight: '500',
-  },
-
-  syncStatusError: {
-    color: '#f59e0b',
-    fontWeight: '500',
-  },
-
-  // ✅ NEW: Cart action toggle styles
-  cartActionToggle: {
-    backgroundColor: '#f9fafb',
-    padding: '20px',
-    borderRadius: '12px',
-    border: '1px solid #e5e7eb',
-  },
-  
-  toggleLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    cursor: 'pointer',
-    position: 'relative',
-  },
-  
-  toggleCheckbox: {
-    position: 'absolute',
-    opacity: 0,
-    width: 0,
-    height: 0,
-  },
-  
-  toggleSlider: {
-    display: 'inline-block',
-    width: '50px',
-    height: '28px',
-    backgroundColor: '#e5e7eb',
-    borderRadius: '14px',
-    position: 'relative',
-    transition: 'background-color 0.3s',
-    flexShrink: 0,
-  },
-  
-  toggleText: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  
-  toggleDescription: {
-    marginTop: '8px',
-    marginLeft: '62px',
-    fontSize: '14px',
-    color: '#6b7280',
-    lineHeight: '1.4',
-  },
-
-  // ✅ NEW: Recipe widget styles
-  recipeWidget: {
-    backgroundColor: '#f0f9ff',
-    borderRadius: '12px',
-    padding: '20px',
-    marginBottom: '32px',
-    border: '2px solid #3b82f6',
-    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.1)'
-  },
-
-  recipeWidgetHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '16px'
-  },
-
-  recipeWidgetTitle: {
-    margin: 0,
-    fontSize: '18px',
-    fontWeight: 'bold',
-    color: '#1e40af'
-  },
-
-  recipeWidgetToggle: {
-    padding: '6px 12px',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500'
-  },
-
-  recipeWidgetContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px'
-  },
-
-  recipeWidgetItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '12px',
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    border: '1px solid #bfdbfe'
-  },
-
-  recipeWidgetItemInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px'
-  },
-
-  recipeWidgetItemTitle: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#1f2937'
-  },
-
-  recipeWidgetItemMeta: {
-    fontSize: '12px',
-    color: '#6b7280'
-  },
-
-  recipeWidgetButton: {
-    padding: '6px 12px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '12px',
-    fontWeight: '500'
-  },
-
-  recipeWidgetMore: {
-    fontSize: '12px',
-    color: '#6b7280',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    padding: '8px'
-  },
-
-  // ✅ NEW: Recipe modal styles
-  recipeModalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    zIndex: 3000,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '20px'
-  },
-
-  recipeModal: {
-    backgroundColor: 'white',
-    borderRadius: '15px',
-    width: '90%',
-    maxWidth: '700px',
-    maxHeight: '80vh',
-    overflow: 'hidden',
-    boxShadow: '0 10px 50px rgba(0,0,0,0.3)'
-  },
-
-  recipeModalHeader: {
-    padding: '20px',
-    borderBottom: '1px solid #eee',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa'
-  },
-
-  recipeModalTitle: {
-    margin: 0,
-    fontSize: '20px',
-    color: '#333'
-  },
-
-  recipeModalClose: {
-    background: 'none',
-    border: 'none',
-    fontSize: '24px',
-    cursor: 'pointer',
-    color: '#666'
-  },
-
-  recipeModalContent: {
-    padding: '20px',
-    maxHeight: '60vh',
-    overflowY: 'auto'
-  },
-
-  recipeModalEmpty: {
-    textAlign: 'center',
-    padding: '40px',
-    color: '#666'
-  },
-
-  recipesList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px'
-  },
-
-  recipeItem: {
-    border: '1px solid #e5e7eb',
-    borderRadius: '8px',
-    padding: '16px',
-    backgroundColor: '#f9fafb'
-  },
-
-  recipeItemHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '12px'
-  },
-
-  recipeItemTitle: {
-    margin: 0,
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#1f2937'
-  },
-
-  recipeItemActions: {
-    display: 'flex',
-    gap: '8px'
-  },
-
-  recipeUseButton: {
-    padding: '6px 12px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '12px',
-    fontWeight: 'bold'
-  },
-
-  recipeCopyButton: {
-    padding: '6px 12px',
-    backgroundColor: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '12px'
-  },
-
-  recipeItemMeta: {
-    fontSize: '12px',
-    color: '#666',
-    marginBottom: '12px'
-  },
-
-  recipeItemPreview: {
-    fontSize: '14px',
-    color: '#374151',
-    lineHeight: '1.4'
-  },
-
-  // Kroger Order Styles
-  krogerOrderSection: {
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    padding: '32px',
-    marginTop: '32px',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-    border: '2px solid #10b981',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-
-  krogerOrderHeader: {
-    textAlign: 'center',
-    marginBottom: '24px',
-  },
-
-  krogerOrderTitle: {
-    margin: '0 0 8px 0',
-    fontSize: '28px',
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-
-  krogerOrderSubtitle: {
-    margin: 0,
-    fontSize: '16px',
-    color: '#6b7280',
-    lineHeight: '1.5',
-  },
-
-  krogerOrderContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '24px',
-  },
-
-  krogerOrderStats: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-    gap: '16px',
-  },
-
-  orderStat: {
-    textAlign: 'center',
-    padding: '16px',
-    backgroundColor: '#f0f9ff',
-    borderRadius: '12px',
-    border: '1px solid #0ea5e9',
-  },
-
-  orderStatNumber: {
-    display: 'block',
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#0c4a6e',
-    marginBottom: '4px',
-  },
-
-  orderStatLabel: {
-    fontSize: '12px',
-    color: '#0369a1',
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  },
-
-  krogerOrderActions: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '12px',
-  },
-
-  krogerOrderButton: {
-    padding: '16px 32px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
-    minWidth: '280px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  authStatus: {
-    fontSize: '14px',
-    color: '#10b981',
-    fontWeight: '500',
-  },
-
-  krogerFeatures: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '24px',
-    flexWrap: 'wrap',
-  },
-
-  feature: {
-    fontSize: '14px',
-    color: '#6b7280',
-    fontWeight: '500',
-  },
-
-  // Admin Menu Styles
-  adminMenuContainer: {
-    position: 'absolute',
-    top: '-10px',
-    right: '20px',
-    zIndex: 2000,
-  },
-
-  adminMenuToggle: {
-    padding: '8px 16px',
-    backgroundColor: '#667eea',
-    color: 'white',
-    border: 'none',
-    borderRadius: '20px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    boxShadow: '0 4px 10px rgba(102, 126, 234, 0.3)',
-    transition: 'all 0.2s ease',
-  },
-
-  adminMenu: {
-    position: 'absolute',
-    top: '45px',
-    right: '0',
-    background: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
-    border: '1px solid #e5e7eb',
-    minWidth: '250px',
-    zIndex: 3000,
-  },
-
-  adminMenuHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '15px 20px',
-    borderBottom: '1px solid #e5e7eb',
-    background: 'linear-gradient(135deg, #667eea, #764ba2)',
-    color: 'white',
-    borderRadius: '12px 12px 0 0',
-  },
-
-  adminMenuTitle: {
-    margin: 0,
-    fontSize: '16px',
-    fontWeight: 'bold',
-  },
-
-  adminMenuClose: {
-    background: 'none',
-    border: 'none',
-    color: 'white',
-    fontSize: '20px',
-    cursor: 'pointer',
-    padding: '0',
-    width: '24px',
-    height: '24px',
-  },
-
-  adminMenuButtons: {
-    padding: '10px 0',
-  },
-
-  adminMenuButton: {
-    width: '100%',
-    padding: '12px 20px',
-    border: 'none',
-    background: 'none',
-    textAlign: 'left',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#374151',
-    transition: 'background-color 0.2s',
-  },
-
-  adminMenuDivider: {
-    height: '1px',
-    background: '#e5e7eb',
-    margin: '8px 0',
-  },
-
-  adminMenuInfo: {
-    padding: '10px 20px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    fontSize: '11px',
-    color: '#6b7280',
-  },
-  
-  heroSection: {
-    textAlign: 'center',
-    marginBottom: '48px',
-  },
-  
-  heroTitle: {
-    fontSize: 'clamp(36px, 8vw, 64px)',
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: '24px',
-    lineHeight: '1.1',
-  },
-  
-  heroAccent: {
-    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    backgroundClip: 'text',
-  },
-  
-  heroSubtitle: {
-    fontSize: '20px',
-    color: '#6b7280',
-    maxWidth: '700px',
-    margin: '0 auto',
-    lineHeight: '1.6',
-  },
-  
-  intelligenceBanner: {
-    background: 'linear-gradient(135deg, #e8f4fd, #d0ebf7)',
-    padding: '20px',
-    borderRadius: '15px',
-    marginBottom: '32px',
-    border: '2px solid #3b82f6',
-    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.2)',
-  },
-  
-  bannerContent: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: '15px',
-  },
-  
-  bannerText: {
-    flex: 1,
-  },
-  
-  bannerTitle: {
-    color: '#1e40af',
-    margin: '0 0 8px 0',
-    fontSize: '20px',
-    fontWeight: 'bold',
-  },
-  
-  bannerSubtitle: {
-    color: '#3730a3',
-    margin: 0,
-    fontSize: '14px',
-    lineHeight: '1.4',
-  },
-  
-  bannerIndicator: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '5px',
-  },
-  
-  indicatorText: {
-    fontSize: '12px',
-    color: '#3730a3',
-    fontWeight: 'bold',
-  },
-  
-  indicatorIcon: {
-    fontSize: '24px',
-  },
-  
-  mainForm: {
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    padding: '32px',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-    marginBottom: '48px',
-    position: 'relative',
-  },
-  
-  inputSection: {
-    marginBottom: '24px',
-  },
-  
-  inputLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: '12px',
-  },
-  
-  textarea: {
-    width: '100%',
-    padding: '16px',
-    fontSize: '16px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '12px',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-    lineHeight: '1.5',
-    minHeight: '200px',
-    transition: 'border-color 0.2s',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  
-  controlsSection: {
-    marginBottom: '24px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px',
-  },
-  
-  errorMessage: {
-    padding: '16px',
-    backgroundColor: '#fef2f2',
-    color: '#dc2626',
-    borderRadius: '8px',
-    border: '1px solid #fecaca',
-    marginBottom: '24px',
-    fontSize: '16px',
-  },
-  
-  buttonGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px',
-    alignItems: 'center',
-  },
-  
-  smashButton: {
-    width: '100%',
-    border: 'none',
-    padding: '16px 32px',
-    color: 'white',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    textTransform: 'uppercase',
-    letterSpacing: '1px',
-    transition: 'all 0.3s ease',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  
-  actionButtons: {
-    display: 'flex',
-    gap: '10px',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  
-  newListButton: {
-    padding: '12px 20px',
-    backgroundColor: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '14px',
-  },
-  
-  smartButton: {
-    padding: '12px 20px',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '14px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  
-  validateButton: {
-    padding: '12px 20px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '14px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  
-  reviewButton: {
-    padding: '12px 20px',
-    backgroundColor: '#f59e0b',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '14px',
-  },
-  
-  featuresSection: {
-    padding: '48px 24px',
-    backgroundColor: '#f9fafb',
-  },
-  
-  featuresGrid: {
-    maxWidth: '1000px',
-    margin: '0 auto',
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '32px',
-  },
-  
-  featureCard: {
-    textAlign: 'center',
-    padding: '24px',
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
-  },
-  
-  featureIcon: {
-    width: '64px',
-    height: '64px',
-    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '0 auto 16px',
-    fontSize: '24px',
-  },
-  
-  featureTitle: {
-    fontWeight: 'bold',
-    fontSize: '20px',
-    color: '#1f2937',
-    marginBottom: '8px',
-  },
-  
-  featureDescription: {
-    color: '#6b7280',
-    lineHeight: '1.5',
-  },
-};
-
-// Add animations and enhanced toggle styles
+// Add CSS animations
 const styleSheet = document.createElement('style');
 styleSheet.textContent = `
   @keyframes shake {
@@ -2193,17 +1342,6 @@ styleSheet.textContent = `
     90% { transform: translateX(0px) translateY(0px); }
   }
   
-  .admin-menu-button:hover {
-    background-color: #f3f4f6 !important;
-  }
-  
-  .kroger-order-button:hover {
-    background-color: #059669 !important;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-  }
-  
-  /* Enhanced toggle slider styles */
   input[type="checkbox"]:checked + span {
     background-color: #3b82f6 !important;
   }

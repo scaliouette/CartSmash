@@ -1,8 +1,104 @@
 // server/routes/auth.js - Express routes using your existing KrogerAuthService
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 console.log('🔐 Loading auth routes...');
+
+// In-memory user storage (replace with database)
+const users = new Map();
+
+// Sign up
+router.post('/signup', async (req, res) => {
+  try {
+    const { email, password, displayName } = req.body;
+    
+    // Check if user exists
+    if (users.has(email)) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+    
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Create user
+    const user = {
+      id: `user_${Date.now()}`,
+      email,
+      displayName: displayName || email.split('@')[0],
+      password: hashedPassword,
+      createdAt: new Date().toISOString()
+    };
+    
+    users.set(email, user);
+    
+    // Create token
+    const token = jwt.sign(
+      { id: user.id, email: user.email, displayName: user.displayName },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+    
+    // Return user without password
+    const { password: _, ...userWithoutPassword } = user;
+    
+    res.json({
+      success: true,
+      token,
+      user: userWithoutPassword
+    });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ error: 'Failed to create account' });
+  }
+});
+
+// Sign in
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Find user
+    const user = users.get(email);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    // Verify password
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    // Create token
+    const token = jwt.sign(
+      { id: user.id, email: user.email, displayName: user.displayName },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+    
+    // Return user without password
+    const { password: _, ...userWithoutPassword } = user;
+    
+    res.json({
+      success: true,
+      token,
+      user: userWithoutPassword
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Failed to sign in' });
+  }
+});
+
+// Logout
+router.post('/logout', (req, res) => {
+  // Token invalidation would be handled here in production
+  res.json({ success: true, message: 'Logged out successfully' });
+});
+
+
 
 // Import your existing auth service
 let KrogerAuthService;
