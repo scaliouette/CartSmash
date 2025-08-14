@@ -1,6 +1,10 @@
 // client/src/firebase.js
+// FIXED VERSION WITH GOOGLE AUTH PROVIDER
+
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getDatabase } from 'firebase/database';
 import { getAnalytics } from 'firebase/analytics';
 
 // Your Firebase configuration - from environment variables
@@ -31,14 +35,44 @@ if (!isConfigValid) {
 // Initialize Firebase only if config is valid
 let app = null;
 let auth = null;
+let googleProvider = null;
+let db = null;
+let database = null;
 let analytics = null;
 
 if (isConfigValid) {
   try {
+    // Initialize Firebase app
     app = initializeApp(firebaseConfig);
+    console.log('✅ Firebase app initialized');
+    
+    // Initialize Authentication
     auth = getAuth(app);
-    analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
-    console.log('✅ Firebase initialized successfully');
+    console.log('✅ Firebase Auth initialized');
+    
+    // Initialize Google Auth Provider
+    googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({
+      prompt: 'select_account'
+    });
+    console.log('✅ Google Auth Provider configured');
+    
+    // Initialize Firestore
+    db = getFirestore(app);
+    console.log('✅ Firestore initialized');
+    
+    // Initialize Realtime Database
+    database = getDatabase(app);
+    console.log('✅ Realtime Database initialized');
+    
+    // Initialize Analytics (only in browser environment)
+    if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
+      analytics = getAnalytics(app);
+      console.log('✅ Analytics initialized');
+    }
+    
+    console.log('🎉 All Firebase services initialized successfully!');
+    
   } catch (error) {
     console.error('❌ Firebase initialization failed:', error);
   }
@@ -47,5 +81,13 @@ if (isConfigValid) {
   console.warn('The app will run in mock/demo mode');
 }
 
-export { auth, analytics };
+// Export all Firebase services
+export { 
+  auth, 
+  googleProvider,  // This was missing!
+  db,             // This was missing!
+  database,       // This was missing!
+  analytics 
+};
+
 export default app;

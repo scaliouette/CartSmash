@@ -8,7 +8,7 @@ import SmartAIAssistant from './components/SmartAIAssistant';
 import ProductValidator from './components/ProductValidator';
 import MyAccount from './components/MyAccount';
 import FirebaseDebug from './components/FirebaseDebug';
-
+import AuthTest from './components/AuthTest';
 
 // Import the enhanced components
 import ParsingAnalyticsDashboard from './components/ParsingAnalyticsDashboard';
@@ -27,6 +27,7 @@ import confetti from 'canvas-confetti';
 
 // Import debug component (remove after testing)
 // import AuthDebug from './components/AuthDebug';
+
 
 
 // Define styles OUTSIDE of components at module level
@@ -596,6 +597,7 @@ function getTimeAgo(date) {
 }
 
 
+
 // Sync Status Indicator Component
 function SyncStatusIndicator({ isSyncing, lastSync, error }) {
   if (!isSyncing && !lastSync && !error) return null;
@@ -782,6 +784,7 @@ function Header({ currentView, onViewChange }) {
 
   return (
     <header style={styles.header}>
+      
       <div style={styles.headerContent}>
         <div 
           style={styles.logoContainer}
@@ -1329,7 +1332,10 @@ function App() {
     <AuthProvider>
       <div style={styles.app}>
         <Header currentView={currentView} onViewChange={setCurrentView} />
-        
+        {process.env.NODE_ENV === 'development' && (
+  <AuthTest />
+)}
+
         <main style={styles.main}>
           {currentView === 'home' ? (
             <GroceryListForm 

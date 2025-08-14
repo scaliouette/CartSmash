@@ -1,274 +1,311 @@
 // client/src/contexts/AuthContext.js
-// HYBRID VERSION - Works with or without Firebase
+// COMPLETE WORKING VERSION WITH ALL AUTH FUNCTIONS
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { 
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  updateProfile,
+  signInWithPopup
+} from 'firebase/auth';
+import { auth, googleProvider, db } from '../firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
-// Try to import Firebase, but don't fail if it's not configured
-let firebaseAuth = null;
-let GoogleAuthProvider = null;
-let signInWithPopup = null;
-let createUserWithEmailAndPassword = null;
-let signInWithEmailAndPassword = null;
-let firebaseSignOut = null;
-let onAuthStateChanged = null;
-let updateProfile = null;
-
-try {
-  const firebaseAuthModule = require('firebase/auth');
-  GoogleAuthProvider = firebaseAuthModule.GoogleAuthProvider;
-  signInWithPopup = firebaseAuthModule.signInWithPopup;
-  createUserWithEmailAndPassword = firebaseAuthModule.createUserWithEmailAndPassword;
-  signInWithEmailAndPassword = firebaseAuthModule.signInWithEmailAndPassword;
-  firebaseSignOut = firebaseAuthModule.signOut;
-  onAuthStateChanged = firebaseAuthModule.onAuthStateChanged;
-  updateProfile = firebaseAuthModule.updateProfile;
-  
-  // Try to get auth instance
-  try {
-    const { auth } = require('../firebase');
-    firebaseAuth = auth;
-    console.log('✅ Firebase Auth loaded successfully');
-  } catch (e) {
-    console.warn('⚠️ Firebase not configured, using mock auth');
-  }
-} catch (error) {
-  console.warn('⚠️ Firebase Auth not available, using mock auth');
-}
-
+// Create context
 const AuthContext = createContext({});
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+// Export useAuth hook
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  return context;
+};
 
+// Auth Provider Component
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isUsingMockAuth, setIsUsingMockAuth] = useState(!firebaseAuth);
 
-  // Sign up with email and password
-  async function signUpWithEmail(email, password, displayName = '') {
+  console.log('✅ Firebase Auth loaded successfully');
+
+  // Email/Password Signup
+  const signup = async (email, password, displayName = '') => {
     try {
+      console.log('📝 Starting signup for:', email);
       setError('');
       
-      if (firebaseAuth && createUserWithEmailAndPassword) {
-        // Use real Firebase
-        const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-        if (displayName && userCredential.user) {
-          await updateProfile(userCredential.user, { displayName });
+      if (!auth) {
+        throw new Error('Firebase Auth not initialized');
+      }
+      
+      // Create user with email/password
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log('✅ User created:', userCredential.user.email);
+      
+      // Update display name if provided
+      if (displayName && userCredential.user) {
+        await updateProfile(userCredential.user, { displayName });
+      }
+      
+      // Create Firestore user document
+      if (db && userCredential.user) {
+        const userRef = doc(db, 'users', userCredential.user.uid);
+        await setDoc(userRef, {
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          displayName: displayName || '',
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        }, { merge: true });
+        console.log('✅ Firestore user document created');
+      }
+      
+      return userCredential;
+    } catch (error) {
+      console.error('❌ Signup error:', error);
+      setError(error.message);
+      throw error;
+    }
+  };
+
+  // Email/Password Login
+  const login = async (email, password) => {
+    try {
+      console.log('🔐 Starting login for:', email);
+      setError('');
+      
+      if (!auth) {
+        throw new Error('Firebase Auth not initialized');
+      }
+      
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('✅ User logged in:', userCredential.user.email);
+      
+      // Update last login in Firestore
+      if (db && userCredential.user) {
+        const userRef = doc(db, 'users', userCredential.user.uid);
+        await setDoc(userRef, {
+          lastLogin: new Date().toISOString()
+        }, { merge: true });
+      }
+      
+      return userCredential;
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      setError(error.message);
+      throw error;
+    }
+  };
+
+  // Google Sign-In
+  const signInWithGoogle = async () => {
+    try {
+      console.log('🔐 Starting Google sign-in');
+      setError('');
+      
+      if (!auth || !googleProvider) {
+        throw new Error('Firebase Auth or Google Provider not initialized');
+      }
+      
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      console.log('✅ Google sign-in successful:', userCredential.user.email);
+      
+      // Create/update Firestore user document
+      if (db && userCredential.user) {
+        const userRef = doc(db, 'users', userCredential.user.uid);
+        const userDoc = await getDoc(userRef);
+        
+        if (!userDoc.exists()) {
+          await setDoc(userRef, {
+            uid: userCredential.user.uid,
+            email: userCredential.user.email,
+            displayName: userCredential.user.displayName || '',
+            photoURL: userCredential.user.photoURL || '',
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString()
+          });
+        } else {
+          await setDoc(userRef, {
+            lastLogin: new Date().toISOString()
+          }, { merge: true });
         }
-        return userCredential.user;
-      } else {
-        // Use mock auth
-        console.log('📧 Mock Sign Up:', email);
-        const mockUser = {
-          uid: 'mock-' + Date.now(),
-          email: email,
-          displayName: displayName || email.split('@')[0]
-        };
-        setCurrentUser(mockUser);
-        localStorage.setItem('mockUser', JSON.stringify(mockUser));
-        alert(`✅ Demo Mode: Signed up as ${email}\n(No real account created)`);
-        return mockUser;
       }
+      
+      return userCredential;
     } catch (error) {
-      console.error('Sign up error:', error);
+      console.error('❌ Google sign-in error:', error);
       setError(error.message);
       throw error;
     }
-  }
+  };
 
-  // Sign in with email and password
-  async function signInWithEmail(email, password) {
+  // Logout
+  const logout = async () => {
     try {
+      console.log('👋 Logging out');
       setError('');
       
-      if (firebaseAuth && signInWithEmailAndPassword) {
-        // Use real Firebase
-        const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
-        return userCredential.user;
-      } else {
-        // Use mock auth
-        console.log('📧 Mock Sign In:', email);
-        const mockUser = {
-          uid: 'mock-' + Date.now(),
-          email: email,
-          displayName: email.split('@')[0]
-        };
-        setCurrentUser(mockUser);
-        localStorage.setItem('mockUser', JSON.stringify(mockUser));
-        alert(`✅ Demo Mode: Signed in as ${email}`);
-        return mockUser;
-      }
-    } catch (error) {
-      console.error('Sign in error:', error);
-      setError(error.message);
-      throw error;
-    }
-  }
-
-  // Sign in with Google
-  async function signInWithGoogle() {
-    try {
-    setError(''); // Clear any previous errors
-    
-    if (firebaseAuth && GoogleAuthProvider && signInWithPopup) {
-      console.log('Attempting real Google sign in...');
-      const googleProvider = new GoogleAuthProvider();
-      googleProvider.setCustomParameters({ prompt: 'select_account' });
-      const result = await signInWithPopup(firebaseAuth, googleProvider);
-      console.log('Google sign in successful:', result.user.email);
-      return result.user;
-      } else {
-        // Use mock Google sign in
-        console.log('🔵 Mock Google Sign In');
-        const mockUser = {
-          uid: 'google-mock-' + Date.now(),
-          email: 'demo.user@gmail.com',
-          displayName: 'Demo User',
-          photoURL: 'https://via.placeholder.com/96'
-        };
-        setCurrentUser(mockUser);
-        localStorage.setItem('mockUser', JSON.stringify(mockUser));
-        alert('✅ Demo Mode: Signed in with Google\nEmail: demo.user@gmail.com');
-        return mockUser;
-      }
-    } catch (error) {
-      console.error('Google sign in error:', error);
-      
-      // If real Google sign in fails, fall back to mock
- if (error.code !== 'auth/popup-closed-by-user') {
-      setError(error.message);
-    
-        console.log('Falling back to mock Google sign in...');
-        const mockUser = {
-          uid: 'google-mock-' + Date.now(),
-          email: 'demo.user@gmail.com',
-          displayName: 'Demo User',
-          photoURL: 'https://via.placeholder.com/96'
-        };
-        setCurrentUser(mockUser);
-        localStorage.setItem('mockUser', JSON.stringify(mockUser));
-        alert('✅ Demo Mode: Signed in with Google\n(Firebase not configured)');
-        return mockUser;
+      if (!auth) {
+        throw new Error('Firebase Auth not initialized');
       }
       
-      setError(error.message);
-      throw error;
-    }
-  }
-
-  // Sign out
-  async function signOut() {
-    try {
-      setError('');
-      
-      if (firebaseAuth && firebaseSignOut) {
-        await firebaseSignOut(firebaseAuth);
-      }
-      
+      await signOut(auth);
       setCurrentUser(null);
-      localStorage.removeItem('mockUser');
-      localStorage.removeItem('mockCart');
-      console.log('✅ Signed out successfully');
+      console.log('✅ Logged out successfully');
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('❌ Logout error:', error);
       setError(error.message);
       throw error;
     }
-  }
+  };
 
-  // Save cart
-  async function saveCartToFirebase(cartItems) {
-    if (!currentUser) {
-      console.warn('No user logged in, cannot save cart');
+  // Alias for compatibility
+  const signOutUser = logout;
+
+  // Update user profile
+  const updateUserProfile = async (updates) => {
+    try {
+      setError('');
+      
+      if (!currentUser) {
+        throw new Error('No user logged in');
+      }
+      
+      // Update Firebase Auth profile
+      if (updates.displayName || updates.photoURL) {
+        await updateProfile(currentUser, {
+          displayName: updates.displayName || currentUser.displayName,
+          photoURL: updates.photoURL || currentUser.photoURL
+        });
+      }
+      
+      // Update Firestore
+      if (db) {
+        const userRef = doc(db, 'users', currentUser.uid);
+        await setDoc(userRef, updates, { merge: true });
+      }
+      
+      // Update local state
+      setCurrentUser(prev => ({ ...prev, ...updates }));
+      
+      console.log('✅ Profile updated');
+    } catch (error) {
+      console.error('❌ Update profile error:', error);
+      setError(error.message);
+      throw error;
+    }
+  };
+
+  // Save cart to Firebase
+  const saveCartToFirebase = async (cartItems) => {
+    if (!currentUser || !db) {
+      console.log('⚠️ Cannot save cart: No user or Firestore');
+      return;
+    }
+    
+    try {
+      const userRef = doc(db, 'users', currentUser.uid);
+      await setDoc(userRef, {
+        cart: cartItems,
+        cartUpdatedAt: new Date().toISOString()
+      }, { merge: true });
+      
+      console.log('✅ Cart saved to Firebase');
+    } catch (error) {
+      console.error('❌ Error saving cart:', error);
+      throw error;
+    }
+  };
+
+  // Listen to auth state changes
+  useEffect(() => {
+    if (!auth) {
+      console.error('⚠️ Auth not available');
+      setIsLoading(false);
       return;
     }
 
-    const cartKey = `cart-${currentUser.uid}`;
-    localStorage.setItem(cartKey, JSON.stringify({
-      items: cartItems,
-      updatedAt: new Date().toISOString(),
-      userId: currentUser.uid
-    }));
+    console.log('🔥 Setting up auth state listener');
     
-    console.log('💾 Cart saved:', cartItems.length, 'items');
-  }
-
-  // Load cart
-  async function loadCartFromFirebase() {
-    if (!currentUser) {
-      console.warn('No user logged in, cannot load cart');
-      return null;
-    }
-
-    const cartKey = `cart-${currentUser.uid}`;
-    const savedCart = localStorage.getItem(cartKey);
-    
-    if (savedCart) {
-      const cartData = JSON.parse(savedCart);
-      console.log('📦 Cart loaded:', cartData.items.length, 'items');
-      return cartData.items;
-    }
-    
-    return null;
-  }
-
-  // Set up auth state observer
-  useEffect(() => {
-    let unsubscribe = () => {};
-    
-    if (firebaseAuth && onAuthStateChanged) {
-      // Use real Firebase auth state
-      unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
-        setCurrentUser(user);
-        setIsLoading(false);
-        setIsUsingMockAuth(false);
-      });
-    } else {
-      // Use mock auth state from localStorage
-      const savedUser = localStorage.getItem('mockUser');
-      if (savedUser) {
-        try {
-          setCurrentUser(JSON.parse(savedUser));
-        } catch (e) {
-          console.error('Failed to parse saved user:', e);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        console.log('👤 User detected:', user.email);
+        
+        // Try to get additional data from Firestore
+        if (db) {
+          try {
+            const userRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userRef);
+            
+            if (userDoc.exists()) {
+              setCurrentUser({
+                ...user,
+                ...userDoc.data()
+              });
+            } else {
+              setCurrentUser(user);
+            }
+          } catch (error) {
+            console.error('Error fetching user data:', error);
+            setCurrentUser(user);
+          }
+        } else {
+          setCurrentUser(user);
         }
+      } else {
+        console.log('👤 No user signed in');
+        setCurrentUser(null);
       }
+      
       setIsLoading(false);
-      setIsUsingMockAuth(true);
-    }
+    });
 
-    return unsubscribe;
+    return () => {
+      console.log('🔥 Cleaning up auth listener');
+      unsubscribe();
+    };
   }, []);
 
-  // Show mode in console
+  // Log current context state
   useEffect(() => {
-    if (isUsingMockAuth) {
-      console.log('🎭 Running in DEMO MODE - No real authentication');
-      console.log('To enable real auth, configure Firebase in .env.local');
-    } else {
-      console.log('🔥 Running with Firebase Authentication');
-    }
-  }, [isUsingMockAuth]);
+    console.log('🔥 AuthContext state:', {
+      hasAuth: !!auth,
+      hasCurrentUser: !!currentUser,
+      isLoading,
+      functionsAvailable: {
+        signup: !!signup,
+        login: !!login,
+        signInWithGoogle: !!signInWithGoogle,
+        logout: !!logout
+      }
+    });
+  }, [currentUser, isLoading]);
 
+  // Context value with all functions
   const value = {
     currentUser,
     isLoading,
     error,
-    signUpWithEmail,
-    signInWithEmail,
-    signInWithGoogle,
-    signOut,
-    saveCartToFirebase,
-    loadCartFromFirebase,
-    isUsingMockAuth // Expose this so components can show appropriate UI
+    signup,           // Email signup
+    login,            // Email login
+    logout,           // Logout
+    signOut: logout,  // Alias for logout
+    signInWithGoogle, // Google sign-in
+    updateUserProfile,
+    saveCartToFirebase
   };
+
+  // Always log what we're providing
+  console.log('🔥 Running with Firebase Authentication');
+  console.log('📦 Providing auth functions:', Object.keys(value));
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {!isLoading && children}
     </AuthContext.Provider>
   );
 }
+
+export default AuthProvider;
