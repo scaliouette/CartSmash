@@ -5,6 +5,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 const DRAFT_KEY = 'cart-smash-draft';
 const AUTO_SAVE_DELAY = 1000; // 1 second delay
 const MIN_CONTENT_LENGTH = 5; // Minimum characters to save
+  // Add API URL constant
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 // Generic auto-save hook
 export function useAutoSave(value, key, delay = AUTO_SAVE_DELAY) {
@@ -159,7 +161,7 @@ export function useCartAutoSave(cartItems, userId) {
       setSyncError(null);
 
       try {
-        const response = await fetch('/api/cart/sync', {
+        const response = await fetch(`${API_URL}/api/cart/sync`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

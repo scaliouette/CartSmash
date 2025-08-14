@@ -111,16 +111,15 @@ export function AuthProvider({ children }) {
   // Sign in with Google
   async function signInWithGoogle() {
     try {
-      setError('');
-      
-      if (firebaseAuth && GoogleAuthProvider && signInWithPopup) {
-        // Try real Google sign in
-        console.log('Attempting real Google sign in...');
-        const googleProvider = new GoogleAuthProvider();
-        googleProvider.setCustomParameters({ prompt: 'select_account' });
-        const result = await signInWithPopup(firebaseAuth, googleProvider);
-        console.log('Google sign in successful:', result.user.email);
-        return result.user;
+    setError(''); // Clear any previous errors
+    
+    if (firebaseAuth && GoogleAuthProvider && signInWithPopup) {
+      console.log('Attempting real Google sign in...');
+      const googleProvider = new GoogleAuthProvider();
+      googleProvider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(firebaseAuth, googleProvider);
+      console.log('Google sign in successful:', result.user.email);
+      return result.user;
       } else {
         // Use mock Google sign in
         console.log('🔵 Mock Google Sign In');
@@ -139,8 +138,9 @@ export function AuthProvider({ children }) {
       console.error('Google sign in error:', error);
       
       // If real Google sign in fails, fall back to mock
-      if (error.code === 'auth/configuration-not-found' || 
-          error.message?.includes('Cannot read properties')) {
+ if (error.code !== 'auth/popup-closed-by-user') {
+      setError(error.message);
+    
         console.log('Falling back to mock Google sign in...');
         const mockUser = {
           uid: 'google-mock-' + Date.now(),

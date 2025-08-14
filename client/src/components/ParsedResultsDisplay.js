@@ -1,1639 +1,1155 @@
+// client/src/components/ParsedResultsDisplay.js
 import React, { useState, useEffect } from 'react';
 import { InlineSpinner } from './LoadingSpinner';
 
 function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats }) {
-  const [sortBy, setSortBy] = useState('confidence');
-  const [filterBy, setFilterBy] = useState('all');
-  const [showStats, setShowStats] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [viewMode, setViewMode] = useState('category'); // 'list' or 'category'
   const [editingItem, setEditingItem] = useState(null);
-  
-  // State management
-  const [updatingItems, setUpdatingItems] = useState(new Set());
-  const [fetchingPrices, setFetchingPrices] = useState(new Set());
-  const [exportingCSV, setExportingCSV] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
-  const [priceHistory, setPriceHistory] = useState({});
-  const [showPriceHistory, setShowPriceHistory] = useState(null);
-  const [mealGroups, setMealGroups] = useState({});
-  const [showMealPlanner, setShowMealPlanner] = useState(false);
-  const [newMealName, setNewMealName] = useState('');
-  const [viewMealGroups, setViewMealGroups] = useState(false);
-  const [validatingAll, setValidatingAll] = useState(false);
+  const [showInstacart, setShowInstacart] = useState(false);
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Mobile detection
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Fetch real-time prices on mount
-  useEffect(() => {
-    const itemsNeedingPrices = items.filter(item => !item.realPrice && item.productName);
-    if (itemsNeedingPrices.length > 0) {
-      fetchRealTimePrices(itemsNeedingPrices);
-    }
-  }, [items.length]);
-
-  // Load meal groups from localStorage
-  useEffect(() => {
-    const savedMealGroups = localStorage.getItem('cartsmash-meal-groups');
-    if (savedMealGroups) {
-      try {
-        setMealGroups(JSON.parse(savedMealGroups));
-      } catch (e) {
-        console.error('Failed to load meal groups:', e);
-      }
-    }
-  }, []);
-
-  // Auto-save to localStorage whenever items change
-  useEffect(() => {
-    if (items && items.length > 0) {
-      try {
-        localStorage.setItem('cartsmash-current-cart', JSON.stringify(items));
-        console.log('✅ Cart saved locally');
-      } catch (e) {
-        console.error('Failed to save cart locally:', e);
-      }
-    }
-  }, [items]);
-
-  // Fetch real-time prices for items
-  const fetchRealTimePrices = async (itemsToFetch) => {
-    const itemIds = itemsToFetch.map(item => item.id);
-    
-    setFetchingPrices(prev => new Set([...prev, ...itemIds]));
-
-    try {
-      const response = await fetch('/api/cart/fetch-prices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: itemsToFetch.map(item => ({
-            id: item.id,
-            name: item.productName || item.itemName
-          }))
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Update items with fetched prices and save price history
-        const updatedItems = items.map(item => {
-          const priceData = data.prices[item.id];
-          if (priceData) {
-            // Save to price history
-            setPriceHistory(prev => ({
-              ...prev,
-              [item.id]: [
-                ...(prev[item.id] || []),
-                {
-                  date: new Date().toISOString(),
-                  price: priceData.price,
-                  salePrice: priceData.salePrice
-                }
-              ]
-            }));
-            
-            return {
-              ...item,
-              realPrice: priceData.price,
-              salePrice: priceData.salePrice,
-              availability: priceData.availability
-            };
-          }
-          return item;
-        });
-
-        onItemsChange(updatedItems);
-      }
-    } catch (error) {
-      console.error('Failed to fetch prices:', error);
-    } finally {
-      setFetchingPrices(prev => {
-        const newSet = new Set(prev);
-        itemIds.forEach(id => newSet.delete(id));
-        return newSet;
-      });
-    }
+  // Category configuration with better visuals
+  const categoryInfo = {
+    produce: { icon: '🥬', label: 'Produce', color: '#28a745', bgColor: '#d4edda' },
+    dairy: { icon: '🥛', label: 'Dairy', color: '#17a2b8', bgColor: '#d1ecf1' },
+    meat: { icon: '🥩', label: 'Meat & Seafood', color: '#dc3545', bgColor: '#f8d7da' },
+    bakery: { icon: '🍞', label: 'Bakery', color: '#ffc107', bgColor: '#fff3cd' },
+    pantry: { icon: '🥫', label: 'Pantry', color: '#6c757d', bgColor: '#e2e3e5' },
+    beverages: { icon: '🥤', label: 'Beverages', color: '#20c997', bgColor: '#c3e6cb' },
+    frozen: { icon: '❄️', label: 'Frozen', color: '#007bff', bgColor: '#cce5ff' },
+    snacks: { icon: '🍿', label: 'Snacks', color: '#e83e8c', bgColor: '#f5c6cb' },
+    other: { icon: '📦', label: 'Other', color: '#6610f2', bgColor: '#e7d6f6' }
   };
 
-  // Smart unit detection using AI logic
-  const smartDetectUnit = (itemText) => {
-    const unitPatterns = {
-      weight: {
-        pattern: /(\d+(?:\.\d+)?)\s*(lbs?|pounds?|oz|ounces?|kg|kilograms?|g|grams?)/i,
-        units: ['lb', 'oz', 'kg', 'g']
-      },
-      volume: {
-        pattern: /(\d+(?:\.\d+)?)\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|ml|milliliters?|l|liters?|gal|gallons?|qt|quarts?|pt|pints?|fl\s*oz)/i,
-        units: ['cup', 'tbsp', 'tsp', 'ml', 'l', 'gal', 'qt', 'pt', 'fl oz']
-      },
-      container: {
-        pattern: /(cans?|bottles?|jars?|boxes?|bags?|packages?|containers?|cartons?|bunches?|heads?|loaves?)\s+of/i,
-        units: ['can', 'bottle', 'jar', 'box', 'bag', 'package', 'container']
-      },
-      count: {
-        pattern: /(\d+)\s*(dozen|pack|piece|clove)/i,
-        units: ['dozen', 'pack', 'piece', 'clove']
-      }
-    };
+  // Group items by category
+  const itemsByCategory = items.reduce((acc, item) => {
+    const category = item.category || 'other';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(item);
+    return acc;
+  }, {});
 
-    for (const [type, config] of Object.entries(unitPatterns)) {
-      const match = itemText.match(config.pattern);
-      if (match) {
-        const unit = match[2] || match[1];
-        // Normalize unit
-        if (unit.toLowerCase().includes('pound')) return 'lb';
-        if (unit.toLowerCase().includes('ounce')) return 'oz';
-        if (unit.toLowerCase().includes('gram')) return 'g';
-        if (unit.toLowerCase().includes('kilogram')) return 'kg';
-        if (unit.toLowerCase().includes('tablespoon')) return 'tbsp';
-        if (unit.toLowerCase().includes('teaspoon')) return 'tsp';
-        return unit.toLowerCase();
-      }
-    }
-    
-    return 'each'; // default
-  };
-
-  // Batch operations
-  const handleBulkOperation = (operation) => {
-    let updatedItems = [...items];
-    let message = '';
-
-    switch (operation) {
-      case 'delete-low-confidence':
-        const lowConfItems = items.filter(item => (item.confidence || 0) < 0.6);
-        if (lowConfItems.length > 0 && window.confirm(`Remove ${lowConfItems.length} low confidence items?`)) {
-          updatedItems = items.filter(item => (item.confidence || 0) >= 0.6);
-          message = `Removed ${lowConfItems.length} items`;
-        }
-        break;
-
-      case 'delete-selected':
-        if (selectedItems.size > 0 && window.confirm(`Remove ${selectedItems.size} selected items?`)) {
-          updatedItems = items.filter(item => !selectedItems.has(item.id));
-          message = `Removed ${selectedItems.size} items`;
-          setSelectedItems(new Set());
-        }
-        break;
-
-      case 'validate-all':
-        setValidatingAll(true);
-        // Validate and auto-detect units for all items
-        updatedItems = items.map(item => {
-          const detectedUnit = smartDetectUnit(item.original || item.itemName || item.name);
-          return {
-            ...item,
-            unit: item.unit === 'unit' || !item.unit ? detectedUnit : item.unit,
-            confidence: Math.min((item.confidence || 0.7) + 0.2, 1),
-            needsReview: false,
-            validated: true
-          };
-        });
-        message = 'All items validated and units detected';
-        setTimeout(() => setValidatingAll(false), 1000);
-        break;
-
-      default:
-        break;
-    }
-
-    if (message) {
-      onItemsChange(updatedItems);
-      // Save to localStorage immediately
-      localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
-    }
-  };
-
-  // Add items to meal group
-  const addToMealGroup = (mealName) => {
-    if (!mealName || selectedItems.size === 0) return;
-
-    const selectedItemsList = items
-      .filter(item => selectedItems.has(item.id))
-      .map(item => ({
-        id: item.id,
-        name: item.productName || item.itemName,
-        quantity: item.quantity,
-        unit: item.unit,
-        category: item.category
-      }));
-
-    const updatedMealGroups = {
-      ...mealGroups,
-      [mealName]: [...(mealGroups[mealName] || []), ...selectedItemsList]
-    };
-
-    setMealGroups(updatedMealGroups);
-    localStorage.setItem('cartsmash-meal-groups', JSON.stringify(updatedMealGroups));
-    setSelectedItems(new Set());
-    setNewMealName('');
-    alert(`Added ${selectedItemsList.length} items to "${mealName}"`);
-  };
-
-  // Toggle all items selection
-  const toggleSelectAll = () => {
-    if (selectedItems.size === filteredAndSortedItems.length) {
-      setSelectedItems(new Set());
-    } else {
-      setSelectedItems(new Set(filteredAndSortedItems.map(item => item.id)));
-    }
-  };
-
-  // Common units for dropdown
-  const commonUnits = [
-    { value: 'each', label: 'each' },
-    { value: 'lb', label: 'lb' },
-    { value: 'oz', label: 'oz' },
-    { value: 'kg', label: 'kg' },
-    { value: 'g', label: 'g' },
-    { value: 'cup', label: 'cup' },
-    { value: 'tbsp', label: 'tbsp' },
-    { value: 'tsp', label: 'tsp' },
-    { value: 'l', label: 'liter' },
-    { value: 'ml', label: 'ml' },
-    { value: 'gal', label: 'gallon' },
-    { value: 'qt', label: 'quart' },
-    { value: 'pt', label: 'pint' },
-    { value: 'fl oz', label: 'fl oz' },
-    { value: 'dozen', label: 'dozen' },
-    { value: 'can', label: 'can' },
-    { value: 'bottle', label: 'bottle' },
-    { value: 'bag', label: 'bag' },
-    { value: 'box', label: 'box' },
-    { value: 'jar', label: 'jar' },
-    { value: 'pack', label: 'pack' },
-    { value: 'container', label: 'container' },
-    { value: 'bunch', label: 'bunch' },
-    { value: 'head', label: 'head' },
-    { value: 'loaf', label: 'loaf' },
-    { value: 'piece', label: 'piece' }
-  ];
-
-  // Filter and sort items
-  const filteredAndSortedItems = items
-    .filter(item => {
-      if (filterBy === 'all') return true;
-      if (filterBy === 'high-confidence') return (item.confidence || 0) >= 0.8;
-      if (filterBy === 'needs-review') return (item.confidence || 0) < 0.6;
-      if (filterBy === item.category) return true;
-      return false;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'confidence') return (b.confidence || 0) - (a.confidence || 0);
-      if (sortBy === 'category') {
-        const catCompare = (a.category || '').localeCompare(b.category || '');
-        if (catCompare !== 0) return catCompare;
-        return (a.productName || a.itemName || '').localeCompare(b.productName || b.itemName || '');
-      }
-      if (sortBy === 'name') return (a.productName || a.itemName || '').localeCompare(b.productName || b.itemName || '');
-      if (sortBy === 'price') return (b.realPrice || 0) - (a.realPrice || 0);
-      return 0;
-    });
+  // Filter items based on search
+  const filteredItems = items.filter(item => {
+    const matchesSearch = !searchQuery || 
+      (item.productName || item.itemName || item.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = filterCategory === 'all' || item.category === filterCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   // Calculate statistics
   const stats = {
     total: items.length,
     highConfidence: items.filter(item => (item.confidence || 0) >= 0.8).length,
-    mediumConfidence: items.filter(item => (item.confidence || 0) >= 0.6 && (item.confidence || 0) < 0.8).length,
-    lowConfidence: items.filter(item => (item.confidence || 0) < 0.6).length,
-    categories: [...new Set(items.map(item => item.category))].length,
-    averageConfidence: items.length > 0 ? 
-      items.reduce((sum, item) => sum + (item.confidence || 0), 0) / items.length : 0,
-    totalEstimatedPrice: items.reduce((sum, item) => {
-      if (item.realPrice) {
-        return sum + (item.realPrice * (item.quantity || 1));
-      }
-      return sum;
-    }, 0),
-    selectedCount: selectedItems.size
+    needsReview: items.filter(item => (item.confidence || 0) < 0.6).length,
+    categories: Object.keys(itemsByCategory).length,
+    selected: selectedItems.size
   };
 
   const getConfidenceColor = (confidence) => {
-    if (confidence >= 0.8) return '#10b981';
-    if (confidence >= 0.6) return '#f59e0b';
-    return '#ef4444';
+    if (confidence >= 0.8) return '#28a745';
+    if (confidence >= 0.6) return '#ffc107';
+    return '#dc3545';
   };
 
-  const getConfidenceLabel = (confidence) => {
-    if (confidence >= 0.8) return 'High';
-    if (confidence >= 0.6) return 'Med';
-    return 'Low';
-  };
-
-  const getCategoryIcon = (category) => {
-    const icons = {
-      'produce': '🥬',
-      'dairy': '🥛',
-      'meat': '🥩',
-      'pantry': '🥫',
-      'beverages': '🥤',
-      'frozen': '🧊',
-      'bakery': '🍞',
-      'snacks': '🍿',
-      'other': '📦'
-    };
-    return icons[category] || '📦';
-  };
-
-  const handleItemEdit = async (itemId, field, value) => {
-    setUpdatingItems(prev => new Set([...prev, itemId]));
-
-    const updatedItems = items.map(item => 
-      item.id === itemId ? { ...item, [field]: value } : item
+  const handleQuickEdit = (item, field, value) => {
+    const updatedItems = items.map(i => 
+      i.id === item.id ? { ...i, [field]: value } : i
     );
     onItemsChange(updatedItems);
-    
-    // Save to localStorage
-    localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
-    
-    try {
-      const response = await fetch(`/api/cart/items/${itemId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: value })
-      });
-      
-      if (!response.ok) {
-        console.error('Failed to update item on server');
-      }
-    } catch (error) {
-      console.error('Error updating item:', error);
-    } finally {
-      setUpdatingItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(itemId);
-        return newSet;
-      });
-    }
   };
 
-  const handleRemoveItem = async (itemId) => {
-    if (window.confirm('Are you sure you want to remove this item?')) {
-      setUpdatingItems(prev => new Set([...prev, itemId]));
-
-      try {
-        const updatedItems = items.filter(item => item.id !== itemId);
-        onItemsChange(updatedItems);
-        localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
-      } finally {
-        setUpdatingItems(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(itemId);
-          return newSet;
-        });
-      }
-    }
+  const handleRemoveItem = (itemId) => {
+    const updatedItems = items.filter(item => item.id !== itemId);
+    onItemsChange(updatedItems);
   };
 
-  const exportToCSV = async () => {
-    setExportingCSV(true);
-    
-    try {
-      const headers = ['Product Name', 'Quantity', 'Unit', 'Category', 'Confidence', 'Price', 'Meal Group'];
-      const csvContent = [
-        headers.join(','),
-        ...items.map(item => {
-          const mealGroup = Object.entries(mealGroups).find(([meal, mealItems]) => 
-            mealItems.some(i => i.id === item.id)
-          );
-          
-          return [
-            `"${item.productName || item.itemName}"`,
-            item.quantity || 1,
-            item.unit || 'each',
-            item.category || 'other',
-            ((item.confidence || 0) * 100).toFixed(0) + '%',
-            item.realPrice ? `$${item.realPrice.toFixed(2)}` : 'N/A',
-            mealGroup ? `"${mealGroup[0]}"` : ''
-          ].join(',');
-        })
-      ].join('\n');
-      
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `grocery-list-${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } finally {
-      setExportingCSV(false);
-    }
-  };
-
-  // Group items by category when sorting by category
-  const renderGroupedItems = () => {
-    const grouped = {};
-    filteredAndSortedItems.forEach(item => {
-      const category = item.category || 'other';
-      if (!grouped[category]) grouped[category] = [];
-      grouped[category].push(item);
-    });
-
-    return Object.entries(grouped).map(([category, categoryItems]) => (
-      <div key={category}>
-        <div style={styles.categoryHeader}>
-          <span style={styles.categoryIcon}>{getCategoryIcon(category)}</span>
-          <span style={styles.categoryName}>{category.charAt(0).toUpperCase() + category.slice(1)}</span>
-          <span style={styles.categoryCount}>({categoryItems.length} items)</span>
-        </div>
-        {categoryItems.map((item, index) => renderItem(item, index))}
-      </div>
-    ));
-  };
-
-  const handleRefreshPrices = async () => {
-    const itemsNeedingPrices = filteredAndSortedItems.filter(item => !item.realPrice && item.productName);
-    if (itemsNeedingPrices.length > 0) {
-      await fetchRealTimePrices(itemsNeedingPrices);
+  const handleSelectAll = () => {
+    if (selectedItems.size === filteredItems.length) {
+      setSelectedItems(new Set());
     } else {
-      alert('All items already have pricing information!');
+      setSelectedItems(new Set(filteredItems.map(item => item.id)));
     }
   };
 
-  // Render individual item
-  const renderItem = (item, index) => {
-    const isUpdating = updatingItems.has(item.id);
-    const isFetchingPrice = fetchingPrices.has(item.id);
-    const isSelected = selectedItems.has(item.id);
-    const itemPriceHistory = priceHistory[item.id] || [];
+  const handleBulkDelete = () => {
+    if (window.confirm(`Delete ${selectedItems.size} selected items?`)) {
+      const updatedItems = items.filter(item => !selectedItems.has(item.id));
+      onItemsChange(updatedItems);
+      setSelectedItems(new Set());
+    }
+  };
 
-    return (
-      <div key={item.id || index}>
-        <div 
-          style={{
-            ...styles.itemRow,
-            ...(index % 2 === 0 ? styles.itemRowEven : {}),
-            ...(editingItem === item.id ? styles.itemRowEditing : {}),
-            ...(isUpdating ? styles.itemRowUpdating : {}),
-            ...(isSelected ? styles.itemRowSelected : {})
-          }}
-        >
-          {/* Selection checkbox with better visual */}
-          <div 
-            style={{
-              ...styles.itemCheckbox,
-              ...(isSelected ? styles.itemCheckboxSelected : {})
-            }}
-            onClick={() => {
-              const newSelected = new Set(selectedItems);
-              if (isSelected) {
-                newSelected.delete(item.id);
-              } else {
-                newSelected.add(item.id);
-              }
-              setSelectedItems(newSelected);
-            }}
-          >
+  const renderCategoryView = () => (
+    <div style={styles.categoryContainer}>
+      {Object.entries(itemsByCategory).map(([category, categoryItems]) => {
+        const catInfo = categoryInfo[category] || categoryInfo.other;
+        const filteredCategoryItems = categoryItems.filter(item => 
+          !searchQuery || (item.productName || item.itemName || '').toLowerCase().includes(searchQuery.toLowerCase())
+        );
+
+        if (filterCategory !== 'all' && category !== filterCategory) return null;
+        if (filteredCategoryItems.length === 0) return null;
+
+        return (
+          <div key={category} style={styles.categorySection}>
             <div style={{
-              ...styles.checkboxVisual,
-              ...(isSelected ? styles.checkboxVisualSelected : {})
+              ...styles.categoryHeader,
+              backgroundColor: catInfo.bgColor,
+              borderLeft: `4px solid ${catInfo.color}`
             }}>
-              {isSelected && '✓'}
-            </div>
-          </div>
-
-          {/* Category Icon */}
-          <div style={styles.itemCategory}>
-            <span title={item.category}>{getCategoryIcon(item.category)}</span>
-          </div>
-
-          {/* Product Name */}
-          <div style={styles.itemName}>
-            {editingItem === item.id ? (
-              <input
-                type="text"
-                value={item.productName || item.itemName || ''}
-                onChange={(e) => handleItemEdit(item.id, 'productName', e.target.value)}
-                onBlur={() => setEditingItem(null)}
-                onKeyPress={(e) => e.key === 'Enter' && setEditingItem(null)}
-                style={styles.itemNameInput}
-                autoFocus
-              />
-            ) : (
-              <span 
-                onClick={() => setEditingItem(item.id)}
-                style={styles.itemNameText}
-                title="Click to edit"
-              >
-                {item.productName || item.itemName}
-              </span>
-            )}
-          </div>
-
-          {/* Quantity */}
-          <div style={styles.itemQuantity}>
-            <input
-              type="number"
-              value={item.quantity || 1}
-              onChange={(e) => handleItemEdit(item.id, 'quantity', parseFloat(e.target.value) || 1)}
-              style={styles.quantityInput}
-              min="0"
-              step="0.25"
-              disabled={isUpdating}
-            />
-          </div>
-
-          {/* Unit */}
-          <div style={styles.itemUnit}>
-            <select
-              value={item.unit || 'each'}
-              onChange={(e) => handleItemEdit(item.id, 'unit', e.target.value)}
-              style={styles.unitSelect}
-              disabled={isUpdating}
-            >
-              {commonUnits.map(unit => (
-                <option key={unit.value} value={unit.value}>
-                  {unit.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Confidence */}
-          <div style={styles.itemConfidence}>
-            <span 
-              style={{
-                ...styles.confidenceBadge,
-                backgroundColor: getConfidenceColor(item.confidence || 0)
-              }}
-            >
-              {getConfidenceLabel(item.confidence || 0)}
-            </span>
-          </div>
-
-          {/* Price with history button */}
-          <div style={styles.itemPrice}>
-            {isFetchingPrice ? (
-              <InlineSpinner text="" color="#10b981" />
-            ) : item.realPrice ? (
-              <>
-                <span>${(item.realPrice * (item.quantity || 1)).toFixed(2)}</span>
-                {itemPriceHistory.length > 0 && (
-                  <button
-                    onClick={() => setShowPriceHistory(showPriceHistory === item.id ? null : item.id)}
-                    style={styles.priceHistoryButton}
-                    title="View price history"
-                  >
-                    📈
-                  </button>
-                )}
-              </>
-            ) : (
-              <span style={{ color: '#9ca3af' }}>--</span>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div style={styles.itemActions}>
-            {isUpdating ? (
-              <InlineSpinner text="" color="#6b7280" />
-            ) : (
+              <div style={styles.categoryTitle}>
+                <span style={styles.categoryIcon}>{catInfo.icon}</span>
+                <span style={styles.categoryName}>{catInfo.label}</span>
+                <span style={styles.categoryCount}>{filteredCategoryItems.length} items</span>
+              </div>
               <button
-                onClick={() => handleRemoveItem(item.id)}
-                style={styles.removeButton}
-                title="Remove item"
+                onClick={() => {
+                  const catItemIds = filteredCategoryItems.map(i => i.id);
+                  const newSelected = new Set(selectedItems);
+                  
+                  if (catItemIds.every(id => selectedItems.has(id))) {
+                    catItemIds.forEach(id => newSelected.delete(id));
+                  } else {
+                    catItemIds.forEach(id => newSelected.add(id));
+                  }
+                  
+                  setSelectedItems(newSelected);
+                }}
+                style={styles.selectCategoryBtn}
               >
-                ×
+                Select All
               </button>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Price history panel */}
-        {showPriceHistory === item.id && itemPriceHistory.length > 0 && (
-          <div style={styles.priceHistoryPanel}>
-            <div style={styles.priceHistoryHeader}>📈 Price History:</div>
-            <div style={styles.priceHistoryList}>
-              {itemPriceHistory.slice(-5).reverse().map((history, idx) => (
-                <div key={idx} style={styles.priceHistoryItem}>
-                  <span>{new Date(history.date).toLocaleDateString()}</span>
-                  <span>${history.price.toFixed(2)}</span>
-                  {history.salePrice && <span style={styles.salePrice}>Sale: ${history.salePrice.toFixed(2)}</span>}
+            <div style={styles.categoryItems}>
+              {filteredCategoryItems.map(item => (
+                <div
+                  key={item.id}
+                  style={{
+                    ...styles.itemCard,
+                    ...(selectedItems.has(item.id) ? styles.itemCardSelected : {}),
+                    ...(editingItem === item.id ? styles.itemCardEditing : {})
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.has(item.id)}
+                    onChange={() => {
+                      const newSelected = new Set(selectedItems);
+                      if (selectedItems.has(item.id)) {
+                        newSelected.delete(item.id);
+                      } else {
+                        newSelected.add(item.id);
+                      }
+                      setSelectedItems(newSelected);
+                    }}
+                    style={styles.checkbox}
+                  />
+
+                  <div style={styles.itemContent}>
+                    {editingItem === item.id ? (
+                      <input
+                        type="text"
+                        value={item.productName || item.itemName}
+                        onChange={(e) => handleQuickEdit(item, 'productName', e.target.value)}
+                        onBlur={() => setEditingItem(null)}
+                        onKeyPress={(e) => e.key === 'Enter' && setEditingItem(null)}
+                        style={styles.editInput}
+                        autoFocus
+                      />
+                    ) : (
+                      <div 
+                        style={styles.itemName}
+                        onClick={() => setEditingItem(item.id)}
+                      >
+                        {item.productName || item.itemName}
+                      </div>
+                    )}
+                    
+                    <div style={styles.itemDetails}>
+                      <span style={styles.quantity}>
+                        {item.quantity || 1} {item.unit || 'each'}
+                      </span>
+                      
+                      {item.confidence !== undefined && (
+                        <span 
+                          style={{
+                            ...styles.confidence,
+                            color: getConfidenceColor(item.confidence)
+                          }}
+                          title={`Confidence: ${(item.confidence * 100).toFixed(0)}%`}
+                        >
+                          {item.confidence >= 0.8 ? '✓' : item.confidence >= 0.6 ? '?' : '!'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleRemoveItem(item.id)}
+                    style={styles.removeBtn}
+                    title="Remove item"
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
             </div>
           </div>
-        )}
-      </div>
-    );
-  };
+        );
+      })}
+    </div>
+  );
 
-  return (
-    <div style={{
-      ...styles.container,
-      ...(isMobile ? styles.containerMobile : {})
-    }}>
-      {/* Header */}
-      <div style={{
-        ...styles.header,
-        ...(isMobile ? styles.headerMobile : {})
-      }}>
-        <h3 style={styles.title}>
-          ✅ CART SMASH Results ({items.length} items)
-        </h3>
-        <div style={styles.headerActions}>
-          <button 
-            onClick={() => setShowStats(!showStats)} 
-            style={styles.toggleButton}
+  const renderListView = () => (
+    <div style={styles.listContainer}>
+      {filteredItems.map((item, index) => {
+        const catInfo = categoryInfo[item.category] || categoryInfo.other;
+        
+        return (
+          <div
+            key={item.id}
+            style={{
+              ...styles.listItem,
+              ...(selectedItems.has(item.id) ? styles.listItemSelected : {}),
+              ...(index % 2 === 0 ? styles.listItemEven : {})
+            }}
           >
-            {showStats ? '📊 Hide Stats' : '📊 Show Stats'}
-          </button>
-          <button 
-            onClick={handleRefreshPrices}
-            style={styles.refreshButton}
-            disabled={fetchingPrices.size > 0}
-          >
-            {fetchingPrices.size > 0 ? <InlineSpinner text="Fetching..." /> : '💰 Get Prices'}
-          </button>
-          <button 
-            onClick={exportToCSV} 
-            style={styles.exportButton}
-            disabled={exportingCSV}
-          >
-            {exportingCSV ? <InlineSpinner text="Exporting..." /> : '📄 Export CSV'}
-          </button>
-        </div>
-      </div>
-
-      {/* Batch Operations Bar */}
-      {(selectedItems.size > 0 || items.some(i => i.confidence < 0.6)) && (
-        <div style={styles.batchOperationsBar}>
-          <div style={styles.batchOperationsTitle}>
-            {selectedItems.size > 0 ? `${selectedItems.size} items selected` : 'Batch Operations:'}
-          </div>
-          <div style={styles.batchOperationsButtons}>
-            {selectedItems.size > 0 && (
-              <>
-                <button
-                  onClick={() => handleBulkOperation('delete-selected')}
-                  style={styles.batchButton}
-                >
-                  🗑️ Delete Selected
-                </button>
-                <button
-                  onClick={() => setShowMealPlanner(true)}
-                  style={styles.batchButton}
-                >
-                  🍽️ Add to Meal
-                </button>
-                <button
-                  onClick={() => setViewMealGroups(!viewMealGroups)}
-                  style={styles.batchButton}
-                >
-                  👁️ View Meals
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => handleBulkOperation('validate-all')}
-              style={styles.batchButtonSuccess}
-              disabled={validatingAll}
-            >
-              {validatingAll ? <InlineSpinner text="Validating..." /> : '✅ Validate All'}
-            </button>
-            {items.some(i => (i.confidence || 0) < 0.6) && (
-              <button
-                onClick={() => handleBulkOperation('delete-low-confidence')}
-                style={styles.batchButtonDanger}
-              >
-                ⚠️ Remove Low Confidence
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Meal Planner Modal */}
-      {showMealPlanner && (
-        <div style={styles.mealPlannerModal}>
-          <div style={styles.mealPlannerContent}>
-            <h4 style={styles.mealPlannerTitle}>🍽️ Add to Meal Plan</h4>
-            <p>Adding {selectedItems.size} items to meal:</p>
-            
             <input
-              type="text"
-              placeholder="Enter meal name (e.g., Monday Dinner)"
-              value={newMealName}
-              onChange={(e) => setNewMealName(e.target.value)}
-              style={styles.mealNameInput}
+              type="checkbox"
+              checked={selectedItems.has(item.id)}
+              onChange={() => {
+                const newSelected = new Set(selectedItems);
+                if (selectedItems.has(item.id)) {
+                  newSelected.delete(item.id);
+                } else {
+                  newSelected.add(item.id);
+                }
+                setSelectedItems(newSelected);
+              }}
+              style={styles.checkbox}
             />
-            
-            {Object.keys(mealGroups).length > 0 && (
-              <div style={styles.existingMeals}>
-                <p>Or add to existing meal:</p>
-                {Object.keys(mealGroups).map(meal => (
-                  <button
-                    key={meal}
-                    onClick={() => {
-                      addToMealGroup(meal);
-                      setShowMealPlanner(false);
-                    }}
-                    style={styles.existingMealButton}
-                  >
-                    {meal} ({mealGroups[meal].length} items)
-                  </button>
-                ))}
-              </div>
-            )}
-            
-            <div style={styles.mealPlannerActions}>
+
+            <div 
+              style={{
+                ...styles.categoryBadge,
+                backgroundColor: catInfo.bgColor,
+                color: catInfo.color
+              }}
+              title={catInfo.label}
+            >
+              {catInfo.icon}
+            </div>
+
+            <div style={styles.itemContent}>
+              {editingItem === item.id ? (
+                <input
+                  type="text"
+                  value={item.productName || item.itemName}
+                  onChange={(e) => handleQuickEdit(item, 'productName', e.target.value)}
+                  onBlur={() => setEditingItem(null)}
+                  onKeyPress={(e) => e.key === 'Enter' && setEditingItem(null)}
+                  style={styles.editInput}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  style={styles.itemName}
+                  onClick={() => setEditingItem(item.id)}
+                >
+                  {item.productName || item.itemName}
+                </div>
+              )}
+            </div>
+
+            <div style={styles.quantityControls}>
               <button
-                onClick={() => {
-                  if (newMealName) {
-                    addToMealGroup(newMealName);
-                    setShowMealPlanner(false);
-                  }
-                }}
-                style={styles.mealPlannerSave}
-                disabled={!newMealName}
+                onClick={() => handleQuickEdit(item, 'quantity', Math.max(1, (item.quantity || 1) - 1))}
+                style={styles.quantityBtn}
               >
-                Save to Meal
+                -
               </button>
+              <span style={styles.quantityValue}>
+                {item.quantity || 1} {item.unit || ''}
+              </span>
               <button
-                onClick={() => setShowMealPlanner(false)}
-                style={styles.mealPlannerCancel}
+                onClick={() => handleQuickEdit(item, 'quantity', (item.quantity || 1) + 1)}
+                style={styles.quantityBtn}
               >
-                Cancel
+                +
               </button>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* View Meal Groups Modal */}
-      {viewMealGroups && Object.keys(mealGroups).length > 0 && (
-        <div style={styles.mealGroupsModal}>
-          <div style={styles.mealGroupsContent}>
-            <h4 style={styles.mealGroupsTitle}>🍽️ Meal Groups</h4>
+            {item.confidence !== undefined && (
+              <div 
+                style={{
+                  ...styles.confidenceBadge,
+                  backgroundColor: getConfidenceColor(item.confidence) + '20',
+                  color: getConfidenceColor(item.confidence)
+                }}
+              >
+                {(item.confidence * 100).toFixed(0)}%
+              </div>
+            )}
+
             <button
-              onClick={() => setViewMealGroups(false)}
-              style={styles.mealGroupsClose}
+              onClick={() => handleRemoveItem(item.id)}
+              style={styles.removeBtn}
+              title="Remove item"
             >
               ×
             </button>
-            
-            {Object.entries(mealGroups).map(([meal, mealItems]) => (
-              <div key={meal} style={styles.mealGroupSection}>
-                <div style={styles.mealGroupHeader}>
-                  <h5 style={styles.mealGroupName}>{meal}</h5>
-                  <button
-                    onClick={() => {
-                      if (window.confirm(`Remove meal group "${meal}"?`)) {
-                        const updated = { ...mealGroups };
-                        delete updated[meal];
-                        setMealGroups(updated);
-                        localStorage.setItem('cartsmash-meal-groups', JSON.stringify(updated));
-                      }
-                    }}
-                    style={styles.mealGroupDeleteButton}
-                  >
-                    Delete Meal
-                  </button>
-                </div>
-                <div style={styles.mealItemsList}>
-                  {mealItems.map((item, idx) => (
-                    <div key={idx} style={styles.mealItem}>
-                      <span>{getCategoryIcon(item.category)}</span>
-                      <span>{item.quantity} {item.unit}</span>
-                      <span>{item.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
           </div>
-        </div>
-      )}
+        );
+      })}
+    </div>
+  );
 
-      {/* Stats Panel (Collapsible) */}
-      {showStats && (
-        <div style={styles.statsPanel}>
-          <h4 style={styles.statsTitle}>📊 Parsing Statistics</h4>
+  return (
+    <div style={styles.container}>
+      {/* Header with stats */}
+      <div style={styles.header}>
+        <div style={styles.headerTop}>
+          <h2 style={styles.title}>
+            🛒 Your Smart Cart ({items.length} items)
+          </h2>
           
-          <div style={styles.statsGrid}>
-            <div style={styles.statCard}>
-              <div style={styles.statValue}>{stats.total}</div>
-              <div style={styles.statLabel}>Total Items</div>
-            </div>
-            
-            <div style={styles.statCard}>
-              <div style={{...styles.statValue, color: '#10b981'}}>{stats.highConfidence}</div>
-              <div style={styles.statLabel}>High Confidence</div>
-            </div>
-            
-            <div style={styles.statCard}>
-              <div style={{...styles.statValue, color: '#f59e0b'}}>{stats.mediumConfidence}</div>
-              <div style={styles.statLabel}>Medium Confidence</div>
-            </div>
-            
-            <div style={styles.statCard}>
-              <div style={{...styles.statValue, color: '#ef4444'}}>{stats.lowConfidence}</div>
-              <div style={styles.statLabel}>Need Review</div>
-            </div>
-            
-            <div style={styles.statCard}>
-              <div style={styles.statValue}>{stats.categories}</div>
-              <div style={styles.statLabel}>Categories</div>
-            </div>
-            
-            <div style={styles.statCard}>
-              <div style={styles.statValue}>{(stats.averageConfidence * 100).toFixed(1)}%</div>
-              <div style={styles.statLabel}>Avg Confidence</div>
-            </div>
+          <div style={styles.viewToggle}>
+            <button
+              onClick={() => setViewMode('category')}
+              style={{
+                ...styles.viewBtn,
+                ...(viewMode === 'category' ? styles.viewBtnActive : {})
+              }}
+            >
+              <span>📊</span> Category
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              style={{
+                ...styles.viewBtn,
+                ...(viewMode === 'list' ? styles.viewBtnActive : {})
+              }}
+            >
+              <span>📝</span> List
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Controls */}
-      <div style={styles.controls}>
-        <div style={styles.controlGroup}>
-          <label style={styles.controlLabel}>Sort by:</label>
-          <select 
-            value={sortBy} 
-            onChange={(e) => setSortBy(e.target.value)}
-            style={styles.select}
-          >
-            <option value="confidence">Confidence (High to Low)</option>
-            <option value="category">Category (A to Z)</option>
-            <option value="name">Name (A to Z)</option>
-            <option value="price">Price (High to Low)</option>
-          </select>
-        </div>
-
-        <div style={styles.controlGroup}>
-          <label style={styles.controlLabel}>Filter:</label>
-          <select 
-            value={filterBy} 
-            onChange={(e) => setFilterBy(e.target.value)}
-            style={styles.select}
-          >
-            <option value="all">All Items</option>
-            <option value="high-confidence">High Confidence Only</option>
-            <option value="needs-review">Needs Review Only</option>
-            <optgroup label="By Category">
-              <option value="produce">🥬 Produce</option>
-              <option value="dairy">🥛 Dairy</option>
-              <option value="meat">🥩 Meat</option>
-              <option value="pantry">🥫 Pantry</option>
-              <option value="beverages">🥤 Beverages</option>
-              <option value="frozen">🧊 Frozen</option>
-              <option value="bakery">🍞 Bakery</option>
-              <option value="snacks">🍿 Snacks</option>
-              <option value="other">📦 Other</option>
-            </optgroup>
-          </select>
+        {/* Quick stats */}
+        <div style={styles.statsBar}>
+          <span style={styles.stat}>
+            <span style={{ color: '#28a745' }}>✓</span> {stats.highConfidence} verified
+          </span>
+          <span style={styles.stat}>
+            <span style={{ color: '#ffc107' }}>?</span> {stats.needsReview} to review
+          </span>
+          <span style={styles.stat}>
+            📁 {stats.categories} categories
+          </span>
+          {stats.selected > 0 && (
+            <span style={styles.stat}>
+              ☑️ {stats.selected} selected
+            </span>
+          )}
         </div>
       </div>
 
-      {/* List Header */}
-      <div style={styles.listHeader}>
-        <div 
-          style={styles.headerCheckbox}
-          onClick={toggleSelectAll}
+      {/* Search and filter bar */}
+      <div style={styles.controlBar}>
+        <input
+          type="text"
+          placeholder="🔍 Search items..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={styles.searchInput}
+        />
+        
+        <select
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value)}
+          style={styles.filterSelect}
         >
-          <div style={{
-            ...styles.checkboxVisual,
-            ...(selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? styles.checkboxVisualSelected : {})
-          }}>
-            {selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 && '✓'}
+          <option value="all">All Categories</option>
+          {Object.entries(categoryInfo).map(([key, info]) => (
+            <option key={key} value={key}>
+              {info.icon} {info.label}
+            </option>
+          ))}
+        </select>
+
+        {selectedItems.size > 0 && (
+          <div style={styles.bulkActions}>
+            <button
+              onClick={handleBulkDelete}
+              style={styles.bulkDeleteBtn}
+            >
+              🗑️ Delete {selectedItems.size}
+            </button>
+            <button
+              onClick={() => setSelectedItems(new Set())}
+              style={styles.clearSelectionBtn}
+            >
+              Clear
+            </button>
           </div>
-        </div>
-        <div style={styles.headerCategory}></div>
-        <div style={styles.headerName}>Product Name</div>
-        <div style={styles.headerQuantity}>Qty</div>
-        <div style={styles.headerUnit}>Unit</div>
-        <div style={styles.headerConfidence}>Status</div>
-        <div style={styles.headerPrice}>Price</div>
-        <div style={styles.headerActions}></div>
+        )}
       </div>
 
-      {/* Items List */}
-      <div style={styles.itemsList}>
-        {sortBy === 'category' ? renderGroupedItems() : filteredAndSortedItems.map((item, index) => renderItem(item, index))}
+      {/* Main content */}
+      <div style={styles.content}>
+        {viewMode === 'category' ? renderCategoryView() : renderListView()}
       </div>
 
-      {/* Total Summary */}
-      {stats.totalEstimatedPrice > 0 && (
-        <div style={styles.totalSummary}>
-          <h4 style={styles.totalTitle}>💰 Estimated Total: ${stats.totalEstimatedPrice.toFixed(2)}</h4>
-          <p style={styles.totalNote}>
-            *Prices are estimates and may vary by location and availability
-          </p>
-        </div>
+      {/* Action buttons */}
+      <div style={styles.actions}>
+        <button
+          onClick={() => setShowInstacart(true)}
+          style={styles.primaryBtn}
+        >
+          🛍️ Continue to Instacart
+        </button>
+        
+        <button
+          onClick={() => {
+            const listText = items.map(item => 
+              `${item.quantity || 1} ${item.unit || ''} ${item.productName || item.itemName}`
+            ).join('\n');
+            navigator.clipboard.writeText(listText);
+            alert('List copied to clipboard!');
+          }}
+          style={styles.secondaryBtn}
+        >
+          📋 Copy List
+        </button>
+      </div>
+
+      {/* Enhanced Instacart Modal */}
+      {showInstacart && (
+        <EnhancedInstacartModal
+          items={items}
+          currentUser={currentUser}
+          onClose={() => setShowInstacart(false)}
+        />
       )}
     </div>
   );
 }
 
+// Enhanced Instacart Modal Component
+function EnhancedInstacartModal({ items, currentUser, onClose }) {
+  const [selectedStore, setSelectedStore] = useState('kroger');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [deliveryOption, setDeliveryOption] = useState('delivery');
+
+  const stores = [
+    { id: 'kroger', name: 'Kroger', logo: '🛒', fee: '$3.99', minOrder: 35 },
+    { id: 'safeway', name: 'Safeway', logo: '🏪', fee: '$4.99', minOrder: 35 },
+    { id: 'wholefoods', name: 'Whole Foods', logo: '🌿', fee: '$4.99', minOrder: 35 },
+    { id: 'costco', name: 'Costco', logo: '📦', fee: 'Free', minOrder: 0, membership: true },
+    { id: 'target', name: 'Target', logo: '🎯', fee: '$5.99', minOrder: 35 },
+    { id: 'walmart', name: 'Walmart', logo: '🏬', fee: '$7.95', minOrder: 35 }
+  ];
+
+  const selectedStoreInfo = stores.find(s => s.id === selectedStore);
+
+  const handleProceed = () => {
+    setIsProcessing(true);
+    
+    // Format search query
+    const searchQuery = items.slice(0, 5)
+      .map(i => i.productName || i.itemName)
+      .join(' ');
+    
+    setTimeout(() => {
+      // Open Instacart with the selected store
+      const url = `https://www.instacart.com/store/${selectedStore}/search?query=${encodeURIComponent(searchQuery)}`;
+      window.open(url, '_blank');
+      onClose();
+    }, 1000);
+  };
+
+  const estimatedTotal = items.reduce((sum, item) => {
+    // Mock price calculation
+    const avgPrice = 3.99;
+    return sum + (avgPrice * (item.quantity || 1));
+  }, 0);
+
+  return (
+    <div style={styles.modalOverlay} onClick={onClose}>
+      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} style={styles.closeBtn}>×</button>
+        
+        <h2 style={styles.modalTitle}>
+          <span style={{ fontSize: '28px' }}>🛍️</span>
+          Continue to Instacart
+        </h2>
+
+        {/* Delivery Options */}
+        <div style={styles.deliveryOptions}>
+          <label style={{
+            ...styles.optionCard,
+            ...(deliveryOption === 'delivery' ? styles.optionCardActive : {})
+          }}>
+            <input
+              type="radio"
+              value="delivery"
+              checked={deliveryOption === 'delivery'}
+              onChange={(e) => setDeliveryOption(e.target.value)}
+              style={{ display: 'none' }}
+            />
+            <span style={styles.optionIcon}>🚚</span>
+            <span>Delivery</span>
+          </label>
+          
+          <label style={{
+            ...styles.optionCard,
+            ...(deliveryOption === 'pickup' ? styles.optionCardActive : {})
+          }}>
+            <input
+              type="radio"
+              value="pickup"
+              checked={deliveryOption === 'pickup'}
+              onChange={(e) => setDeliveryOption(e.target.value)}
+              style={{ display: 'none' }}
+            />
+            <span style={styles.optionIcon}>🏪</span>
+            <span>Pickup</span>
+          </label>
+        </div>
+
+        {/* Store Selection Grid */}
+        <div style={styles.storeGrid}>
+          {stores.map(store => (
+            <div
+              key={store.id}
+              onClick={() => setSelectedStore(store.id)}
+              style={{
+                ...styles.storeCard,
+                ...(selectedStore === store.id ? styles.storeCardActive : {})
+              }}
+            >
+              <div style={styles.storeLogo}>{store.logo}</div>
+              <div style={styles.storeName}>{store.name}</div>
+              <div style={styles.storeFee}>{store.fee}</div>
+              {store.membership && (
+                <div style={styles.membershipBadge}>Membership</div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Order Summary */}
+        <div style={styles.orderSummary}>
+          <h3 style={styles.summaryTitle}>Order Summary</h3>
+          <div style={styles.summaryRow}>
+            <span>Items ({items.length})</span>
+            <span>${estimatedTotal.toFixed(2)}</span>
+          </div>
+          <div style={styles.summaryRow}>
+            <span>Delivery Fee</span>
+            <span>{selectedStoreInfo?.fee}</span>
+          </div>
+          <div style={styles.summaryRow}>
+            <span>Service Fee</span>
+            <span>$2.99</span>
+          </div>
+          <div style={{
+            ...styles.summaryRow,
+            ...styles.summaryTotal
+          }}>
+            <span>Estimated Total</span>
+            <span>${(estimatedTotal + 2.99 + (parseFloat(selectedStoreInfo?.fee?.replace('$', '') || 0))).toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={styles.modalActions}>
+          <button
+            onClick={handleProceed}
+            disabled={isProcessing}
+            style={styles.proceedBtn}
+          >
+            {isProcessing ? (
+              <>⏳ Opening Instacart...</>
+            ) : (
+              <>🚀 Continue to {selectedStoreInfo?.name}</>
+            )}
+          </button>
+        </div>
+
+        <p style={styles.disclaimer}>
+          You'll be redirected to Instacart to complete your order
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Styles
 const styles = {
   container: {
     background: 'white',
-    borderRadius: '12px',
-    padding: '20px',
-    margin: '20px 0',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    border: '1px solid #e5e7eb'
-  },
-
-  containerMobile: {
-    margin: '10px 0',
-    padding: '15px',
-    borderRadius: '8px'
+    borderRadius: '16px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+    overflow: 'hidden',
+    marginBottom: '24px'
   },
 
   header: {
+    padding: '24px',
+    borderBottom: '1px solid #e9ecef'
+  },
+
+  headerTop: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '20px',
-    flexWrap: 'wrap',
-    gap: '10px'
-  },
-
-  headerMobile: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    gap: '15px'
+    marginBottom: '16px'
   },
 
   title: {
-    color: '#1f2937',
-    margin: 0,
     fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    margin: 0
+  },
+
+  viewToggle: {
+    display: 'flex',
+    gap: '4px',
+    background: '#f3f4f6',
+    padding: '4px',
+    borderRadius: '10px'
+  },
+
+  viewBtn: {
+    padding: '8px 16px',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#6b7280',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    transition: 'all 0.2s'
+  },
+
+  viewBtnActive: {
+    background: 'white',
+    color: '#1f2937',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+  },
+
+  statsBar: {
+    display: 'flex',
+    gap: '20px',
+    fontSize: '14px',
+    color: '#6b7280'
+  },
+
+  stat: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
+
+  controlBar: {
+    padding: '16px 24px',
+    background: '#f9fafb',
+    borderBottom: '1px solid #e9ecef',
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center'
+  },
+
+  searchInput: {
+    flex: 1,
+    padding: '10px 16px',
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    fontSize: '14px',
+    outline: 'none'
+  },
+
+  filterSelect: {
+    padding: '10px 16px',
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    fontSize: '14px',
+    background: 'white',
+    cursor: 'pointer'
+  },
+
+  bulkActions: {
+    display: 'flex',
+    gap: '8px'
+  },
+
+  bulkDeleteBtn: {
+    padding: '8px 16px',
+    background: '#dc3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  clearSelectionBtn: {
+    padding: '8px 16px',
+    background: '#6c757d',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  content: {
+    padding: '24px',
+    minHeight: '400px',
+    maxHeight: '600px',
+    overflowY: 'auto'
+  },
+
+  // Category View Styles
+  categoryContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px'
+  },
+
+  categorySection: {
+    borderRadius: '12px',
+    overflow: 'hidden',
+    border: '1px solid #e9ecef'
+  },
+
+  categoryHeader: {
+    padding: '12px 16px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+
+  categoryTitle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px'
+  },
+
+  categoryIcon: {
+    fontSize: '20px'
+  },
+
+  categoryName: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#1f2937'
+  },
+
+  categoryCount: {
+    fontSize: '13px',
+    padding: '2px 8px',
+    background: 'rgba(0,0,0,0.08)',
+    borderRadius: '12px',
+    color: '#4b5563'
+  },
+
+  selectCategoryBtn: {
+    padding: '6px 12px',
+    background: 'white',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '13px',
+    cursor: 'pointer'
+  },
+
+  categoryItems: {
+    padding: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    background: '#fafafa'
+  },
+
+  itemCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px',
+    background: 'white',
+    borderRadius: '8px',
+    border: '1px solid #e9ecef',
+    transition: 'all 0.2s'
+  },
+
+  itemCardSelected: {
+    background: '#fef3c7',
+    borderColor: '#fbbf24'
+  },
+
+  itemCardEditing: {
+    borderColor: '#3b82f6',
+    boxShadow: '0 0 0 3px rgba(59,130,246,0.1)'
+  },
+
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer'
+  },
+
+  itemContent: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+
+  itemName: {
+    fontSize: '15px',
+    fontWeight: '500',
+    color: '#1f2937',
+    cursor: 'pointer'
+  },
+
+  itemDetails: {
+    display: 'flex',
+    gap: '12px',
+    fontSize: '13px',
+    color: '#6b7280'
+  },
+
+  quantity: {
+    fontWeight: '500'
+  },
+
+  confidence: {
     fontWeight: 'bold'
   },
 
-  headerActions: {
-    display: 'flex',
-    gap: '10px',
-    alignItems: 'center',
+  editInput: {
+    width: '100%',
+    padding: '4px 8px',
+    border: '2px solid #3b82f6',
+    borderRadius: '4px',
+    fontSize: '15px',
+    outline: 'none'
   },
 
-  toggleButton: {
-    padding: '8px 16px',
-    backgroundColor: '#3b82f6',
+  removeBtn: {
+    width: '28px',
+    height: '28px',
+    background: '#ef4444',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
+    fontSize: '20px',
     cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500'
-  },
-
-  refreshButton: {
-    padding: '8px 16px',
-    backgroundColor: '#f59e0b',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-    minWidth: '120px',
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  exportButton: {
-    padding: '8px 16px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-    minWidth: '120px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Batch operations styles
-  batchOperationsBar: {
-    background: '#fef3c7',
-    padding: '12px 16px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: '10px',
-    border: '1px solid #fbbf24'
-  },
-
-  batchOperationsTitle: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#92400e'
-  },
-
-  batchOperationsButtons: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap'
-  },
-
-  batchButton: {
-    padding: '6px 12px',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: '500'
-  },
-
-  batchButtonSuccess: {
-    padding: '6px 12px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: '500',
-    minWidth: '110px',
-    display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center'
   },
 
-  batchButtonDanger: {
-    padding: '6px 12px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: '500'
+  // List View Styles
+  listContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
   },
 
-  // Meal planner modal styles
-  mealPlannerModal: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  listItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px 16px',
+    background: 'white',
+    border: '1px solid #e9ecef',
+    borderRadius: '8px',
+    transition: 'all 0.2s'
+  },
+
+  listItemEven: {
+    background: '#fafafa'
+  },
+
+  listItemSelected: {
+    background: '#fef3c7',
+    borderColor: '#fbbf24'
+  },
+
+  categoryBadge: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '8px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 3000
+    fontSize: '18px',
+    fontWeight: 'bold'
   },
 
-  mealPlannerContent: {
-    backgroundColor: 'white',
-    padding: '24px',
-    borderRadius: '12px',
-    width: '90%',
-    maxWidth: '400px',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+  quantityControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
   },
 
-  mealPlannerTitle: {
-    margin: '0 0 16px 0',
-    fontSize: '20px',
-    color: '#1f2937'
+  quantityBtn: {
+    width: '24px',
+    height: '24px',
+    background: '#e5e7eb',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    fontWeight: 'bold'
   },
 
-  mealNameInput: {
-    width: '100%',
-    padding: '10px',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
+  quantityValue: {
+    minWidth: '60px',
+    textAlign: 'center',
     fontSize: '14px',
-    marginTop: '8px'
+    fontWeight: '500'
   },
 
-  existingMeals: {
-    marginTop: '16px',
-    paddingTop: '16px',
-    borderTop: '1px solid #e5e7eb'
-  },
-
-  existingMealButton: {
-    display: 'block',
-    width: '100%',
-    padding: '8px',
-    marginTop: '8px',
-    backgroundColor: '#f3f4f6',
-    border: '1px solid #d1d5db',
+  confidenceBadge: {
+    padding: '4px 8px',
     borderRadius: '6px',
-    cursor: 'pointer',
-    textAlign: 'left'
+    fontSize: '12px',
+    fontWeight: 'bold'
   },
 
-  mealPlannerActions: {
+  // Action buttons
+  actions: {
+    padding: '24px',
+    borderTop: '1px solid #e9ecef',
     display: 'flex',
-    gap: '10px',
-    marginTop: '20px'
+    gap: '12px'
   },
 
-  mealPlannerSave: {
+  primaryBtn: {
     flex: 1,
-    padding: '10px',
-    backgroundColor: '#10b981',
+    padding: '14px 24px',
+    background: 'linear-gradient(135deg, #28a745, #20c997)',
     color: 'white',
     border: 'none',
-    borderRadius: '6px',
+    borderRadius: '10px',
+    fontSize: '16px',
+    fontWeight: 'bold',
     cursor: 'pointer',
-    fontWeight: '500'
+    transition: 'transform 0.2s',
+    boxShadow: '0 4px 12px rgba(40,167,69,0.3)'
   },
 
-  mealPlannerCancel: {
-    flex: 1,
-    padding: '10px',
-    backgroundColor: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
+  secondaryBtn: {
+    padding: '14px 24px',
+    background: 'white',
+    color: '#6b7280',
+    border: '2px solid #e5e7eb',
+    borderRadius: '10px',
+    fontSize: '16px',
+    fontWeight: 'bold',
     cursor: 'pointer',
-    fontWeight: '500'
+    transition: 'all 0.2s'
   },
 
-  // Meal groups modal
-  mealGroupsModal: {
+  // Modal styles
+  modalOverlay: {
     position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    background: 'rgba(0,0,0,0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 3000
+    zIndex: 1000,
+    backdropFilter: 'blur(4px)'
   },
 
-  mealGroupsContent: {
-    backgroundColor: 'white',
-    padding: '24px',
-    borderRadius: '12px',
-    width: '90%',
-    maxWidth: '600px',
-    maxHeight: '80vh',
-    overflowY: 'auto',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-    position: 'relative'
+  modal: {
+    background: 'white',
+    borderRadius: '20px',
+    width: '600px',
+    maxWidth: '90vw',
+    maxHeight: '90vh',
+    overflow: 'auto',
+    padding: '32px',
+    position: 'relative',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
   },
 
-  mealGroupsTitle: {
-    margin: '0 0 20px 0',
-    fontSize: '24px',
-    color: '#1f2937'
-  },
-
-  mealGroupsClose: {
+  closeBtn: {
     position: 'absolute',
-    top: '20px',
-    right: '20px',
-    background: 'none',
+    top: '16px',
+    right: '16px',
+    width: '32px',
+    height: '32px',
+    background: '#f3f4f6',
     border: 'none',
+    borderRadius: '8px',
     fontSize: '24px',
     cursor: 'pointer',
     color: '#6b7280'
   },
 
-  mealGroupSection: {
-    marginBottom: '20px',
-    padding: '16px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '8px',
-    border: '1px solid #e5e7eb'
-  },
-
-  mealGroupHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '12px'
-  },
-
-  mealGroupName: {
-    margin: 0,
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#1f2937'
-  },
-
-  mealGroupDeleteButton: {
-    padding: '6px 12px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '12px',
-    fontWeight: '500'
-  },
-
-  mealItemsList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  },
-
-  mealItem: {
-    display: 'flex',
-    gap: '12px',
-    padding: '8px',
-    backgroundColor: 'white',
-    borderRadius: '6px',
-    fontSize: '14px',
-    alignItems: 'center'
-  },
-
-  statsPanel: {
-    background: '#f9fafb',
-    padding: '20px',
-    borderRadius: '8px',
-    marginBottom: '20px',
-    border: '1px solid #e5e7eb'
-  },
-
-  statsTitle: {
-    color: '#374151',
-    margin: '0 0 15px 0',
-    fontSize: '18px',
-    fontWeight: 'bold'
-  },
-
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-    gap: '15px'
-  },
-
-  statCard: {
-    background: 'white',
-    padding: '15px',
-    borderRadius: '8px',
-    textAlign: 'center',
-    border: '1px solid #e5e7eb'
-  },
-
-  statValue: {
+  modalTitle: {
     fontSize: '24px',
     fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: '24px',
+    textAlign: 'center',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '12px'
+  },
+
+  deliveryOptions: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
+    marginBottom: '24px'
+  },
+
+  optionCard: {
+    padding: '16px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    justifyContent: 'center'
+  },
+
+  optionCardActive: {
+    borderColor: '#3b82f6',
+    background: '#eff6ff'
+  },
+
+  optionIcon: {
+    fontSize: '20px'
+  },
+
+  storeGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '12px',
+    marginBottom: '24px'
+  },
+
+  storeCard: {
+    padding: '16px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    textAlign: 'center',
+    position: 'relative'
+  },
+
+  storeCardActive: {
+    borderColor: '#10b981',
+    background: '#d1fae5'
+  },
+
+  storeLogo: {
+    fontSize: '32px',
+    marginBottom: '8px'
+  },
+
+  storeName: {
+    fontSize: '14px',
+    fontWeight: '600',
     color: '#1f2937',
     marginBottom: '4px'
   },
 
-  statLabel: {
+  storeFee: {
     fontSize: '12px',
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
+    color: '#6b7280'
   },
 
-  controls: {
-    display: 'flex',
-    gap: '20px',
-    marginBottom: '20px',
-    flexWrap: 'wrap'
-  },
-
-  controlGroup: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px'
-  },
-
-  controlLabel: {
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#374151'
-  },
-
-  select: {
-    padding: '6px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
-    fontSize: '14px',
-    backgroundColor: 'white'
-  },
-
-  listHeader: {
-    display: 'grid',
-    gridTemplateColumns: '40px 40px 1fr 80px 120px 70px 80px 40px',
-    gap: '10px',
-    padding: '10px 15px',
-    backgroundColor: '#f3f4f6',
-    borderRadius: '8px 8px 0 0',
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#374151',
-    borderBottom: '2px solid #e5e7eb',
-    alignItems: 'center'
-  },
-
-  headerCheckbox: { 
-    textAlign: 'center',
-    cursor: 'pointer',
-    display: 'flex',
-    justifyContent: 'center'
-  },
-  headerCategory: { textAlign: 'center' },
-  headerName: {},
-  headerQuantity: { textAlign: 'center' },
-  headerUnit: { textAlign: 'center' },
-  headerConfidence: { textAlign: 'center' },
-  headerPrice: { textAlign: 'right' },
-  headerActions: { textAlign: 'center' },
-
-  itemsList: {
-    maxHeight: '600px',
-    overflowY: 'auto',
-    overflowX: 'hidden',
-    borderRadius: '0 0 8px 8px',
-    border: '1px solid #e5e7eb',
-    borderTop: 'none'
-  },
-
-  categoryHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '10px 15px',
-    backgroundColor: '#f9fafb',
-    borderBottom: '1px solid #e5e7eb',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#4b5563',
-    position: 'sticky',
-    top: 0,
-    zIndex: 10
-  },
-
-  categoryIcon: {
-    fontSize: '18px'
-  },
-
-  categoryName: {
-    textTransform: 'capitalize'
-  },
-
-  categoryCount: {
-    fontSize: '12px',
-    color: '#9ca3af',
-    fontWeight: 'normal'
-  },
-
-  itemRow: {
-    display: 'grid',
-    gridTemplateColumns: '40px 40px 1fr 80px 120px 70px 80px 40px',
-    gap: '10px',
-    padding: '10px 15px',
-    borderBottom: '1px solid #f3f4f6',
-    alignItems: 'center',
-    transition: 'background-color 0.2s',
-    cursor: 'default'
-  },
-
-  itemRowEven: {
-    backgroundColor: '#fafafa'
-  },
-
-  itemRowEditing: {
-    backgroundColor: '#f0f9ff',
-    boxShadow: 'inset 0 0 0 2px #3b82f6'
-  },
-
-  itemRowUpdating: {
-    opacity: 0.7,
-    pointerEvents: 'none'
-  },
-
-  itemRowSelected: {
-    backgroundColor: '#fef3c7'
-  },
-
-  itemCheckbox: {
-    textAlign: 'center',
-    cursor: 'pointer',
-    padding: '4px',
+  membershipBadge: {
+    position: 'absolute',
+    top: '8px',
+    right: '8px',
+    background: '#fbbf24',
+    color: '#92400e',
+    fontSize: '10px',
+    padding: '2px 6px',
     borderRadius: '4px',
-    transition: 'background-color 0.2s',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-
-  itemCheckboxSelected: {
-    backgroundColor: 'rgba(251, 191, 36, 0.2)'
-  },
-
-  checkboxVisual: {
-    width: '20px',
-    height: '20px',
-    border: '2px solid #d1d5db',
-    borderRadius: '4px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'white',
-    transition: 'all 0.2s',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    color: 'white'
-  },
-
-  checkboxVisualSelected: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6'
-  },
-
-  itemCategory: {
-    textAlign: 'center',
-    fontSize: '18px'
-  },
-
-  itemName: {
-    overflow: 'hidden',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px'
-  },
-
-  itemNameText: {
-    cursor: 'pointer',
-    color: '#1f2937',
-    fontSize: '14px',
-    fontWeight: '500',
-    textOverflow: 'ellipsis',
-    overflow: 'hidden',
-    whiteSpace: 'nowrap',
-    display: 'block'
-  },
-
-  itemNameInput: {
-    width: '100%',
-    padding: '4px 8px',
-    border: '1px solid #3b82f6',
-    borderRadius: '4px',
-    fontSize: '14px',
-    fontWeight: '500',
-    outline: 'none'
-  },
-
-  itemQuantity: {
-    textAlign: 'center'
-  },
-
-  quantityInput: {
-    width: '60px',
-    padding: '4px 8px',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '14px',
-    textAlign: 'center'
-  },
-
-  itemUnit: {
-    textAlign: 'center'
-  },
-
-  unitSelect: {
-    width: '100%',
-    padding: '4px 8px',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '14px',
-    backgroundColor: 'white'
-  },
-
-  itemConfidence: {
-    textAlign: 'center'
-  },
-
-  confidenceBadge: {
-    display: 'inline-block',
-    padding: '2px 8px',
-    borderRadius: '12px',
-    fontSize: '11px',
-    fontWeight: 'bold',
-    color: 'white',
-    textTransform: 'uppercase'
-  },
-
-  itemPrice: {
-    textAlign: 'right',
-    fontWeight: '600',
-    color: '#059669',
-    fontSize: '14px',
-    minWidth: '80px',
-    display: 'flex',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: '4px'
-  },
-
-  priceHistoryButton: {
-    padding: '2px',
-    backgroundColor: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '14px'
-  },
-
-  itemActions: {
-    textAlign: 'center',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  removeButton: {
-    background: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    width: '28px',
-    height: '28px',
-    cursor: 'pointer',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'opacity 0.2s'
-  },
-
-  priceHistoryPanel: {
-    background: '#ecfdf5',
-    padding: '12px',
-    marginLeft: '80px',
-    marginRight: '15px',
-    marginBottom: '8px',
-    borderRadius: '8px',
-    border: '1px solid #10b981'
-  },
-
-  priceHistoryHeader: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#065f46',
-    marginBottom: '8px'
-  },
-
-  priceHistoryList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    fontSize: '13px'
-  },
-
-  priceHistoryItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '4px 8px',
-    backgroundColor: 'white',
-    borderRadius: '4px'
-  },
-
-  salePrice: {
-    color: '#ef4444',
-    fontWeight: '600'
-  },
-
-  totalSummary: {
-    background: 'linear-gradient(135deg, #dbeafe, #bfdbfe)',
-    padding: '20px',
-    borderRadius: '8px',
-    textAlign: 'center',
-    border: '1px solid #93c5fd',
-    marginTop: '20px'
-  },
-
-  totalTitle: {
-    color: '#1e40af',
-    margin: '0 0 8px 0',
-    fontSize: '20px',
     fontWeight: 'bold'
   },
 
-  totalNote: {
-    color: '#3730a3',
-    margin: 0,
+  orderSummary: {
+    background: '#f9fafb',
+    padding: '16px',
+    borderRadius: '12px',
+    marginBottom: '24px'
+  },
+
+  summaryTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: '12px'
+  },
+
+  summaryRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '8px 0',
     fontSize: '14px',
-    fontStyle: 'italic'
+    color: '#6b7280'
+  },
+
+  summaryTotal: {
+    borderTop: '1px solid #e5e7eb',
+    paddingTop: '12px',
+    fontWeight: 'bold',
+    fontSize: '16px',
+    color: '#1f2937'
+  },
+
+  modalActions: {
+    display: 'flex',
+    gap: '12px'
+  },
+
+  proceedBtn: {
+    flex: 1,
+    padding: '16px',
+    background: 'linear-gradient(135deg, #10b981, #34d399)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    boxShadow: '0 4px 12px rgba(16,185,129,0.3)'
+  },
+
+  disclaimer: {
+    textAlign: 'center',
+    fontSize: '12px',
+    color: '#9ca3af',
+    marginTop: '16px'
   }
 };
 

@@ -1250,13 +1250,7 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
         />
       )}
 
-      {/* Instacart Integration */}
-      {showResults && parsedItems.length > 0 && (
-        <InstacartIntegration 
-          items={parsedItems}
-          currentUser={currentUser}
-        />
-      )}
+
 
       {/* Smart AI Assistant */}
       <SmartAIAssistant 
