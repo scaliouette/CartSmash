@@ -7,6 +7,7 @@ import InstacartIntegration from './components/InstacartIntegration';
 import SmartAIAssistant from './components/SmartAIAssistant';
 import ProductValidator from './components/ProductValidator';
 import MyAccount from './components/MyAccount';
+import RecipeManager from './components/RecipeManager';
 
 // Import the enhanced components
 import ParsingAnalyticsDashboard from './components/ParsingAnalyticsDashboard';

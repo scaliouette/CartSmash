@@ -1,31 +1,89 @@
-// server/routes/cart.js
+// server/routes/cart.js - FIXED WITH DEDUPLICATION
 const express = require('express');
 const router = express.Router();
 
 // In-memory storage (replace with database in production)
 let cartItems = new Map();
-let priceCache = new Map();
+let savedLists = new Map();
+let savedRecipes = new Map();
 
-// Middleware to get user ID (simplified - use real auth in production)
+// Helper function to normalize product names for comparison
+function normalizeProductName(name) {
+  return name.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+    .replace(/\s+/g, ' ') // Normalize spaces
+    .trim();
+}
+
+// Helper function to check if two items are duplicates
+function areDuplicates(item1, item2) {
+  const name1 = normalizeProductName(item1.productName || item1.itemName || item1.name || '');
+  const name2 = normalizeProductName(item2.productName || item2.itemName || item2.name || '');
+  
+  // Check for exact match
+  if (name1 === name2) return true;
+  
+  // Check for partial match (one contains the other)
+  if (name1.includes(name2) || name2.includes(name1)) {
+    // Make sure they're in the same category
+    return item1.category === item2.category;
+  }
+  
+  return false;
+}
+
+// Helper function to merge duplicate items
+function mergeDuplicates(items) {
+  const merged = [];
+  const processed = new Set();
+  
+  for (let i = 0; i < items.length; i++) {
+    if (processed.has(i)) continue;
+    
+    const currentItem = { ...items[i] };
+    const duplicates = [];
+    
+    // Find all duplicates of current item
+    for (let j = i + 1; j < items.length; j++) {
+      if (!processed.has(j) && areDuplicates(currentItem, items[j])) {
+        duplicates.push(items[j]);
+        processed.add(j);
+      }
+    }
+    
+    // Merge quantities if duplicates found
+    if (duplicates.length > 0) {
+      let totalQuantity = parseFloat(currentItem.quantity || 1);
+      
+      for (const dup of duplicates) {
+        // Only merge if units match or one is missing
+        if (!currentItem.unit || !dup.unit || currentItem.unit === dup.unit) {
+          totalQuantity += parseFloat(dup.quantity || 1);
+          // Take the unit if current doesn't have one
+          if (!currentItem.unit && dup.unit) {
+            currentItem.unit = dup.unit;
+          }
+        } else {
+          // Different units, keep separate
+          merged.push(dup);
+        }
+      }
+      
+      currentItem.quantity = totalQuantity;
+      currentItem.merged = true;
+      currentItem.duplicatesCount = duplicates.length + 1;
+    }
+    
+    merged.push(currentItem);
+    processed.add(i);
+  }
+  
+  return merged;
+}
+
+// Middleware to get user ID
 const getUserId = (req) => {
-  return req.headers['user-id'] || 'default-user';
-};
-
-// Mock price fetching service (replace with real API integration)
-const fetchPriceFromService = async (productName) => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, Math.random() * 500));
-  
-  // Generate mock prices based on product name
-  const basePrice = 2 + Math.random() * 18; // $2-20 base price
-  const hasDiscount = Math.random() > 0.7; // 30% chance of sale
-  
-  return {
-    price: parseFloat(basePrice.toFixed(2)),
-    salePrice: hasDiscount ? parseFloat((basePrice * 0.8).toFixed(2)) : null,
-    availability: Math.random() > 0.1 ? 'in-stock' : 'limited',
-    lastUpdated: new Date().toISOString()
-  };
+  return req.headers['user-id'] || req.body?.userId || 'default-user';
 };
 
 // GET /api/cart - Get all cart items for user
@@ -48,371 +106,10 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/cart/items - Add items to cart (bulk add)
-router.post('/items', async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    const { items } = req.body;
-    
-    if (!items || !Array.isArray(items)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid items data' 
-      });
-    }
-    
-    // Get existing cart or create new
-    let userCart = cartItems.get(userId) || [];
-    
-    // Add items with unique IDs
-    const newItems = items.map(item => ({
-      id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      ...item,
-      addedAt: new Date().toISOString(),
-      validated: false
-    }));
-    
-    userCart = [...userCart, ...newItems];
-    cartItems.set(userId, userCart);
-    
-    res.json({
-      success: true,
-      items: newItems,
-      totalItems: userCart.length
-    });
-  } catch (error) {
-    console.error('Error adding items:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to add items to cart' 
-    });
-  }
-});
-
-// PUT /api/cart/items/:itemId - Update a specific item
-router.put('/items/:itemId', async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    const { itemId } = req.params;
-    const updates = req.body;
-    
-    let userCart = cartItems.get(userId) || [];
-    const itemIndex = userCart.findIndex(item => item.id === itemId);
-    
-    if (itemIndex === -1) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Item not found' 
-      });
-    }
-    
-    // Update the item
-    userCart[itemIndex] = {
-      ...userCart[itemIndex],
-      ...updates,
-      lastUpdated: new Date().toISOString()
-    };
-    
-    cartItems.set(userId, userCart);
-    
-    res.json({
-      success: true,
-      item: userCart[itemIndex]
-    });
-  } catch (error) {
-    console.error('Error updating item:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to update item' 
-    });
-  }
-});
-
-// DELETE /api/cart/item/:itemId - Delete a specific item
-router.delete('/item/:itemId', async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    const { itemId } = req.params;
-    
-    let userCart = cartItems.get(userId) || [];
-    const originalLength = userCart.length;
-    
-    userCart = userCart.filter(item => item.id !== itemId);
-    
-    if (userCart.length === originalLength) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Item not found' 
-      });
-    }
-    
-    cartItems.set(userId, userCart);
-    
-    res.json({
-      success: true,
-      message: 'Item deleted successfully',
-      remainingItems: userCart.length
-    });
-  } catch (error) {
-    console.error('Error deleting item:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to delete item' 
-    });
-  }
-});
-
-// POST /api/cart/clear - Clear all items from cart
-router.post('/clear', async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    cartItems.set(userId, []);
-    
-    res.json({
-      success: true,
-      message: 'Cart cleared successfully'
-    });
-  } catch (error) {
-    console.error('Error clearing cart:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to clear cart' 
-    });
-  }
-});
-
-// POST /api/cart/fetch-prices - Fetch real-time prices for items
-router.post('/fetch-prices', async (req, res) => {
-  try {
-    const { items } = req.body;
-    
-    if (!items || !Array.isArray(items)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid items data' 
-      });
-    }
-    
-    const prices = {};
-    
-    // Fetch prices for each item (with caching)
-    await Promise.all(items.map(async (item) => {
-      const cacheKey = `${item.name}_${new Date().toDateString()}`;
-      
-      // Check cache first (24-hour cache)
-      if (priceCache.has(cacheKey)) {
-        prices[item.id] = priceCache.get(cacheKey);
-      } else {
-        // Fetch new price
-        const priceData = await fetchPriceFromService(item.name);
-        prices[item.id] = priceData;
-        priceCache.set(cacheKey, priceData);
-      }
-    }));
-    
-    res.json({
-      success: true,
-      prices,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error fetching prices:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch prices' 
-    });
-  }
-});
-
-// POST /api/cart/validate-all - Validate and enhance all items
-router.post('/validate-all', async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    let userCart = cartItems.get(userId) || [];
-    
-    // Enhanced validation logic
-    userCart = userCart.map(item => {
-      // Increase confidence for validated items
-      let newConfidence = Math.min((item.confidence || 0.7) + 0.2, 1);
-      
-      // Smart unit detection (simplified version)
-      let detectedUnit = item.unit;
-      if (!detectedUnit || detectedUnit === 'unit') {
-        const itemText = (item.original || item.itemName || item.name || '').toLowerCase();
-        
-        if (itemText.includes('lb') || itemText.includes('pound')) {
-          detectedUnit = 'lb';
-        } else if (itemText.includes('oz') || itemText.includes('ounce')) {
-          detectedUnit = 'oz';
-        } else if (itemText.includes('gal') || itemText.includes('gallon')) {
-          detectedUnit = 'gal';
-        } else if (itemText.includes('dozen')) {
-          detectedUnit = 'dozen';
-        } else if (itemText.includes('can') || itemText.includes('bottle')) {
-          detectedUnit = itemText.includes('can') ? 'can' : 'bottle';
-        } else {
-          detectedUnit = 'each';
-        }
-      }
-      
-      return {
-        ...item,
-        confidence: newConfidence,
-        unit: detectedUnit,
-        validated: true,
-        needsReview: false,
-        validatedAt: new Date().toISOString()
-      };
-    });
-    
-    cartItems.set(userId, userCart);
-    
-    res.json({
-      success: true,
-      message: 'All items validated successfully',
-      items: userCart
-    });
-  } catch (error) {
-    console.error('Error validating items:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to validate items' 
-    });
-  }
-});
-
-// POST /api/cart/bulk-delete - Delete multiple items
-router.post('/bulk-delete', async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    const { itemIds, criteria } = req.body;
-    
-    let userCart = cartItems.get(userId) || [];
-    let deletedCount = 0;
-    
-    if (itemIds && Array.isArray(itemIds)) {
-      // Delete specific items by ID
-      const originalLength = userCart.length;
-      userCart = userCart.filter(item => !itemIds.includes(item.id));
-      deletedCount = originalLength - userCart.length;
-    } else if (criteria) {
-      // Delete by criteria (e.g., low confidence)
-      const originalLength = userCart.length;
-      
-      if (criteria === 'low-confidence') {
-        userCart = userCart.filter(item => (item.confidence || 0) >= 0.6);
-      }
-      
-      deletedCount = originalLength - userCart.length;
-    }
-    
-    cartItems.set(userId, userCart);
-    
-    res.json({
-      success: true,
-      message: `Deleted ${deletedCount} items`,
-      deletedCount,
-      remainingItems: userCart.length
-    });
-  } catch (error) {
-    console.error('Error bulk deleting items:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to delete items' 
-    });
-  }
-});
-
-// GET /api/cart/export - Export cart data
-router.get('/export', async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    const { format = 'json' } = req.query;
-    const userCart = cartItems.get(userId) || [];
-    
-    if (format === 'csv') {
-      // Generate CSV
-      const headers = ['Product Name', 'Quantity', 'Unit', 'Category', 'Confidence', 'Price'];
-      const csvContent = [
-        headers.join(','),
-        ...userCart.map(item => [
-          `"${item.productName || item.itemName || item.name}"`,
-          item.quantity || 1,
-          item.unit || 'each',
-          item.category || 'other',
-          ((item.confidence || 0) * 100).toFixed(0) + '%',
-          item.realPrice ? `$${item.realPrice.toFixed(2)}` : 'N/A'
-        ].join(','))
-      ].join('\n');
-      
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename="cart-${Date.now()}.csv"`);
-      res.send(csvContent);
-    } else {
-      // Return JSON
-      res.json({
-        success: true,
-        exportDate: new Date().toISOString(),
-        items: userCart,
-        stats: {
-          totalItems: userCart.length,
-          totalPrice: userCart.reduce((sum, item) => 
-            sum + ((item.realPrice || 0) * (item.quantity || 1)), 0
-          ),
-          categories: [...new Set(userCart.map(item => item.category))].length
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Error exporting cart:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to export cart' 
-    });
-  }
-});
-
-// GET /api/cart/stats - Get cart statistics
-router.get('/stats', async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    const userCart = cartItems.get(userId) || [];
-    
-    const stats = {
-      total: userCart.length,
-      highConfidence: userCart.filter(item => (item.confidence || 0) >= 0.8).length,
-      mediumConfidence: userCart.filter(item => 
-        (item.confidence || 0) >= 0.6 && (item.confidence || 0) < 0.8
-      ).length,
-      lowConfidence: userCart.filter(item => (item.confidence || 0) < 0.6).length,
-      validated: userCart.filter(item => item.validated).length,
-      categories: [...new Set(userCart.map(item => item.category))],
-      averageConfidence: userCart.length > 0 
-        ? userCart.reduce((sum, item) => sum + (item.confidence || 0), 0) / userCart.length 
-        : 0,
-      totalEstimatedPrice: userCart.reduce((sum, item) => 
-        sum + ((item.realPrice || 0) * (item.quantity || 1)), 0
-      ),
-      lastUpdated: new Date().toISOString()
-    };
-    
-    res.json({
-      success: true,
-      stats
-    });
-  } catch (error) {
-    console.error('Error getting stats:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to get cart statistics' 
-    });
-  }
-});
-
-// POST /api/cart/parse - Parse grocery list and add to cart
+// POST /api/cart/parse - Parse grocery list with DEDUPLICATION
 router.post('/parse', async (req, res) => {
   try {
-    const { listText, action = 'merge', userId } = req.body;
+    const { listText, action = 'merge', userId, options = {} } = req.body;
     
     if (!listText || listText.trim().length === 0) {
       return res.status(400).json({
@@ -421,7 +118,7 @@ router.post('/parse', async (req, res) => {
       });
     }
 
-    console.log('📝 Parsing grocery list:', listText.substring(0, 100) + '...');
+    console.log('🔍 Parsing grocery list with deduplication enabled...');
 
     // Parse the grocery list text
     const lines = listText.split('\n').filter(line => line.trim());
@@ -434,7 +131,12 @@ router.post('/parse', async (req, res) => {
       
       if (!cleaned || cleaned.length < 2) continue;
       
-      // Parse quantity, handling fractions like "1/4"
+      // Skip common non-product lines
+      if (/^(monday|tuesday|wednesday|thursday|friday|saturday|sunday|week|day|meal|breakfast|lunch|dinner|snack):/i.test(cleaned)) {
+        continue;
+      }
+      
+      // Parse quantity, handling fractions
       const quantityMatch = cleaned.match(/^(\d+(?:\/\d+)?|\d+\.\d+)\s*([a-zA-Z]*)\s*(.+)$/);
       
       let quantity = 1;
@@ -442,7 +144,6 @@ router.post('/parse', async (req, res) => {
       let productName = cleaned;
       
       if (quantityMatch) {
-        // Handle fractions like "1/4" or "1/2"
         const quantityStr = quantityMatch[1];
         if (quantityStr.includes('/')) {
           const [numerator, denominator] = quantityStr.split('/');
@@ -451,20 +152,25 @@ router.post('/parse', async (req, res) => {
           quantity = parseFloat(quantityStr);
         }
         
-        // Check if second group is a unit
         const possibleUnit = quantityMatch[2];
-        const validUnits = ['lb', 'lbs', 'oz', 'cup', 'cups', 'tbsp', 'tsp', 'can', 'bottle', 'jar', 'bag', 'box', 'package', 'dozen', 'bunch', 'head'];
+        const validUnits = ['lb', 'lbs', 'oz', 'cup', 'cups', 'tbsp', 'tsp', 'can', 'bottle', 'jar', 'bag', 'box', 'package', 'dozen', 'bunch', 'head', 'kg', 'g', 'ml', 'l'];
         
         if (possibleUnit && validUnits.some(u => possibleUnit.toLowerCase().includes(u))) {
           unit = possibleUnit.toLowerCase();
           productName = quantityMatch[3];
         } else {
-          // No unit, just quantity + product
           productName = (possibleUnit + ' ' + quantityMatch[3]).trim();
         }
       }
       
-      // Detect category
+      // Detect container words in product name
+      const containerMatch = productName.match(/^(can|bottle|jar|bag|box|package)\s+(?:of\s+)?(.+)$/i);
+      if (containerMatch) {
+        unit = containerMatch[1].toLowerCase();
+        productName = containerMatch[2];
+        quantity = quantity || 1;
+      }
+      
       const category = detectCategory(productName);
       
       parsedItems.push({
@@ -480,6 +186,17 @@ router.post('/parse', async (req, res) => {
       });
     }
 
+    // Apply deduplication if enabled
+    let finalParsedItems = parsedItems;
+    let duplicatesMerged = 0;
+    
+    if (options.mergeDuplicates !== false) {
+      const beforeCount = parsedItems.length;
+      finalParsedItems = mergeDuplicates(parsedItems);
+      duplicatesMerged = beforeCount - finalParsedItems.length;
+      console.log(`✅ Merged ${duplicatesMerged} duplicate items`);
+    }
+
     // Get user's existing cart
     const userIdToUse = userId || getUserId(req);
     let existingCart = cartItems.get(userIdToUse) || [];
@@ -487,11 +204,13 @@ router.post('/parse', async (req, res) => {
     // Handle merge vs replace
     let finalCart;
     if (action === 'merge') {
-      finalCart = [...existingCart, ...parsedItems];
-      console.log(`✅ Merged ${parsedItems.length} items with existing ${existingCart.length} items`);
+      // When merging, also deduplicate with existing cart
+      const combined = [...existingCart, ...finalParsedItems];
+      finalCart = options.mergeDuplicates !== false ? mergeDuplicates(combined) : combined;
+      console.log(`✅ Merged ${finalParsedItems.length} new items with ${existingCart.length} existing items`);
     } else {
-      finalCart = parsedItems;
-      console.log(`✅ Replaced cart with ${parsedItems.length} new items`);
+      finalCart = finalParsedItems;
+      console.log(`✅ Replaced cart with ${finalParsedItems.length} new items`);
     }
     
     // Save the cart
@@ -500,18 +219,18 @@ router.post('/parse', async (req, res) => {
     res.json({
       success: true,
       cart: finalCart,
-      itemsAdded: parsedItems.length,
+      itemsAdded: finalParsedItems.length,
       totalItems: finalCart.length,
       parsing: {
         stats: {
           totalLines: lines.length,
           parsedItems: parsedItems.length,
+          afterDeduplication: finalParsedItems.length,
+          duplicatesMerged: duplicatesMerged,
           confidence: 0.8
         },
-        averageConfidence: 0.8
-      },
-      quality: {
-        quantityParsingAccuracy: 'High'
+        averageConfidence: 0.8,
+        duplicatesMerged: duplicatesMerged
       }
     });
     
@@ -525,19 +244,156 @@ router.post('/parse', async (req, res) => {
   }
 });
 
-// Helper function to detect category (add this if it doesn't exist)
+// POST /api/cart/save-list - Save shopping list to account
+router.post('/save-list', async (req, res) => {
+  try {
+    const { name, items, userId, metadata } = req.body;
+    const userIdToUse = userId || getUserId(req);
+    
+    if (!name || !items) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name and items are required'
+      });
+    }
+    
+    const listId = `list_${Date.now()}`;
+    const list = {
+      id: listId,
+      name,
+      items,
+      userId: userIdToUse,
+      createdAt: new Date().toISOString(),
+      metadata
+    };
+    
+    // Save to user's lists
+    let userLists = savedLists.get(userIdToUse) || [];
+    userLists.push(list);
+    savedLists.set(userIdToUse, userLists);
+    
+    console.log(`✅ Saved list "${name}" with ${items.length} items for user ${userIdToUse}`);
+    
+    res.json({
+      success: true,
+      listId,
+      message: 'List saved successfully'
+    });
+  } catch (error) {
+    console.error('Error saving list:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save list'
+    });
+  }
+});
+
+// GET /api/cart/lists - Get saved lists
+router.get('/lists', async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const userLists = savedLists.get(userId) || [];
+    
+    res.json({
+      success: true,
+      lists: userLists
+    });
+  } catch (error) {
+    console.error('Error fetching lists:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch lists'
+    });
+  }
+});
+
+// POST /api/recipes - Save a recipe
+router.post('/recipes', async (req, res) => {
+  try {
+    const recipe = req.body;
+    const userId = getUserId(req);
+    
+    let userRecipes = savedRecipes.get(userId) || [];
+    userRecipes.push(recipe);
+    savedRecipes.set(userId, userRecipes);
+    
+    res.json({
+      success: true,
+      message: 'Recipe saved'
+    });
+  } catch (error) {
+    console.error('Error saving recipe:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save recipe'
+    });
+  }
+});
+
+// GET /api/recipes - Get saved recipes
+router.get('/recipes', async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const userRecipes = savedRecipes.get(userId) || [];
+    
+    res.json({
+      success: true,
+      recipes: userRecipes
+    });
+  } catch (error) {
+    console.error('Error fetching recipes:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch recipes'
+    });
+  }
+});
+
+// GET /api/user/data - Get all user data for account page
+router.get('/user/data', async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    
+    const userCart = cartItems.get(userId) || [];
+    const userLists = savedLists.get(userId) || [];
+    const userRecipes = savedRecipes.get(userId) || [];
+    
+    const itemCount = userLists.reduce((sum, list) => sum + (list.items?.length || 0), 0);
+    
+    res.json({
+      success: true,
+      cart: userCart,
+      lists: userLists,
+      recipes: userRecipes,
+      stats: {
+        totalLists: userLists.length,
+        totalMealPlans: 0,
+        totalRecipes: userRecipes.length,
+        itemsParsed: itemCount
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch user data'
+    });
+  }
+});
+
+// Helper function to detect category
 function detectCategory(productName) {
   const name = productName.toLowerCase();
   
   const categories = {
-    produce: ['apple', 'banana', 'orange', 'lettuce', 'tomato', 'carrot', 'onion', 'potato', 'spinach', 'broccoli', 'pepper', 'cucumber', 'avocado', 'berry', 'berries', 'grape', 'lemon', 'lime'],
-    dairy: ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'eggs', 'cottage', 'sour cream'],
-    meat: ['chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'tuna', 'bacon', 'ham', 'sausage', 'ground'],
-    pantry: ['rice', 'pasta', 'bread', 'flour', 'sugar', 'oil', 'sauce', 'vinegar', 'salt', 'pepper', 'spice'],
-    beverages: ['water', 'juice', 'soda', 'coffee', 'tea', 'beer', 'wine'],
-    frozen: ['frozen', 'ice cream'],
-    bakery: ['bread', 'bagel', 'muffin', 'roll', 'bun', 'cake', 'cookie'],
-    snacks: ['chips', 'crackers', 'nuts', 'popcorn', 'candy', 'chocolate']
+    produce: ['apple', 'banana', 'orange', 'lettuce', 'tomato', 'carrot', 'onion', 'potato', 'spinach', 'broccoli', 'pepper', 'cucumber', 'avocado', 'berry', 'berries', 'grape', 'lemon', 'lime', 'celery', 'kale', 'cabbage'],
+    dairy: ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'eggs', 'cottage', 'sour cream', 'mozzarella', 'cheddar', 'parmesan'],
+    meat: ['chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'tuna', 'bacon', 'ham', 'sausage', 'ground', 'steak', 'shrimp', 'lamb'],
+    pantry: ['rice', 'pasta', 'flour', 'sugar', 'oil', 'sauce', 'vinegar', 'salt', 'pepper', 'spice', 'cereal', 'oats', 'beans', 'soup', 'noodle'],
+    beverages: ['water', 'juice', 'soda', 'coffee', 'tea', 'beer', 'wine', 'milk'],
+    frozen: ['frozen', 'ice cream', 'pizza'],
+    bakery: ['bread', 'bagel', 'muffin', 'roll', 'bun', 'cake', 'cookie', 'donut', 'croissant'],
+    snacks: ['chips', 'crackers', 'nuts', 'popcorn', 'candy', 'chocolate', 'pretzel']
   };
   
   for (const [category, keywords] of Object.entries(categories)) {
@@ -548,48 +404,5 @@ function detectCategory(productName) {
   
   return 'other';
 }
-
-// POST /api/cart/save-template - Save cart as template
-router.post('/save-template', async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    const { name, description } = req.body;
-    const userCart = cartItems.get(userId) || [];
-    
-    if (!name) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Template name is required' 
-      });
-    }
-    
-    // In production, save to database
-    const template = {
-      id: `template_${Date.now()}`,
-      userId,
-      name,
-      description,
-      items: userCart.map(item => ({
-        productName: item.productName || item.itemName,
-        quantity: item.quantity,
-        unit: item.unit,
-        category: item.category
-      })),
-      createdAt: new Date().toISOString()
-    };
-    
-    res.json({
-      success: true,
-      message: 'Template saved successfully',
-      template
-    });
-  } catch (error) {
-    console.error('Error saving template:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to save template' 
-    });
-  }
-});
 
 module.exports = router;
