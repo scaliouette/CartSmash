@@ -1,4 +1,4 @@
-﻿// client/src/App.js - FIXED STRUCTURE
+﻿// client/src/App.js - CARTSMASH BRANDED VERSION
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
@@ -7,9 +7,6 @@ import InstacartIntegration from './components/InstacartIntegration';
 import SmartAIAssistant from './components/SmartAIAssistant';
 import ProductValidator from './components/ProductValidator';
 import MyAccount from './components/MyAccount';
-
-
-
 
 // Import the enhanced components
 import ParsingAnalyticsDashboard from './components/ParsingAnalyticsDashboard';
@@ -26,13 +23,9 @@ import KrogerOrderFlow from './components/KrogerOrderFlow';
 
 import confetti from 'canvas-confetti';
 
-// Import debug component (remove after testing)
-// import AuthDebug from './components/AuthDebug';
-
 const ADMIN_EMAILS = [
-  'scaliouette@gmail.com',  // ← YOUR REAL EMAIL HERE!
+  'scaliouette@gmail.com',
 ];
-
 
 // Define styles OUTSIDE of components at module level
 const styles = {
@@ -78,6 +71,7 @@ const styles = {
     fontSize: '24px',
     fontWeight: 'bold',
     color: '#1f2937',
+    letterSpacing: '-0.5px',
   },
   
   headerActions: {
@@ -304,6 +298,20 @@ const styles = {
     cursor: 'pointer',
     fontWeight: 'bold',
     fontSize: '14px',
+  },
+  
+  saveListButton: {
+    padding: '12px 20px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
   
   // Features Section
@@ -590,17 +598,14 @@ const styles = {
   },
 };
 
-// Helper function for time ago
+// Helper functions remain the same
 function getTimeAgo(date) {
   const seconds = Math.floor((new Date() - date) / 1000);
-  
   if (seconds < 60) return 'just now';
   if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
   return `${Math.floor(seconds / 86400)} days ago`;
 }
-
-
 
 // Sync Status Indicator Component
 function SyncStatusIndicator({ isSyncing, lastSync, error }) {
@@ -627,8 +632,6 @@ function SyncStatusIndicator({ isSyncing, lastSync, error }) {
     </div>
   );
 }
-
-
 
 // Draft Restoration Banner Component
 function DraftRestorationBanner({ draft, onRestore, onDismiss }) {
@@ -668,129 +671,11 @@ function DraftRestorationBanner({ draft, onRestore, onDismiss }) {
   );
 }
 
-
-
-// Enhanced SMASH Button Component
-function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
-  const [isSmashing, setIsSmashing] = useState(false);
-  const [buttonText, setButtonText] = useState('🎯 SMART PARSE 🎯');
-
-  const triggerConfetti = () => {
-    const count = 200;
-    const defaults = { origin: { y: 0.7 } };
-
-    function fire(particleRatio, opts) {
-      confetti({
-        ...defaults,
-        ...opts,
-        particleCount: Math.floor(count * particleRatio)
-      });
-    }
-
-    fire(0.25, {
-      spread: 26,
-      startVelocity: 55,
-      colors: ['#FF6B35', '#F7931E', '#FFD23F']
-    });
-
-    fire(0.2, {
-      spread: 60,
-      colors: ['#FF6B35', '#F7931E', '#FFD23F', '#FFFFFF']
-    });
-
-    fire(0.35, {
-      spread: 100,
-      decay: 0.91,
-      scalar: 0.8,
-      colors: ['#FF6B35', '#F7931E', '#FFD23F']
-    });
-  };
-
-  const handleSmash = async (e) => {
-    e.preventDefault();
-    setIsSmashing(true);
-    triggerConfetti();
-    
-    if (navigator.vibrate) {
-      navigator.vibrate([100, 50, 100]);
-    }
-    
-    const smashTexts = [
-      '🎯 AI ANALYZING! 🎯',
-      '🧠 SMART PROCESSING! 🧠', 
-      '📦 DETECTING CONTAINERS! 📦',
-      '✨ PARSING QUANTITIES! ✨'
-    ];
-    
-    let textIndex = 0;
-    const textInterval = setInterval(() => {
-      setButtonText(smashTexts[textIndex % smashTexts.length]);
-      textIndex++;
-    }, 300);
-
-    try {
-      await onSubmit(e);
-      setTimeout(() => {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#28a745', '#20c997', '#17a2b8']
-        });
-      }, 500);
-    } finally {
-      clearInterval(textInterval);
-      setButtonText('🎯 SMART PARSE 🎯');
-      setIsSmashing(false);
-    }
-  };
-
-  return (
-    <button 
-      onClick={handleSmash}
-      disabled={isDisabled || isLoading}
-      style={{
-        ...styles.smashButton,
-        background: isDisabled ? '#ccc' : 'linear-gradient(45deg, #FF6B35, #F7931E, #FFD23F)',
-        transform: isSmashing ? 'scale(0.98)' : 'scale(1)',
-        boxShadow: isSmashing 
-          ? '0 0 20px rgba(255, 107, 53, 0.8), inset 0 0 20px rgba(255, 107, 53, 0.3)'
-          : '0 4px 15px rgba(255, 107, 53, 0.4)',
-        animation: isSmashing ? 'shake 0.5s ease-in-out infinite' : 'none',
-      }}
-    >
-      {isLoading ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-          <ButtonSpinner />
-          <span>PARSING...</span>
-        </div>
-      ) : (
-        <>
-          {buttonText}
-          {itemCount > 0 && !isSmashing && (
-            <div style={{ 
-              fontSize: '14px', 
-              marginTop: '4px',
-              opacity: 0.9,
-              fontWeight: '600'
-            }}>
-              {itemCount} items to parse
-            </div>
-          )}
-        </>
-      )}
-    </button>
-  );
-}
-
-// Header Component
-// Replace your Header component in App.js with this fixed version:
-
-// Header Component
+// Header Component with CARTSMASH branding
 function Header({ currentView, onViewChange }) {
-  const { currentUser, signOut, isLoading, isAdmin } = useAuth(); // Get isAdmin from context
+  const { currentUser, signOut, isLoading, isAdmin } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showAdminDashboard, setShowAdminDashboard] = useState(false); // Add admin dashboard state
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
 
   return (
     <>
@@ -800,8 +685,8 @@ function Header({ currentView, onViewChange }) {
             style={styles.logoContainer}
             onClick={() => onViewChange('home')}
           >
-            <div style={styles.logoIcon}>🎯</div>
-            <span style={styles.logoText}>SMART CART</span>
+            <div style={styles.logoIcon}>💥</div>
+            <span style={styles.logoText}>CARTSMASH</span>
           </div>
           
           {currentUser && (
@@ -825,7 +710,6 @@ function Header({ currentView, onViewChange }) {
                 👤 My Account
               </button>
               
-              {/* Admin Button - Only shows if user is admin */}
               {isAdmin && (
                 <button
                   onClick={() => setShowAdminDashboard(true)}
@@ -851,7 +735,7 @@ function Header({ currentView, onViewChange }) {
               <div style={styles.userSection}>
                 <span style={styles.userName}>
                   {currentUser.displayName || currentUser.email.split('@')[0]}
-                  {isAdmin && ' (Admin)'} {/* Show admin badge */}
+                  {isAdmin && ' (Admin)'}
                 </span>
                 <button 
                   onClick={signOut}
@@ -872,13 +756,11 @@ function Header({ currentView, onViewChange }) {
         </div>
       </header>
       
-      {/* Auth Modal */}
       <AuthModal 
         isOpen={showAuthModal} 
         onClose={() => setShowAuthModal(false)} 
       />
       
-      {/* Admin Dashboard Modal */}
       {showAdminDashboard && isAdmin && (
         <AdminDashboard 
           onClose={() => setShowAdminDashboard(false)}
@@ -889,7 +771,7 @@ function Header({ currentView, onViewChange }) {
   );
 }
 
-// Main Grocery List Form Component
+// Main Grocery List Form Component with Save List functionality
 function GroceryListForm({ savedRecipes, setSavedRecipes }) {
   const [inputText, setInputText] = useState('');
   const [parsedItems, setParsedItems] = useState([]);
@@ -968,7 +850,7 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
     setParsingProgress(0);
 
     try {
-      console.log('🎯 Starting intelligent grocery list processing...');
+      console.log('💥 CARTSMASH: Starting intelligent grocery list processing...');
       
       const progressInterval = setInterval(() => {
         setParsingProgress(prev => Math.min(prev + 10, 90));
@@ -987,12 +869,11 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
             strictMode: true,
             enableValidation: true,
             enhancedQuantityParsing: true,
-            detectContainers: true
+            detectContainers: true,
+            mergeDuplicates: true  // ADD THIS FLAG
           }
         }),
       });
-
-      
 
       clearInterval(progressInterval);
       setParsingProgress(100);
@@ -1000,7 +881,6 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
 
       const data = await response.json();
       
@@ -1010,9 +890,9 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
         setShowResults(true);
         clearDraft();
         
-        console.log(`✅ Intelligent parsing complete:`);
+        console.log(`✅ CARTSMASH parsing complete:`);
         console.log(`   - Products extracted: ${data.cart.length}`);
-        console.log(`   - Quantity parsing accuracy: ${data.quality?.quantityParsingAccuracy || 'N/A'}`);
+        console.log(`   - Duplicates merged: ${data.parsing?.duplicatesMerged || 0}`);
         console.log(`   - Average confidence: ${(data.parsing?.averageConfidence * 100 || 0).toFixed(1)}%`);
         
         if (data.recipe && data.recipe.saved) {
@@ -1032,7 +912,7 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
       }
       
     } catch (err) {
-      console.error('❌ Enhanced parsing failed:', err);
+      console.error('❌ CARTSMASH parsing failed:', err);
       setError(`Failed to process grocery list: ${err.message}`);
     } finally {
       setIsLoading(false);
@@ -1058,6 +938,7 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
     }
   };
 
+  // FIXED: Validate All function with better error handling
   const handleValidateAll = async () => {
     if (!parsedItems || parsedItems.length === 0) return;
     
@@ -1066,21 +947,26 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       const response = await fetch(`${API_URL}/api/cart/validate-all`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: parsedItems })  // Send items in body
       });
       
       if (response.ok) {
         const data = await response.json();
-        setParsedItems(data.cart);
+        if (data.cart) {
+          setParsedItems(data.cart);
+        }
         
         const summary = data.validation?.summary;
         if (summary) {
           alert(`🔍 Validation complete!\n✅ ${summary.highConfidence} high confidence\n⚠️ ${summary.needsReview} need review`);
         }
+      } else {
+        throw new Error('Validation failed');
       }
     } catch (error) {
       console.error('❌ Validation failed:', error);
-      setError('Product validation failed. Please try again.');
+      setError('Product validation failed. Please try validating items individually.');
     } finally {
       setValidatingAll(false);
     }
@@ -1108,24 +994,73 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
     }
   };
 
+  // NEW: Save List functionality
+  const handleSaveList = async () => {
+    if (!parsedItems || parsedItems.length === 0) {
+      alert('No items to save!');
+      return;
+    }
+
+    const listName = prompt('Enter a name for this list:', `Shopping List ${new Date().toLocaleDateString()}`);
+    if (!listName) return;
+
+    try {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/cart/save-list`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: listName,
+          items: parsedItems,
+          userId: currentUser?.uid || null,
+          metadata: {
+            itemCount: parsedItems.length,
+            createdAt: new Date().toISOString(),
+            parsingStats: parsingStats
+          }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`✅ List "${listName}" saved successfully!`);
+        console.log('List saved:', data);
+      } else {
+        throw new Error('Failed to save list');
+      }
+    } catch (error) {
+      console.error('Failed to save list:', error);
+      // Fallback to local storage
+      const lists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
+      lists.push({
+        id: Date.now().toString(),
+        name: listName,
+        items: parsedItems,
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem('cartsmash-lists', JSON.stringify(lists));
+      alert(`✅ List "${listName}" saved locally!`);
+    }
+  };
+
   return (
     <div style={styles.container}>
       {isLoading && (
-        <OverlaySpinner text="Processing your grocery list..." />
+        <OverlaySpinner text="CARTSMASH is processing your list..." />
       )}
 
       {showProgress && (
         <div style={styles.progressOverlay}>
           <ProgressSpinner 
             progress={parsingProgress} 
-            text="Analyzing your grocery list..."
+            text="CARTSMASH AI analyzing your grocery list..."
           />
         </div>
       )}
 
       <div style={styles.heroSection}>
         <h1 style={styles.heroTitle}>
-          Smart Cart.
+          CARTSMASH.
           <br />
           <span style={styles.heroAccent}>Instantly.</span>
         </h1>
@@ -1138,7 +1073,7 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
       <div style={styles.intelligenceBanner}>
         <div style={styles.bannerContent}>
           <div style={styles.bannerText}>
-            <h3 style={styles.bannerTitle}>🧠 AI-Powered Smart Parsing</h3>
+            <h3 style={styles.bannerTitle}>💥 CARTSMASH AI-Powered Smart Parsing</h3>
             <p style={styles.bannerSubtitle}>
               • Advanced quantity parsing (handles fractions like "1/4 cup")<br />
               • Smart container detection (recognizes cans, bottles, bags, etc.)<br />
@@ -1148,8 +1083,8 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
             </p>
           </div>
           <div style={styles.bannerIndicator}>
-            <span style={styles.indicatorIcon}>🎯</span>
-            <span style={styles.indicatorText}>Always Active</span>
+            <span style={styles.indicatorIcon}>💥</span>
+            <span style={styles.indicatorText}>CARTSMASH Active</span>
           </div>
         </div>
       </div>
@@ -1178,7 +1113,7 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             style={styles.textarea}
-            placeholder="Paste any grocery list here - our AI will intelligently extract products with correct quantities and containers:
+            placeholder="CARTSMASH AI will intelligently extract products with correct quantities and containers:
 
 Example:
 Monday: Chicken dinner
@@ -1190,7 +1125,7 @@ Tuesday: Pasta night
 - 1 box pasta
 - 1 jar pasta sauce
 
-The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mirin', etc."
+CARTSMASH will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mirin', etc."
             rows="12"
           />
         </div>
@@ -1211,7 +1146,7 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
             </label>
             <div style={styles.toggleDescription}>
               {mergeCart 
-                ? 'New items will be added to your existing cart, avoiding duplicates'
+                ? 'New items will be added to your existing cart, duplicates will be merged'
                 : 'Your current cart will be completely replaced with new items'
               }
             </div>
@@ -1258,6 +1193,14 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
               >
                 ⚠️ Review Items
               </button>
+              
+              <button
+                type="button"
+                onClick={handleSaveList}
+                style={styles.saveListButton}
+              >
+                💾 Save List
+              </button>
             </div>
           )}
         </div>
@@ -1289,8 +1232,6 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
         />
       )}
 
-
-
       {/* Smart AI Assistant */}
       <SmartAIAssistant 
         onGroceryListGenerated={(list) => {
@@ -1307,37 +1248,139 @@ The AI will extract: '2 lbs chicken breast', '0.25 cups soy sauce', '1 bottle mi
   );
 }
 
-// Main App Component - SINGLE DEFINITION
+// Enhanced SMASH Button Component with CARTSMASH branding
+function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
+  const [isSmashing, setIsSmashing] = useState(false);
+  const [buttonText, setButtonText] = useState('💥 CARTSMASH IT! 💥');
+
+  const triggerConfetti = () => {
+    const count = 200;
+    const defaults = { origin: { y: 0.7 } };
+
+    function fire(particleRatio, opts) {
+      confetti({
+        ...defaults,
+        ...opts,
+        particleCount: Math.floor(count * particleRatio)
+      });
+    }
+
+    fire(0.25, {
+      spread: 26,
+      startVelocity: 55,
+      colors: ['#FF6B35', '#F7931E', '#FFD23F']
+    });
+
+    fire(0.2, {
+      spread: 60,
+      colors: ['#FF6B35', '#F7931E', '#FFD23F', '#FFFFFF']
+    });
+
+    fire(0.35, {
+      spread: 100,
+      decay: 0.91,
+      scalar: 0.8,
+      colors: ['#FF6B35', '#F7931E', '#FFD23F']
+    });
+  };
+
+  const handleSmash = async (e) => {
+    e.preventDefault();
+    setIsSmashing(true);
+    triggerConfetti();
+    
+    if (navigator.vibrate) {
+      navigator.vibrate([100, 50, 100]);
+    }
+    
+    const smashTexts = [
+      '💥 SMASHING! 💥',
+      '🎯 AI ANALYZING! 🎯',
+      '🧠 SMART PROCESSING! 🧠', 
+      '📦 DETECTING ITEMS! 📦',
+      '✨ PARSING MAGIC! ✨'
+    ];
+    
+    let textIndex = 0;
+    const textInterval = setInterval(() => {
+      setButtonText(smashTexts[textIndex % smashTexts.length]);
+      textIndex++;
+    }, 300);
+
+    try {
+      await onSubmit(e);
+      setTimeout(() => {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#28a745', '#20c997', '#17a2b8']
+        });
+      }, 500);
+    } finally {
+      clearInterval(textInterval);
+      setButtonText('💥 CARTSMASH IT! 💥');
+      setIsSmashing(false);
+    }
+  };
+
+  return (
+    <button 
+      onClick={handleSmash}
+      disabled={isDisabled || isLoading}
+      style={{
+        ...styles.smashButton,
+        background: isDisabled ? '#ccc' : 'linear-gradient(45deg, #FF6B35, #F7931E, #FFD23F)',
+        transform: isSmashing ? 'scale(0.98)' : 'scale(1)',
+        boxShadow: isSmashing 
+          ? '0 0 20px rgba(255, 107, 53, 0.8), inset 0 0 20px rgba(255, 107, 53, 0.3)'
+          : '0 4px 15px rgba(255, 107, 53, 0.4)',
+        animation: isSmashing ? 'shake 0.5s ease-in-out infinite' : 'none',
+      }}
+    >
+      {isLoading ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+          <ButtonSpinner />
+          <span>SMASHING...</span>
+        </div>
+      ) : (
+        <>
+          {buttonText}
+          {itemCount > 0 && !isSmashing && (
+            <div style={{ 
+              fontSize: '14px', 
+              marginTop: '4px',
+              opacity: 0.9,
+              fontWeight: '600'
+            }}>
+              {itemCount} items to smash
+            </div>
+          )}
+        </>
+      )}
+    </button>
+  );
+}
+
+// Other components remain the same (SyncStatusIndicator, DraftRestorationBanner, etc.)
+// ... [Include all other component definitions from original]
+
+// Main App Component
 function App() {
   const [currentView, setCurrentView] = useState('home');
   const [savedRecipes, setSavedRecipes] = useState([]);
 
-   useEffect(() => {
-    console.log('Environment check:', {
+  useEffect(() => {
+    // Update document title
+    document.title = 'CARTSMASH - AI-Powered Grocery List Parser';
+    
+    console.log('💥 CARTSMASH Environment check:', {
       apiKey: process.env.REACT_APP_FIREBASE_API_KEY ? '✅ Set' : '❌ Missing',
       authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN ? '✅ Set' : '❌ Missing',
       projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID ? '✅ Set' : '❌ Missing',
     });
-    
-    // Check if Firebase is initialized
-    import('./firebase').then(module => {
-      console.log('📦 Firebase module:', {
-        hasAuth: !!module.auth,
-        hasApp: !!module.default
-      });
-      
-      if (module.auth) {
-        console.log('✅ Auth instance available');
-        // Try to get current user
-        module.auth.onAuthStateChanged(user => {
-          console.log('👤 Current auth state:', user ? user.email : 'No user');
-        });
-      }
-    }).catch(err => {
-      console.error('❌ Failed to load Firebase module:', err);
-    });
-  }, [])
-  
+  }, []);
+
   // Load saved recipes on mount
   useEffect(() => {
     const loadSavedRecipes = async () => {
@@ -1350,7 +1393,7 @@ function App() {
         }
       } catch (error) {
         console.warn('Failed to load saved recipes:', error);
-        const saved = localStorage.getItem('cart-smash-recipes');
+        const saved = localStorage.getItem('cartsmash-recipes');
         if (saved) {
           try {
             setSavedRecipes(JSON.parse(saved));
@@ -1368,7 +1411,6 @@ function App() {
     <AuthProvider>
       <div style={styles.app}>
         <Header currentView={currentView} onViewChange={setCurrentView} />
-        
 
         <main style={styles.main}>
           {currentView === 'home' ? (
@@ -1381,7 +1423,6 @@ function App() {
               savedRecipes={savedRecipes}
               onRecipeSelect={(recipe) => {
                 setCurrentView('home');
-                // You could also pass this recipe to GroceryListForm via state
               }}
             />
           ) : null}
@@ -1394,7 +1435,7 @@ function App() {
                 <div style={styles.featureIcon}>🔢</div>
                 <h3 style={styles.featureTitle}>Smart Quantity & Container Parsing</h3>
                 <p style={styles.featureDescription}>
-                  Handles fractions like "1/4 cup" and detects containers like "bottle", "can", "bag" automatically
+                  CARTSMASH handles fractions like "1/4 cup" and detects containers like "bottle", "can", "bag" automatically
                 </p>
               </div>
               
@@ -1424,15 +1465,10 @@ function App() {
             </div>
           </section>
         )}
-        
-        {/* Debug component - REMOVE AFTER TESTING */}
-        {/* {process.env.NODE_ENV === 'development' && <AuthDebug />} */}
-        
       </div>
     </AuthProvider>
   );
 }
-
 
 // Add CSS animations
 const styleSheet = document.createElement('style');
@@ -1481,5 +1517,6 @@ styleSheet.textContent = `
   }
 `;
 document.head.appendChild(styleSheet);
+
 export { AuthProvider };
 export default App;
