@@ -12,7 +12,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider, db } from '../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-// ❌ REMOVED: import { useAuth } from '../contexts/AuthContext'; // DON'T IMPORT FROM ITSELF!
+
 
 // Create context
 const AuthContext = createContext({});

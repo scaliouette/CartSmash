@@ -1,173 +1,530 @@
-// client/src/components/MyAccount.js
+// client/src/components/MyAccount.js - Fully Integrated with Backend
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
+
 function MyAccount() {
-  const { currentUser, updateUserProfile } = useAuth();
+  const { currentUser, makeAuthenticatedRequest } = useAuth();
+ 
+  // With this:
+  const navigate = (path) => {
+    window.location.href = path;
+  };
+  
   const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  
+  // Data states
+  const [profile, setProfile] = useState(null);
   const [savedLists, setSavedLists] = useState([]);
   const [savedMeals, setSavedMeals] = useState([]);
   const [savedRecipes, setSavedRecipes] = useState([]);
   const [shoppingHistory, setShoppingHistory] = useState([]);
-  const [profile, setProfile] = useState({
-    displayName: currentUser?.displayName || '',
-    email: currentUser?.email || '',
-    phone: '',
-    defaultStore: 'kroger',
-    dietaryPreferences: [],
-    familySize: 4,
-    weeklyBudget: 150,
-    notifications: {
-      email: true,
-      sms: false,
-      deals: true,
-      mealPlans: true
-    }
-  });
+  const [stats, setStats] = useState(null);
+  
+  // UI states
   const [editMode, setEditMode] = useState(false);
-  const [stats, setStats] = useState({
-    totalLists: 0,
-    totalItems: 0,
-    totalSaved: 0,
-    favoriteStore: '',
-    avgListSize: 0,
-    monthlySpend: 0
-  });
+  const [selectedList, setSelectedList] = useState(null);
+  const [selectedMeal, setSelectedMeal] = useState(null);
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
+  
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
-  // Load user data on mount
+  // Load all data on mount
   useEffect(() => {
     if (currentUser) {
-      loadUserData();
+      loadAllData();
     }
   }, [currentUser]);
 
-  const loadUserData = async () => {
+  // Load all user data
+  const loadAllData = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      // Load from localStorage for now (replace with API calls)
-      const lists = JSON.parse(localStorage.getItem('cartsmash-saved-lists') || '[]');
-      const meals = JSON.parse(localStorage.getItem('cartsmash-meal-groups') || '{}');
-      const recipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
-      const history = JSON.parse(localStorage.getItem('cartsmash-history') || '[]');
-      
-      setSavedLists(lists);
-      setSavedMeals(Object.entries(meals));
-      setSavedRecipes(recipes);
-      setShoppingHistory(history);
-      
-      // Calculate stats
-      const totalItems = lists.reduce((sum, list) => sum + (list.items?.length || 0), 0);
-      setStats({
-        totalLists: lists.length,
-        totalItems: totalItems,
-        totalSaved: lists.length * 5.99, // Estimated savings
-        favoriteStore: 'Kroger',
-        avgListSize: lists.length > 0 ? Math.round(totalItems / lists.length) : 0,
-        monthlySpend: calculateMonthlySpend(history)
-      });
-    } catch (error) {
-      console.error('Error loading user data:', error);
+      await Promise.all([
+        loadProfile(),
+        loadLists(),
+        loadMeals(),
+        loadRecipes(),
+        loadHistory(),
+        loadStats()
+      ]);
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setError('Failed to load some data');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const calculateMonthlySpend = (history) => {
-    const thisMonth = new Date().getMonth();
-    const thisYear = new Date().getFullYear();
-    
-    return history
-      .filter(item => {
-        const date = new Date(item.date);
-        return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
-      })
-      .reduce((sum, item) => sum + (item.total || 0), 0);
+  // API Calls
+  const loadProfile = async () => {
+    try {
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/profile`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setProfile(data.profile);
+      }
+    } catch (err) {
+      console.error('Error loading profile:', err);
+    }
   };
 
+  const loadLists = async () => {
+    try {
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/lists`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setSavedLists(data.lists);
+      }
+    } catch (err) {
+      console.error('Error loading lists:', err);
+    }
+  };
+
+  const loadMeals = async () => {
+    try {
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/meals`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setSavedMeals(data.meals);
+      }
+    } catch (err) {
+      console.error('Error loading meals:', err);
+    }
+  };
+
+  const loadRecipes = async () => {
+    try {
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/recipes`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setSavedRecipes(data.recipes);
+      }
+    } catch (err) {
+      console.error('Error loading recipes:', err);
+    }
+  };
+
+  const loadHistory = async () => {
+    try {
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/history`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setShoppingHistory(data.history);
+      }
+    } catch (err) {
+      console.error('Error loading history:', err);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/stats`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setStats(data.stats);
+      }
+    } catch (err) {
+      console.error('Error loading stats:', err);
+    }
+  };
+
+  // Profile Management
   const handleSaveProfile = async () => {
     try {
-      // Save to backend (implement API call)
-      localStorage.setItem('cartsmash-profile', JSON.stringify(profile));
-      setEditMode(false);
-      alert('Profile updated successfully!');
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      alert('Failed to save profile');
+      setLoading(true);
+      setError(null);
+      
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/profile`, {
+        method: 'PUT',
+        body: JSON.stringify(profile)
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setProfile(data.profile);
+        setEditMode(false);
+        setSuccess('Profile updated successfully!');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      setError('Failed to save profile');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteList = (listId) => {
-    if (window.confirm('Are you sure you want to delete this list?')) {
-      const updated = savedLists.filter(list => list.id !== listId);
-      setSavedLists(updated);
-      localStorage.setItem('cartsmash-saved-lists', JSON.stringify(updated));
+  // List Management
+  const handleDeleteList = async (listId) => {
+    if (!window.confirm('Are you sure you want to delete this list?')) {
+      return;
     }
-  };
-
-  const handleDeleteMeal = (mealName) => {
-    if (window.confirm(`Delete meal plan "${mealName}"?`)) {
-      const updated = savedMeals.filter(([name]) => name !== mealName);
-      setSavedMeals(updated);
-      const mealsObj = Object.fromEntries(updated);
-      localStorage.setItem('cartsmash-meal-groups', JSON.stringify(mealsObj));
-    }
-  };
-
-  const handleShareList = (list) => {
-    const shareUrl = `${window.location.origin}/shared/${list.id}`;
-    navigator.clipboard.writeText(shareUrl);
-    alert('Share link copied to clipboard!');
-  };
-
-  const handleLoadList = (list) => {
-    // Load list into current cart
-    localStorage.setItem('cartsmash-current-cart', JSON.stringify(list.items));
-    window.location.href = '/'; // Redirect to main page
-  };
-
-  const exportData = () => {
-    const data = {
-      profile,
-      savedLists,
-      savedMeals: Object.fromEntries(savedMeals),
-      savedRecipes,
-      shoppingHistory,
-      exportDate: new Date().toISOString()
-    };
     
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `cartsmash-backup-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      setLoading(true);
+      
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/lists/${listId}`, {
+        method: 'DELETE'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSavedLists(savedLists.filter(list => list.id !== listId));
+        setSuccess('List deleted successfully');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err) {
+      console.error('Error deleting list:', err);
+      setError('Failed to delete list');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleShareList = async (list) => {
+    try {
+      setLoading(true);
+      
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/lists/${list.id}/share`, {
+        method: 'POST'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        navigator.clipboard.writeText(data.shareUrl);
+        setSuccess('Share link copied to clipboard!');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err) {
+      console.error('Error sharing list:', err);
+      setError('Failed to share list');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadList = async (list) => {
+    try {
+      setLoading(true);
+      
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/lists/${list.id}/load`, {
+        method: 'POST',
+        body: JSON.stringify({ merge: false })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccess(data.message);
+        setTimeout(() => {
+          setSuccess(null);
+          navigate('/'); // Navigate to main cart page
+        }, 2000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err) {
+      console.error('Error loading list:', err);
+      setError('Failed to load list');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Meal Management
+  const handleDeleteMeal = async (mealId) => {
+    if (!window.confirm('Delete this meal plan?')) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/meals/${mealId}`, {
+        method: 'DELETE'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSavedMeals(savedMeals.filter(meal => meal.id !== mealId));
+        setSuccess('Meal plan deleted');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err) {
+      console.error('Error deleting meal:', err);
+      setError('Failed to delete meal plan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddMealToCart = async (meal) => {
+    try {
+      setLoading(true);
+      
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/meals/${meal.id}/add-to-cart`, {
+        method: 'POST',
+        body: JSON.stringify({ scaleFactor: 1 })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccess(data.message);
+        setTimeout(() => {
+          setSuccess(null);
+          navigate('/'); // Navigate to cart
+        }, 2000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err) {
+      console.error('Error adding meal to cart:', err);
+      setError('Failed to add meal to cart');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Recipe Management
+  const handleDeleteRecipe = async (recipeId) => {
+    if (!window.confirm('Delete this recipe?')) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/recipes/${recipeId}`, {
+        method: 'DELETE'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSavedRecipes(savedRecipes.filter(recipe => recipe.id !== recipeId));
+        setSuccess('Recipe deleted');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err) {
+      console.error('Error deleting recipe:', err);
+      setError('Failed to delete recipe');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleShopRecipe = async (recipe) => {
+    try {
+      setLoading(true);
+      
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/recipes/${recipe.id}/shop`, {
+        method: 'POST',
+        body: JSON.stringify({ scaleFactor: 1 })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccess(data.message);
+        setTimeout(() => {
+          setSuccess(null);
+          navigate('/'); // Navigate to cart
+        }, 2000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err) {
+      console.error('Error shopping for recipe:', err);
+      setError('Failed to add recipe ingredients to cart');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // History Management
+  const handleReorder = async (historyId) => {
+    try {
+      setLoading(true);
+      
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/history/${historyId}/reorder`, {
+        method: 'POST'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccess(data.message);
+        setTimeout(() => {
+          setSuccess(null);
+          navigate('/'); // Navigate to cart
+        }, 2000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err) {
+      console.error('Error reordering:', err);
+      setError('Failed to reorder items');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Export Data
+  const exportData = async () => {
+    try {
+      setLoading(true);
+      
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/export`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Create and download JSON file
+        const blob = new Blob([JSON.stringify(data.data, null, 2)], { 
+          type: 'application/json' 
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `grocery-data-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        setSuccess('Data exported successfully');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err) {
+      console.error('Error exporting data:', err);
+      setError('Failed to export data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Create new recipe modal
+  const [showNewRecipeModal, setShowNewRecipeModal] = useState(false);
+  const [newRecipe, setNewRecipe] = useState({
+    name: '',
+    description: '',
+    ingredients: '',
+    instructions: '',
+    prepTime: 30,
+    cookTime: 30,
+    servings: 4
+  });
+
+  const handleCreateRecipe = async () => {
+    try {
+      setLoading(true);
+      
+      const recipeData = {
+        ...newRecipe,
+        ingredients: newRecipe.ingredients.split('\n').filter(i => i.trim()),
+        instructions: newRecipe.instructions.split('\n').filter(i => i.trim())
+      };
+      
+      const response = await makeAuthenticatedRequest(`${API_URL}/account/recipes`, {
+        method: 'POST',
+        body: JSON.stringify(recipeData)
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSavedRecipes([data.recipe, ...savedRecipes]);
+        setShowNewRecipeModal(false);
+        setNewRecipe({
+          name: '',
+          description: '',
+          ingredients: '',
+          instructions: '',
+          prepTime: 30,
+          cookTime: 30,
+          servings: 4
+        });
+        setSuccess('Recipe created successfully');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err) {
+      console.error('Error creating recipe:', err);
+      setError('Failed to create recipe');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Render functions remain largely the same but use the loaded data from API
   const renderOverview = () => (
     <div style={styles.tabContent}>
-      <h2 style={styles.sectionTitle}>👋 Welcome back, {profile.displayName || currentUser?.email}</h2>
+      <h2 style={styles.sectionTitle}>
+        👋 Welcome back, {profile?.displayName || currentUser?.email}
+      </h2>
       
       {/* Stats Grid */}
-      <div style={styles.statsGrid}>
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>📋</div>
-          <div style={styles.statValue}>{stats.totalLists}</div>
-          <div style={styles.statLabel}>Saved Lists</div>
+      {stats && (
+        <div style={styles.statsGrid}>
+          <div style={styles.statCard}>
+            <div style={styles.statIcon}>📋</div>
+            <div style={styles.statValue}>{stats.totalLists}</div>
+            <div style={styles.statLabel}>Saved Lists</div>
+          </div>
+          <div style={styles.statCard}>
+            <div style={styles.statIcon}>🛒</div>
+            <div style={styles.statValue}>{stats.totalItems}</div>
+            <div style={styles.statLabel}>Total Items</div>
+          </div>
+          <div style={styles.statCard}>
+            <div style={styles.statIcon}>💰</div>
+            <div style={styles.statValue}>${stats.totalSaved}</div>
+            <div style={styles.statLabel}>Total Saved</div>
+          </div>
+          <div style={styles.statCard}>
+            <div style={styles.statIcon}>📊</div>
+            <div style={styles.statValue}>{stats.avgListSize}</div>
+            <div style={styles.statLabel}>Avg List Size</div>
+          </div>
+          <div style={styles.statCard}>
+            <div style={styles.statIcon}>🏪</div>
+            <div style={styles.statValue}>{stats.favoriteStore}</div>
+            <div style={styles.statLabel}>Favorite Store</div>
+          </div>
+          <div style={styles.statCard}>
+            <div style={styles.statIcon}>📅</div>
+            <div style={styles.statValue}>${stats.monthlySpend}</div>
+            <div style={styles.statLabel}>This Month</div>
+          </div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>🛒</div>
-          <div style={styles.statValue}>{stats.totalItems}</div>
-          <div style={styles.statLabel}>Total Items</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>💰</div>
-          <div style={styles.statValue}>${stats.totalSaved.toFixed(2)}</div>
-          <div style={styles.statLabel}>Estimated Savings</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>📊</div>
-          <div style={styles.statValue}>{stats.avgListSize}</div>
-          <div style={styles.statLabel}>Avg List Size</div>
-        </div>
-      </div>
+      )}
 
       {/* Quick Actions */}
       <div style={styles.quickActions}>
@@ -194,19 +551,23 @@ function MyAccount() {
 
       {/* Recent Activity */}
       <div style={styles.recentActivity}>
-        <h3 style={styles.subsectionTitle}>Recent Activity</h3>
+        <h3 style={styles.subsectionTitle}>Recent Shopping Trips</h3>
         <div style={styles.activityList}>
-          {shoppingHistory.slice(0, 5).map((item, index) => (
-            <div key={index} style={styles.activityItem}>
+          {shoppingHistory.slice(0, 5).map((entry) => (
+            <div key={entry.id} style={styles.activityItem}>
               <span style={styles.activityDate}>
-                {new Date(item.date).toLocaleDateString()}
+                {new Date(entry.completedAt).toLocaleDateString()}
               </span>
-              <span style={styles.activityText}>{item.action}</span>
-              <span style={styles.activityValue}>{item.value}</span>
+              <span style={styles.activityText}>
+                {entry.storeName} - {entry.itemCount} items
+              </span>
+              <span style={styles.activityValue}>
+                ${entry.total}
+              </span>
             </div>
           ))}
           {shoppingHistory.length === 0 && (
-            <p style={styles.emptyMessage}>No recent activity</p>
+            <p style={styles.emptyMessage}>No recent shopping trips</p>
           )}
         </div>
       </div>
@@ -217,175 +578,148 @@ function MyAccount() {
     <div style={styles.tabContent}>
       <h2 style={styles.sectionTitle}>Profile Settings</h2>
       
-      <div style={styles.profileForm}>
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Display Name</label>
-          <input
-            type="text"
-            value={profile.displayName}
-            onChange={(e) => setProfile({...profile, displayName: e.target.value})}
-            style={styles.input}
-            disabled={!editMode}
-          />
-        </div>
+      {profile && (
+        <div style={styles.profileForm}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Display Name</label>
+            <input
+              type="text"
+              value={profile.displayName || ''}
+              onChange={(e) => setProfile({...profile, displayName: e.target.value})}
+              style={styles.input}
+              disabled={!editMode}
+            />
+          </div>
 
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Email</label>
-          <input
-            type="email"
-            value={profile.email}
-            style={{...styles.input, ...styles.disabled}}
-            disabled
-          />
-        </div>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Email</label>
+            <input
+              type="email"
+              value={currentUser?.email || ''}
+              style={{...styles.input, ...styles.disabled}}
+              disabled
+            />
+          </div>
 
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Phone</label>
-          <input
-            type="tel"
-            value={profile.phone}
-            onChange={(e) => setProfile({...profile, phone: e.target.value})}
-            style={styles.input}
-            placeholder="(555) 123-4567"
-            disabled={!editMode}
-          />
-        </div>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Phone</label>
+            <input
+              type="tel"
+              value={profile.phone || ''}
+              onChange={(e) => setProfile({...profile, phone: e.target.value})}
+              style={styles.input}
+              placeholder="(555) 123-4567"
+              disabled={!editMode}
+            />
+          </div>
 
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Default Store</label>
-          <select
-            value={profile.defaultStore}
-            onChange={(e) => setProfile({...profile, defaultStore: e.target.value})}
-            style={styles.select}
-            disabled={!editMode}
-          >
-            <option value="kroger">Kroger</option>
-            <option value="safeway">Safeway</option>
-            <option value="walmart">Walmart</option>
-            <option value="target">Target</option>
-            <option value="whole-foods">Whole Foods</option>
-            <option value="costco">Costco</option>
-          </select>
-        </div>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Default Store</label>
+            <select
+              value={profile.defaultStore || 'kroger'}
+              onChange={(e) => setProfile({...profile, defaultStore: e.target.value})}
+              style={styles.select}
+              disabled={!editMode}
+            >
+              <option value="kroger">Kroger</option>
+              <option value="safeway">Safeway</option>
+              <option value="walmart">Walmart</option>
+              <option value="target">Target</option>
+              <option value="whole-foods">Whole Foods</option>
+              <option value="costco">Costco</option>
+            </select>
+          </div>
 
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Family Size</label>
-          <input
-            type="number"
-            value={profile.familySize}
-            onChange={(e) => setProfile({...profile, familySize: parseInt(e.target.value)})}
-            style={styles.input}
-            min="1"
-            max="10"
-            disabled={!editMode}
-          />
-        </div>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Family Size</label>
+            <input
+              type="number"
+              value={profile.familySize || 4}
+              onChange={(e) => setProfile({...profile, familySize: parseInt(e.target.value)})}
+              style={styles.input}
+              min="1"
+              max="10"
+              disabled={!editMode}
+            />
+          </div>
 
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Weekly Budget</label>
-          <input
-            type="number"
-            value={profile.weeklyBudget}
-            onChange={(e) => setProfile({...profile, weeklyBudget: parseFloat(e.target.value)})}
-            style={styles.input}
-            min="0"
-            step="10"
-            disabled={!editMode}
-          />
-        </div>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Weekly Budget</label>
+            <input
+              type="number"
+              value={profile.weeklyBudget || 150}
+              onChange={(e) => setProfile({...profile, weeklyBudget: parseFloat(e.target.value)})}
+              style={styles.input}
+              min="0"
+              step="10"
+              disabled={!editMode}
+            />
+          </div>
 
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Dietary Preferences</label>
-          <div style={styles.checkboxGroup}>
-            {['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Keto', 'Paleo'].map(diet => (
-              <label key={diet} style={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={profile.dietaryPreferences.includes(diet)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setProfile({
-                        ...profile,
-                        dietaryPreferences: [...profile.dietaryPreferences, diet]
-                      });
-                    } else {
-                      setProfile({
-                        ...profile,
-                        dietaryPreferences: profile.dietaryPreferences.filter(d => d !== diet)
-                      });
-                    }
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Dietary Preferences</label>
+            <div style={styles.checkboxGroup}>
+              {['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Keto', 'Paleo'].map(diet => (
+                <label key={diet} style={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={profile.dietaryPreferences?.includes(diet) || false}
+                    onChange={(e) => {
+                      const prefs = profile.dietaryPreferences || [];
+                      if (e.target.checked) {
+                        setProfile({
+                          ...profile,
+                          dietaryPreferences: [...prefs, diet]
+                        });
+                      } else {
+                        setProfile({
+                          ...profile,
+                          dietaryPreferences: prefs.filter(d => d !== diet)
+                        });
+                      }
+                    }}
+                    disabled={!editMode}
+                    style={styles.checkbox}
+                  />
+                  {diet}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div style={styles.buttonGroup}>
+            {editMode ? (
+              <>
+                <button 
+                  style={styles.saveButton} 
+                  onClick={handleSaveProfile}
+                  disabled={loading}
+                >
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button 
+                  style={styles.cancelButton} 
+                  onClick={() => {
+                    setEditMode(false);
+                    loadProfile(); // Reload original data
                   }}
-                  disabled={!editMode}
-                  style={styles.checkbox}
-                />
-                {diet}
-              </label>
-            ))}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button 
+                style={styles.editButton} 
+                onClick={() => setEditMode(true)}
+                disabled={loading}
+              >
+                Edit Profile
+              </button>
+            )}
           </div>
         </div>
-
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Notifications</label>
-          <div style={styles.checkboxGroup}>
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={profile.notifications.email}
-                onChange={(e) => setProfile({
-                  ...profile,
-                  notifications: {...profile.notifications, email: e.target.checked}
-                })}
-                disabled={!editMode}
-                style={styles.checkbox}
-              />
-              Email Notifications
-            </label>
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={profile.notifications.deals}
-                onChange={(e) => setProfile({
-                  ...profile,
-                  notifications: {...profile.notifications, deals: e.target.checked}
-                })}
-                disabled={!editMode}
-                style={styles.checkbox}
-              />
-              Deal Alerts
-            </label>
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={profile.notifications.mealPlans}
-                onChange={(e) => setProfile({
-                  ...profile,
-                  notifications: {...profile.notifications, mealPlans: e.target.checked}
-                })}
-                disabled={!editMode}
-                style={styles.checkbox}
-              />
-              Meal Plan Suggestions
-            </label>
-          </div>
-        </div>
-
-        <div style={styles.buttonGroup}>
-          {editMode ? (
-            <>
-              <button style={styles.saveButton} onClick={handleSaveProfile}>
-                Save Changes
-              </button>
-              <button style={styles.cancelButton} onClick={() => setEditMode(false)}>
-                Cancel
-              </button>
-            </>
-          ) : (
-            <button style={styles.editButton} onClick={() => setEditMode(true)}>
-              Edit Profile
-            </button>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 
@@ -404,7 +738,7 @@ function MyAccount() {
             </div>
             
             <div style={styles.listStats}>
-              <span style={styles.listStat}>📦 {list.items?.length || 0} items</span>
+              <span style={styles.listStat}>📦 {list.itemCount} items</span>
               <span style={styles.listStat}>💰 ${list.estimatedTotal || '0.00'}</span>
             </div>
             
@@ -426,6 +760,7 @@ function MyAccount() {
                 style={styles.listActionButton}
                 onClick={() => handleLoadList(list)}
                 title="Load this list"
+                disabled={loading}
               >
                 📥 Load
               </button>
@@ -433,6 +768,7 @@ function MyAccount() {
                 style={styles.listActionButton}
                 onClick={() => handleShareList(list)}
                 title="Share this list"
+                disabled={loading}
               >
                 🔗 Share
               </button>
@@ -440,6 +776,7 @@ function MyAccount() {
                 style={{...styles.listActionButton, ...styles.deleteButton}}
                 onClick={() => handleDeleteList(list.id)}
                 title="Delete this list"
+                disabled={loading}
               >
                 🗑️ Delete
               </button>
@@ -450,7 +787,7 @@ function MyAccount() {
         {savedLists.length === 0 && (
           <div style={styles.emptyState}>
             <p style={styles.emptyMessage}>No saved lists yet</p>
-            <p style={styles.emptySubtext}>Your saved shopping lists will appear here</p>
+            <p style={styles.emptySubtext}>Save your shopping lists from the main cart page</p>
           </div>
         )}
       </div>
@@ -462,36 +799,43 @@ function MyAccount() {
       <h2 style={styles.sectionTitle}>Meal Plans</h2>
       
       <div style={styles.mealGrid}>
-        {savedMeals.map(([mealName, items]) => (
-          <div key={mealName} style={styles.mealCard}>
+        {savedMeals.map(meal => (
+          <div key={meal.id} style={styles.mealCard}>
             <div style={styles.mealHeader}>
-              <h4 style={styles.mealTitle}>🍽️ {mealName}</h4>
+              <h4 style={styles.mealTitle}>🍽️ {meal.name}</h4>
               <button
                 style={styles.mealDeleteButton}
-                onClick={() => handleDeleteMeal(mealName)}
+                onClick={() => handleDeleteMeal(meal.id)}
+                disabled={loading}
               >
                 ×
               </button>
             </div>
             
+            <div style={styles.mealInfo}>
+              <span>👥 Serves {meal.servings || 4}</span>
+              <span>⏱️ {meal.prepTime + meal.cookTime} min total</span>
+            </div>
+            
             <div style={styles.mealItems}>
-              {items.slice(0, 5).map((item, idx) => (
+              {meal.items?.slice(0, 5).map((item, idx) => (
                 <div key={idx} style={styles.mealItem}>
-                  <span style={styles.mealItemName}>{item.name}</span>
+                  <span style={styles.mealItemName}>{item.productName || item.name}</span>
                   <span style={styles.mealItemQty}>{item.quantity} {item.unit}</span>
                 </div>
               ))}
-              {items.length > 5 && (
-                <div style={styles.mealMore}>+{items.length - 5} more items</div>
+              {meal.items?.length > 5 && (
+                <div style={styles.mealMore}>+{meal.items.length - 5} more items</div>
               )}
             </div>
             
             <div style={styles.mealActions}>
-              <button style={styles.mealActionButton}>
+              <button 
+                style={styles.mealActionButton}
+                onClick={() => handleAddMealToCart(meal)}
+                disabled={loading}
+              >
                 🛒 Add to Cart
-              </button>
-              <button style={styles.mealActionButton}>
-                📋 View Details
               </button>
             </div>
           </div>
@@ -511,6 +855,15 @@ function MyAccount() {
     <div style={styles.tabContent}>
       <h2 style={styles.sectionTitle}>My Recipes</h2>
       
+      <div style={styles.recipeActions}>
+        <button
+          style={styles.addRecipeButton}
+          onClick={() => setShowNewRecipeModal(true)}
+        >
+          + Add New Recipe
+        </button>
+      </div>
+      
       <div style={styles.recipeGrid}>
         {savedRecipes.map(recipe => (
           <div key={recipe.id} style={styles.recipeCard}>
@@ -525,17 +878,25 @@ function MyAccount() {
             <div style={styles.recipeContent}>
               <h4 style={styles.recipeTitle}>{recipe.name}</h4>
               <div style={styles.recipeInfo}>
-                <span>⏱️ {recipe.prepTime || '30'} min</span>
-                <span>👥 Serves {recipe.servings || 4}</span>
+                <span>⏱️ {recipe.prepTime + recipe.cookTime} min</span>
+                <span>👥 Serves {recipe.servings}</span>
               </div>
               <p style={styles.recipeDescription}>{recipe.description}</p>
               
-              <div style={styles.recipeActions}>
-                <button style={styles.recipeButton}>
+              <div style={styles.recipeButtonGroup}>
+                <button 
+                  style={styles.recipeButton}
+                  onClick={() => handleShopRecipe(recipe)}
+                  disabled={loading}
+                >
                   🛒 Shop Ingredients
                 </button>
-                <button style={styles.recipeButton}>
-                  👁️ View Recipe
+                <button
+                  style={{...styles.recipeButton, ...styles.deleteRecipeButton}}
+                  onClick={() => handleDeleteRecipe(recipe.id)}
+                  disabled={loading}
+                >
+                  🗑️
                 </button>
               </div>
             </div>
@@ -546,12 +907,116 @@ function MyAccount() {
           <div style={styles.emptyState}>
             <p style={styles.emptyMessage}>No saved recipes yet</p>
             <p style={styles.emptySubtext}>Save recipes from AI suggestions or add your own</p>
-            <button style={styles.addRecipeButton}>
-              + Add Recipe
-            </button>
           </div>
         )}
       </div>
+
+      {/* New Recipe Modal */}
+      {showNewRecipeModal && (
+        <div style={styles.modalOverlay} onClick={() => setShowNewRecipeModal(false)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 style={styles.modalTitle}>Add New Recipe</h3>
+            
+            <div style={styles.modalForm}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Recipe Name</label>
+                <input
+                  type="text"
+                  value={newRecipe.name}
+                  onChange={(e) => setNewRecipe({...newRecipe, name: e.target.value})}
+                  style={styles.input}
+                  placeholder="e.g., Chicken Pasta"
+                />
+              </div>
+              
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Description</label>
+                <textarea
+                  value={newRecipe.description}
+                  onChange={(e) => setNewRecipe({...newRecipe, description: e.target.value})}
+                  style={styles.textarea}
+                  placeholder="Brief description..."
+                  rows={2}
+                />
+              </div>
+              
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Ingredients (one per line)</label>
+                <textarea
+                  value={newRecipe.ingredients}
+                  onChange={(e) => setNewRecipe({...newRecipe, ingredients: e.target.value})}
+                  style={styles.textarea}
+                  placeholder="2 lbs chicken breast&#10;1 lb pasta&#10;2 cups tomato sauce"
+                  rows={5}
+                />
+              </div>
+              
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Instructions (one per line)</label>
+                <textarea
+                  value={newRecipe.instructions}
+                  onChange={(e) => setNewRecipe({...newRecipe, instructions: e.target.value})}
+                  style={styles.textarea}
+                  placeholder="1. Cook pasta according to package&#10;2. Season chicken..."
+                  rows={4}
+                />
+              </div>
+              
+              <div style={styles.formRow}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Prep Time (min)</label>
+                  <input
+                    type="number"
+                    value={newRecipe.prepTime}
+                    onChange={(e) => setNewRecipe({...newRecipe, prepTime: parseInt(e.target.value)})}
+                    style={styles.input}
+                    min="0"
+                  />
+                </div>
+                
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Cook Time (min)</label>
+                  <input
+                    type="number"
+                    value={newRecipe.cookTime}
+                    onChange={(e) => setNewRecipe({...newRecipe, cookTime: parseInt(e.target.value)})}
+                    style={styles.input}
+                    min="0"
+                  />
+                </div>
+                
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Servings</label>
+                  <input
+                    type="number"
+                    value={newRecipe.servings}
+                    onChange={(e) => setNewRecipe({...newRecipe, servings: parseInt(e.target.value)})}
+                    style={styles.input}
+                    min="1"
+                  />
+                </div>
+              </div>
+              
+              <div style={styles.modalActions}>
+                <button
+                  style={styles.saveButton}
+                  onClick={handleCreateRecipe}
+                  disabled={loading || !newRecipe.name || !newRecipe.ingredients}
+                >
+                  {loading ? 'Saving...' : 'Save Recipe'}
+                </button>
+                <button
+                  style={styles.cancelButton}
+                  onClick={() => setShowNewRecipeModal(false)}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -560,33 +1025,36 @@ function MyAccount() {
       <h2 style={styles.sectionTitle}>Shopping History</h2>
       
       <div style={styles.historyTimeline}>
-        {shoppingHistory.map((entry, index) => (
-          <div key={index} style={styles.historyEntry}>
+        {shoppingHistory.map((entry) => (
+          <div key={entry.id} style={styles.historyEntry}>
             <div style={styles.historyDate}>
               <div style={styles.historyDateDay}>
-                {new Date(entry.date).getDate()}
+                {new Date(entry.completedAt).getDate()}
               </div>
               <div style={styles.historyDateMonth}>
-                {new Date(entry.date).toLocaleDateString('en-US', { month: 'short' })}
+                {new Date(entry.completedAt).toLocaleDateString('en-US', { month: 'short' })}
               </div>
             </div>
             
             <div style={styles.historyContent}>
-              <div style={styles.historyTitle}>{entry.storeName || 'Grocery Store'}</div>
+              <div style={styles.historyTitle}>{entry.storeName}</div>
               <div style={styles.historyDetails}>
-                <span>📦 {entry.itemCount || 0} items</span>
-                <span>💰 ${entry.total || '0.00'}</span>
+                <span>📦 {entry.itemCount} items</span>
+                <span>💰 ${entry.total}</span>
+                {entry.savings > 0 && (
+                  <span>💵 Saved ${entry.savings}</span>
+                )}
               </div>
-              {entry.savings && (
-                <div style={styles.historySavings}>
-                  💵 Saved ${entry.savings}
-                </div>
-              )}
             </div>
             
             <div style={styles.historyActions}>
-              <button style={styles.historyButton}>Reorder</button>
-              <button style={styles.historyButton}>View</button>
+              <button 
+                style={styles.historyButton}
+                onClick={() => handleReorder(entry.id)}
+                disabled={loading}
+              >
+                Reorder
+              </button>
             </div>
           </div>
         ))}
@@ -603,6 +1071,7 @@ function MyAccount() {
 
   return (
     <div style={styles.container}>
+      {/* Header */}
       <div style={styles.header}>
         <h1 style={styles.title}>My Account</h1>
         <div style={styles.userInfo}>
@@ -616,12 +1085,26 @@ function MyAccount() {
             )}
           </div>
           <div style={styles.userDetails}>
-            <div style={styles.userName}>{profile.displayName || currentUser?.email}</div>
+            <div style={styles.userName}>{profile?.displayName || currentUser?.email}</div>
             <div style={styles.userEmail}>{currentUser?.email}</div>
           </div>
         </div>
       </div>
 
+      {/* Status Messages */}
+      {error && (
+        <div style={styles.errorMessage}>
+          ❌ {error}
+        </div>
+      )}
+      
+      {success && (
+        <div style={styles.successMessage}>
+          ✅ {success}
+        </div>
+      )}
+
+      {/* Tabs */}
       <div style={styles.tabs}>
         <button
           style={{...styles.tab, ...(activeTab === 'overview' ? styles.activeTab : {})}}
@@ -661,7 +1144,14 @@ function MyAccount() {
         </button>
       </div>
 
+      {/* Content */}
       <div style={styles.content}>
+        {loading && (
+          <div style={styles.loadingOverlay}>
+            <div style={styles.spinner}>Loading...</div>
+          </div>
+        )}
+        
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'profile' && renderProfile()}
         {activeTab === 'lists' && renderSavedLists()}
@@ -673,7 +1163,126 @@ function MyAccount() {
   );
 }
 
+// Styles (keep existing styles but add these new ones)
 const styles = {
+  // ... (keep all existing styles from original component)
+  
+  // Add these new styles
+  errorMessage: {
+    background: '#fee2e2',
+    color: '#991b1b',
+    padding: '12px',
+    borderRadius: '8px',
+    marginBottom: '16px'
+  },
+  
+  successMessage: {
+    background: '#d1fae5',
+    color: '#065f46',
+    padding: '12px',
+    borderRadius: '8px',
+    marginBottom: '16px'
+  },
+  
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(255, 255, 255, 0.9)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100
+  },
+  
+  spinner: {
+    fontSize: '18px',
+    color: '#6b7280'
+  },
+  
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000
+  },
+  
+  modal: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: '30px',
+    maxWidth: '600px',
+    width: '90%',
+    maxHeight: '90vh',
+    overflow: 'auto'
+  },
+  
+  modalTitle: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: '20px'
+  },
+  
+  modalForm: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px'
+  },
+  
+  modalActions: {
+    display: 'flex',
+    gap: '10px',
+    marginTop: '20px'
+  },
+  
+  textarea: {
+    width: '100%',
+    padding: '10px',
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    fontSize: '14px',
+    resize: 'vertical'
+  },
+  
+  formRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr 1fr',
+    gap: '15px'
+  },
+  
+  recipeActions: {
+    marginBottom: '20px'
+  },
+  
+  recipeButtonGroup: {
+    display: 'flex',
+    gap: '8px'
+  },
+  
+  deleteRecipeButton: {
+    background: '#ef4444',
+    color: 'white',
+    flex: '0 0 auto'
+  },
+  
+  mealInfo: {
+    display: 'flex',
+    gap: '15px',
+    fontSize: '13px',
+    color: '#6b7280',
+    marginBottom: '10px'
+  },
+
+  // Keep all other existing styles from the original component...
   container: {
     maxWidth: '1200px',
     margin: '0 auto',
@@ -771,7 +1380,8 @@ const styles = {
   },
 
   content: {
-    minHeight: '400px'
+    minHeight: '400px',
+    position: 'relative'
   },
 
   tabContent: {
@@ -795,7 +1405,7 @@ const styles = {
   // Stats Grid
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
     gap: '20px',
     marginBottom: '30px'
   },
@@ -1227,11 +1837,6 @@ const styles = {
     lineHeight: '1.5'
   },
 
-  recipeActions: {
-    display: 'flex',
-    gap: '8px'
-  },
-
   recipeButton: {
     flex: 1,
     padding: '8px',
@@ -1250,8 +1855,7 @@ const styles = {
     borderRadius: '8px',
     fontSize: '14px',
     fontWeight: '500',
-    cursor: 'pointer',
-    marginTop: '15px'
+    cursor: 'pointer'
   },
 
   // History
@@ -1303,13 +1907,6 @@ const styles = {
     gap: '15px',
     fontSize: '14px',
     color: '#6b7280'
-  },
-
-  historySavings: {
-    marginTop: '5px',
-    fontSize: '13px',
-    color: '#10b981',
-    fontWeight: '500'
   },
 
   historyActions: {

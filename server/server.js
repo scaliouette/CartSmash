@@ -1,212 +1,265 @@
-// server/server.js
+// server/server.js - Updated to work with Firebase Auth
 const express = require('express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
-const path = require('path');
+const admin = require('firebase-admin');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+
+// Initialize Firebase Admin SDK
+const initializeFirebase = () => {
+  try {
+    // Option 1: Using service account key file
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
+      const serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        databaseURL: process.env.FIREBASE_DATABASE_URL
+      });
+    }
+    // Option 2: Using individual environment variables
+    else if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+        }),
+        databaseURL: process.env.FIREBASE_DATABASE_URL
+      });
+    }
+    // Option 3: Default credentials (for Google Cloud environments)
+    else {
+      console.log('⚠️ No Firebase credentials found in environment variables');
+      console.log('Please set up your Firebase Admin SDK credentials');
+      // For now, initialize without credentials to prevent crash
+      admin.initializeApp();
+    }
+
+    console.log('✅ Firebase Admin SDK initialized');
+  } catch (error) {
+    console.error('❌ Failed to initialize Firebase Admin SDK:', error.message);
+    console.log('The server will continue running but authentication will not work');
+  }
+};
+
+// Initialize Firebase
+initializeFirebase();
 
 // Middleware
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  next();
-});
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Import routes
-const authRoutes = require('./routes/auth');
-const cartRoutes = require('./routes/cart');
-const groceryRoutes = require('./routes/grocery');
-
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/grocery', groceryRoutes);
+// Request logging in development
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+  });
+}
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    firebase: admin.apps.length > 0 ? 'initialized' : 'not initialized'
   });
 });
 
-// Mock grocery parsing endpoint (if not in grocery routes)
-app.post('/api/parse-grocery-list', async (req, res) => {
-  try {
-    const { text } = req.body;
-    
-    if (!text || text.trim().length === 0) {
-      return res.status(400).json({ 
+// Import routes - but check if they exist first
+try {
+  const cartRoutes = require('./routes/cart');
+  app.use('/api/cart', cartRoutes);
+  console.log('✅ Cart routes loaded');
+} catch (error) {
+  console.log('⚠️ Cart routes not found or error loading:', error.message);
+}
+
+try {
+  const accountRoutes = require('./routes/account');
+  app.use('/api/account', accountRoutes);
+  console.log('✅ Account routes loaded');
+} catch (error) {
+  console.log('⚠️ Account routes not found or error loading:', error.message);
+}
+
+// Note: We're NOT loading the old auth.js routes anymore
+// Authentication is now handled through Firebase on the client side
+// and verified using Firebase Admin SDK in the middleware
+
+// Basic cart endpoints if cart.js doesn't exist yet
+if (!require.resolve('./routes/cart')) {
+  // Fallback in-memory storage
+  const carts = new Map();
+  
+  // Simple authentication middleware
+  const authenticateUser = async (req, res, next) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ 
+          success: false, 
+          error: 'No valid auth token provided' 
+        });
+      }
+
+      const idToken = authHeader.split('Bearer ')[1];
+      
+      try {
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        req.user = {
+          uid: decodedToken.uid,
+          email: decodedToken.email,
+          emailVerified: decodedToken.email_verified
+        };
+        next();
+      } catch (error) {
+        console.error('Token verification failed:', error);
+        return res.status(401).json({ 
+          success: false, 
+          error: 'Invalid or expired token' 
+        });
+      }
+    } catch (error) {
+      console.error('Auth middleware error:', error);
+      return res.status(500).json({ 
         success: false, 
-        error: 'No text provided' 
+        error: 'Authentication failed' 
       });
     }
-    
-    // Simple parsing logic - split by lines and parse each item
-    const lines = text.split('\n').filter(line => line.trim());
-    const items = lines.map((line, index) => {
-      // Basic parsing - extract quantity, unit, and product name
-      const quantityMatch = line.match(/^(\d+(?:\.\d+)?)\s*/);
-      const quantity = quantityMatch ? parseFloat(quantityMatch[1]) : 1;
-      
-      // Remove quantity from line if found
-      const lineWithoutQuantity = quantityMatch 
-        ? line.substring(quantityMatch[0].length) 
-        : line;
-      
-      // Detect unit
-      const unitPatterns = [
-        'lbs?', 'pounds?', 'oz', 'ounces?', 'kg', 'g', 'grams?',
-        'cups?', 'tbsp', 'tsp', 'ml', 'l', 'liters?',
-        'gallons?', 'quarts?', 'pints?',
-        'cans?', 'bottles?', 'boxes?', 'bags?', 'dozen'
-      ];
-      
-      const unitRegex = new RegExp(`(${unitPatterns.join('|')})\\s+`, 'i');
-      const unitMatch = lineWithoutQuantity.match(unitRegex);
-      const unit = unitMatch ? unitMatch[1].toLowerCase() : 'each';
-      
-      // Extract product name
-      const productName = unitMatch
-        ? lineWithoutQuantity.replace(unitRegex, '').trim()
-        : lineWithoutQuantity.trim();
-      
-      // Determine category based on keywords
-      const category = detectCategory(productName);
-      
-      // Calculate confidence based on parsing success
-      let confidence = 0.5;
-      if (quantityMatch) confidence += 0.2;
-      if (unitMatch) confidence += 0.2;
-      if (productName.length > 2) confidence += 0.1;
-      
-      return {
-        id: `item_${Date.now()}_${index}`,
-        original: line,
-        productName: productName,
-        itemName: productName,
-        quantity: quantity,
-        unit: normalizeUnit(unit),
-        category: category,
-        confidence: Math.min(confidence, 1),
-        needsReview: confidence < 0.6
-      };
-    });
+  };
+  
+  // Basic cart endpoint
+  app.get('/api/cart', authenticateUser, (req, res) => {
+    const userId = req.user.uid;
+    const userCart = carts.get(userId) || [];
     
     res.json({
       success: true,
-      items: items,
-      stats: {
-        totalItems: items.length,
-        highConfidence: items.filter(i => i.confidence >= 0.8).length,
-        needsReview: items.filter(i => i.needsReview).length
-      }
+      items: userCart,
+      count: userCart.length
     });
-  } catch (error) {
-    console.error('Error parsing grocery list:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to parse grocery list' 
-    });
-  }
-});
-
-// Helper function to detect category
-function detectCategory(productName) {
-  const name = productName.toLowerCase();
+  });
   
-  const categoryKeywords = {
-    produce: ['apple', 'banana', 'orange', 'lettuce', 'tomato', 'carrot', 'onion', 'potato', 'fruit', 'vegetable', 'salad', 'berry', 'grape', 'cucumber', 'pepper', 'broccoli', 'spinach', 'celery'],
-    dairy: ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'cottage', 'sour cream', 'ice cream'],
-    meat: ['chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'tuna', 'bacon', 'sausage', 'ham', 'steak', 'ground'],
-    bakery: ['bread', 'bagel', 'muffin', 'croissant', 'roll', 'bun', 'tortilla', 'pita'],
-    pantry: ['rice', 'pasta', 'cereal', 'soup', 'sauce', 'oil', 'vinegar', 'flour', 'sugar', 'salt', 'pepper', 'spice', 'can', 'beans', 'nuts'],
-    beverages: ['water', 'juice', 'soda', 'coffee', 'tea', 'wine', 'beer', 'drink'],
-    frozen: ['frozen', 'ice', 'pizza'],
-    snacks: ['chips', 'crackers', 'cookies', 'candy', 'popcorn', 'pretzels', 'chocolate']
-  };
-  
-  for (const [category, keywords] of Object.entries(categoryKeywords)) {
-    if (keywords.some(keyword => name.includes(keyword))) {
-      return category;
+  app.post('/api/cart/items', authenticateUser, (req, res) => {
+    const userId = req.user.uid;
+    const { items } = req.body;
+    
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid items data' 
+      });
     }
-  }
+    
+    let userCart = carts.get(userId) || [];
+    
+    const newItems = items.map(item => ({
+      id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      ...item,
+      addedAt: new Date().toISOString()
+    }));
+    
+    userCart = [...userCart, ...newItems];
+    carts.set(userId, userCart);
+    
+    res.json({
+      success: true,
+      items: newItems,
+      totalItems: userCart.length
+    });
+  });
   
-  return 'other';
+  app.post('/api/cart/clear', authenticateUser, (req, res) => {
+    const userId = req.user.uid;
+    carts.set(userId, []);
+    
+    res.json({
+      success: true,
+      message: 'Cart cleared successfully'
+    });
+  });
+  
+  console.log('✅ Basic cart endpoints created');
 }
 
-// Helper function to normalize units
-function normalizeUnit(unit) {
-  const unitMap = {
-    'lb': 'lb',
-    'lbs': 'lb',
-    'pound': 'lb',
-    'pounds': 'lb',
-    'ounce': 'oz',
-    'ounces': 'oz',
-    'gram': 'g',
-    'grams': 'g',
-    'kilogram': 'kg',
-    'kilograms': 'kg',
-    'liter': 'l',
-    'liters': 'l',
-    'gallon': 'gal',
-    'gallons': 'gal',
-    'quart': 'qt',
-    'quarts': 'qt',
-    'pint': 'pt',
-    'pints': 'pt',
-    'cup': 'cup',
-    'cups': 'cup',
-    'tablespoon': 'tbsp',
-    'tablespoons': 'tbsp',
-    'teaspoon': 'tsp',
-    'teaspoons': 'tsp',
-    'can': 'can',
-    'cans': 'can',
-    'bottle': 'bottle',
-    'bottles': 'bottle',
-    'box': 'box',
-    'boxes': 'box',
-    'bag': 'bag',
-    'bags': 'bag'
-  };
-  
-  return unitMap[unit.toLowerCase()] || unit.toLowerCase();
-}
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found',
+    message: `Cannot ${req.method} ${req.path}`
+  });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
-  res.status(500).json({ 
+  console.error('Server error:', err.stack);
+  
+  // Firebase auth errors
+  if (err.code && err.code.startsWith('auth/')) {
+    return res.status(401).json({
+      success: false,
+      error: 'Authentication error',
+      message: err.message
+    });
+  }
+  
+  // Validation errors
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      error: 'Validation error',
+      message: err.message
+    });
+  }
+  
+  // Default error
+  res.status(500).json({
     success: false,
-    error: 'Something went wrong!',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   });
 });
 
-// Handle 404
-app.use((req, res) => {
-  res.status(404).json({ 
-    success: false,
-    error: 'Endpoint not found' 
+const PORT = process.env.PORT || 5000;
+
+const server = app.listen(PORT, () => {
+  console.log(`
+    🚀 Server is running!
+    🔊 Listening on port ${PORT}
+    📝 Environment: ${process.env.NODE_ENV || 'development'}
+    🌐 Client URL: ${process.env.CLIENT_URL || 'http://localhost:3000'}
+    🔥 Firebase: ${admin.apps.length > 0 ? 'Connected' : 'Not connected - check credentials'}
+    
+    Test the server:
+    curl http://localhost:${PORT}/health
+  `);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 CartSmash server running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Client URL: ${process.env.CLIENT_URL || 'http://localhost:3000'}`);
+process.on('SIGINT', () => {
+  console.log('\nSIGINT signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
 });

@@ -1,7 +1,6 @@
 // server/routes/auth.js - Express routes using your existing KrogerAuthService
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 console.log('🔐 Loading auth routes...');
