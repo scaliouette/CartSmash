@@ -27,6 +27,34 @@ export const useAuth = () => {
   return context;
 };
 
+// inside AuthProvider in AuthContext.js
+const makeAuthenticatedRequest = async (url, options = {}) => {
+  // Grab a fresh Firebase ID token
+  const idToken = await auth?.currentUser?.getIdToken?.();
+
+  const res = await fetch(url, {
+    credentials: 'include',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+    },
+  });
+
+  // Guard against HTML responses -> "Unexpected token '<'"
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const text = await res.text();
+    throw new Error(`Non-JSON from ${url}: ${text.slice(0, 120)}`);
+  }
+
+  // Return the native Response so callers can still do response.json()
+  return res;
+};
+
+
+
 // Auth Provider Component
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -331,18 +359,19 @@ export function AuthProvider({ children }) {
   }, [currentUser, isLoading]);
 
   // Context value with all functions
-  const value = {
-    currentUser,
-    isLoading,
-    error,
-    isAdmin: currentUser?.isAdmin || false,
-    signup,
-    login,
-    logout,
-    signOut: logout,
-    signInWithGoogle,
-    updateUserProfile,
-    saveCartToFirebase
+ const value = {
+  currentUser,
+  isLoading,
+  error,
+  isAdmin: currentUser?.isAdmin || false,
+  signup,
+  login,
+  logout,
+  signOut: logout,
+  signInWithGoogle,
+  updateUserProfile,
+  saveCartToFirebase,
+  makeAuthenticatedRequest
   };
 
   console.log('🔥 Running with Firebase Authentication');
