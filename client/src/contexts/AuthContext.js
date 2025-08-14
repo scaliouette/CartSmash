@@ -1,5 +1,5 @@
 // client/src/contexts/AuthContext.js
-// COMPLETE WORKING VERSION WITH ALL AUTH FUNCTIONS
+// COMPLETE WORKING VERSION - NO CIRCULAR IMPORTS
 
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { 
@@ -12,13 +12,18 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider, db } from '../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+// ❌ REMOVED: import { useAuth } from '../contexts/AuthContext'; // DON'T IMPORT FROM ITSELF!
 
 // Create context
 const AuthContext = createContext({});
 
-// Export useAuth hook
+// Export useAuth hook - MUST BE EXPORTED!
 export const useAuth = () => {
   const context = useContext(AuthContext);
+  if (!context) {
+    console.error('useAuth must be used within AuthProvider');
+    return {};
+  }
   return context;
 };
 
@@ -30,6 +35,43 @@ export function AuthProvider({ children }) {
 
   console.log('✅ Firebase Auth loaded successfully');
 
+  // Define admin emails - REPLACE WITH YOUR ACTUAL EMAIL
+  const ADMIN_EMAILS = [
+    'scaliouette@gmail.com',  // ← CHANGE THIS TO YOUR ACTUAL EMAIL!
+    // Add more admin emails as needed
+  ];
+
+  // Check admin status function
+  const checkAdminStatus = async (user) => {
+    if (!user) return false;
+    
+    try {
+      // First check Firestore for admin flag
+      if (db) {
+        const userRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          if (userData.isAdmin === true) {
+            console.log('✅ Admin status confirmed via Firestore');
+            return true;
+          }
+        }
+      }
+      
+      // Fallback to email check
+      const isEmailAdmin = ADMIN_EMAILS.includes(user.email);
+      if (isEmailAdmin) {
+        console.log('✅ Admin status confirmed via email list');
+      }
+      return isEmailAdmin;
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return ADMIN_EMAILS.includes(user.email);
+    }
+  };
+  
   // Email/Password Signup
   const signup = async (email, password, displayName = '') => {
     try {
@@ -40,16 +82,13 @@ export function AuthProvider({ children }) {
         throw new Error('Firebase Auth not initialized');
       }
       
-      // Create user with email/password
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       console.log('✅ User created:', userCredential.user.email);
       
-      // Update display name if provided
       if (displayName && userCredential.user) {
         await updateProfile(userCredential.user, { displayName });
       }
       
-      // Create Firestore user document
       if (db && userCredential.user) {
         const userRef = doc(db, 'users', userCredential.user.uid);
         await setDoc(userRef, {
@@ -83,7 +122,6 @@ export function AuthProvider({ children }) {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       console.log('✅ User logged in:', userCredential.user.email);
       
-      // Update last login in Firestore
       if (db && userCredential.user) {
         const userRef = doc(db, 'users', userCredential.user.uid);
         await setDoc(userRef, {
@@ -112,7 +150,6 @@ export function AuthProvider({ children }) {
       const userCredential = await signInWithPopup(auth, googleProvider);
       console.log('✅ Google sign-in successful:', userCredential.user.email);
       
-      // Create/update Firestore user document
       if (db && userCredential.user) {
         const userRef = doc(db, 'users', userCredential.user.uid);
         const userDoc = await getDoc(userRef);
@@ -161,9 +198,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Alias for compatibility
-  const signOutUser = logout;
-
   // Update user profile
   const updateUserProfile = async (updates) => {
     try {
@@ -173,7 +207,6 @@ export function AuthProvider({ children }) {
         throw new Error('No user logged in');
       }
       
-      // Update Firebase Auth profile
       if (updates.displayName || updates.photoURL) {
         await updateProfile(currentUser, {
           displayName: updates.displayName || currentUser.displayName,
@@ -181,13 +214,11 @@ export function AuthProvider({ children }) {
         });
       }
       
-      // Update Firestore
       if (db) {
         const userRef = doc(db, 'users', currentUser.uid);
         await setDoc(userRef, updates, { merge: true });
       }
       
-      // Update local state
       setCurrentUser(prev => ({ ...prev, ...updates }));
       
       console.log('✅ Profile updated');
@@ -233,7 +264,8 @@ export function AuthProvider({ children }) {
       if (user) {
         console.log('👤 User detected:', user.email);
         
-        // Try to get additional data from Firestore
+        const adminStatus = await checkAdminStatus(user);
+        
         if (db) {
           try {
             const userRef = doc(db, 'users', user.uid);
@@ -242,17 +274,31 @@ export function AuthProvider({ children }) {
             if (userDoc.exists()) {
               setCurrentUser({
                 ...user,
-                ...userDoc.data()
+                ...userDoc.data(),
+                isAdmin: adminStatus
               });
             } else {
-              setCurrentUser(user);
+              setCurrentUser({
+                ...user,
+                isAdmin: adminStatus
+              });
             }
           } catch (error) {
             console.error('Error fetching user data:', error);
-            setCurrentUser(user);
+            setCurrentUser({
+              ...user,
+              isAdmin: adminStatus
+            });
           }
         } else {
-          setCurrentUser(user);
+          setCurrentUser({
+            ...user,
+            isAdmin: adminStatus
+          });
+        }
+        
+        if (adminStatus) {
+          console.log('🛠️ Admin user logged in');
         }
       } else {
         console.log('👤 No user signed in');
@@ -273,6 +319,7 @@ export function AuthProvider({ children }) {
     console.log('🔥 AuthContext state:', {
       hasAuth: !!auth,
       hasCurrentUser: !!currentUser,
+      isAdmin: currentUser?.isAdmin || false,
       isLoading,
       functionsAvailable: {
         signup: !!signup,
@@ -288,16 +335,16 @@ export function AuthProvider({ children }) {
     currentUser,
     isLoading,
     error,
-    signup,           // Email signup
-    login,            // Email login
-    logout,           // Logout
-    signOut: logout,  // Alias for logout
-    signInWithGoogle, // Google sign-in
+    isAdmin: currentUser?.isAdmin || false,
+    signup,
+    login,
+    logout,
+    signOut: logout,
+    signInWithGoogle,
     updateUserProfile,
     saveCartToFirebase
   };
 
-  // Always log what we're providing
   console.log('🔥 Running with Firebase Authentication');
   console.log('📦 Providing auth functions:', Object.keys(value));
 
@@ -307,5 +354,7 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   );
 }
+
+// IMPORTANT: Export both named and default exports
 
 export default AuthProvider;

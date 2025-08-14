@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
+
 function AuthModal({ isOpen, onClose }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');

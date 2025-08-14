@@ -7,8 +7,9 @@ import InstacartIntegration from './components/InstacartIntegration';
 import SmartAIAssistant from './components/SmartAIAssistant';
 import ProductValidator from './components/ProductValidator';
 import MyAccount from './components/MyAccount';
-import FirebaseDebug from './components/FirebaseDebug';
-import AuthTest from './components/AuthTest';
+
+
+
 
 // Import the enhanced components
 import ParsingAnalyticsDashboard from './components/ParsingAnalyticsDashboard';
@@ -28,6 +29,9 @@ import confetti from 'canvas-confetti';
 // Import debug component (remove after testing)
 // import AuthDebug from './components/AuthDebug';
 
+const ADMIN_EMAILS = [
+  'scaliouette@gmail.com',  // ← YOUR REAL EMAIL HERE!
+];
 
 
 // Define styles OUTSIDE of components at module level
@@ -624,6 +628,8 @@ function SyncStatusIndicator({ isSyncing, lastSync, error }) {
   );
 }
 
+
+
 // Draft Restoration Banner Component
 function DraftRestorationBanner({ draft, onRestore, onDismiss }) {
   if (!draft || !draft.content) return null;
@@ -778,78 +784,108 @@ function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
 }
 
 // Header Component
+// Replace your Header component in App.js with this fixed version:
+
+// Header Component
 function Header({ currentView, onViewChange }) {
-  const { currentUser, signOut, isLoading } = useAuth();
+  const { currentUser, signOut, isLoading, isAdmin } = useAuth(); // Get isAdmin from context
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false); // Add admin dashboard state
 
   return (
-    <header style={styles.header}>
-      
-      <div style={styles.headerContent}>
-        <div 
-          style={styles.logoContainer}
-          onClick={() => onViewChange('home')}
-        >
-          <div style={styles.logoIcon}>🎯</div>
-          <span style={styles.logoText}>SMART CART</span>
-        </div>
-        
-        {currentUser && (
-          <nav style={styles.nav}>
-            <button
-              onClick={() => onViewChange('home')}
-              style={{
-                ...styles.navButton,
-                ...(currentView === 'home' ? styles.navButtonActive : {})
-              }}
-            >
-              🏠 Home
-            </button>
-            <button
-              onClick={() => onViewChange('account')}
-              style={{
-                ...styles.navButton,
-                ...(currentView === 'account' ? styles.navButtonActive : {})
-              }}
-            >
-              👤 My Account
-            </button>
-          </nav>
-        )}
-        
-        <div style={styles.headerActions}>
-          {isLoading ? (
-            <span style={styles.loadingText}>
-              <ButtonSpinner color="#6b7280" /> Loading...
-            </span>
-          ) : currentUser ? (
-            <div style={styles.userSection}>
-              <span style={styles.userName}>
-                {currentUser.displayName || currentUser.email.split('@')[0]}
-              </span>
-              <button 
-                onClick={signOut}
-                style={styles.signOutBtn}
+    <>
+      <header style={styles.header}>
+        <div style={styles.headerContent}>
+          <div 
+            style={styles.logoContainer}
+            onClick={() => onViewChange('home')}
+          >
+            <div style={styles.logoIcon}>🎯</div>
+            <span style={styles.logoText}>SMART CART</span>
+          </div>
+          
+          {currentUser && (
+            <nav style={styles.nav}>
+              <button
+                onClick={() => onViewChange('home')}
+                style={{
+                  ...styles.navButton,
+                  ...(currentView === 'home' ? styles.navButtonActive : {})
+                }}
               >
-                Sign Out
+                🏠 Home
               </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowAuthModal(true)}
-              style={styles.ctaButton}
-            >
-              🔐 Sign In
-            </button>
+              <button
+                onClick={() => onViewChange('account')}
+                style={{
+                  ...styles.navButton,
+                  ...(currentView === 'account' ? styles.navButtonActive : {})
+                }}
+              >
+                👤 My Account
+              </button>
+              
+              {/* Admin Button - Only shows if user is admin */}
+              {isAdmin && (
+                <button
+                  onClick={() => setShowAdminDashboard(true)}
+                  style={{
+                    ...styles.navButton,
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    border: '2px solid #ef4444',
+                  }}
+                >
+                  🛠️ Admin
+                </button>
+              )}
+            </nav>
           )}
+          
+          <div style={styles.headerActions}>
+            {isLoading ? (
+              <span style={styles.loadingText}>
+                <ButtonSpinner color="#6b7280" /> Loading...
+              </span>
+            ) : currentUser ? (
+              <div style={styles.userSection}>
+                <span style={styles.userName}>
+                  {currentUser.displayName || currentUser.email.split('@')[0]}
+                  {isAdmin && ' (Admin)'} {/* Show admin badge */}
+                </span>
+                <button 
+                  onClick={signOut}
+                  style={styles.signOutBtn}
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                style={styles.ctaButton}
+              >
+                🔐 Sign In
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
       
+      {/* Auth Modal */}
       <AuthModal 
         isOpen={showAuthModal} 
         onClose={() => setShowAuthModal(false)} 
       />
-    </header>
+      
+      {/* Admin Dashboard Modal */}
+      {showAdminDashboard && isAdmin && (
+        <AdminDashboard 
+          onClose={() => setShowAdminDashboard(false)}
+          currentUser={currentUser}
+        />
+      )}
+    </>
   );
 }
 
@@ -1332,9 +1368,7 @@ function App() {
     <AuthProvider>
       <div style={styles.app}>
         <Header currentView={currentView} onViewChange={setCurrentView} />
-        {process.env.NODE_ENV === 'development' && (
-  <AuthTest />
-)}
+        
 
         <main style={styles.main}>
           {currentView === 'home' ? (
@@ -1393,11 +1427,12 @@ function App() {
         
         {/* Debug component - REMOVE AFTER TESTING */}
         {/* {process.env.NODE_ENV === 'development' && <AuthDebug />} */}
-        <FirebaseDebug />
+        
       </div>
     </AuthProvider>
   );
 }
+
 
 // Add CSS animations
 const styleSheet = document.createElement('style');
@@ -1446,5 +1481,5 @@ styleSheet.textContent = `
   }
 `;
 document.head.appendChild(styleSheet);
-
+export { AuthProvider };
 export default App;

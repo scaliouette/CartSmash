@@ -1,6 +1,7 @@
 // client/src/components/ParsedResultsDisplay.js
 import React, { useState, useEffect } from 'react';
 import { InlineSpinner } from './LoadingSpinner';
+import { useAuth } from '../contexts/AuthContext';
 
 function ParsedResultsDisplay({ items, currentUser, onItemsChange, parsingStats }) {
   const [viewMode, setViewMode] = useState('category'); // 'list' or 'category'
