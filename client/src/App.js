@@ -672,6 +672,8 @@ function DraftRestorationBanner({ draft, onRestore, onDismiss }) {
   );
 }
 
+
+
 // Header Component with CARTSMASH branding
 function Header({ currentView, onViewChange }) {
   const { currentUser, signOut, isLoading, isAdmin } = useAuth();
@@ -994,7 +996,20 @@ function GroceryListForm({ savedRecipes, setSavedRecipes }) {
       alert('🎉 All items are already validated! Your cart looks great.');
     }
   };
-
+// Add to App.js
+useEffect(() => {
+  const history = JSON.parse(localStorage.getItem('cartsmash-history') || '[]');
+  if (parsedItems.length > 0) {
+    const entry = {
+      id: Date.now(),
+      items: parsedItems,
+      timestamp: new Date().toISOString(),
+      itemCount: parsedItems.length
+    };
+    const newHistory = [entry, ...history.slice(0, 9)]; // Keep last 10
+    localStorage.setItem('cartsmash-history', JSON.stringify(newHistory));
+  }
+}, [parsedItems]);
   // NEW: Save List functionality
   const handleSaveList = async () => {
     if (!parsedItems || parsedItems.length === 0) {

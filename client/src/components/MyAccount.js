@@ -70,6 +70,8 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
     }
   };
 
+  
+
   const handleLoadList = (list) => {
     if (onRecipeSelect) {
       // Convert list to recipe format for loading
@@ -81,7 +83,13 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
       };
       onRecipeSelect(recipeFormat);
     }
+    if (!list?.items || list.items.length === 0) {
+    alert('This list appears to be empty');
+    return;
+  }
   };
+
+
 
   const renderOverview = () => (
     <div style={styles.overviewContainer}>

@@ -6,6 +6,18 @@ function GroceryListForm({ onParsedItems }) {
   const [isLoading, setIsLoading] = useState(false);
   const [useAdvanced, setUseAdvanced] = useState(false);
 
+  <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+  {Object.entries(quickTemplates).map(([name, items]) => (
+    <button
+      key={name}
+      onClick={() => setInputText(items)}
+      style={{ padding: '6px 12px', fontSize: '14px' }}
+    >
+      📋 {name}
+    </button>
+  ))}
+</div>
+
   const sampleList = `2 lbs chicken breast
 1 dozen eggs
 3 bananas
@@ -44,6 +56,12 @@ Greek yogurt`;
           unit = match2[3] || '';
         }
       }
+
+      const quickTemplates = {
+  'Weekly Essentials': 'Milk\n2 Bread\n1 dozen Eggs\nButter\nBananas',
+  'Party Supplies': '2 bags Chips\n6-pack Soda\nNapkins\nPaper plates',
+  'Breakfast Items': 'Cereal\nYogurt\nOrange juice\nBagels'
+};
       
       // Determine category
       let category = 'other';
@@ -287,5 +305,7 @@ Greek yogurt`;
     </div>
   );
 }
+
+
 
 export default GroceryListForm;
