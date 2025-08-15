@@ -1,210 +1,333 @@
-// client/src/components/RecipeManager.js - SIMPLIFIED VERSION
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+// client/src/components/RecipeManager.js
+import React, { useState } from 'react';
+import { useCart } from '../contexts/CartContext';
 
-function RecipeManager({ onClose, onRecipeSelect }) {
-  const [recipes, setRecipes] = useState([]);
-  const [showAddForm, setShowAddForm] = useState(false);
+function RecipeManager({ onClose }) {
+  const {
+    savedRecipes,
+    saveRecipe,
+    loadRecipeToCart,
+    deleteRecipe,
+    quickAddRecipe
+  } = useCart();
+  
+  const [activeTab, setActiveTab] = useState('browse');
   const [newRecipe, setNewRecipe] = useState({
     name: '',
+    category: 'dinner',
     ingredients: '',
-    instructions: ''
+    instructions: '',
+    servings: 4
   });
-  const { currentUser } = useAuth();
-
-  useEffect(() => {
-    loadRecipes();
-  }, []);
-
-  const loadRecipes = async () => {
-    try {
-      // Load from localStorage first
-      const saved = localStorage.getItem('cartsmash-recipes');
-      if (saved) {
-        setRecipes(JSON.parse(saved));
-      }
-
-      // Try to load from server
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/api/recipes`, {
-        headers: { 'user-id': currentUser?.uid || 'guest' }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setRecipes(data.recipes || []);
-      }
-    } catch (error) {
-      console.error('Failed to load recipes:', error);
-    }
-  };
-
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Filter recipes based on search
+  const filteredRecipes = savedRecipes.filter(recipe =>
+    recipe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    recipe.category?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  // Handle saving a new recipe
   const handleSaveRecipe = async () => {
     if (!newRecipe.name || !newRecipe.ingredients) {
-      alert('Please add a recipe name and ingredients');
+      alert('Please provide a recipe name and ingredients');
       return;
     }
-
-    const recipe = {
-      id: `recipe_${Date.now()}`,
-      ...newRecipe,
-      createdAt: new Date().toISOString(),
-      userId: currentUser?.uid || 'guest'
-    };
-
-    // Save to localStorage
-    const updatedRecipes = [...recipes, recipe];
-    setRecipes(updatedRecipes);
-    localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
-
-    // Try to save to server
-    try {
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      await fetch(`${API_URL}/api/recipes`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'user-id': currentUser?.uid || 'guest'
-        },
-        body: JSON.stringify(recipe)
+    
+    const saved = await saveRecipe(newRecipe);
+    if (saved) {
+      alert(`✅ Recipe "${newRecipe.name}" saved!`);
+      setNewRecipe({
+        name: '',
+        category: 'dinner',
+        ingredients: '',
+        instructions: '',
+        servings: 4
       });
-    } catch (error) {
-      console.error('Failed to save to server:', error);
-    }
-
-    // Reset form
-    setNewRecipe({ name: '', ingredients: '', instructions: '' });
-    setShowAddForm(false);
-    alert('✅ Recipe saved!');
-  };
-
-  const handleDeleteRecipe = (recipeId) => {
-    if (window.confirm('Delete this recipe?')) {
-      const updatedRecipes = recipes.filter(r => r.id !== recipeId);
-      setRecipes(updatedRecipes);
-      localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
+      setActiveTab('browse');
     }
   };
-
-  const handleUseRecipe = (recipe) => {
-    if (onRecipeSelect) {
-      onRecipeSelect(recipe);
-    }
-    if (onClose) {
+  
+  // Handle quick add to cart
+  const handleQuickAdd = async (recipe) => {
+    const result = await loadRecipeToCart(recipe, true); // Merge with existing cart
+    if (result.success) {
+      alert(`✅ Added ${result.itemsAdded || result.itemsLoaded} items from "${recipe.name}" to cart`);
       onClose();
     }
   };
-
+  
+  // Handle replace cart
+  const handleReplaceCart = async (recipe) => {
+    if (window.confirm('This will replace your entire cart. Continue?')) {
+      const result = await loadRecipeToCart(recipe, false); // Replace cart
+      if (result.success) {
+        alert(`✅ Cart replaced with ${result.itemsAdded || result.itemsLoaded} items from "${recipe.name}"`);
+        onClose();
+      }
+    }
+  };
+  
+  // Handle delete
+  const handleDeleteRecipe = (recipeId, recipeName) => {
+    if (window.confirm(`Delete recipe "${recipeName}"?`)) {
+      deleteRecipe(recipeId);
+      alert(`Recipe "${recipeName}" deleted`);
+    }
+  };
+  
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
         <div style={styles.header}>
-          <h2 style={styles.title}>📝 My Recipes</h2>
-          <button onClick={onClose} style={styles.closeBtn}>×</button>
+          <h2 style={styles.title}>📖 Recipe Manager</h2>
+          <button onClick={onClose} style={styles.closeButton}>✕</button>
         </div>
-
+        
+        <div style={styles.tabs}>
+          <button
+            onClick={() => setActiveTab('browse')}
+            style={{
+              ...styles.tab,
+              ...(activeTab === 'browse' ? styles.tabActive : {})
+            }}
+          >
+            Browse Recipes ({savedRecipes.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('create')}
+            style={{
+              ...styles.tab,
+              ...(activeTab === 'create' ? styles.tabActive : {})
+            }}
+          >
+            Create New
+          </button>
+          <button
+            onClick={() => setActiveTab('import')}
+            style={{
+              ...styles.tab,
+              ...(activeTab === 'import' ? styles.tabActive : {})
+            }}
+          >
+            Quick Import
+          </button>
+        </div>
+        
         <div style={styles.content}>
-          {!showAddForm ? (
-            <>
-              <button 
-                onClick={() => setShowAddForm(true)}
-                style={styles.addButton}
-              >
-                ➕ Add New Recipe
-              </button>
-
-              <div style={styles.recipesList}>
-                {recipes.length === 0 ? (
-                  <div style={styles.emptyState}>
-                    <p>No recipes saved yet</p>
-                    <p style={styles.emptyHint}>Click "Add New Recipe" to get started!</p>
-                  </div>
-                ) : (
-                  recipes.map(recipe => (
+          {/* Browse Tab */}
+          {activeTab === 'browse' && (
+            <div>
+              <input
+                type="text"
+                placeholder="Search recipes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={styles.searchInput}
+              />
+              
+              {filteredRecipes.length === 0 ? (
+                <div style={styles.emptyState}>
+                  <p>No recipes found</p>
+                  <button 
+                    onClick={() => setActiveTab('create')}
+                    style={styles.createButton}
+                  >
+                    Create your first recipe
+                  </button>
+                </div>
+              ) : (
+                <div style={styles.recipeGrid}>
+                  {filteredRecipes.map(recipe => (
                     <div key={recipe.id} style={styles.recipeCard}>
-                      <h3 style={styles.recipeName}>{recipe.name}</h3>
-                      
-                      <div style={styles.recipeSection}>
-                        <strong>Ingredients:</strong>
-                        <pre style={styles.recipeText}>{recipe.ingredients}</pre>
+                      <div style={styles.recipeHeader}>
+                        <h3 style={styles.recipeName}>{recipe.name}</h3>
+                        {recipe.category && (
+                          <span style={styles.categoryBadge}>
+                            {recipe.category}
+                          </span>
+                        )}
                       </div>
                       
-                      {recipe.instructions && (
-                        <div style={styles.recipeSection}>
-                          <strong>Instructions:</strong>
-                          <pre style={styles.recipeText}>{recipe.instructions}</pre>
+                      <div style={styles.recipeIngredients}>
+                        <strong>Ingredients:</strong>
+                        <div style={styles.ingredientPreview}>
+                          {recipe.ingredients.split('\n').slice(0, 3).map((ing, i) => (
+                            <div key={i}>• {ing}</div>
+                          ))}
+                          {recipe.ingredients.split('\n').length > 3 && (
+                            <div style={styles.moreText}>
+                              ...and {recipe.ingredients.split('\n').length - 3} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {recipe.parsedItems && (
+                        <div style={styles.itemCount}>
+                          {recipe.parsedItems.length} items ready to add
                         </div>
                       )}
                       
                       <div style={styles.recipeActions}>
-                        <button 
-                          onClick={() => handleUseRecipe(recipe)}
-                          style={styles.useButton}
+                        <button
+                          onClick={() => handleQuickAdd(recipe)}
+                          style={styles.addButton}
                         >
-                          🛒 Add to Cart
+                          ➕ Add to Cart
                         </button>
-                        <button 
-                          onClick={() => handleDeleteRecipe(recipe.id)}
+                        <button
+                          onClick={() => handleReplaceCart(recipe)}
+                          style={styles.replaceButton}
+                        >
+                          🔄 Replace Cart
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRecipe(recipe.id, recipe.name)}
                           style={styles.deleteButton}
                         >
-                          🗑️ Delete
+                          🗑️
                         </button>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </>
-          ) : (
-            <div style={styles.addForm}>
-              <h3 style={styles.formTitle}>Add New Recipe</h3>
-              
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Create Tab */}
+          {activeTab === 'create' && (
+            <div style={styles.createForm}>
               <input
                 type="text"
-                placeholder="Recipe Name (e.g., Chicken Stir Fry)"
+                placeholder="Recipe Name"
                 value={newRecipe.name}
-                onChange={(e) => setNewRecipe({...newRecipe, name: e.target.value})}
+                onChange={(e) => setNewRecipe(prev => ({ ...prev, name: e.target.value }))}
                 style={styles.input}
               />
               
+              <select
+                value={newRecipe.category}
+                onChange={(e) => setNewRecipe(prev => ({ ...prev, category: e.target.value }))}
+                style={styles.select}
+              >
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="snack">Snack</option>
+                <option value="dessert">Dessert</option>
+              </select>
+              
               <textarea
-                placeholder="Ingredients (one per line):
+                placeholder="Ingredients (one per line)
+Example:
 2 lbs chicken breast
 1 cup rice
-3 bell peppers
-2 tbsp soy sauce"
+1 can tomatoes"
                 value={newRecipe.ingredients}
-                onChange={(e) => setNewRecipe({...newRecipe, ingredients: e.target.value})}
+                onChange={(e) => setNewRecipe(prev => ({ ...prev, ingredients: e.target.value }))}
                 style={styles.textarea}
-                rows="8"
+                rows={8}
               />
               
               <textarea
-                placeholder="Instructions (optional):
-1. Cut chicken into cubes
-2. Cook rice according to package
-3. Stir fry chicken with peppers"
+                placeholder="Instructions (optional)"
                 value={newRecipe.instructions}
-                onChange={(e) => setNewRecipe({...newRecipe, instructions: e.target.value})}
+                onChange={(e) => setNewRecipe(prev => ({ ...prev, instructions: e.target.value }))}
                 style={styles.textarea}
-                rows="5"
+                rows={4}
               />
               
-              <div style={styles.formActions}>
-                <button 
-                  onClick={handleSaveRecipe}
-                  style={styles.saveButton}
-                >
-                  💾 Save Recipe
-                </button>
-                <button 
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setNewRecipe({ name: '', ingredients: '', instructions: '' });
+              <button
+                onClick={handleSaveRecipe}
+                style={styles.saveButton}
+                disabled={!newRecipe.name || !newRecipe.ingredients}
+              >
+                💾 Save Recipe
+              </button>
+            </div>
+          )}
+          
+          {/* Import Tab */}
+          {activeTab === 'import' && (
+            <div style={styles.importSection}>
+              <h3>Quick Import from Text</h3>
+              <p style={styles.importHelp}>
+                Paste a recipe with ingredients and we'll parse it for you!
+              </p>
+              
+              <textarea
+                placeholder="Paste your recipe here. Include the recipe name on the first line."
+                style={styles.importTextarea}
+                rows={10}
+                onBlur={async (e) => {
+                  const text = e.target.value;
+                  if (!text) return;
+                  
+                  const lines = text.split('\n');
+                  const recipeName = lines[0] || 'Imported Recipe';
+                  const ingredients = lines.slice(1).join('\n');
+                  
+                  if (window.confirm(`Import recipe "${recipeName}"?`)) {
+                    const result = await quickAddRecipe(ingredients, recipeName);
+                    if (result.success) {
+                      alert(`✅ Recipe imported with ${result.itemsAdded} items!`);
+                      e.target.value = '';
+                      setActiveTab('browse');
+                    }
+                  }
+                }}
+              />
+              
+              <div style={styles.templates}>
+                <h4>Sample Templates:</h4>
+                <button
+                  onClick={async () => {
+                    const template = `Classic Spaghetti Carbonara
+2 lbs spaghetti
+6 eggs
+1 cup parmesan cheese
+8 oz bacon
+4 cloves garlic
+Black pepper
+Salt`;
+                    const result = await quickAddRecipe(
+                      template.split('\n').slice(1).join('\n'),
+                      'Classic Spaghetti Carbonara'
+                    );
+                    if (result.success) {
+                      alert('✅ Template recipe added!');
+                      setActiveTab('browse');
+                    }
                   }}
-                  style={styles.cancelButton}
+                  style={styles.templateButton}
                 >
-                  Cancel
+                  🍝 Spaghetti Carbonara
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    const template = `Chicken Stir Fry
+2 lbs chicken breast
+2 cups rice
+1 bottle soy sauce
+1 bag frozen vegetables
+2 tbsp sesame oil
+1 inch ginger
+3 cloves garlic`;
+                    const result = await quickAddRecipe(
+                      template.split('\n').slice(1).join('\n'),
+                      'Chicken Stir Fry'
+                    );
+                    if (result.success) {
+                      alert('✅ Template recipe added!');
+                      setActiveTab('browse');
+                    }
+                  }}
+                  style={styles.templateButton}
+                >
+                  🥘 Chicken Stir Fry
                 </button>
               </div>
             </div>
@@ -224,178 +347,222 @@ const styles = {
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     display: 'flex',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 1000
   },
-
+  
   modal: {
     backgroundColor: 'white',
-    borderRadius: '16px',
+    borderRadius: '12px',
     width: '90%',
-    maxWidth: '700px',
+    maxWidth: '800px',
     maxHeight: '80vh',
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
   },
-
+  
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '20px',
-    borderBottom: '2px solid #f0f0f0'
+    borderBottom: '2px solid #e5e7eb'
   },
-
+  
   title: {
     margin: 0,
     fontSize: '24px',
     fontWeight: 'bold',
     color: '#1f2937'
   },
-
-  closeBtn: {
-    width: '32px',
-    height: '32px',
-    background: '#f3f4f6',
+  
+  closeButton: {
+    background: 'none',
     border: 'none',
-    borderRadius: '8px',
     fontSize: '24px',
     cursor: 'pointer',
-    color: '#6b7280'
+    color: '#6b7280',
+    padding: '4px 8px'
   },
-
-  content: {
-    flex: 1,
-    padding: '20px',
-    overflowY: 'auto'
-  },
-
-  addButton: {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    marginBottom: '20px'
-  },
-
-  recipesList: {
+  
+  tabs: {
     display: 'flex',
-    flexDirection: 'column',
+    backgroundColor: '#f9fafb',
+    borderBottom: '1px solid #e5e7eb'
+  },
+  
+  tab: {
+    flex: 1,
+    padding: '12px',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '15px',
+    color: '#6b7280',
+    fontWeight: '500'
+  },
+  
+  tabActive: {
+    backgroundColor: 'white',
+    color: '#1f2937',
+    borderBottom: '2px solid #3b82f6',
+    marginBottom: '-1px'
+  },
+  
+  content: {
+    padding: '20px',
+    overflowY: 'auto',
+    flex: 1
+  },
+  
+  searchInput: {
+    width: '100%',
+    padding: '10px',
+    fontSize: '16px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    boxSizing: 'border-box'
+  },
+  
+  recipeGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
     gap: '16px'
   },
-
-  emptyState: {
-    textAlign: 'center',
-    padding: '40px',
-    color: '#6b7280'
-  },
-
-  emptyHint: {
-    fontSize: '14px',
-    marginTop: '8px'
-  },
-
+  
   recipeCard: {
-    border: '1px solid #e5e7eb',
-    borderRadius: '12px',
     padding: '16px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
     backgroundColor: '#f9fafb'
   },
-
+  
+  recipeHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'start',
+    marginBottom: '12px'
+  },
+  
   recipeName: {
-    margin: '0 0 12px 0',
-    fontSize: '18px',
+    margin: 0,
+    fontSize: '16px',
     fontWeight: 'bold',
     color: '#1f2937'
   },
-
-  recipeSection: {
+  
+  categoryBadge: {
+    padding: '2px 8px',
+    backgroundColor: '#ddd6fe',
+    color: '#6b21a8',
+    borderRadius: '4px',
+    fontSize: '12px',
+    fontWeight: 'bold'
+  },
+  
+  recipeIngredients: {
+    fontSize: '14px',
+    color: '#4b5563',
     marginBottom: '12px'
   },
-
-  recipeText: {
-    margin: '4px 0',
-    padding: '8px',
-    backgroundColor: 'white',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-    whiteSpace: 'pre-wrap'
+  
+  ingredientPreview: {
+    marginTop: '4px',
+    fontSize: '13px'
   },
-
+  
+  moreText: {
+    fontStyle: 'italic',
+    color: '#9ca3af',
+    marginTop: '4px'
+  },
+  
+  itemCount: {
+    padding: '4px 8px',
+    backgroundColor: '#d1fae5',
+    color: '#065f46',
+    borderRadius: '4px',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    display: 'inline-block',
+    marginBottom: '12px'
+  },
+  
   recipeActions: {
     display: 'flex',
-    gap: '10px',
-    marginTop: '12px'
+    gap: '8px'
   },
-
-  useButton: {
+  
+  addButton: {
     flex: 1,
-    padding: '8px 16px',
+    padding: '8px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '13px'
+  },
+  
+  replaceButton: {
+    flex: 1,
+    padding: '8px',
     backgroundColor: '#3b82f6',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    fontSize: '13px'
   },
-
+  
   deleteButton: {
-    padding: '8px 16px',
+    padding: '8px 12px',
     backgroundColor: '#ef4444',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold'
+    cursor: 'pointer'
   },
-
-  // Add Form Styles
-  addForm: {
+  
+  // Create form styles
+  createForm: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px'
+    gap: '16px',
+    maxWidth: '500px',
+    margin: '0 auto'
   },
-
-  formTitle: {
-    margin: '0 0 8px 0',
-    fontSize: '20px',
-    fontWeight: 'bold',
-    color: '#1f2937'
-  },
-
+  
   input: {
-    padding: '12px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
+    padding: '10px',
     fontSize: '16px',
-    outline: 'none'
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px'
   },
-
-  textarea: {
-    padding: '12px',
+  
+  select: {
+    padding: '10px',
+    fontSize: '16px',
     border: '2px solid #e5e7eb',
     borderRadius: '8px',
+    backgroundColor: 'white'
+  },
+  
+  textarea: {
+    padding: '10px',
     fontSize: '14px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
     fontFamily: 'inherit',
-    resize: 'vertical',
-    outline: 'none'
+    resize: 'vertical'
   },
-
-  formActions: {
-    display: 'flex',
-    gap: '12px'
-  },
-
+  
   saveButton: {
-    flex: 1,
     padding: '12px',
     backgroundColor: '#10b981',
     color: 'white',
@@ -405,16 +572,61 @@ const styles = {
     fontWeight: 'bold',
     cursor: 'pointer'
   },
-
-  cancelButton: {
-    padding: '12px 24px',
-    backgroundColor: '#6b7280',
+  
+  // Import section styles
+  importSection: {
+    maxWidth: '600px',
+    margin: '0 auto'
+  },
+  
+  importHelp: {
+    color: '#6b7280',
+    marginBottom: '16px'
+  },
+  
+  importTextarea: {
+    width: '100%',
+    padding: '12px',
+    fontSize: '14px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    fontFamily: 'monospace',
+    boxSizing: 'border-box'
+  },
+  
+  templates: {
+    marginTop: '24px',
+    padding: '16px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '8px'
+  },
+  
+  templateButton: {
+    padding: '10px 16px',
+    margin: '8px',
+    backgroundColor: '#6366f1',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: 'bold'
+  },
+  
+  emptyState: {
+    textAlign: 'center',
+    padding: '40px',
+    color: '#6b7280'
+  },
+  
+  createButton: {
+    marginTop: '16px',
+    padding: '10px 20px',
+    backgroundColor: '#10b981',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontWeight: 'bold'
   }
 };
 

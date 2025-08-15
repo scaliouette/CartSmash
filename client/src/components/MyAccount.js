@@ -1,101 +1,62 @@
-// client/src/components/MyAccount.js - FIXED VERSION
+// client/src/components/MyAccount.js - CONNECTED VERSION
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import RecipeManager from './RecipeManager';
 
-function MyAccount({ savedRecipes, onRecipeSelect }) {
+function MyAccount({ 
+  savedLists, 
+  savedRecipes, 
+  mealPlans,
+  onRecipeSelect, 
+  onListSelect,
+  deleteList,
+  deleteRecipe 
+}) {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
-  const [shoppingLists, setShoppingLists] = useState([]);
-  const [mealPlans, setMealPlans] = useState([]);
-  const [recipes, setRecipes] = useState([]);
-  const [stats, setStats] = useState({
-    totalLists: 0,
-    totalMealPlans: 0,
-    totalRecipes: 0,
-    itemsParsed: 0
-  });
   const [showRecipeManager, setShowRecipeManager] = useState(false);
-
-  useEffect(() => {
-    loadUserData();
-  }, [currentUser]);
-
-  const loadUserData = async () => {
-    if (!currentUser) return;
-
-    // Load from localStorage first
-    const savedLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
-    const savedMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
-    const savedRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
-    
-    setShoppingLists(savedLists);
-    setMealPlans(savedMealPlans);
-    setRecipes(savedRecipes);
-    
-    // Calculate stats
-    const itemCount = savedLists.reduce((sum, list) => sum + (list.items?.length || 0), 0);
-    setStats({
-      totalLists: savedLists.length,
-      totalMealPlans: savedMealPlans.length,
-      totalRecipes: savedRecipes.length,
-      itemsParsed: itemCount
-    });
-
-    // Try to load from server
-    try {
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/api/user/data`, {
-        headers: { 'user-id': currentUser.uid }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.lists) setShoppingLists(data.lists);
-        if (data.mealPlans) setMealPlans(data.mealPlans);
-        if (data.recipes) setRecipes(data.recipes);
-        if (data.stats) setStats(data.stats);
-      }
-    } catch (error) {
-      console.error('Failed to load user data:', error);
-    }
-  };
-
-  const handleDeleteList = (listId) => {
-    if (window.confirm('Delete this shopping list?')) {
-      const updated = shoppingLists.filter(l => l.id !== listId);
-      setShoppingLists(updated);
-      localStorage.setItem('cartsmash-lists', JSON.stringify(updated));
-      setStats(prev => ({ ...prev, totalLists: updated.length }));
-    }
-  };
-
   
+  // Calculate stats
+  const stats = {
+    totalLists: savedLists?.length || 0,
+    totalMealPlans: mealPlans?.length || 0,
+    totalRecipes: savedRecipes?.length || 0,
+    itemsParsed: savedLists?.reduce((sum, list) => sum + (list.items?.length || 0), 0) || 0
+  };
 
   const handleLoadList = (list) => {
-    if (onRecipeSelect) {
-      // Convert list to recipe format for loading
-      const recipeFormat = {
-        name: list.name,
-        ingredients: list.items.map(item => 
-          `${item.quantity || 1} ${item.unit || ''} ${item.productName || item.itemName || item.name}`
-        ).join('\n')
-      };
-      onRecipeSelect(recipeFormat);
+    if (onListSelect) {
+      onListSelect(list);
     }
-    if (!list?.items || list.items.length === 0) {
-    alert('This list appears to be empty');
-    return;
-  }
   };
 
+  const handleLoadRecipe = (recipe) => {
+    if (onRecipeSelect) {
+      onRecipeSelect(recipe);
+    }
+  };
 
+  const handleDeleteList = (listId, listName) => {
+    if (window.confirm(`Delete list "${listName}"?`)) {
+      deleteList(listId);
+    }
+  };
+
+  const handleDeleteRecipe = (recipeId, recipeName) => {
+    if (window.confirm(`Delete recipe "${recipeName}"?`)) {
+      deleteRecipe(recipeId);
+    }
+  };
 
   const renderOverview = () => (
     <div style={styles.overviewContainer}>
       <div style={styles.welcomeSection}>
-        <h2 style={styles.welcomeTitle}>Welcome back, {currentUser?.displayName || currentUser?.email?.split('@')[0]}!</h2>
-        <p style={styles.welcomeSubtitle}>Manage your shopping lists, meal plans, and recipes all in one place.</p>
+        <h2 style={styles.welcomeTitle}>
+          Welcome back, {currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User'}!
+        </h2>
+        <p style={styles.welcomeSubtitle}>
+          Manage your shopping lists, meal plans, and recipes all in one place.
+        </p>
       </div>
 
       <div style={styles.statsGrid}>
@@ -124,11 +85,11 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
         </div>
       </div>
 
-      {shoppingLists.length > 0 && (
+      {savedLists && savedLists.length > 0 && (
         <div style={styles.recentSection}>
           <h3 style={styles.sectionTitle}>Recent Shopping Lists</h3>
           <div style={styles.recentItems}>
-            {shoppingLists.slice(0, 3).map(list => (
+            {savedLists.slice(0, 3).map(list => (
               <div key={list.id} style={styles.recentItem}>
                 <div style={styles.recentItemInfo}>
                   <strong>{list.name || 'Untitled List'}</strong>
@@ -145,6 +106,30 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
           </div>
         </div>
       )}
+
+      {savedRecipes && savedRecipes.length > 0 && (
+        <div style={styles.recentSection}>
+          <h3 style={styles.sectionTitle}>Recent Recipes</h3>
+          <div style={styles.recentItems}>
+            {savedRecipes.slice(0, 3).map(recipe => (
+              <div key={recipe.id} style={styles.recentItem}>
+                <div style={styles.recentItemInfo}>
+                  <strong>{recipe.name || 'Untitled Recipe'}</strong>
+                  <span style={styles.itemCount}>
+                    {recipe.ingredients ? recipe.ingredients.split('\n').filter(l => l.trim()).length : 0} ingredients
+                  </span>
+                </div>
+                <button 
+                  onClick={() => handleLoadRecipe(recipe)}
+                  style={styles.loadButton}
+                >
+                  Use
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -152,7 +137,7 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
     <div style={styles.listsContainer}>
       <h2 style={styles.pageTitle}>Shopping Lists</h2>
       
-      {shoppingLists.length === 0 ? (
+      {!savedLists || savedLists.length === 0 ? (
         <div style={styles.emptyState}>
           <div style={styles.emptyIcon}>🛒</div>
           <p>No shopping lists saved yet</p>
@@ -160,7 +145,7 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
         </div>
       ) : (
         <div style={styles.listGrid}>
-          {shoppingLists.map(list => (
+          {savedLists.map(list => (
             <div key={list.id || list.createdAt} style={styles.listCard}>
               <h3 style={styles.listName}>{list.name || 'Untitled List'}</h3>
               <div style={styles.listMeta}>
@@ -188,7 +173,7 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
                   🛒 Load List
                 </button>
                 <button 
-                  onClick={() => handleDeleteList(list.id || list.createdAt)}
+                  onClick={() => handleDeleteList(list.id || list.createdAt, list.name)}
                   style={styles.deleteButton}
                 >
                   🗑️
@@ -213,7 +198,7 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
         </button>
       </div>
       
-      {recipes.length === 0 ? (
+      {!savedRecipes || savedRecipes.length === 0 ? (
         <div style={styles.emptyState}>
           <div style={styles.emptyIcon}>📖</div>
           <p>No recipes saved yet</p>
@@ -221,7 +206,7 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
         </div>
       ) : (
         <div style={styles.recipeGrid}>
-          {recipes.map(recipe => (
+          {savedRecipes.map(recipe => (
             <div key={recipe.id} style={styles.recipeCard}>
               <h3 style={styles.recipeName}>{recipe.name}</h3>
               
@@ -241,15 +226,49 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
                 </div>
               </div>
               
-              <button 
-                onClick={() => {
-                  if (onRecipeSelect) {
-                    onRecipeSelect(recipe);
-                  }
-                }}
-                style={styles.useRecipeButton}
-              >
-                🛒 Add to Cart
+              <div style={styles.recipeActions}>
+                <button 
+                  onClick={() => handleLoadRecipe(recipe)}
+                  style={styles.useRecipeButton}
+                >
+                  🛒 Add to Cart
+                </button>
+                <button 
+                  onClick={() => handleDeleteRecipe(recipe.id, recipe.name)}
+                  style={styles.deleteRecipeButton}
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderMealPlans = () => (
+    <div style={styles.mealPlansContainer}>
+      <h2 style={styles.pageTitle}>Meal Plans</h2>
+      
+      {!mealPlans || mealPlans.length === 0 ? (
+        <div style={styles.emptyState}>
+          <div style={styles.emptyIcon}>📅</div>
+          <p>No meal plans yet</p>
+          <p style={styles.emptyHint}>Meal planning feature coming soon!</p>
+        </div>
+      ) : (
+        <div style={styles.mealPlanGrid}>
+          {mealPlans.map(plan => (
+            <div key={plan.id} style={styles.mealPlanCard}>
+              <h3>{plan.name}</h3>
+              <p>{plan.items?.length || 0} items</p>
+              <button onClick={() => {
+                if (onListSelect) {
+                  onListSelect(plan);
+                }
+              }}>
+                Load Plan
               </button>
             </div>
           ))}
@@ -282,7 +301,7 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
             ...(activeTab === 'lists' ? styles.tabActive : {})
           }}
         >
-          🛒 Shopping Lists
+          🛒 Shopping Lists ({stats.totalLists})
         </button>
         <button
           onClick={() => setActiveTab('mealplans')}
@@ -291,7 +310,7 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
             ...(activeTab === 'mealplans' ? styles.tabActive : {})
           }}
         >
-          📅 Meal Plans
+          📅 Meal Plans ({stats.totalMealPlans})
         </button>
         <button
           onClick={() => setActiveTab('recipes')}
@@ -300,19 +319,14 @@ function MyAccount({ savedRecipes, onRecipeSelect }) {
             ...(activeTab === 'recipes' ? styles.tabActive : {})
           }}
         >
-          📖 Recipes
+          📖 Recipes ({stats.totalRecipes})
         </button>
       </div>
 
       <div style={styles.content}>
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'lists' && renderShoppingLists()}
-        {activeTab === 'mealplans' && (
-          <div style={styles.emptyState}>
-            <div style={styles.emptyIcon}>📅</div>
-            <p>Meal planning coming soon!</p>
-          </div>
-        )}
+        {activeTab === 'mealplans' && renderMealPlans()}
         {activeTab === 'recipes' && renderRecipes()}
       </div>
 
@@ -634,8 +648,13 @@ const styles = {
     padding: '2px 0'
   },
 
+  recipeActions: {
+    display: 'flex',
+    gap: '8px'
+  },
+
   useRecipeButton: {
-    width: '100%',
+    flex: 1,
     padding: '10px',
     backgroundColor: '#3b82f6',
     color: 'white',
@@ -643,6 +662,35 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
     fontWeight: 'bold'
+  },
+
+  deleteRecipeButton: {
+    padding: '10px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer'
+  },
+
+  // Meal Plans styles
+  mealPlansContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px'
+  },
+
+  mealPlanGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+    gap: '16px'
+  },
+
+  mealPlanCard: {
+    padding: '16px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '8px',
+    border: '1px solid #e5e7eb'
   },
 
   // Empty state
