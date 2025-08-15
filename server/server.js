@@ -70,7 +70,7 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
+    environment: process.env.NODE_ENV || 'production',
     firebase: admin.apps.length > 0 ? 'initialized' : 'not initialized'
   });
 });
@@ -90,6 +90,24 @@ try {
   console.log('✅ Account routes loaded');
 } catch (error) {
   console.log('⚠️ Account routes not found or error loading:', error.message);
+}
+
+try {
+  const aiRoutes = require('./routes/ai');
+  app.use('/api/ai', aiRoutes);
+  console.log('✅ AI routes loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load AI routes:', error.message);
+  
+  // Fallback if AI routes fail to load
+  app.use('/api/ai', (req, res) => {
+    res.status(503).json({
+      success: false,
+      error: 'AI service not available',
+      message: 'AI routes could not be loaded',
+      fallback: true
+    });
+  });
 }
 
 // Note: We're NOT loading the old auth.js routes anymore
