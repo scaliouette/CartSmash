@@ -75,6 +75,29 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Add this to your server.js file after the other route imports (around line 75-80)
+
+
+
+// Import and register the recipes route
+try {
+  const recipesRoutes = require('./routes/recipes');
+  app.use('/api/recipes', recipesRoutes);
+  console.log('✅ Recipes routes loaded');
+} catch (error) {
+  console.log('⚠️ Recipes routes not found or error loading:', error.message);
+  
+  // Fallback if recipes routes fail to load
+  app.use('/api/recipes', (req, res) => {
+    res.status(503).json({
+      success: false,
+      error: 'Recipes service not available',
+      message: 'Recipes routes could not be loaded',
+      fallback: true
+    });
+  });
+}
+
 // Import routes - but check if they exist first
 try {
   const cartRoutes = require('./routes/cart');

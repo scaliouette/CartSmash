@@ -5,8 +5,10 @@ import ParsedResultsDisplay from './ParsedResultsDisplay';
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
 import RecipeManager from './RecipeManager';
+import RecipeImporter from './RecipeImporter';
 import { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
+import userDataService from '../services/userDataService';
 import confetti from 'canvas-confetti';
 
 // Helper functions
@@ -193,12 +195,13 @@ function GroceryListForm({
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [showRecipeManager, setShowRecipeManager] = useState(false);
+  const [showRecipeImporter, setShowRecipeImporter] = useState(false);
   const [validatingAll, setValidatingAll] = useState(false);
   const [parsingProgress, setParsingProgress] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
-
+  
   const { currentUser, saveCartToFirebase } = useAuth();
-
+ 
   // Auto-save hooks
   const { 
     draft, 
@@ -208,14 +211,45 @@ function GroceryListForm({
     isSaving: isDraftSaving
   } = useGroceryListAutoSave(inputText);
 
-    const isCartSyncing = false;
-    const cartLastSync = null;
-    const cartSyncError = null;
+  const isCartSyncing = false;
+  const cartLastSync = null;
+  const cartSyncError = null;
 
   // Show results when cart has items
   useEffect(() => {
     setShowResults(currentCart.length > 0);
   }, [currentCart]);
+
+  // Auto-save cart to Firebase when it changes
+  useEffect(() => {
+    const saveToFirebase = async () => {
+      if (currentUser && currentCart.length > 0) {
+        try {
+          await userDataService.init();
+          await userDataService.saveShoppingList({
+            id: 'current-cart',
+            name: 'Current Cart',
+            items: currentCart,
+            itemCount: currentCart.length,
+            updatedAt: new Date().toISOString(),
+            autoSave: true
+          });
+          console.log('✅ Cart auto-saved to Firebase');
+        } catch (error) {
+          console.error('Failed to save cart to Firebase:', error);
+          // Save to localStorage as fallback
+          localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
+        }
+      } else if (currentCart.length > 0) {
+        // Save to localStorage if not logged in
+        localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
+      }
+    };
+
+    // Debounce the save (wait 2 seconds after changes stop)
+    const timer = setTimeout(saveToFirebase, 2000);
+    return () => clearTimeout(timer);
+  }, [currentCart, currentUser]);
 
   const handleRestoreDraft = () => {
     if (draft && draft.content) {
@@ -476,6 +510,13 @@ function GroceryListForm({
               <button onClick={() => setShowRecipeManager(true)} className="btn btn-recipes">
                 📖 Manage Recipes
               </button>
+              
+              <button onClick={() => {
+                console.log('Import Recipe button clicked!');
+                setShowRecipeImporter(true);
+              }} className="btn btn-import">
+                🔗 Import Recipe
+              </button>
             </div>
           )}
         </div>
@@ -514,6 +555,68 @@ function GroceryListForm({
             alert(`✅ Added ${itemsLoaded} items from "${recipe.name}"`);
           }}
         />
+      )}
+
+      {showRecipeImporter && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <RecipeImporter
+            onClose={() => setShowRecipeImporter(false)}
+            onRecipeImported={async (recipe) => {
+              try {
+                // Save recipe to Firebase if logged in
+                if (currentUser) {
+                  await userDataService.init();
+                  await userDataService.saveRecipe({
+                    ...recipe,
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email
+                  });
+                  console.log('✅ Recipe saved to Firebase');
+                }
+                
+                // Save recipe locally
+                saveRecipe(recipe);
+                
+                // Load ingredients to cart
+                if (recipe.items && recipe.items.length > 0) {
+                  const newCart = mergeCart 
+                    ? [...currentCart, ...recipe.items]
+                    : recipe.items;
+                  setCurrentCart(newCart);
+                  
+                  // Save updated cart to Firebase
+                  if (currentUser) {
+                    await userDataService.saveShoppingList({
+                      id: 'current-cart',
+                      name: 'Current Cart',
+                      items: newCart,
+                      itemCount: newCart.length,
+                      updatedAt: new Date().toISOString()
+                    });
+                  }
+                  
+                  alert(`✅ Imported "${recipe.name}" with ${recipe.items.length} ingredients`);
+                }
+                
+                setShowRecipeImporter(false);
+              } catch (error) {
+                console.error('Error saving to Firebase:', error);
+                alert('Recipe saved locally but failed to sync to cloud');
+              }
+            }}
+          />
+        </div>
       )}
 
       <SmartAIAssistant 

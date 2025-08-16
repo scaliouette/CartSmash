@@ -97,51 +97,69 @@ function MyAccount({
     }
   };
 
- const handleGenerateShoppingList = async (mealPlan) => {
+// In MyAccount.js - Replace the handleGenerateShoppingList function
+const handleGenerateShoppingList = async (mealPlan) => {
   try {
     console.log('Generating shopping list from meal plan:', mealPlan);
     
-    // Use the shopping list that's already in the meal plan
-    if (mealPlan.shoppingList && mealPlan.shoppingList.items && mealPlan.shoppingList.items.length > 0) {
-      if (onListSelect) {
-        onListSelect({ 
-          items: mealPlan.shoppingList.items, 
-          name: `Shopping for ${mealPlan.name}` 
-        });
-      }
-      alert(`✅ Generated shopping list with ${mealPlan.shoppingList.items.length} items`);
-      return;
-    }
-    
-    // If no items in shopping list, try to generate from days
     let allItems = [];
-    if (mealPlan.days) {
-      Object.values(mealPlan.days).forEach(dayMeals => {
-        Object.values(dayMeals || {}).forEach(meal => {
-          if (meal && meal.items) {
-            allItems = [...allItems, ...meal.items];
+    
+    // First check if there's already a shopping list
+    if (mealPlan.shoppingList?.items?.length > 0) {
+      allItems = mealPlan.shoppingList.items;
+    } 
+    // Otherwise collect from all meals
+    else if (mealPlan.days) {
+      const itemsMap = new Map(); // Use map to merge duplicates
+      
+      Object.entries(mealPlan.days).forEach(([day, dayMeals]) => {
+        Object.entries(dayMeals || {}).forEach(([mealType, meal]) => {
+          if (meal?.items?.length > 0) {
+            meal.items.forEach(item => {
+              const key = item.productName || item.name;
+              if (key) {
+                if (itemsMap.has(key)) {
+                  // Merge quantities for duplicates
+                  const existing = itemsMap.get(key);
+                  existing.quantity = (existing.quantity || 1) + (item.quantity || 1);
+                } else {
+                  itemsMap.set(key, { ...item });
+                }
+              }
+            });
           }
         });
       });
+      
+      allItems = Array.from(itemsMap.values());
     }
     
     if (allItems.length > 0) {
+      // Create a proper list object
+      const shoppingList = {
+        id: `list_${Date.now()}`,
+        name: `${mealPlan.name} - Shopping List`,
+        items: allItems,
+        itemCount: allItems.length,
+        createdAt: new Date().toISOString(),
+        fromMealPlan: mealPlan.id
+      };
+      
       if (onListSelect) {
-        onListSelect({ 
-          items: allItems, 
-          name: `Shopping for ${mealPlan.name}` 
-        });
+        onListSelect(shoppingList);
       }
+      
       alert(`✅ Generated shopping list with ${allItems.length} items`);
     } else {
-      alert('⚠️ No items found in this meal plan. Edit the plan to add meals/recipes.');
+      alert('⚠️ No items found. Make sure to add recipes with ingredients to your meal plan.');
     }
     
   } catch (error) {
     console.error('Error generating shopping list:', error);
-    alert('Failed to generate shopping list - please try editing the meal plan to add items');
+    alert('Failed to generate shopping list');
   }
 };
+
 
   const renderShoppingLists = () => (
     <div style={styles.listsContainer}>
