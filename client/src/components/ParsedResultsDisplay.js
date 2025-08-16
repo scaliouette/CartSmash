@@ -215,30 +215,62 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
   };
 
   // Add items to meal group
-  const addToMealGroup = (mealName) => {
-    if (!mealName || selectedItems.size === 0) return;
+    const addToMealGroup = async (mealName) => {
+      if (!mealName || selectedItems.size === 0) return;
 
-    const selectedItemsList = items
-      .filter(item => selectedItems.has(item.id))
-      .map(item => ({
-        id: item.id,
-        name: item.productName || item.itemName,
-        quantity: item.quantity,
-        unit: item.unit,
-        category: item.category
-      }));
+      const selectedItemsList = items
+        .filter(item => selectedItems.has(item.id))
+        .map(item => ({
+          id: item.id,
+          name: item.productName || item.itemName,
+          quantity: item.quantity,
+          unit: item.unit,
+          category: item.category
+        }));
 
-    const updatedMealGroups = {
-      ...mealGroups,
-      [mealName]: [...(mealGroups[mealName] || []), ...selectedItemsList]
+      // Get existing meal plans
+      const existingMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
+      
+      // Find or create a meal plan for this meal
+      let mealPlan = existingMealPlans.find(p => p.name === mealName);
+      
+      if (!mealPlan) {
+        // Create new meal plan
+        mealPlan = {
+          id: `mealplan_${Date.now()}`,
+          name: mealName,
+          items: selectedItemsList,
+          itemCount: selectedItemsList.length,
+          createdAt: new Date().toISOString(),
+          type: 'meal'
+        };
+        existingMealPlans.push(mealPlan);
+      } else {
+        // Add items to existing meal plan
+        mealPlan.items = [...(mealPlan.items || []), ...selectedItemsList];
+        mealPlan.itemCount = mealPlan.items.length;
+        mealPlan.updatedAt = new Date().toISOString();
+      }
+
+      // Save to meal plans instead of meal groups
+      localStorage.setItem('cartsmash-mealplans', JSON.stringify(existingMealPlans));
+      
+      // Also update meal groups for backward compatibility
+      const updatedMealGroups = {
+        ...mealGroups,
+        [mealName]: [...(mealGroups[mealName] || []), ...selectedItemsList]
+      };
+      setMealGroups(updatedMealGroups);
+      
+      setSelectedItems(new Set());
+      setNewMealName('');
+      alert(`Added ${selectedItemsList.length} items to "${mealName}" meal plan`);
+      
+      // Trigger refresh if available
+      if (window.refreshAccountData) {
+        window.refreshAccountData();
+      }
     };
-
-    setMealGroups(updatedMealGroups);
-    localStorage.setItem('cartsmash-meal-groups', JSON.stringify(updatedMealGroups));
-    setSelectedItems(new Set());
-    setNewMealName('');
-    alert(`Added ${selectedItemsList.length} items to "${mealName}"`);
-  };
 
   // Toggle all items selection
   const toggleSelectAll = () => {

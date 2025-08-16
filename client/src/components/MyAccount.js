@@ -97,27 +97,51 @@ function MyAccount({
     }
   };
 
-  const handleGenerateShoppingList = async (mealPlan) => {
-    try {
-      if (currentUser) {
-        const result = await userDataService.generateShoppingListFromMealPlan(mealPlan.id);
-        if (result.items) {
-          if (onListSelect) {
-            onListSelect({ items: result.items, name: `Shopping for ${mealPlan.name}` });
-          }
-          alert(`✅ Generated shopping list with ${result.items.length} items`);
-        }
-      } else {
-        // Fallback for non-authenticated users
-        if (mealPlan.shoppingList && onListSelect) {
-          onListSelect(mealPlan.shoppingList);
-        }
+ const handleGenerateShoppingList = async (mealPlan) => {
+  try {
+    console.log('Generating shopping list from meal plan:', mealPlan);
+    
+    // Use the shopping list that's already in the meal plan
+    if (mealPlan.shoppingList && mealPlan.shoppingList.items && mealPlan.shoppingList.items.length > 0) {
+      if (onListSelect) {
+        onListSelect({ 
+          items: mealPlan.shoppingList.items, 
+          name: `Shopping for ${mealPlan.name}` 
+        });
       }
-    } catch (error) {
-      console.error('Error generating shopping list:', error);
-      alert('Failed to generate shopping list');
+      alert(`✅ Generated shopping list with ${mealPlan.shoppingList.items.length} items`);
+      return;
     }
-  };
+    
+    // If no items in shopping list, try to generate from days
+    let allItems = [];
+    if (mealPlan.days) {
+      Object.values(mealPlan.days).forEach(dayMeals => {
+        Object.values(dayMeals || {}).forEach(meal => {
+          if (meal && meal.items) {
+            allItems = [...allItems, ...meal.items];
+          }
+        });
+      });
+    }
+    
+    if (allItems.length > 0) {
+      if (onListSelect) {
+        onListSelect({ 
+          items: allItems, 
+          name: `Shopping for ${mealPlan.name}` 
+        });
+      }
+      alert(`✅ Generated shopping list with ${allItems.length} items`);
+    } else {
+      alert('⚠️ No items found in this meal plan. Edit the plan to add meals/recipes.');
+    }
+    
+  } catch (error) {
+    console.error('Error generating shopping list:', error);
+    alert('Failed to generate shopping list - please try editing the meal plan to add items');
+  }
+};
 
   const renderShoppingLists = () => (
     <div style={styles.listsContainer}>
@@ -191,10 +215,17 @@ function MyAccount({
       </div>
       
       {!localMealPlans || localMealPlans.length === 0 ? (
-        <div style={styles.emptyState}>
-          <div style={styles.emptyIcon}>📅</div>
-          <p>No meal plans yet</p>
-          <p style={styles.emptyHint}>Create a meal plan to organize your weekly shopping!</p>
+  <div style={styles.emptyState}>
+    <div style={styles.emptyIcon}>📅</div>
+    <p>No meal plans yet</p>
+    <p style={styles.emptyHint}>
+      Create a meal plan to organize your weekly shopping!
+      <br /><br />
+      <strong>How to add meals:</strong><br />
+      1. Click "Create Meal Plan"<br />
+      2. Click "+ Add" or "📖 Recipe" buttons for each day/meal<br />
+      3. Save your plan to generate a shopping list
+    </p>
           <button 
             onClick={() => setShowMealPlanModal(true)}
             style={styles.createFirstPlanButton}
@@ -219,9 +250,21 @@ function MyAccount({
                   <div key={day} style={styles.daySection}>
                     <strong style={styles.dayName}>{day}:</strong>
                     <div style={styles.dayMeals}>
-                      {meals.breakfast && <span style={styles.mealTag}>🌅 B</span>}
-                      {meals.lunch && <span style={styles.mealTag}>☀️ L</span>}
-                      {meals.dinner && <span style={styles.mealTag}>🌙 D</span>}
+                      {meals.breakfast && (
+                        <span style={styles.mealTag} title={meals.breakfast.name || 'Breakfast'}>
+                          🌅 {meals.breakfast.name ? meals.breakfast.name.substring(0, 10) : 'B'}
+                        </span>
+                      )}
+                      {meals.lunch && (
+                        <span style={styles.mealTag} title={meals.lunch.name || 'Lunch'}>
+                          ☀️ {meals.lunch.name ? meals.lunch.name.substring(0, 10) : 'L'}
+                        </span>
+                      )}
+                      {meals.dinner && (
+                        <span style={styles.mealTag} title={meals.dinner.name || 'Dinner'}>
+                          🌙 {meals.dinner.name ? meals.dinner.name.substring(0, 10) : 'D'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -636,15 +679,27 @@ function ListEditModal({ list, onClose, onSave }) {
   );
 }
 
-// Meal Plan Modal Component (keeping the existing one, just updating the save logic)
 function MealPlanModal({ isOpen, onClose, editingPlan, savedRecipes, onSave }) {
-  const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const mealTypes = ['breakfast', 'lunch', 'dinner'];
-  
-  const [planName, setPlanName] = useState(editingPlan?.name || '');
-  const [weekOf, setWeekOf] = useState(editingPlan?.weekOf || new Date().toISOString().split('T')[0]);
-  const [mealSelections, setMealSelections] = useState(editingPlan?.days || {});
+    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const mealTypes = ['breakfast', 'lunch', 'dinner'];
+    
+      const [planName, setPlanName] = useState(editingPlan?.name || '');
+    const [weekOf, setWeekOf] = useState(editingPlan?.weekOf || new Date().toISOString().split('T')[0]);
+    const [mealSelections, setMealSelections] = useState(editingPlan?.days || {});
+    const [showRecipePicker, setShowRecipePicker] = useState(null);
 
+  // Calculate total meals for display
+  const totalMeals = Object.values(mealSelections).reduce((sum, day) => 
+    sum + Object.values(day || {}).filter(meal => meal).length, 0
+  );
+
+const totalRecipes = Object.values(mealSelections).reduce((recipes, day) => {
+  Object.values(day || {}).forEach(meal => {
+    if (meal?.recipeId) recipes.add(meal.name);
+  });
+  return recipes;
+}, new Set()).size;
+  
   const handleMealToggle = (day, mealType, recipe = null) => {
     setMealSelections(prev => ({
       ...prev,
@@ -655,20 +710,154 @@ function MealPlanModal({ isOpen, onClose, editingPlan, savedRecipes, onSave }) {
     }));
   };
 
-  const handleSave = () => {
-    let totalMeals = 0;
-    let allItems = [];
+  const handleAddRecipe = (day, mealType) => {
+    setShowRecipePicker({ day, mealType });
+  };
+
+  const handleSelectRecipe = (recipe) => {
+  if (showRecipePicker) {
+    const { day, mealType } = showRecipePicker;
     
-    Object.values(mealSelections).forEach(dayMeals => {
-      Object.values(dayMeals).forEach(meal => {
+    console.log('Adding recipe to meal plan:', recipe);
+    
+    // Parse recipe ingredients to items
+    let recipeItems = [];
+    
+    // Check if recipe has already parsed ingredients
+    if (recipe.parsedIngredients && recipe.parsedIngredients.length > 0) {
+      recipeItems = recipe.parsedIngredients;
+    } else if (recipe.items && recipe.items.length > 0) {
+      recipeItems = recipe.items;
+    } else if (recipe.ingredients) {
+      // Parse raw ingredients
+      const lines = recipe.ingredients.split('\n').filter(line => line.trim());
+      recipeItems = lines.map((line, idx) => ({
+        id: `${recipe.id}_${idx}`,
+        name: line,
+        productName: line,
+        quantity: 1,
+        unit: 'each',
+        category: 'other'
+      }));
+    }
+    
+    console.log('Recipe items:', recipeItems);
+      
+      handleMealToggle(day, mealType, {
+        name: recipe.name,
+        recipeId: recipe.id,
+        items: recipeItems
+      });
+      setShowRecipePicker(null);
+    }
+  };
+
+  const handleRemoveMeal = (day, mealType) => {
+    setMealSelections(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [mealType]: null
+      }
+    }));
+  };
+
+  const getMealDisplay = (day, mealType) => {
+    const meal = mealSelections[day]?.[mealType];
+    if (!meal) return null;
+    
+    return (
+      <div style={modalStyles.mealContent}>
+        <span style={modalStyles.mealName}>
+          {meal.recipeId ? '📖 ' : '🍽️ '}
+          {meal.name || `${mealType} for ${day}`}
+        </span>
+        {meal.items && meal.items.length > 0 && (
+          <span style={modalStyles.itemCount}>({meal.items.length} items)</span>
+        )}
+        <button
+          onClick={() => handleRemoveMeal(day, mealType)}
+          style={modalStyles.removeMealBtn}
+          title="Remove meal"
+        >
+          ×
+        </button>
+      </div>
+    );
+  };
+
+  const handleSave = () => {
+  let totalMeals = 0;
+  let allItems = [];
+  let allRecipes = [];
+  
+  // Debug logging to see what's being saved
+  console.log('Saving meal plan with selections:', mealSelections);
+  
+const handleSave = () => {
+  let totalMeals = 0;
+  let allItems = [];
+  let allRecipes = [];
+  
+  // Debug logging to see what's being saved
+  console.log('Saving meal plan with selections:', mealSelections);
+  
+  Object.entries(mealSelections).forEach(([day, dayMeals]) => {
+    if (dayMeals) {
+      Object.entries(dayMeals).forEach(([mealType, meal]) => {
         if (meal) {
           totalMeals++;
-          if (meal.items) {
+          console.log(`Found meal for ${day} ${mealType}:`, meal);
+          
+          // Handle items from recipes or manual meals
+          if (meal.items && meal.items.length > 0) {
             allItems = [...allItems, ...meal.items];
+          } else if (meal.ingredients) {
+            // Handle raw ingredients from recipes
+            const lines = meal.ingredients.split('\n').filter(line => line.trim());
+            const parsedItems = lines.map((line, idx) => ({
+              id: `${meal.recipeId || 'meal'}_${day}_${mealType}_${idx}`,
+              name: line,
+              productName: line,
+              quantity: 1,
+              unit: 'each'
+            }));
+            allItems = [...allItems, ...parsedItems];
+            meal.items = parsedItems; // Add items to meal for future reference
+          }
+          
+          if (meal.recipeId) {
+            allRecipes.push({
+              id: meal.recipeId,
+              name: meal.name
+            });
           }
         }
       });
-    });
+    }
+  });  // <-- This closes the forEach
+
+  const plan = {
+    id: editingPlan?.id || `mealplan_${Date.now()}`,
+    name: planName || `Meal Plan - ${new Date(weekOf).toLocaleDateString()}`,
+    weekOf,
+    days: mealSelections,
+    totalMeals,
+    totalItems: allItems.length,
+    recipes: allRecipes,
+    shoppingList: {
+      items: allItems,
+      name: `${planName || 'Meal Plan'} - Shopping List`
+    },
+    createdAt: editingPlan?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  console.log('Final meal plan to save:', plan);
+  console.log(`Total meals: ${totalMeals}, Total items: ${allItems.length}`);
+
+  onSave(plan);
+};  // <-- This closes the function
 
     const plan = {
       id: editingPlan?.id || `mealplan_${Date.now()}`,
@@ -677,6 +866,7 @@ function MealPlanModal({ isOpen, onClose, editingPlan, savedRecipes, onSave }) {
       days: mealSelections,
       totalMeals,
       totalItems: allItems.length,
+      recipes: allRecipes,
       shoppingList: {
         items: allItems,
         name: `${planName || 'Meal Plan'} - Shopping List`
@@ -729,21 +919,78 @@ function MealPlanModal({ isOpen, onClose, editingPlan, savedRecipes, onSave }) {
                 <div style={modalStyles.meals}>
                   {mealTypes.map(mealType => (
                     <div key={mealType} style={modalStyles.mealRow}>
-                      <label style={modalStyles.mealLabel}>
-                        <input
-                          type="checkbox"
-                          checked={!!mealSelections[day]?.[mealType]}
-                          onChange={() => handleMealToggle(day, mealType)}
-                          style={modalStyles.checkbox}
-                        />
+                      <div style={modalStyles.mealTypeLabel}>
                         {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
-                      </label>
+                      </div>
+                      
+                      {mealSelections[day]?.[mealType] ? (
+                        getMealDisplay(day, mealType)
+                      ) : (
+                        <div style={modalStyles.mealActions}>
+                          <button
+                            onClick={() => handleMealToggle(day, mealType)}
+                            style={modalStyles.addMealBtn}
+                          >
+                            + Add
+                          </button>
+                          {savedRecipes && savedRecipes.length > 0 && (
+                            <button
+                              onClick={() => handleAddRecipe(day, mealType)}
+                              style={modalStyles.addRecipeBtn}
+                            >
+                              📖 Recipe
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
             ))}
           </div>
+
+          {/* Recipe Picker Modal */}
+          {showRecipePicker && savedRecipes && (
+            <div style={modalStyles.recipePicker}>
+              <div style={modalStyles.recipePickerContent}>
+                <h3 style={modalStyles.recipePickerTitle}>
+                  Select Recipe for {showRecipePicker.day} {showRecipePicker.mealType}
+                </h3>
+                <div style={modalStyles.recipeList}>
+                  {savedRecipes.map(recipe => (
+                    <div
+                      key={recipe.id}
+                      onClick={() => handleSelectRecipe(recipe)}
+                      style={modalStyles.recipeItem}
+                    >
+                      <span style={modalStyles.recipeName}>📖 {recipe.name}</span>
+                      {recipe.ingredients && (
+                        <span style={modalStyles.recipeIngredientCount}>
+                          ({recipe.ingredients.split('\n').filter(l => l.trim()).length} ingredients)
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowRecipePicker(null)}
+                  style={modalStyles.cancelRecipeBtn}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Plan Summary */}
+          {totalMeals > 0 && (
+            <div style={modalStyles.planSummary}>
+              <h4>Plan Summary</h4>
+              <p>Total Meals: {totalMeals}</p>
+              <p>Recipes Used: {totalRecipes}</p>
+            </div>
+          )}
 
           <div style={modalStyles.actions}>
             <button onClick={handleSave} style={modalStyles.saveButton}>
@@ -1438,7 +1685,194 @@ const modalStyles = {
     borderRadius: '8px',
     cursor: 'pointer',
     fontWeight: 'bold'
+  },
+
+  recipeSection: {
+  marginTop: '20px',
+  marginBottom: '20px',
+  padding: '16px',
+  backgroundColor: '#f9fafb',
+  borderRadius: '8px'
+},
+
+recipeGrid: {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+  gap: '8px',
+  marginTop: '12px'
+},
+
+recipeOption: {
+  padding: '8px 12px',
+  backgroundColor: 'white',
+  border: '2px solid #e5e7eb',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  fontSize: '13px',
+  textAlign: 'center',
+  transition: 'all 0.2s',
+  ':hover': {
+    borderColor: '#3b82f6',
+    backgroundColor: '#eff6ff'
   }
+},
+
+mealRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '8px 0',
+    borderBottom: '1px solid #f3f4f6'
+  },
+
+  mealTypeLabel: {
+    fontSize: '13px',
+    fontWeight: '500',
+    color: '#4b5563',
+    minWidth: '70px'
+  },
+
+  mealContent: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '4px 8px',
+    backgroundColor: '#e0f2fe',
+    borderRadius: '6px',
+    fontSize: '13px'
+  },
+
+  mealName: {
+    flex: 1,
+    color: '#0369a1',
+    fontWeight: '500'
+  },
+
+  itemCount: {
+    fontSize: '11px',
+    color: '#64748b',
+    fontStyle: 'italic'
+  },
+
+  removeMealBtn: {
+    width: '20px',
+    height: '20px',
+    border: 'none',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 'bold'
+  },
+
+  mealActions: {
+    display: 'flex',
+    gap: '6px'
+  },
+
+  addMealBtn: {
+    padding: '3px 10px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer'
+  },
+
+  addRecipeBtn: {
+    padding: '3px 10px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer'
+  },
+
+  recipePicker: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2000
+  },
+
+  recipePickerContent: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '24px',
+    width: '90%',
+    maxWidth: '500px',
+    maxHeight: '70vh',
+    overflow: 'auto'
+  },
+
+  recipePickerTitle: {
+    margin: '0 0 16px 0',
+    fontSize: '18px',
+    color: '#1f2937'
+  },
+
+  recipeList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    marginBottom: '16px'
+  },
+
+  recipeItem: {
+    padding: '12px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    border: '2px solid transparent',
+    transition: 'all 0.2s',
+    ':hover': {
+      borderColor: '#3b82f6',
+      backgroundColor: '#eff6ff'
+    }
+  },
+
+  recipeName: {
+    fontWeight: '500',
+    color: '#1f2937'
+  },
+
+  recipeIngredientCount: {
+    fontSize: '12px',
+    color: '#6b7280'
+  },
+
+  cancelRecipeBtn: {
+    width: '100%',
+    padding: '10px',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: '500'
+  },
+
+  planSummary: {
+    marginTop: '20px',
+    padding: '16px',
+    backgroundColor: '#f0f9ff',
+    borderRadius: '8px',
+    border: '1px solid #0284c7'
+  }
+
 };
 
 export default MyAccount;

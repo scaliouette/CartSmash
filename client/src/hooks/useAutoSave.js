@@ -6,7 +6,7 @@ const DRAFT_KEY = 'cart-smash-draft';
 const AUTO_SAVE_DELAY = 1000; // 1 second delay
 const MIN_CONTENT_LENGTH = 5; // Minimum characters to save
   // Add API URL constant
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+  
 
 // Generic auto-save hook
 export function useAutoSave(value, key, delay = AUTO_SAVE_DELAY) {
@@ -145,8 +145,8 @@ export function useCartAutoSave(cartItems, userId) {
   const syncTimeoutRef = useRef(null);
 
   useEffect(() => {
-    // Don't sync if no items or no user
-    if (!cartItems || cartItems.length === 0 || !userId) {
+    // Don't sync if no items
+    if (!cartItems || cartItems.length === 0) {
       return;
     }
 
@@ -161,53 +161,34 @@ export function useCartAutoSave(cartItems, userId) {
       setSyncError(null);
 
       try {
-        const response = await fetch(`${API_URL}/api/cart/sync`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-ID': userId
-          },
-          body: JSON.stringify({ cart: cartItems })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to sync cart');
-        }
-
+        // Only save to localStorage - Firebase sync is handled by App.js
+        localStorage.setItem('cartsmash-current-cart', JSON.stringify(cartItems));
         setLastSync(new Date());
-        console.log('✅ Cart synced to server');
+        console.log('✅ Cart saved locally');
       } catch (err) {
-        console.error('Cart sync failed:', err);
+        console.error('Cart save failed:', err);
         setSyncError(err);
-        
-        // Fall back to local storage
-        try {
-          localStorage.setItem(`cart-${userId}`, JSON.stringify({
-            items: cartItems,
-            timestamp: new Date().toISOString()
-          }));
-          console.log('💾 Cart saved locally as fallback');
-        } catch (localErr) {
-          console.error('Local save also failed:', localErr);
-        }
       } finally {
         setIsSyncing(false);
       }
-    }, 2000); // 2 second delay for cart sync
+    }, 2000); // 2 second delay
 
     return () => {
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
     };
-  }, [cartItems, userId]);
+  }, [cartItems, userId]);  // <-- Make sure this line ends with );
 
   return {
     isSyncing,
     lastSync,
     syncError
-  };
-}
+  };  // <-- This closes the return object
+}  // <-- This closes the function
+
+
+
 
 // Auto-save hook for AI conversations
 export function useConversationAutoSave(messages, conversationId) {

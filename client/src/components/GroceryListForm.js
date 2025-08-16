@@ -6,7 +6,7 @@ import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
 import RecipeManager from './RecipeManager';
 import { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './LoadingSpinner';
-import { useGroceryListAutoSave, useCartAutoSave } from '../hooks/useAutoSave';
+import { useGroceryListAutoSave } from '../hooks/useAutoSave';
 import confetti from 'canvas-confetti';
 
 // Helper functions
@@ -208,11 +208,9 @@ function GroceryListForm({
     isSaving: isDraftSaving
   } = useGroceryListAutoSave(inputText);
 
-  const {
-    isSyncing: isCartSyncing,
-    lastSync: cartLastSync,
-    syncError: cartSyncError
-  } = useCartAutoSave(currentCart, currentUser?.uid);
+    const isCartSyncing = false;
+    const cartLastSync = null;
+    const cartSyncError = null;
 
   // Show results when cart has items
   useEffect(() => {

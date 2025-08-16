@@ -257,26 +257,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Save cart to Firebase
-  const saveCartToFirebase = async (cartItems) => {
-    if (!currentUser || !db) {
-      console.log('⚠️ Cannot save cart: No user or Firestore');
-      return;
-    }
-    
-    try {
-      const userRef = doc(db, 'users', currentUser.uid);
-      await setDoc(userRef, {
-        cart: cartItems,
-        cartUpdatedAt: new Date().toISOString()
-      }, { merge: true });
-      
-      console.log('✅ Cart saved to Firebase');
-    } catch (error) {
-      console.error('❌ Error saving cart:', error);
-      throw error;
-    }
-  };
+
 
   // Listen to auth state changes
   useEffect(() => {
@@ -358,8 +339,7 @@ export function AuthProvider({ children }) {
     });
   }, [currentUser, isLoading]);
 
-  // Context value with all functions
- const value = {
+const value = {
   currentUser,
   isLoading,
   error,
@@ -370,9 +350,8 @@ export function AuthProvider({ children }) {
   signOut: logout,
   signInWithGoogle,
   updateUserProfile,
-  saveCartToFirebase,
   makeAuthenticatedRequest
-  };
+};
 
   console.log('🔥 Running with Firebase Authentication');
   console.log('📦 Providing auth functions:', Object.keys(value));

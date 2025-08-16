@@ -71,16 +71,16 @@ function AppContent({
     loadAllData();
   }, [currentUser]);
   
-  // Auto-save cart to Firebase when it changes (debounced)
-  useEffect(() => {
-    if (currentCart.length === 0) return;
-    
-    const saveTimer = setTimeout(() => {
-      saveCartToFirebase();
-    }, 2000); // 2 second debounce
-    
-    return () => clearTimeout(saveTimer);
-  }, [currentCart]);
+// Auto-save cart to Firebase when it changes (debounced)
+useEffect(() => {
+  if (currentCart.length === 0) return;
+  
+  const saveTimer = setTimeout(() => {
+    saveCartToFirebase();
+  }, 2000); // 2 second debounce
+  
+  return () => clearTimeout(saveTimer);
+}, [currentCart, currentUser]); // Add currentUser to dependencies
   
   // Load all data from localStorage first, then Firebase
   const loadAllData = async () => {
@@ -174,24 +174,36 @@ function AppContent({
     }
   };
   
-  const saveCartToFirebase = async () => {
-    if (!currentUser || currentCart.length === 0) return;
+const saveCartToFirebase = async () => {
+  if (!currentUser || currentCart.length === 0) return;
+  
+  try {
+    // Auto-save current cart as a list
+    const autoSaveList = {
+      id: 'auto-save-current', // Use fixed ID for auto-save
+      name: `Auto-saved Cart ${new Date().toLocaleString()}`,
+      items: currentCart,
+      autoSaved: true,
+      updatedAt: new Date().toISOString()
+    };
     
+    await userDataService.saveParsedList(autoSaveList);
+    console.log('✅ Cart auto-saved to Firebase');
+    
+    // Also save to localStorage as backup
+    localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
+    
+  } catch (error) {
+    console.error('Error saving cart to Firebase:', error);
+    // Fallback to localStorage on error
     try {
-      // Auto-save current cart as a list
-      const autoSaveList = {
-        name: `Auto-saved Cart ${new Date().toLocaleString()}`,
-        items: currentCart,
-        autoSaved: true
-      };
-      
-      await userDataService.saveParsedList(autoSaveList);
-      console.log('✅ Cart auto-saved to Firebase');
-      
-    } catch (error) {
-      console.error('Error saving cart to Firebase:', error);
+      localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
+      console.log('💾 Cart saved locally as fallback');
+    } catch (localError) {
+      console.error('Local save also failed:', localError);
     }
-  };
+  }
+};
   
   // CONNECTED FUNCTIONS
   const loadRecipeToCart = async (recipe, merge = false) => {

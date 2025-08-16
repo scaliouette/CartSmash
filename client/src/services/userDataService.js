@@ -137,44 +137,56 @@ class UserDataService {
    * Save a meal plan with recipes
    */
   async saveMealPlan(mealPlanData) {
-    if (!this.currentUser) await this.init();
-    
+  if (!this.currentUser) await this.init();
+  
+  try {
     const planId = mealPlanData.id || `plan_${Date.now()}`;
     const planRef = doc(db, 'users', this.currentUser.uid, 'mealPlans', planId);
     
-    // Process meals to include recipe details and instructions
-    const processedMeals = mealPlanData.meals.map(meal => ({
-      ...meal,
-      breakfast: meal.breakfast || '',
-      lunch: meal.lunch || '',
-      dinner: meal.dinner || '',
-      recipes: {
-        breakfast: meal.breakfastRecipe || null,
-        lunch: meal.lunchRecipe || null,
-        dinner: meal.dinnerRecipe || null
-      },
-      instructions: {
-        breakfast: meal.breakfastInstructions || [],
-        lunch: meal.lunchInstructions || [],
-        dinner: meal.dinnerInstructions || []
-      }
-    }));
+    // Handle both old format (meals array) and new format (days object)
+    let processedDays = {};
+    
+    if (mealPlanData.days) {
+      // New format with days object
+      processedDays = mealPlanData.days;
+    } else if (mealPlanData.meals && Array.isArray(mealPlanData.meals)) {
+      // Old format - convert to days object
+      const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      mealPlanData.meals.forEach((meal, index) => {
+        if (index < daysOfWeek.length) {
+          processedDays[daysOfWeek[index]] = {
+            breakfast: meal.breakfast || null,
+            lunch: meal.lunch || null,
+            dinner: meal.dinner || null
+          };
+        }
+      });
+    }
     
     const dataToSave = {
       ...mealPlanData,
       id: planId,
       userId: this.currentUser.uid,
-      meals: processedMeals,
-      createdAt: mealPlanData.createdAt || serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      startDate: mealPlanData.startDate || new Date().toISOString().split('T')[0],
-      endDate: mealPlanData.endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      days: processedDays,
+      totalMeals: mealPlanData.totalMeals || 0,
+      totalItems: mealPlanData.totalItems || 0,
+      shoppingList: mealPlanData.shoppingList || { items: [] },
+      recipes: mealPlanData.recipes || [],
+      createdAt: mealPlanData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      weekOf: mealPlanData.weekOf || new Date().toISOString().split('T')[0]
     };
 
     await setDoc(planRef, dataToSave);
-    console.log('✅ Meal plan saved:', planId);
+    console.log('✅ Meal plan saved to Firebase:', planId);
+    console.log('Saved data:', dataToSave);
     return { success: true, planId };
+    
+  } catch (error) {
+    console.error('❌ Failed to save meal plan:', error);
+    throw error;
   }
+}
 
   /**
    * Get all meal plans for current user
@@ -237,47 +249,91 @@ class UserDataService {
     }
   }
 
-  /**
-   * Generate shopping list from meal plan
-   */
   async generateShoppingListFromMealPlan(mealPlanId) {
-    if (!this.currentUser) await this.init();
-    
+  if (!this.currentUser) await this.init();
+  
+  try {
     const mealPlan = await this.getMealPlan(mealPlanId);
+    console.log('Generating shopping list from meal plan:', mealPlan);
+    
+    // If shopping list already exists in the meal plan, return it
+    if (mealPlan.shoppingList && mealPlan.shoppingList.items && mealPlan.shoppingList.items.length > 0) {
+      console.log('Using existing shopping list with', mealPlan.shoppingList.items.length, 'items');
+      return { 
+        success: true, 
+        items: mealPlan.shoppingList.items 
+      };
+    }
+    
     const ingredients = new Map();
     
-    // Extract ingredients from all recipes in the meal plan
-    mealPlan.meals.forEach(meal => {
-      ['breakfast', 'lunch', 'dinner'].forEach(mealType => {
-        const recipe = meal.recipes?.[mealType];
-        if (recipe && recipe.ingredients) {
-          recipe.ingredients.forEach(ingredient => {
-            // Parse ingredient (this could be more sophisticated)
-            const parsed = this.parseIngredient(ingredient);
-            const key = parsed.name.toLowerCase();
-            
-            if (ingredients.has(key)) {
-              const existing = ingredients.get(key);
-              existing.quantity += parsed.quantity;
-            } else {
-              ingredients.set(key, parsed);
+    // Extract ingredients from all meals in the plan
+    if (mealPlan.days) {
+      Object.entries(mealPlan.days).forEach(([day, dayMeals]) => {
+        if (dayMeals) {
+          Object.entries(dayMeals).forEach(([mealType, meal]) => {
+            if (meal && meal.items) {
+              // Meal has pre-parsed items
+              meal.items.forEach(item => {
+                const key = (item.productName || item.name || '').toLowerCase();
+                if (key) {
+                  if (ingredients.has(key)) {
+                    const existing = ingredients.get(key);
+                    existing.quantity = (existing.quantity || 1) + (item.quantity || 1);
+                  } else {
+                    ingredients.set(key, {
+                      ...item,
+                      id: item.id || `item_${Date.now()}_${Math.random()}`
+                    });
+                  }
+                }
+              });
+            } else if (meal && meal.ingredients) {
+              // Parse raw ingredients
+              const ingredientLines = meal.ingredients.split('\n').filter(line => line.trim());
+              ingredientLines.forEach(ingredient => {
+                const parsed = this.parseIngredient(ingredient);
+                const key = parsed.name.toLowerCase();
+                
+                if (ingredients.has(key)) {
+                  const existing = ingredients.get(key);
+                  existing.quantity += parsed.quantity;
+                } else {
+                  ingredients.set(key, parsed);
+                }
+              });
             }
           });
         }
       });
-    });
+    }
     
     // Create shopping list
     const shoppingList = {
-      name: `Shopping for ${mealPlan.name}`,
+      name: `Shopping for ${mealPlan.name || 'Meal Plan'}`,
       source: 'meal_plan',
       mealPlanId: mealPlanId,
       items: Array.from(ingredients.values())
     };
     
+    console.log('Generated shopping list with', shoppingList.items.length, 'items');
+    
+    if (shoppingList.items.length === 0) {
+      return { 
+        success: false, 
+        items: [],
+        message: 'No items found in meal plan. Please add meals/recipes first.' 
+      };
+    }
+    
     const result = await this.saveParsedList(shoppingList);
     return { ...result, items: shoppingList.items };
+    
+  } catch (error) {
+    console.error('Error generating shopping list:', error);
+    throw error;
   }
+}
 
   /**
    * Parse ingredient string to extract quantity and name
