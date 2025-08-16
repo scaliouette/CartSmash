@@ -1006,6 +1006,7 @@ function EnhancedInstacartModal({ items, onClose }) {
     const each = (item.realPrice ?? avgPrice) * (item.quantity || 1);
     return sum + each;
   }, 0);
+  
 
   return (
     <div style={styles.modalOverlay} onClick={onClose}>

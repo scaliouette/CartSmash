@@ -509,6 +509,7 @@ function GroceryListForm({
       {showRecipeManager && (
         <RecipeManager
           onClose={() => setShowRecipeManager(false)}
+          savedRecipes={savedRecipes}
           onRecipeSelect={(recipe) => {
             setShowRecipeManager(false);
             const itemsLoaded = loadRecipeToCart(recipe, mergeCart);

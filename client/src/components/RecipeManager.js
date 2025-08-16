@@ -1,335 +1,370 @@
-// client/src/components/RecipeManager.js
-import React, { useState } from 'react';
-import { useCart } from '../contexts/CartContext';
+// client/src/components/RecipeManager.js - FIXED VERSION
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
-function RecipeManager({ onClose }) {
-  const {
-    savedRecipes,
-    saveRecipe,
-    loadRecipeToCart,
-    deleteRecipe,
-    quickAddRecipe
-  } = useCart();
-  
+function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, onRecipeDelete }) {
+  const [recipes, setRecipes] = useState([]);
   const [activeTab, setActiveTab] = useState('browse');
+  const [editingRecipe, setEditingRecipe] = useState(null);
+  const [quickAddText, setQuickAddText] = useState('');
   const [newRecipe, setNewRecipe] = useState({
     name: '',
-    category: 'dinner',
     ingredients: '',
-    instructions: '',
-    servings: 4
+    instructions: ''
   });
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // Filter recipes based on search
-  const filteredRecipes = savedRecipes.filter(recipe =>
-    recipe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    recipe.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  // Handle saving a new recipe
-  const handleSaveRecipe = async () => {
-    if (!newRecipe.name || !newRecipe.ingredients) {
-      alert('Please provide a recipe name and ingredients');
+  const { currentUser } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    loadRecipes();
+  }, [savedRecipes]);
+
+  const loadRecipes = async () => {
+    setLoading(true);
+    try {
+      // First check localStorage
+      const localRecipes = localStorage.getItem('cartsmash-recipes');
+      if (localRecipes) {
+        const parsed = JSON.parse(localRecipes);
+        setRecipes(parsed);
+      }
+
+      // Then try to fetch from server
+      if (currentUser?.uid) {
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+        const response = await fetch(`${API_URL}/api/recipes`, {
+          headers: { 
+            'user-id': currentUser.uid,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.recipes && data.recipes.length > 0) {
+            setRecipes(data.recipes);
+            // Sync to localStorage
+            localStorage.setItem('cartsmash-recipes', JSON.stringify(data.recipes));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load recipes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveRecipe = async (recipe = null) => {
+    const recipeToSave = recipe || newRecipe;
+    
+    if (!recipeToSave.name || !recipeToSave.ingredients) {
+      alert('Please add a recipe name and ingredients');
       return;
     }
+
+    const savedRecipe = {
+      id: recipeToSave.id || `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: recipeToSave.name,
+      ingredients: recipeToSave.ingredients,
+      instructions: recipeToSave.instructions || '',
+      createdAt: recipeToSave.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      userId: currentUser?.uid || 'guest'
+    };
+
+    let updatedRecipes;
+    if (editingRecipe) {
+      updatedRecipes = recipes.map(r => r.id === savedRecipe.id ? savedRecipe : r);
+    } else {
+      updatedRecipes = [...recipes, savedRecipe];
+    }
     
-    const saved = await saveRecipe(newRecipe);
-    if (saved) {
-      alert(`✅ Recipe "${newRecipe.name}" saved!`);
-      setNewRecipe({
-        name: '',
-        category: 'dinner',
-        ingredients: '',
-        instructions: '',
-        servings: 4
-      });
-      setActiveTab('browse');
+    // Update state and localStorage immediately
+    setRecipes(updatedRecipes);
+    localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
+    
+    // Call parent save function if provided
+    if (onRecipeSave) {
+      onRecipeSave(savedRecipe);
     }
-  };
-  
-  // Handle quick add to cart
-  const handleQuickAdd = async (recipe) => {
-    const result = await loadRecipeToCart(recipe, true); // Merge with existing cart
-    if (result.success) {
-      alert(`✅ Added ${result.itemsAdded || result.itemsLoaded} items from "${recipe.name}" to cart`);
-      onClose();
+
+    // Try to save to server (don't wait for it)
+    if (currentUser?.uid) {
+      try {
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+        await fetch(`${API_URL}/api/recipes`, {
+          method: editingRecipe ? 'PUT' : 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'user-id': currentUser.uid
+          },
+          body: JSON.stringify(savedRecipe)
+        });
+      } catch (error) {
+        console.error('Failed to save to server, but saved locally:', error);
+      }
     }
+
+    // Reset form
+    setNewRecipe({ name: '', ingredients: '', instructions: '' });
+    setEditingRecipe(null);
+    setActiveTab('browse');
+    alert(`✅ Recipe ${editingRecipe ? 'updated' : 'saved'}!`);
   };
-  
-  // Handle replace cart
-  const handleReplaceCart = async (recipe) => {
-    if (window.confirm('This will replace your entire cart. Continue?')) {
-      const result = await loadRecipeToCart(recipe, false); // Replace cart
-      if (result.success) {
-        alert(`✅ Cart replaced with ${result.itemsAdded || result.itemsLoaded} items from "${recipe.name}"`);
-        onClose();
+
+  const handleQuickAdd = () => {
+    if (!quickAddText.trim()) {
+      alert('Please paste or type a recipe');
+      return;
+    }
+
+    const lines = quickAddText.trim().split('\n').filter(line => line.trim());
+    const recipeName = lines[0] || 'Quick Recipe';
+    const ingredients = lines.slice(1).join('\n');
+
+    const quickRecipe = {
+      name: recipeName,
+      ingredients: ingredients || quickAddText,
+      instructions: ''
+    };
+
+    handleSaveRecipe(quickRecipe);
+    setQuickAddText('');
+  };
+
+  const handleEditRecipe = (recipe) => {
+    setEditingRecipe(recipe);
+    setNewRecipe({
+      id: recipe.id,
+      name: recipe.name,
+      ingredients: recipe.ingredients,
+      instructions: recipe.instructions || ''
+    });
+    setActiveTab('edit');
+  };
+
+  const handleDeleteRecipe = (recipeId) => {
+    if (window.confirm('Delete this recipe?')) {
+      const updatedRecipes = recipes.filter(r => r.id !== recipeId);
+      setRecipes(updatedRecipes);
+      localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
+      
+      if (onRecipeDelete) {
+        onRecipeDelete(recipeId);
+      }
+
+      // Also delete from server
+      if (currentUser?.uid) {
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+        fetch(`${API_URL}/api/recipes/${recipeId}`, {
+          method: 'DELETE',
+          headers: { 'user-id': currentUser.uid }
+        }).catch(err => console.error('Failed to delete from server:', err));
       }
     }
   };
-  
-  // Handle delete
-  const handleDeleteRecipe = (recipeId, recipeName) => {
-    if (window.confirm(`Delete recipe "${recipeName}"?`)) {
-      deleteRecipe(recipeId);
-      alert(`Recipe "${recipeName}" deleted`);
+
+  const handleUseRecipe = (recipe) => {
+    if (onRecipeSelect) {
+      onRecipeSelect(recipe);
+    }
+    if (onClose) {
+      onClose();
     }
   };
-  
+
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        <div style={styles.header}>
-          <h2 style={styles.title}>📖 Recipe Manager</h2>
-          <button onClick={onClose} style={styles.closeButton}>✕</button>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal recipe-manager-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">📖 Recipe Manager</h2>
+          <button onClick={onClose} className="modal-close">×</button>
         </div>
-        
-        <div style={styles.tabs}>
+
+        <div className="recipe-tabs">
           <button
             onClick={() => setActiveTab('browse')}
-            style={{
-              ...styles.tab,
-              ...(activeTab === 'browse' ? styles.tabActive : {})
-            }}
+            className={`recipe-tab ${activeTab === 'browse' ? 'active' : ''}`}
           >
-            Browse Recipes ({savedRecipes.length})
+            📚 My Recipes ({recipes.length})
           </button>
           <button
-            onClick={() => setActiveTab('create')}
-            style={{
-              ...styles.tab,
-              ...(activeTab === 'create' ? styles.tabActive : {})
-            }}
+            onClick={() => setActiveTab('add')}
+            className={`recipe-tab ${activeTab === 'add' ? 'active' : ''}`}
           >
-            Create New
+            ➕ Add Recipe
           </button>
           <button
-            onClick={() => setActiveTab('import')}
-            style={{
-              ...styles.tab,
-              ...(activeTab === 'import' ? styles.tabActive : {})
-            }}
+            onClick={() => setActiveTab('quick')}
+            className={`recipe-tab ${activeTab === 'quick' ? 'active' : ''}`}
           >
-            Quick Import
+            ⚡ Quick Add
           </button>
+          {editingRecipe && (
+            <button
+              onClick={() => setActiveTab('edit')}
+              className={`recipe-tab ${activeTab === 'edit' ? 'active' : ''}`}
+            >
+              ✏️ Edit Recipe
+            </button>
+          )}
         </div>
-        
-        <div style={styles.content}>
+
+        <div className="modal-content recipe-modal-content">
+          {loading && (
+            <div className="loading-state">
+              <div className="spinner"></div>
+              <p>Loading recipes...</p>
+            </div>
+          )}
+
           {/* Browse Tab */}
-          {activeTab === 'browse' && (
-            <div>
-              <input
-                type="text"
-                placeholder="Search recipes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={styles.searchInput}
-              />
-              
-              {filteredRecipes.length === 0 ? (
-                <div style={styles.emptyState}>
-                  <p>No recipes found</p>
+          {!loading && activeTab === 'browse' && (
+            <div className="recipe-browser">
+              {recipes.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">📖</div>
+                  <p>No recipes saved yet</p>
                   <button 
-                    onClick={() => setActiveTab('create')}
-                    style={styles.createButton}
+                    onClick={() => setActiveTab('quick')}
+                    className="btn btn-validate"
                   >
-                    Create your first recipe
+                    Add Your First Recipe
                   </button>
                 </div>
               ) : (
-                <div style={styles.recipeGrid}>
-                  {filteredRecipes.map(recipe => (
-                    <div key={recipe.id} style={styles.recipeCard}>
-                      <div style={styles.recipeHeader}>
-                        <h3 style={styles.recipeName}>{recipe.name}</h3>
-                        {recipe.category && (
-                          <span style={styles.categoryBadge}>
-                            {recipe.category}
-                          </span>
-                        )}
+                <div className="recipe-grid">
+                  {recipes.map(recipe => (
+                    <div key={recipe.id} className="recipe-card-enhanced">
+                      <div className="recipe-card-header">
+                        <h3 className="recipe-name">{recipe.name}</h3>
+                        <div className="recipe-actions-inline">
+                          <button 
+                            onClick={() => handleEditRecipe(recipe)}
+                            className="btn-icon"
+                            title="Edit"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteRecipe(recipe.id)}
+                            className="btn-icon"
+                            title="Delete"
+                          >
+                            🗑️
+                          </button>
+                        </div>
                       </div>
                       
-                      <div style={styles.recipeIngredients}>
+                      <div className="recipe-preview">
                         <strong>Ingredients:</strong>
-                        <div style={styles.ingredientPreview}>
-                          {recipe.ingredients.split('\n').slice(0, 3).map((ing, i) => (
-                            <div key={i}>• {ing}</div>
+                        <div className="ingredients-preview">
+                          {(recipe.ingredients || '').split('\n').filter(i => i.trim()).slice(0, 3).map((ing, idx) => (
+                            <div key={idx}>• {ing}</div>
                           ))}
-                          {recipe.ingredients.split('\n').length > 3 && (
-                            <div style={styles.moreText}>
-                              ...and {recipe.ingredients.split('\n').length - 3} more
+                          {(recipe.ingredients || '').split('\n').filter(i => i.trim()).length > 3 && (
+                            <div className="more-text">
+                              ...and {(recipe.ingredients || '').split('\n').filter(i => i.trim()).length - 3} more
                             </div>
                           )}
                         </div>
                       </div>
                       
-                      {recipe.parsedItems && (
-                        <div style={styles.itemCount}>
-                          {recipe.parsedItems.length} items ready to add
-                        </div>
-                      )}
-                      
-                      <div style={styles.recipeActions}>
-                        <button
-                          onClick={() => handleQuickAdd(recipe)}
-                          style={styles.addButton}
-                        >
-                          ➕ Add to Cart
-                        </button>
-                        <button
-                          onClick={() => handleReplaceCart(recipe)}
-                          style={styles.replaceButton}
-                        >
-                          🔄 Replace Cart
-                        </button>
-                        <button
-                          onClick={() => handleDeleteRecipe(recipe.id, recipe.name)}
-                          style={styles.deleteButton}
-                        >
-                          🗑️
-                        </button>
-                      </div>
+                      <button 
+                        onClick={() => handleUseRecipe(recipe)}
+                        className="btn btn-primary full-width"
+                      >
+                        🛒 Add to Cart
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           )}
-          
-          {/* Create Tab */}
-          {activeTab === 'create' && (
-            <div style={styles.createForm}>
+
+          {/* Add/Edit Tab */}
+          {(activeTab === 'add' || activeTab === 'edit') && (
+            <div className="recipe-form">
+              <h3>{editingRecipe ? 'Edit Recipe' : 'Add New Recipe'}</h3>
+              
               <input
                 type="text"
                 placeholder="Recipe Name"
                 value={newRecipe.name}
-                onChange={(e) => setNewRecipe(prev => ({ ...prev, name: e.target.value }))}
-                style={styles.input}
+                onChange={(e) => setNewRecipe({...newRecipe, name: e.target.value})}
+                className="input"
+                autoFocus
               />
               
-              <select
-                value={newRecipe.category}
-                onChange={(e) => setNewRecipe(prev => ({ ...prev, category: e.target.value }))}
-                style={styles.select}
-              >
-                <option value="breakfast">Breakfast</option>
-                <option value="lunch">Lunch</option>
-                <option value="dinner">Dinner</option>
-                <option value="snack">Snack</option>
-                <option value="dessert">Dessert</option>
-              </select>
-              
               <textarea
-                placeholder="Ingredients (one per line)
-Example:
-2 lbs chicken breast
-1 cup rice
-1 can tomatoes"
+                placeholder="Ingredients (one per line)"
                 value={newRecipe.ingredients}
-                onChange={(e) => setNewRecipe(prev => ({ ...prev, ingredients: e.target.value }))}
-                style={styles.textarea}
-                rows={8}
+                onChange={(e) => setNewRecipe({...newRecipe, ingredients: e.target.value})}
+                className="textarea"
+                rows="10"
               />
               
               <textarea
                 placeholder="Instructions (optional)"
                 value={newRecipe.instructions}
-                onChange={(e) => setNewRecipe(prev => ({ ...prev, instructions: e.target.value }))}
-                style={styles.textarea}
-                rows={4}
+                onChange={(e) => setNewRecipe({...newRecipe, instructions: e.target.value})}
+                className="textarea"
+                rows="5"
               />
               
-              <button
-                onClick={handleSaveRecipe}
-                style={styles.saveButton}
-                disabled={!newRecipe.name || !newRecipe.ingredients}
-              >
-                💾 Save Recipe
-              </button>
+              <div className="form-actions">
+                <button 
+                  onClick={() => handleSaveRecipe()}
+                  className="btn btn-primary"
+                >
+                  💾 {editingRecipe ? 'Update' : 'Save'} Recipe
+                </button>
+                <button 
+                  onClick={() => {
+                    setActiveTab('browse');
+                    setNewRecipe({ name: '', ingredients: '', instructions: '' });
+                    setEditingRecipe(null);
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
-          
-          {/* Import Tab */}
-          {activeTab === 'import' && (
-            <div style={styles.importSection}>
-              <h3>Quick Import from Text</h3>
-              <p style={styles.importHelp}>
-                Paste a recipe with ingredients and we'll parse it for you!
+
+          {/* Quick Add Tab */}
+          {activeTab === 'quick' && (
+            <div className="quick-add-form">
+              <h3>⚡ Quick Add Recipe</h3>
+              <p className="help-text">
+                Just paste your recipe! First line becomes the name, rest becomes ingredients.
               </p>
               
               <textarea
-                placeholder="Paste your recipe here. Include the recipe name on the first line."
-                style={styles.importTextarea}
-                rows={10}
-                onBlur={async (e) => {
-                  const text = e.target.value;
-                  if (!text) return;
-                  
-                  const lines = text.split('\n');
-                  const recipeName = lines[0] || 'Imported Recipe';
-                  const ingredients = lines.slice(1).join('\n');
-                  
-                  if (window.confirm(`Import recipe "${recipeName}"?`)) {
-                    const result = await quickAddRecipe(ingredients, recipeName);
-                    if (result.success) {
-                      alert(`✅ Recipe imported with ${result.itemsAdded} items!`);
-                      e.target.value = '';
-                      setActiveTab('browse');
-                    }
-                  }
-                }}
+                placeholder="Example:
+Chicken Stir Fry
+2 lbs chicken breast
+1 cup rice
+3 bell peppers
+2 tbsp soy sauce
+1 tbsp sesame oil"
+                value={quickAddText}
+                onChange={(e) => setQuickAddText(e.target.value)}
+                className="textarea"
+                rows="12"
+                autoFocus
               />
               
-              <div style={styles.templates}>
-                <h4>Sample Templates:</h4>
-                <button
-                  onClick={async () => {
-                    const template = `Classic Spaghetti Carbonara
-2 lbs spaghetti
-6 eggs
-1 cup parmesan cheese
-8 oz bacon
-4 cloves garlic
-Black pepper
-Salt`;
-                    const result = await quickAddRecipe(
-                      template.split('\n').slice(1).join('\n'),
-                      'Classic Spaghetti Carbonara'
-                    );
-                    if (result.success) {
-                      alert('✅ Template recipe added!');
-                      setActiveTab('browse');
-                    }
-                  }}
-                  style={styles.templateButton}
-                >
-                  🍝 Spaghetti Carbonara
-                </button>
-                
-                <button
-                  onClick={async () => {
-                    const template = `Chicken Stir Fry
-2 lbs chicken breast
-2 cups rice
-1 bottle soy sauce
-1 bag frozen vegetables
-2 tbsp sesame oil
-1 inch ginger
-3 cloves garlic`;
-                    const result = await quickAddRecipe(
-                      template.split('\n').slice(1).join('\n'),
-                      'Chicken Stir Fry'
-                    );
-                    if (result.success) {
-                      alert('✅ Template recipe added!');
-                      setActiveTab('browse');
-                    }
-                  }}
-                  style={styles.templateButton}
-                >
-                  🥘 Chicken Stir Fry
-                </button>
-              </div>
+              <button 
+                onClick={handleQuickAdd}
+                className="btn btn-primary full-width"
+                disabled={!quickAddText.trim()}
+              >
+                💾 Save Recipe
+              </button>
             </div>
           )}
         </div>
@@ -337,297 +372,5 @@ Salt`;
     </div>
   );
 }
-
-const styles = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000
-  },
-  
-  modal: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    width: '90%',
-    maxWidth: '800px',
-    maxHeight: '80vh',
-    display: 'flex',
-    flexDirection: 'column',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
-  },
-  
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '20px',
-    borderBottom: '2px solid #e5e7eb'
-  },
-  
-  title: {
-    margin: 0,
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#1f2937'
-  },
-  
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '24px',
-    cursor: 'pointer',
-    color: '#6b7280',
-    padding: '4px 8px'
-  },
-  
-  tabs: {
-    display: 'flex',
-    backgroundColor: '#f9fafb',
-    borderBottom: '1px solid #e5e7eb'
-  },
-  
-  tab: {
-    flex: 1,
-    padding: '12px',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '15px',
-    color: '#6b7280',
-    fontWeight: '500'
-  },
-  
-  tabActive: {
-    backgroundColor: 'white',
-    color: '#1f2937',
-    borderBottom: '2px solid #3b82f6',
-    marginBottom: '-1px'
-  },
-  
-  content: {
-    padding: '20px',
-    overflowY: 'auto',
-    flex: 1
-  },
-  
-  searchInput: {
-    width: '100%',
-    padding: '10px',
-    fontSize: '16px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    marginBottom: '20px',
-    boxSizing: 'border-box'
-  },
-  
-  recipeGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-    gap: '16px'
-  },
-  
-  recipeCard: {
-    padding: '16px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '8px',
-    backgroundColor: '#f9fafb'
-  },
-  
-  recipeHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'start',
-    marginBottom: '12px'
-  },
-  
-  recipeName: {
-    margin: 0,
-    fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#1f2937'
-  },
-  
-  categoryBadge: {
-    padding: '2px 8px',
-    backgroundColor: '#ddd6fe',
-    color: '#6b21a8',
-    borderRadius: '4px',
-    fontSize: '12px',
-    fontWeight: 'bold'
-  },
-  
-  recipeIngredients: {
-    fontSize: '14px',
-    color: '#4b5563',
-    marginBottom: '12px'
-  },
-  
-  ingredientPreview: {
-    marginTop: '4px',
-    fontSize: '13px'
-  },
-  
-  moreText: {
-    fontStyle: 'italic',
-    color: '#9ca3af',
-    marginTop: '4px'
-  },
-  
-  itemCount: {
-    padding: '4px 8px',
-    backgroundColor: '#d1fae5',
-    color: '#065f46',
-    borderRadius: '4px',
-    fontSize: '12px',
-    fontWeight: 'bold',
-    display: 'inline-block',
-    marginBottom: '12px'
-  },
-  
-  recipeActions: {
-    display: 'flex',
-    gap: '8px'
-  },
-  
-  addButton: {
-    flex: 1,
-    padding: '8px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '13px'
-  },
-  
-  replaceButton: {
-    flex: 1,
-    padding: '8px',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '13px'
-  },
-  
-  deleteButton: {
-    padding: '8px 12px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer'
-  },
-  
-  // Create form styles
-  createForm: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-    maxWidth: '500px',
-    margin: '0 auto'
-  },
-  
-  input: {
-    padding: '10px',
-    fontSize: '16px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px'
-  },
-  
-  select: {
-    padding: '10px',
-    fontSize: '16px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    backgroundColor: 'white'
-  },
-  
-  textarea: {
-    padding: '10px',
-    fontSize: '14px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontFamily: 'inherit',
-    resize: 'vertical'
-  },
-  
-  saveButton: {
-    padding: '12px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer'
-  },
-  
-  // Import section styles
-  importSection: {
-    maxWidth: '600px',
-    margin: '0 auto'
-  },
-  
-  importHelp: {
-    color: '#6b7280',
-    marginBottom: '16px'
-  },
-  
-  importTextarea: {
-    width: '100%',
-    padding: '12px',
-    fontSize: '14px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontFamily: 'monospace',
-    boxSizing: 'border-box'
-  },
-  
-  templates: {
-    marginTop: '24px',
-    padding: '16px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '8px'
-  },
-  
-  templateButton: {
-    padding: '10px 16px',
-    margin: '8px',
-    backgroundColor: '#6366f1',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  },
-  
-  emptyState: {
-    textAlign: 'center',
-    padding: '40px',
-    color: '#6b7280'
-  },
-  
-  createButton: {
-    marginTop: '16px',
-    padding: '10px 20px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  }
-};
 
 export default RecipeManager;
