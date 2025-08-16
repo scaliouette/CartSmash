@@ -1,6 +1,4 @@
-// CRITICAL FIX 1: ProductValidator.js - Fix Review Items Functionality
-// Replace the existing ProductValidator component with this fixed version
-
+// client/src/components/ProductValidator.js - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { ButtonSpinner, InlineSpinner } from './LoadingSpinner';
 
@@ -9,11 +7,25 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
   const [localItems, setLocalItems] = useState([]);
   const [filter, setFilter] = useState('needs-review');
   const [validatingAll, setValidatingAll] = useState(false);
-  const [editedItems, setEditedItems] = useState(new Map()); // Track edited items
+  const [editedItems, setEditedItems] = useState(new Map());
 
-  // Initialize local items
+  // Initialize local items with proper structure
   useEffect(() => {
-    setLocalItems(items.map(item => ({ ...item })));
+    // Ensure all items have required fields
+    const normalizedItems = items.map(item => ({
+      ...item,
+      id: item.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      productName: item.productName || item.itemName || item.name || '',
+      quantity: item.quantity || 1,
+      unit: item.unit || 'each',
+      category: item.category || 'other',
+      confidence: item.confidence !== undefined ? item.confidence : 0.5,
+      needsReview: item.needsReview !== undefined ? item.needsReview : (item.confidence || 0) < 0.6,
+      original: item.original || ''
+    }));
+    
+    setLocalItems(normalizedItems);
+    console.log(`📝 ProductValidator loaded with ${normalizedItems.length} items`);
   }, [items]);
 
   // Get items that need review
@@ -30,23 +42,66 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
   });
 
   // Common units for dropdown
-  const commonUnits = [
-    'each', 'lbs', 'oz', 'kg', 'g', 'cups', 'tbsp', 'tsp',
-    'l', 'ml', 'gal', 'qt', 'pt', 'fl oz', 'dozen',
-    'can', 'bottle', 'bag', 'box', 'jar', 'pack', 'container',
-    'bunch', 'head', 'loaf', 'piece', 'clove'
+      const commonUnits = [
+      { value: 'each', label: 'each' },
+      { value: 'lb', label: 'lb' },
+      { value: 'lbs', label: 'lbs' },
+      { value: 'oz', label: 'oz' },
+      { value: 'kg', label: 'kg' },
+      { value: 'g', label: 'g' },
+      { value: 'cup', label: 'cup' },
+      { value: 'cups', label: 'cups' },
+      { value: 'tbsp', label: 'tbsp' },
+      { value: 'tsp', label: 'tsp' },
+      { value: 'l', label: 'liter' },
+      { value: 'ml', label: 'ml' },
+      { value: 'gal', label: 'gallon' },
+      { value: 'qt', label: 'quart' },
+      { value: 'pt', label: 'pint' },
+      { value: 'fl oz', label: 'fl oz' },
+      { value: 'dozen', label: 'dozen' },
+      { value: 'can', label: 'can' },
+      { value: 'cans', label: 'cans' },
+      { value: 'bottle', label: 'bottle' },
+      { value: 'bottles', label: 'bottles' },
+      { value: 'bag', label: 'bag' },
+      { value: 'bags', label: 'bags' },
+      { value: 'box', label: 'box' },
+      { value: 'boxes', label: 'boxes' },
+      { value: 'jar', label: 'jar' },
+      { value: 'jars', label: 'jars' },
+      { value: 'pack', label: 'pack' },
+      { value: 'package', label: 'package' },
+      { value: 'container', label: 'container' },
+      { value: 'containers', label: 'containers' },
+      { value: 'bunch', label: 'bunch' },
+      { value: 'head', label: 'head' },
+      { value: 'loaf', label: 'loaf' },
+      { value: 'piece', label: 'piece' },
+      { value: 'clove', label: 'clove' }
+    ];
+
+  // Categories for dropdown
+  const categories = [
+    { value: 'produce', label: '🥬 Produce' },
+    { value: 'dairy', label: '🥛 Dairy' },
+    { value: 'meat', label: '🥩 Meat' },
+    { value: 'pantry', label: '🥫 Pantry' },
+    { value: 'beverages', label: '🥤 Beverages' },
+    { value: 'frozen', label: '🧊 Frozen' },
+    { value: 'bakery', label: '🍞 Bakery' },
+    { value: 'snacks', label: '🍿 Snacks' },
+    { value: 'other', label: '📦 Other' }
   ];
 
-  // Handle field update - Store in editedItems map
+  // Handle field update
   const handleFieldUpdate = (itemId, field, value) => {
-    // Update local state
     setLocalItems(prev => prev.map(item => 
       item.id === itemId 
         ? { ...item, [field]: value }
         : item
     ));
     
-    // Track that this item was edited
     setEditedItems(prev => {
       const newMap = new Map(prev);
       const existing = newMap.get(itemId) || {};
@@ -57,7 +112,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
 
   // Remove item
   const handleRemoveItem = (itemId) => {
-    if (window.confirm('Are you sure you want to remove this item?')) {
+    if (window.confirm('Remove this item from your cart?')) {
       setLocalItems(prev => prev.filter(item => item.id !== itemId));
       setEditedItems(prev => {
         const newMap = new Map(prev);
@@ -67,7 +122,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
     }
   };
 
-  // Accept item (mark as validated without changing)
+  // Accept item as-is
   const handleAcceptItem = (itemId) => {
     setLocalItems(prev => prev.map(item => 
       item.id === itemId 
@@ -80,41 +135,60 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
           } 
         : item
     ));
+    
+    console.log(`✅ Item ${itemId} accepted`);
   };
 
-  // Validate single item with changes
+  // Validate single item with AI
   const handleValidateItem = async (itemId) => {
     setValidatingItems(prev => new Set([...prev, itemId]));
     
     try {
-      // Apply any edits and mark as validated
+      const item = localItems.find(i => i.id === itemId);
       const editedFields = editedItems.get(itemId) || {};
       
-      setLocalItems(prev => prev.map(item => 
-        item.id === itemId 
-          ? { 
-              ...item,
-              ...editedFields, // Apply any edits
-              needsReview: false,
-              confidence: 0.95,
-              validatedAt: new Date().toISOString(),
-              userValidated: true
-            } 
-          : item
-      ));
+      // Call backend to re-validate with AI
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/ai/validate-products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          products: [{
+            ...item,
+            ...editedFields
+          }]
+        })
+      });
       
-      // Clear from edited items
+      if (response.ok) {
+        const data = await response.json();
+        const validatedProduct = data.validatedProducts[0];
+        
+        setLocalItems(prev => prev.map(i => 
+          i.id === itemId 
+            ? { 
+                ...i,
+                ...editedFields,
+                confidence: validatedProduct.confidence || 0.95,
+                needsReview: false,
+                validatedAt: new Date().toISOString(),
+                userValidated: true
+              }
+            : i
+        ));
+        
+        console.log(`✅ Item ${itemId} validated with AI`);
+      }
+      
       setEditedItems(prev => {
         const newMap = new Map(prev);
         newMap.delete(itemId);
         return newMap;
       });
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
     } catch (error) {
       console.error('Validation failed:', error);
+      alert('Validation failed. Please try again.');
     } finally {
       setValidatingItems(prev => {
         const newSet = new Set(prev);
@@ -126,43 +200,74 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
 
   // Validate all items needing review
   const handleValidateAll = async () => {
+    const itemsToValidate = localItems.filter(item => 
+      item.needsReview || (item.confidence || 0) < 0.6
+    );
+    
+    if (itemsToValidate.length === 0) {
+      alert('No items need validation!');
+      return;
+    }
+    
     setValidatingAll(true);
     
     try {
-      // Get all items that need validation
-      const itemsToValidate = localItems.filter(item => 
-        item.needsReview || (item.confidence || 0) < 0.6
-      );
-      
-      // Apply edits and validate each item
-      const updatedItems = localItems.map(item => {
-        if (itemsToValidate.find(i => i.id === item.id)) {
-          const editedFields = editedItems.get(item.id) || {};
-          return {
-            ...item,
-            ...editedFields,
-            needsReview: false,
-            confidence: 0.95,
-            validatedAt: new Date().toISOString(),
-            userValidated: true
-          };
-        }
-        return item;
+      // Apply edits and prepare for validation
+      const productsToValidate = itemsToValidate.map(item => {
+        const editedFields = editedItems.get(item.id) || {};
+        return {
+          ...item,
+          ...editedFields
+        };
       });
       
-      setLocalItems(updatedItems);
-      setEditedItems(new Map()); // Clear all edits
+      // Call backend to validate all with AI
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/ai/validate-products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          products: productsToValidate
+        })
+      });
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Update items with validation results
+        const updatedItems = localItems.map(item => {
+          const validated = data.validatedProducts.find(v => v.id === item.id);
+          if (validated) {
+            const editedFields = editedItems.get(item.id) || {};
+            return {
+              ...item,
+              ...editedFields,
+              confidence: validated.confidence || 0.95,
+              needsReview: false,
+              validatedAt: new Date().toISOString(),
+              userValidated: true
+            };
+          }
+          return item;
+        });
+        
+        setLocalItems(updatedItems);
+        setEditedItems(new Map());
+        
+        alert(`✅ Validated ${itemsToValidate.length} items successfully!`);
+      }
       
+    } catch (error) {
+      console.error('Bulk validation failed:', error);
+      alert('Failed to validate items. Please try again.');
     } finally {
       setValidatingAll(false);
     }
   };
 
-  // Save all changes
+  // Save all changes and close
   const handleSaveAll = () => {
+    // Pass back the updated items
     onItemsUpdated(localItems);
     onClose();
   };
@@ -223,7 +328,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
               ...(filter === 'needs-review' ? styles.filterTabActive : {})
             }}
           >
-            Needs Review ({itemsNeedingReview.length})
+            ⚠️ Needs Review ({itemsNeedingReview.length})
           </button>
           <button
             onClick={() => setFilter('validated')}
@@ -232,7 +337,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
               ...(filter === 'validated' ? styles.filterTabActive : {})
             }}
           >
-            Validated
+            ✅ Validated
           </button>
           <button
             onClick={() => setFilter('all')}
@@ -241,7 +346,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
               ...(filter === 'all' ? styles.filterTabActive : {})
             }}
           >
-            All Items
+            📦 All Items
           </button>
         </div>
 
@@ -250,18 +355,14 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
           <button
             onClick={handleValidateAll}
             disabled={itemsNeedingReview.length === 0 || validatingAll}
-            style={{
-              ...styles.validateAllButton,
-              opacity: (itemsNeedingReview.length === 0 || validatingAll) ? 0.5 : 1,
-              cursor: (itemsNeedingReview.length === 0 || validatingAll) ? 'not-allowed' : 'pointer'
-            }}
+            style={styles.validateAllButton}
           >
             {validatingAll ? (
               <>
                 <InlineSpinner color="white" /> Validating All...
               </>
             ) : (
-              <>🚀 Validate All Items ({itemsNeedingReview.length})</>
+              <>🚀 Validate All ({itemsNeedingReview.length})</>
             )}
           </button>
           
@@ -300,7 +401,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                       backgroundColor: getConfidenceColor(item.confidence || 0)
                     }}
                   >
-                    {isValidated ? '✅ Validated' : isEdited ? '✏️ Edited' : '⚠️ Needs Review'}
+                    {isValidated ? '✅ Validated' : isEdited ? '✏️ Edited' : '⚠️ Review'}
                   </div>
 
                   {/* Item Content */}
@@ -310,7 +411,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                         <label style={styles.fieldLabel}>Product Name</label>
                         <input
                           type="text"
-                          value={item.productName || item.itemName || ''}
+                          value={item.productName || ''}
                           onChange={(e) => handleFieldUpdate(item.id, 'productName', e.target.value)}
                           style={styles.input}
                           placeholder="Enter product name"
@@ -341,10 +442,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                           ))}
                         </select>
                       </div>
-                    </div>
 
-                    {/* Category Selection */}
-                    <div style={styles.itemRow}>
                       <div style={styles.itemFieldSmall}>
                         <label style={styles.fieldLabel}>Category</label>
                         <select
@@ -352,25 +450,21 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                           onChange={(e) => handleFieldUpdate(item.id, 'category', e.target.value)}
                           style={styles.select}
                         >
-                          <option value="produce">🥬 Produce</option>
-                          <option value="dairy">🥛 Dairy</option>
-                          <option value="meat">🥩 Meat</option>
-                          <option value="pantry">🥫 Pantry</option>
-                          <option value="beverages">🥤 Beverages</option>
-                          <option value="frozen">🧊 Frozen</option>
-                          <option value="bakery">🍞 Bakery</option>
-                          <option value="snacks">🍿 Snacks</option>
-                          <option value="other">📦 Other</option>
+                          {categories.map(cat => (
+                            <option key={cat.value} value={cat.value}>{cat.label}</option>
+                          ))}
                         </select>
                       </div>
                     </div>
 
                     {/* Original Text */}
-                    <div style={styles.originalText}>
-                      Original: "{item.original || item.rawText || 'N/A'}"
-                    </div>
+                    {item.original && (
+                      <div style={styles.originalText}>
+                        Original: "{item.original}"
+                      </div>
+                    )}
 
-                    {/* Confidence Score */}
+                    {/* Confidence Bar */}
                     <div style={styles.confidenceBar}>
                       <span style={styles.confidenceLabel}>Confidence:</span>
                       <div style={styles.confidenceTrack}>
@@ -403,9 +497,9 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                           onClick={() => handleValidateItem(item.id)}
                           disabled={isValidating}
                           style={styles.validateButton}
-                          title="Validate with changes"
+                          title="Validate with AI"
                         >
-                          {isValidating ? <InlineSpinner /> : '💾'} Save & Validate
+                          {isValidating ? <InlineSpinner /> : '🤖'} Validate
                         </button>
                       </>
                     )}
@@ -424,11 +518,11 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
 
         {/* Footer */}
         <div style={styles.footer}>
-          <button onClick={onClose} style={styles.cancelButtonLarge}>
+          <button onClick={onClose} style={styles.cancelButton}>
             Cancel
           </button>
           <button onClick={handleSaveAll} style={styles.saveAllButton}>
-            💾 Save All Changes & Close
+            💾 Save All Changes
           </button>
         </div>
       </div>
@@ -436,34 +530,331 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
   );
 }
 
-// Enhanced styles with new states
+// Styles
 const styles = {
-  // ... existing styles plus:
-  
-  itemCardEdited: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#fbbf24',
+  overlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2000
   },
-  
-  acceptButton: {
+
+  modal: {
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    width: '90%',
+    maxWidth: '1200px',
+    height: '85vh',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+  },
+
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '24px',
+    borderBottom: '2px solid #e5e7eb'
+  },
+
+  title: {
+    margin: 0,
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1f2937'
+  },
+
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '28px',
+    cursor: 'pointer',
+    color: '#6b7280',
+    padding: '4px 8px'
+  },
+
+  statsBar: {
+    display: 'flex',
+    gap: '24px',
+    padding: '20px 24px',
+    backgroundColor: '#f9fafb',
+    borderBottom: '1px solid #e5e7eb'
+  },
+
+  stat: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
+  },
+
+  statNumber: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1f2937'
+  },
+
+  statLabel: {
+    fontSize: '12px',
+    color: '#6b7280',
+    marginTop: '4px'
+  },
+
+  filterTabs: {
+    display: 'flex',
+    gap: '8px',
+    padding: '16px 24px',
+    borderBottom: '2px solid #e5e7eb'
+  },
+
+  filterTab: {
     padding: '8px 16px',
+    border: '2px solid #e5e7eb',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#6b7280',
+    transition: 'all 0.2s'
+  },
+
+  filterTabActive: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
+    color: 'white'
+  },
+
+  actionBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '16px 24px',
+    backgroundColor: '#f9fafb'
+  },
+
+  validateAllButton: {
+    padding: '10px 20px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+
+  editIndicator: {
+    fontSize: '14px',
+    color: '#f59e0b',
+    fontWeight: '500'
+  },
+
+  itemsList: {
+    flex: 1,
+    overflow: 'auto',
+    padding: '16px 24px'
+  },
+
+  itemCard: {
+    border: '2px solid #e5e7eb',
+    borderRadius: '12px',
+    padding: '16px',
+    marginBottom: '12px',
+    backgroundColor: 'white'
+  },
+
+  itemCardValidated: {
+    borderColor: '#10b981',
+    backgroundColor: '#f0fdf4'
+  },
+
+  itemCardEdited: {
+    borderColor: '#fbbf24',
+    backgroundColor: '#fef3c7'
+  },
+
+  statusBadge: {
+    display: 'inline-block',
+    padding: '4px 12px',
+    borderRadius: '16px',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: '12px'
+  },
+
+  itemContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+
+  itemRow: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'flex-end'
+  },
+
+  itemField: {
+    flex: 1
+  },
+
+  itemFieldSmall: {
+    width: '150px'
+  },
+
+  fieldLabel: {
+    display: 'block',
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#6b7280',
+    marginBottom: '4px'
+  },
+
+  input: {
+    width: '100%',
+    padding: '8px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px'
+  },
+
+  select: {
+    width: '100%',
+    padding: '8px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px',
+    backgroundColor: 'white'
+  },
+
+  originalText: {
+    fontSize: '12px',
+    color: '#6b7280',
+    fontStyle: 'italic',
+    padding: '8px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '6px'
+  },
+
+  confidenceBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+
+  confidenceLabel: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#6b7280'
+  },
+
+  confidenceTrack: {
+    flex: 1,
+    height: '8px',
+    backgroundColor: '#e5e7eb',
+    borderRadius: '4px',
+    overflow: 'hidden'
+  },
+
+  confidenceFill: {
+    height: '100%',
+    transition: 'width 0.3s'
+  },
+
+  confidenceValue: {
+    fontSize: '12px',
+    fontWeight: 'bold',
+    color: '#1f2937'
+  },
+
+  itemActions: {
+    display: 'flex',
+    gap: '8px',
+    marginTop: '8px'
+  },
+
+  acceptButton: {
+    padding: '6px 12px',
     backgroundColor: '#10b981',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '500',
+    cursor: 'pointer'
+  },
+
+  validateButton: {
+    padding: '6px 12px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '500',
     cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
   },
-  
-  editIndicator: {
-    marginLeft: '20px',
-    fontSize: '14px',
-    color: '#f59e0b',
+
+  removeButton: {
+    padding: '6px 12px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
     fontWeight: '500',
+    cursor: 'pointer'
   },
-  
-  // ... rest of existing styles
+
+  footer: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '12px',
+    padding: '20px 24px',
+    borderTop: '2px solid #e5e7eb'
+  },
+
+  cancelButton: {
+    padding: '10px 24px',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    cursor: 'pointer'
+  },
+
+  saveAllButton: {
+    padding: '10px 24px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    cursor: 'pointer'
+  },
+
+  emptyState: {
+    textAlign: 'center',
+    padding: '60px',
+    color: '#6b7280'
+  }
 };
 
 export default ProductValidator;

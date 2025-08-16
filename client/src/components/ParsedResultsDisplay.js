@@ -533,7 +533,7 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
                 style={styles.itemNameText}
                 title="Click to edit"
               >
-                {item.productName || item.itemName}
+                {item.productName || item.itemName || item.name || ''}
               </span>
             )}
           </div>
@@ -1006,7 +1006,7 @@ function EnhancedInstacartModal({ items, onClose }) {
     const each = (item.realPrice ?? avgPrice) * (item.quantity || 1);
     return sum + each;
   }, 0);
-  
+
 
   return (
     <div style={styles.modalOverlay} onClick={onClose}>
