@@ -1,20 +1,24 @@
-// client/src/components/ParsedResultsDisplay.js
-import React, { useState, useEffect } from 'react';
+// client/src/components/ParsedResultsDisplay.js - FIXED VERSION
+import React, { useState, useEffect, useCallback } from 'react';
 import { InlineSpinner } from './LoadingSpinner';
 import KrogerOrderFlow from './KrogerOrderFlow';
 
-function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStats }) {
+function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats }) {
+  // REMOVED unused aliases that were causing warnings
+  // const cartItems = items;  // REMOVED - not used
+  // const setCartItems = onItemsChange;  // REMOVED - not used
+  
+  // Debug log to verify currentUser is being received
+  useEffect(() => {
+    console.log('🔍 ParsedResultsDisplay received currentUser:', currentUser?.email || 'No user');
+  }, [currentUser]);
+  
   const [sortBy, setSortBy] = useState('confidence');
   const [filterBy, setFilterBy] = useState('all');
   const [showStats, setShowStats] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-
-  // NEW: Instacart modal visibility
   const [showInstacart, setShowInstacart] = useState(false);
-  
-
-  // State management
   const [showKroger, setShowKroger] = useState(false);
   const [updatingItems, setUpdatingItems] = useState(new Set());
   const [fetchingPrices, setFetchingPrices] = useState(new Set());
@@ -38,40 +42,8 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Fetch real-time prices on mount
-  useEffect(() => {
-    const itemsNeedingPrices = items.filter(item => !item.realPrice && item.productName);
-    if (itemsNeedingPrices.length > 0) {
-      fetchRealTimePrices(itemsNeedingPrices);
-    }
-  }, [items.length]);
-
-  // Load meal groups from localStorage
-  useEffect(() => {
-    const savedMealGroups = localStorage.getItem('cartsmash-meal-groups');
-    if (savedMealGroups) {
-      try {
-        setMealGroups(JSON.parse(savedMealGroups));
-      } catch (e) {
-        console.error('Failed to load meal groups:', e);
-      }
-    }
-  }, []);
-
-  // Auto-save to localStorage whenever items change
-  useEffect(() => {
-    if (items && items.length > 0) {
-      try {
-        localStorage.setItem('cartsmash-current-cart', JSON.stringify(items));
-        console.log('✅ Cart saved locally');
-      } catch (e) {
-        console.error('Failed to save cart locally:', e);
-      }
-    }
-  }, [items]);
-
-  // Fetch real-time prices for items
-  const fetchRealTimePrices = async (itemsToFetch) => {
+  // Fetch real-time prices for items - Use useCallback to fix dependency warning
+  const fetchRealTimePrices = useCallback(async (itemsToFetch) => {
     const itemIds = itemsToFetch.map(item => item.id);
     setFetchingPrices(prev => new Set([...prev, ...itemIds]));
 
@@ -129,7 +101,39 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
         return newSet;
       });
     }
-  };
+  }, [items, onItemsChange]); // Fixed dependencies
+
+  // Fetch real-time prices on mount - Fixed dependencies
+  useEffect(() => {
+    const itemsNeedingPrices = items.filter(item => !item.realPrice && item.productName);
+    if (itemsNeedingPrices.length > 0) {
+      fetchRealTimePrices(itemsNeedingPrices);
+    }
+  }, [items, fetchRealTimePrices]); // Added missing dependencies
+
+  // Load meal groups from localStorage
+  useEffect(() => {
+    const savedMealGroups = localStorage.getItem('cartsmash-meal-groups');
+    if (savedMealGroups) {
+      try {
+        setMealGroups(JSON.parse(savedMealGroups));
+      } catch (e) {
+        console.error('Failed to load meal groups:', e);
+      }
+    }
+  }, []);
+
+  // Auto-save to localStorage whenever items change
+  useEffect(() => {
+    if (items && items.length > 0) {
+      try {
+        localStorage.setItem('cartsmash-current-cart', JSON.stringify(items));
+        console.log('✅ Cart saved locally');
+      } catch (e) {
+        console.error('Failed to save cart locally:', e);
+      }
+    }
+  }, [items]);
 
   // Smart unit detection using AI logic
   const smartDetectUnit = (itemText) => {
@@ -165,7 +169,7 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
         return unit.toLowerCase();
       }
     }
-    return 'each'; // default
+    return 'each';
   };
 
   // Batch operations
@@ -192,7 +196,6 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
 
       case 'validate-all':
         setValidatingAll(true);
-        // Validate and auto-detect units for all items
         updatedItems = items.map(item => {
           const detectedUnit = smartDetectUnit(item.original || item.itemName || item.name);
           return {
@@ -218,62 +221,55 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
   };
 
   // Add items to meal group
-    const addToMealGroup = async (mealName) => {
-      if (!mealName || selectedItems.size === 0) return;
+  const addToMealGroup = async (mealName) => {
+    if (!mealName || selectedItems.size === 0) return;
 
-      const selectedItemsList = items
-        .filter(item => selectedItems.has(item.id))
-        .map(item => ({
-          id: item.id,
-          name: item.productName || item.itemName,
-          quantity: item.quantity,
-          unit: item.unit,
-          category: item.category
-        }));
+    const selectedItemsList = items
+      .filter(item => selectedItems.has(item.id))
+      .map(item => ({
+        id: item.id,
+        name: item.productName || item.itemName,
+        quantity: item.quantity,
+        unit: item.unit,
+        category: item.category
+      }));
 
-      // Get existing meal plans
-      const existingMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
-      
-      // Find or create a meal plan for this meal
-      let mealPlan = existingMealPlans.find(p => p.name === mealName);
-      
-      if (!mealPlan) {
-        // Create new meal plan
-        mealPlan = {
-          id: `mealplan_${Date.now()}`,
-          name: mealName,
-          items: selectedItemsList,
-          itemCount: selectedItemsList.length,
-          createdAt: new Date().toISOString(),
-          type: 'meal'
-        };
-        existingMealPlans.push(mealPlan);
-      } else {
-        // Add items to existing meal plan
-        mealPlan.items = [...(mealPlan.items || []), ...selectedItemsList];
-        mealPlan.itemCount = mealPlan.items.length;
-        mealPlan.updatedAt = new Date().toISOString();
-      }
-
-      // Save to meal plans instead of meal groups
-      localStorage.setItem('cartsmash-mealplans', JSON.stringify(existingMealPlans));
-      
-      // Also update meal groups for backward compatibility
-      const updatedMealGroups = {
-        ...mealGroups,
-        [mealName]: [...(mealGroups[mealName] || []), ...selectedItemsList]
+    const existingMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
+    
+    let mealPlan = existingMealPlans.find(p => p.name === mealName);
+    
+    if (!mealPlan) {
+      mealPlan = {
+        id: `mealplan_${Date.now()}`,
+        name: mealName,
+        items: selectedItemsList,
+        itemCount: selectedItemsList.length,
+        createdAt: new Date().toISOString(),
+        type: 'meal'
       };
-      setMealGroups(updatedMealGroups);
-      
-      setSelectedItems(new Set());
-      setNewMealName('');
-      alert(`Added ${selectedItemsList.length} items to "${mealName}" meal plan`);
-      
-      // Trigger refresh if available
-      if (window.refreshAccountData) {
-        window.refreshAccountData();
-      }
+      existingMealPlans.push(mealPlan);
+    } else {
+      mealPlan.items = [...(mealPlan.items || []), ...selectedItemsList];
+      mealPlan.itemCount = mealPlan.items.length;
+      mealPlan.updatedAt = new Date().toISOString();
+    }
+
+    localStorage.setItem('cartsmash-mealplans', JSON.stringify(existingMealPlans));
+    
+    const updatedMealGroups = {
+      ...mealGroups,
+      [mealName]: [...(mealGroups[mealName] || []), ...selectedItemsList]
     };
+    setMealGroups(updatedMealGroups);
+    
+    setSelectedItems(new Set());
+    setNewMealName('');
+    alert(`Added ${selectedItemsList.length} items to "${mealName}" meal plan`);
+    
+    if (window.refreshAccountData) {
+      window.refreshAccountData();
+    }
+  };
 
   // Toggle all items selection
   const toggleSelectAll = () => {
@@ -438,7 +434,6 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
             mealItems.some(i => i.id === item.id)
           );
 
-          // Escape CSV fields properly
           const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
           return [
@@ -465,7 +460,6 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
     }
   };
 
-  // Group items by category when sorting by category
   const renderGroupedItems = () => {
     const grouped = {};
     filteredAndSortedItems.forEach(item => {
@@ -503,7 +497,6 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
     alert('List copied to clipboard!');
   };
 
-  // Render individual item
   const renderItem = (item, index) => {
     const isUpdating = updatingItems.has(item.id);
     const isFetchingPrice = fetchingPrices.has(item.id);
@@ -521,7 +514,6 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
             ...(isSelected ? styles.itemRowSelected : {})
           }}
         >
-          {/* Selection checkbox */}
           <div
             style={{
               ...styles.itemCheckbox,
@@ -545,12 +537,10 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
             </div>
           </div>
 
-          {/* Category Icon */}
           <div style={styles.itemCategory}>
             <span title={item.category}>{getCategoryIcon(item.category)}</span>
           </div>
 
-          {/* Product Name */}
           <div style={styles.itemName}>
             {editingItem === item.id ? (
               <input
@@ -573,7 +563,6 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
             )}
           </div>
 
-          {/* Quantity */}
           <div style={styles.itemQuantity}>
             <input
               type="number"
@@ -586,7 +575,6 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
             />
           </div>
 
-          {/* Unit */}
           <div style={styles.itemUnit}>
             <select
               value={item.unit || 'each'}
@@ -602,7 +590,6 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
             </select>
           </div>
 
-          {/* Confidence */}
           <div style={styles.itemConfidence}>
             <span
               style={{
@@ -614,7 +601,6 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
             </span>
           </div>
 
-          {/* Price with history button */}
           <div style={styles.itemPrice}>
             {isFetchingPrice ? (
               <InlineSpinner text="" color="#10b981" />
@@ -636,7 +622,6 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
             )}
           </div>
 
-          {/* Actions */}
           <div style={styles.itemActions}>
             {isUpdating ? (
               <InlineSpinner text="" color="#6b7280" />
@@ -652,7 +637,6 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
           </div>
         </div>
 
-        {/* Price history panel */}
         {showPriceHistory === item.id && itemPriceHistory.length > 0 && (
           <div style={styles.priceHistoryPanel}>
             <div style={styles.priceHistoryHeader}>📈 Price History:</div>
@@ -670,6 +654,9 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
       </div>
     );
   };
+
+  // Rest of component continues with the actual return statement...
+  // (continuing with the JSX return and other components)
 
   return (
     <div style={{
@@ -995,21 +982,22 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
 
       {/* NEW: Enhanced Instacart Modal */}
       {showInstacart && (
-        <EnhancedInstacartModal
-          items={items}
-          onClose={() => setShowInstacart(false)}
-          onOpenKroger={() => {  // Add this prop
-            setShowInstacart(false);
-            setShowKroger(true);
-          }}
-        />
-      )}
+  <EnhancedInstacartModal
+    items={items}
+    currentUser={currentUser}  // ← ADD THIS LINE
+    onClose={() => setShowInstacart(false)}
+    onOpenKroger={() => {
+      setShowInstacart(false);
+      setShowKroger(true);
+    }}
+  />
+)}
 
-      {/* ADD KROGER MODAL HERE - Outside of Instacart modal */}
+      {/* Kroger Modal - Outside of Instacart modal */}
       {showKroger && (
         <KrogerOrderFlow
           cartItems={items}
-          currentUser={_currentUser}
+          currentUser={currentUser}  // Pass _currentUser here
           onClose={() => setShowKroger(false)}
         />
       )}  
@@ -1018,7 +1006,7 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
 }
 
 // In ParsedResultsDisplay.js, replace the entire EnhancedInstacartModal function
-function EnhancedInstacartModal({ items, onClose, _currentUser }) {
+function EnhancedInstacartModal({ items, onClose, currentUser }) {
   const [selectedStore, setSelectedStore] = useState('safeway');
   const [isProcessing, setIsProcessing] = useState(false);
   const [deliveryOption, setDeliveryOption] = useState('delivery');
@@ -1058,7 +1046,7 @@ function EnhancedInstacartModal({ items, onClose, _currentUser }) {
     return (
       <KrogerOrderFlow
         cartItems={items}
-        currentUser={_currentUser}
+        currentUser={currentUser}
         onClose={onClose}
       />
     );
@@ -1398,7 +1386,7 @@ const styles = {
   mealNameInput: {
     width: '100%',
     padding: '10px',
-    border: '1px solid d1d5db',
+    border: '1px solid #d1d5db',
     borderRadius: '6px',
     fontSize: '14px',
     marginTop: '8px'

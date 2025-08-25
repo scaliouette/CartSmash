@@ -1,7 +1,8 @@
-﻿// client/src/App.js - FIXED WITH FIREBASE PERSISTENCE
+﻿// client/src/App.js - COMPLETE FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import userDataService from './services/userDataService';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 // Import styles
 import './styles/cartsmash.css';
@@ -71,16 +72,16 @@ function AppContent({
     loadAllData();
   }, [currentUser]);
   
-// Auto-save cart to Firebase when it changes (debounced)
-useEffect(() => {
-  if (currentCart.length === 0) return;
-  
-  const saveTimer = setTimeout(() => {
-    saveCartToFirebase();
-  }, 2000); // 2 second debounce
-  
-  return () => clearTimeout(saveTimer);
-}, [currentCart, currentUser]); // Add currentUser to dependencies
+  // Auto-save cart to Firebase when it changes (debounced)
+  useEffect(() => {
+    if (currentCart.length === 0) return;
+    
+    const saveTimer = setTimeout(() => {
+      saveCartToFirebase();
+    }, 2000); // 2 second debounce
+    
+    return () => clearTimeout(saveTimer);
+  }, [currentCart, currentUser]);
   
   // Load all data from localStorage first, then Firebase
   const loadAllData = async () => {
@@ -174,36 +175,36 @@ useEffect(() => {
     }
   };
   
-const saveCartToFirebase = async () => {
-  if (!currentUser || currentCart.length === 0) return;
-  
-  try {
-    // Auto-save current cart as a list
-    const autoSaveList = {
-      id: 'auto-save-current', // Use fixed ID for auto-save
-      name: `Auto-saved Cart ${new Date().toLocaleString()}`,
-      items: currentCart,
-      autoSaved: true,
-      updatedAt: new Date().toISOString()
-    };
+  const saveCartToFirebase = async () => {
+    if (!currentUser || currentCart.length === 0) return;
     
-    await userDataService.saveParsedList(autoSaveList);
-    console.log('✅ Cart auto-saved to Firebase');
-    
-    // Also save to localStorage as backup
-    localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
-    
-  } catch (error) {
-    console.error('Error saving cart to Firebase:', error);
-    // Fallback to localStorage on error
     try {
+      // Auto-save current cart as a list
+      const autoSaveList = {
+        id: 'auto-save-current',
+        name: `Auto-saved Cart ${new Date().toLocaleString()}`,
+        items: currentCart,
+        autoSaved: true,
+        updatedAt: new Date().toISOString()
+      };
+      
+      await userDataService.saveParsedList(autoSaveList);
+      console.log('✅ Cart auto-saved to Firebase');
+      
+      // Also save to localStorage as backup
       localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
-      console.log('💾 Cart saved locally as fallback');
-    } catch (localError) {
-      console.error('Local save also failed:', localError);
+      
+    } catch (error) {
+      console.error('Error saving cart to Firebase:', error);
+      // Fallback to localStorage on error
+      try {
+        localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
+        console.log('💾 Cart saved locally as fallback');
+      } catch (localError) {
+        console.error('Local save also failed:', localError);
+      }
     }
-  }
-};
+  };
   
   // CONNECTED FUNCTIONS
   const loadRecipeToCart = async (recipe, merge = false) => {
@@ -443,6 +444,7 @@ const saveCartToFirebase = async () => {
             saveCartAsList={saveCartAsList}
             saveRecipe={saveRecipe}
             loadRecipeToCart={loadRecipeToCart}
+            // NOTE: currentUser removed - GroceryListForm gets it from useAuth()
           />
         ) : currentView === 'account' ? (
           <MyAccount 

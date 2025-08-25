@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
 require('dotenv').config();
+const tokenStore = require('./services/TokenStore'); 
 
 const app = express();
 
@@ -93,9 +94,9 @@ try {
   console.log('✅ Recipes routes loaded');
 } catch (error) {
   console.log('⚠️ Recipes routes not found:', error.message);
-}  // <-- THIS CLOSING BRACE WAS MISSING!
+}
 
-// Kroger API routes - NOW OUTSIDE THE CATCH BLOCK
+// Kroger API routes
 try {
   const krogerRoutes = require('./routes/kroger');
   app.use('/api/kroger', krogerRoutes);
@@ -112,38 +113,6 @@ try {
 } catch (error) {
   console.log('❌ Kroger Order routes failed:', error.message);
 }
-
-// Kroger OAuth endpoints
-app.get('/api/auth/kroger/login', (req, res) => {
-  const { userId } = req.query;
-  
-  console.log('🔐 Kroger OAuth login requested for user:', userId);
-  
-  if (!process.env.KROGER_CLIENT_ID) {
-    return res.status(500).json({ 
-      success: false, 
-      error: 'Kroger OAuth not configured. Please set KROGER_CLIENT_ID in .env'
-    });
-  }
-  
-  const state = Buffer.from(`${userId || 'demo'}-${Date.now()}`).toString('base64');
-  
-  const authUrl = new URL('https://api-ce.kroger.com/v1/connect/oauth2/authorize');
-  // FIX: OAuth URL for Production
-  // const authUrl = new URL('https://api.kroger.com/v1/connect/oauth2/authorize');
-  authUrl.searchParams.append('response_type', 'code');
-  authUrl.searchParams.append('client_id', process.env.KROGER_CLIENT_ID);
-  authUrl.searchParams.append('redirect_uri', process.env.KROGER_REDIRECT_URI || 'http://localhost:3001/api/auth/kroger/callback');
-  
-  // FIXED SCOPES - Only use what's available for Public API
-  authUrl.searchParams.append('scope', 'cart.basic:write profile.compact product.compact');
-  // REMOVED: order.basic:write (not available for public API)
-  
-  authUrl.searchParams.append('state', state);
-  
-  console.log('🔐 Redirecting to:', authUrl.toString());
-  res.redirect(authUrl.toString());
-});
 
 // Kroger OAuth endpoints
 app.get('/api/auth/kroger/login', (req, res) => {
@@ -233,7 +202,6 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
       console.log('   Expires in:', tokenResponse.data.expires_in, 'seconds');
       
       // Store tokens using persistent TokenStore
-      const tokenStore = require('./services/TokenStore');
       tokenStore.setTokens(
         userId,
         {
@@ -244,41 +212,9 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
         tokenResponse.data.refresh_token
       );
       
-      // Also update KrogerOrderService for immediate use
-      const KrogerOrderService = require('./services/KrogerOrderService');
-      const orderService = new KrogerOrderService();
-      orderService.tokens.set(userId, {
-        accessToken: tokenResponse.data.access_token,
-        expiresAt: Date.now() + (tokenResponse.data.expires_in * 1000),
-        scope: tokenResponse.data.scope
-      });
-
-      // Store tokens PERSISTENTLY using TokenStore
-      const tokenStore = require('./services/TokenStore');
-      tokenStore.setTokens(
-        userId,
-        {
-          accessToken: tokenResponse.data.access_token,
-          expiresAt: Date.now() + (tokenResponse.data.expires_in * 1000),
-          scope: tokenResponse.data.scope
-        },
-        tokenResponse.data.refresh_token
-      );
-
-      // Also update in-memory for immediate use
-      orderService.tokens.set(userId, {
-        accessToken: tokenResponse.data.access_token,
-        expiresAt: Date.now() + (tokenResponse.data.expires_in * 1000),
-        scope: tokenResponse.data.scope
-      });
-
-      console.log('✅ Tokens stored PERSISTENTLY for user:', userId);
-            
+      console.log('✅ Tokens stored persistently for user:', userId);
       
-      
-    
-      
-      // Success page with better styling
+      // Success page
       res.send(`
         <html>
         <head>
@@ -379,8 +315,7 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
 app.get('/api/auth/kroger/status', (req, res) => {
   const userId = req.headers['user-id'] || req.query.userId || 'demo-user';
   
-  // Check PERSISTENT token store (not just memory)
-  const tokenStore = require('./services/TokenStore');
+  // Check persistent token store
   const tokenInfo = tokenStore.getTokens(userId);
   const isAuthenticated = !!tokenInfo;
   
@@ -388,27 +323,6 @@ app.get('/api/auth/kroger/status', (req, res) => {
   if (tokenInfo) {
     console.log(`   Token expires: ${new Date(tokenInfo.expiresAt).toLocaleTimeString()}`);
   }
-  
-  res.json({
-    success: true,
-    authenticated: isAuthenticated,
-    userId: userId,
-    needsAuth: !isAuthenticated,
-    tokenExpiry: tokenInfo?.expiresAt ? new Date(tokenInfo.expiresAt).toISOString() : null
-  });
-});
-
-app.get('/api/auth/kroger/status', (req, res) => {
-  const userId = req.headers['user-id'] || req.query.userId || 'demo-user';
-  
-  // Check if user has valid token
-  const KrogerOrderService = require('./services/KrogerOrderService');
-  const orderService = new KrogerOrderService();
-  
-    // Check persistent token store
-  const tokenStore = require('./services/TokenStore');
-  const tokenInfo = tokenStore.get(userId);
-  const isAuthenticated = !!tokenInfo;
   
   res.json({
     success: true,

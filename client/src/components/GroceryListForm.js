@@ -20,6 +20,10 @@ function getTimeAgo(date) {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
+
+
+
+
 // Sub-components
 function SyncStatusIndicator({ isSyncing, lastSync, error }) {
   if (!isSyncing && !lastSync && !error) return null;
@@ -199,8 +203,11 @@ function GroceryListForm({
   const [validatingAll, setValidatingAll] = useState(false);
   const [parsingProgress, setParsingProgress] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
+  const { currentUser } = useAuth();
   
-  const { currentUser, saveCartToFirebase } = useAuth();
+   useEffect(() => {
+    console.log('🔍 GroceryListForm currentUser:', currentUser?.email || 'No user');
+  }, [currentUser]);
  
   // Auto-save hooks
   const { 

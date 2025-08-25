@@ -1,4 +1,5 @@
 // server/services/KrogerOrderService.js - Complete Kroger ordering system
+
 const axios = require('axios');
 const tokenStore = require('./TokenStore');  // ADD THIS AT TOP
 
@@ -106,10 +107,11 @@ class KrogerOrderService {
   /**
    * Check if user has valid authentication
    */
-  async ensureUserAuth(userId) {
-  // First check persistent store
-  const tokenStore = require('./TokenStore');
-  let tokenInfo = tokenStore.getTokens(userId);
+ async ensureUserAuth(userId) {
+  // REMOVE THIS LINE - tokenStore already imported at top
+  // const tokenStore = require('./TokenStore');
+  
+  let tokenInfo = tokenStore.getTokens(userId);  // Just use it directly
   
   // If found in persistent store, update memory cache
   if (tokenInfo && !this.tokens.has(userId)) {
@@ -144,10 +146,7 @@ class KrogerOrderService {
   
   return { 
     authenticated: true, 
-    tokenInfo: {
-      expiresAt: new Date(tokenInfo.expiresAt).toISOString(),
-      scope: tokenInfo.scope
-    }
+    tokenInfo: tokenInfo
   };
 }
 
