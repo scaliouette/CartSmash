@@ -76,6 +76,13 @@ router.post('/cart/send', async (req, res) => {
     modality = 'PICKUP',
     clearExistingCart = false 
   } = req.body;
+
+  console.log('📦 Cart Send Request:', {
+    userId: req.userId,
+    itemCount: cartItems?.length,
+    storeId: storeId,
+    firstItem: cartItems?.[0]
+  });
   
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
     return res.status(400).json({
@@ -108,14 +115,16 @@ router.post('/cart/send', async (req, res) => {
         success: false,
         error: 'User not authenticated with Kroger',
         message: 'Please complete Kroger authentication first',
-        needsAuth: true
+        needsAuth: true,
+        details: error.message // ADD THIS
       });
     }
     
     res.status(500).json({
       success: false,
       error: 'Failed to send cart to Kroger',
-      message: error.message
+      message: error.message, 
+      details: error.stack // ADD THIS
     });
   }
 });

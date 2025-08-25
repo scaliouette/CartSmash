@@ -145,50 +145,277 @@ app.get('/api/auth/kroger/login', (req, res) => {
   res.redirect(authUrl.toString());
 });
 
+// Kroger OAuth endpoints
+app.get('/api/auth/kroger/login', (req, res) => {
+  const { userId } = req.query;
+  
+  console.log('🔐 Kroger OAuth login requested for user:', userId);
+  
+  if (!process.env.KROGER_CLIENT_ID) {
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Kroger OAuth not configured. Please set KROGER_CLIENT_ID in .env'
+    });
+  }
+  
+  const state = Buffer.from(`${userId || 'demo'}-${Date.now()}`).toString('base64');
+  
+  const authUrl = new URL('https://api-ce.kroger.com/v1/connect/oauth2/authorize');
+  authUrl.searchParams.append('response_type', 'code');
+  authUrl.searchParams.append('client_id', process.env.KROGER_CLIENT_ID);
+  authUrl.searchParams.append('redirect_uri', process.env.KROGER_REDIRECT_URI || 'http://localhost:3001/api/auth/kroger/callback');
+  authUrl.searchParams.append('scope', 'cart.basic:write profile.compact product.compact');
+  authUrl.searchParams.append('state', state);
+  
+  console.log('🔐 Redirecting to:', authUrl.toString());
+  res.redirect(authUrl.toString());
+});
+
 app.get('/api/auth/kroger/callback', async (req, res) => {
   const { code, state, error } = req.query;
+
+  console.log('🔐 OAuth Callback received:', {
+    hasCode: !!code,
+    hasState: !!state,
+    error: error
+  });
   
   if (error) {
     console.error('❌ Kroger OAuth error:', error);
     return res.send(`
-      <html>
-        <body>
-          <script>
-            window.opener.postMessage({ 
-              type: 'KROGER_AUTH_ERROR', 
-              error: '${error}' 
-            }, '*');
-            window.close();
-          </script>
-        </body>
-      </html>
+      <html><body>
+        <h2 style="color: red; text-align: center; margin-top: 50px;">
+          Authentication Error: ${error}
+        </h2>
+        <script>
+          window.opener.postMessage({ 
+            type: 'KROGER_AUTH_ERROR', 
+            error: '${error}' 
+          }, '*');
+          setTimeout(() => window.close(), 3000);
+        </script>
+      </body></html>
     `);
   }
   
-  console.log('✅ Kroger OAuth callback received');
-  
-  res.send(`
-    <html>
-      <body>
-        <script>
-          window.opener.postMessage({ 
-            type: 'KROGER_AUTH_SUCCESS' 
-          }, '*');
-          window.close();
-        </script>
-      </body>
-    </html>
-  `);
+  if (code) {
+    try {
+      // Extract userId from state
+      const decoded = Buffer.from(state, 'base64').toString();
+      const [userId] = decoded.split('-');
+      
+      console.log('🔄 Exchanging code for token...');
+      console.log('   User ID:', userId);
+      
+      // Create credentials for token exchange
+      const credentials = Buffer.from(
+        `${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`
+      ).toString('base64');
+      
+      // Exchange code for token
+      const axios = require('axios');
+      const tokenResponse = await axios.post(
+        'https://api-ce.kroger.com/v1/connect/oauth2/token',
+        new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: code,
+          redirect_uri: process.env.KROGER_REDIRECT_URI || 'http://localhost:3001/api/auth/kroger/callback'
+        }).toString(),
+        {
+          headers: {
+            'Authorization': `Basic ${credentials}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+      
+      console.log('✅ Token exchange successful!');
+      console.log('   Expires in:', tokenResponse.data.expires_in, 'seconds');
+      
+      // Store tokens using persistent TokenStore
+      const tokenStore = require('./services/TokenStore');
+      tokenStore.setTokens(
+        userId,
+        {
+          accessToken: tokenResponse.data.access_token,
+          expiresAt: Date.now() + (tokenResponse.data.expires_in * 1000),
+          scope: tokenResponse.data.scope
+        },
+        tokenResponse.data.refresh_token
+      );
+      
+      // Also update KrogerOrderService for immediate use
+      const KrogerOrderService = require('./services/KrogerOrderService');
+      const orderService = new KrogerOrderService();
+      orderService.tokens.set(userId, {
+        accessToken: tokenResponse.data.access_token,
+        expiresAt: Date.now() + (tokenResponse.data.expires_in * 1000),
+        scope: tokenResponse.data.scope
+      });
+
+      // Store tokens PERSISTENTLY using TokenStore
+      const tokenStore = require('./services/TokenStore');
+      tokenStore.setTokens(
+        userId,
+        {
+          accessToken: tokenResponse.data.access_token,
+          expiresAt: Date.now() + (tokenResponse.data.expires_in * 1000),
+          scope: tokenResponse.data.scope
+        },
+        tokenResponse.data.refresh_token
+      );
+
+      // Also update in-memory for immediate use
+      orderService.tokens.set(userId, {
+        accessToken: tokenResponse.data.access_token,
+        expiresAt: Date.now() + (tokenResponse.data.expires_in * 1000),
+        scope: tokenResponse.data.scope
+      });
+
+      console.log('✅ Tokens stored PERSISTENTLY for user:', userId);
+            
+      
+      
+    
+      
+      // Success page with better styling
+      res.send(`
+        <html>
+        <head>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+              margin: 0;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            }
+            .success-container {
+              background: white;
+              padding: 40px;
+              border-radius: 15px;
+              box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+              text-align: center;
+              max-width: 400px;
+            }
+            h2 { color: #10b981; margin-bottom: 15px; }
+            p { color: #666; margin: 10px 0; }
+            .checkmark {
+              width: 60px;
+              height: 60px;
+              margin: 0 auto 20px;
+              background: #10b981;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              animation: scaleIn 0.3s ease-in-out;
+            }
+            .checkmark svg {
+              width: 30px;
+              height: 30px;
+              fill: white;
+            }
+            @keyframes scaleIn {
+              from { transform: scale(0); }
+              to { transform: scale(1); }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="success-container">
+            <div class="checkmark">
+              <svg viewBox="0 0 24 24">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+              </svg>
+            </div>
+            <h2>Successfully Connected!</h2>
+            <p>Your Kroger account has been linked.</p>
+            <p style="font-size: 14px; color: #999;">This window will close automatically...</p>
+          </div>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'KROGER_AUTH_SUCCESS',
+                userId: '${userId}'
+              }, '*');
+            }
+            setTimeout(() => {
+              window.close();
+            }, 2000);
+          </script>
+        </body>
+        </html>
+      `);
+      
+    } catch (error) {
+      console.error('❌ Token exchange failed:', error.response?.data || error.message);
+      
+      const errorMessage = error.response?.data?.error_description || error.message;
+      res.send(`
+        <html><body>
+          <div style="text-align: center; padding: 50px; font-family: Arial;">
+            <h2 style="color: #ef4444;">❌ Authentication Failed</h2>
+            <p style="color: #666;">${errorMessage}</p>
+            <p style="color: #999; font-size: 14px;">This window will close automatically...</p>
+          </div>
+          <script>
+            window.opener.postMessage({ 
+              type: 'KROGER_AUTH_ERROR', 
+              error: '${errorMessage}' 
+            }, '*');
+            setTimeout(() => window.close(), 4000);
+          </script>
+        </body></html>
+      `);
+    }
+  } else {
+    res.status(400).send('Missing authorization code');
+  }
 });
 
 app.get('/api/auth/kroger/status', (req, res) => {
   const userId = req.headers['user-id'] || req.query.userId || 'demo-user';
   
+  // Check PERSISTENT token store (not just memory)
+  const tokenStore = require('./services/TokenStore');
+  const tokenInfo = tokenStore.getTokens(userId);
+  const isAuthenticated = !!tokenInfo;
+  
+  console.log(`🔍 Auth check for ${userId}: ${isAuthenticated ? '✅' : '❌'}`);
+  if (tokenInfo) {
+    console.log(`   Token expires: ${new Date(tokenInfo.expiresAt).toLocaleTimeString()}`);
+  }
+  
   res.json({
     success: true,
-    authenticated: false,
+    authenticated: isAuthenticated,
     userId: userId,
-    needsAuth: true
+    needsAuth: !isAuthenticated,
+    tokenExpiry: tokenInfo?.expiresAt ? new Date(tokenInfo.expiresAt).toISOString() : null
+  });
+});
+
+app.get('/api/auth/kroger/status', (req, res) => {
+  const userId = req.headers['user-id'] || req.query.userId || 'demo-user';
+  
+  // Check if user has valid token
+  const KrogerOrderService = require('./services/KrogerOrderService');
+  const orderService = new KrogerOrderService();
+  
+    // Check persistent token store
+  const tokenStore = require('./services/TokenStore');
+  const tokenInfo = tokenStore.get(userId);
+  const isAuthenticated = !!tokenInfo;
+  
+  res.json({
+    success: true,
+    authenticated: isAuthenticated,
+    userId: userId,
+    needsAuth: !isAuthenticated,
+    tokenExpiry: tokenInfo?.expiresAt ? new Date(tokenInfo.expiresAt).toISOString() : null
   });
 });
 

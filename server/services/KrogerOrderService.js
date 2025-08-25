@@ -1,5 +1,6 @@
 // server/services/KrogerOrderService.js - Complete Kroger ordering system
 const axios = require('axios');
+const tokenStore = require('./TokenStore');  // ADD THIS AT TOP
 
 class KrogerOrderService {
   constructor() {
@@ -8,19 +9,18 @@ class KrogerOrderService {
     this.clientSecret = process.env.KROGER_CLIENT_SECRET;
     this.redirectUri = process.env.KROGER_REDIRECT_URI;
     
-    // Different scopes for different operations
     this.scopes = {
-  products: 'product.compact',
-  cart: 'cart.basic:write',
-  // orders: 'order.basic:write',  // COMMENT OUT - not available for public API
-  profile: 'profile.compact'
-};
+      products: 'product.compact',
+      cart: 'cart.basic:write',
+      profile: 'profile.compact'
+    };
     
-    // Token storage (in production, use proper session management)
-    this.tokens = new Map();
-    this.refreshTokens = new Map();
+    // CHANGE: Use TokenStore's maps instead of creating new ones
+    this.tokens = tokenStore.tokens;  // Use shared tokens
+    this.refreshTokens = tokenStore.refreshTokens;  // Use shared refresh tokens
     
     console.log('🛒 Kroger Order Service initialized');
+    console.log(`   Active users: ${this.tokens.size}`);
   }
 
   /**
@@ -107,22 +107,49 @@ class KrogerOrderService {
    * Check if user has valid authentication
    */
   async ensureUserAuth(userId) {
-    const tokenInfo = this.tokens.get(userId);
-    
-    if (!tokenInfo) {
-      return { authenticated: false, reason: 'No tokens found' };
+  // First check persistent store
+  const tokenStore = require('./TokenStore');
+  let tokenInfo = tokenStore.getTokens(userId);
+  
+  // If found in persistent store, update memory cache
+  if (tokenInfo && !this.tokens.has(userId)) {
+    this.tokens.set(userId, tokenInfo);
+    const refreshToken = tokenStore.getRefreshToken(userId);
+    if (refreshToken) {
+      this.refreshTokens.set(userId, refreshToken);
     }
-    
-    if (Date.now() >= tokenInfo.expiresAt) {
-      // Try to refresh token
-      const refreshed = await this.refreshUserToken(userId);
-      if (!refreshed) {
-        return { authenticated: false, reason: 'Token expired and refresh failed' };
-      }
-    }
-    
-    return { authenticated: true, tokenInfo: this.tokens.get(userId) };
   }
+  
+  // Now check memory cache
+  tokenInfo = this.tokens.get(userId);
+  
+  if (!tokenInfo) {
+    return { 
+      authenticated: false, 
+      reason: 'No tokens found - user needs to complete OAuth flow' 
+    };
+  }
+  
+  if (Date.now() >= tokenInfo.expiresAt) {
+    // Try to refresh token
+    const refreshed = await this.refreshUserToken(userId);
+    if (!refreshed) {
+      return { 
+        authenticated: false, 
+        reason: 'Token expired and refresh failed' 
+      };
+    }
+    tokenInfo = this.tokens.get(userId);
+  }
+  
+  return { 
+    authenticated: true, 
+    tokenInfo: {
+      expiresAt: new Date(tokenInfo.expiresAt).toISOString(),
+      scope: tokenInfo.scope
+    }
+  };
+}
 
   /**
    * Refresh user's access token
@@ -181,34 +208,47 @@ class KrogerOrderService {
    * Make authenticated API request for a specific user
    */
   async makeUserRequest(userId, method, endpoint, data = null) {
-    const authCheck = await this.ensureUserAuth(userId);
-    
-    if (!authCheck.authenticated) {
-      throw new Error(`User not authenticated: ${authCheck.reason}`);
-    }
-    
-    const config = {
-      method: method,
-      url: `${this.baseURL}${endpoint}`,
-      headers: {
-        'Authorization': `Bearer ${authCheck.tokenInfo.accessToken}`,
-        'Accept': 'application/json'
-      }
-    };
-    
-    if (data) {
-      config.headers['Content-Type'] = 'application/json';
-      config.data = data;
-    }
-    
-    try {
-      const response = await axios(config);
-      return response.data;
-    } catch (error) {
-      console.error(`❌ API request failed [${method} ${endpoint}]:`, error.response?.data || error.message);
-      throw error;
-    }
+  console.log(`📡 Making API request for user: "${userId}"`);
+  console.log(`   Method: ${method} ${endpoint}`);
+  
+  const authCheck = await this.ensureUserAuth(userId);
+  
+  if (!authCheck.authenticated) {
+    console.log(`❌ User not authenticated: ${authCheck.reason}`);
+    throw new Error(`User not authenticated: ${authCheck.reason}`);
   }
+  
+  console.log(`✅ User authenticated, token exists`);
+  console.log(`   Token (first 20 chars): ${authCheck.tokenInfo.accessToken.substring(0, 20)}...`);
+  
+  const config = {
+    method: method,
+    url: `${this.baseURL}${endpoint}`,
+    headers: {
+      'Authorization': `Bearer ${authCheck.tokenInfo.accessToken}`,
+      'Accept': 'application/json'
+    }
+  };
+  
+  console.log(`   Full URL: ${config.url}`);
+  console.log(`   Auth header set: ${config.headers.Authorization.substring(0, 30)}...`);
+  
+  if (data) {
+    config.headers['Content-Type'] = 'application/json';
+    config.data = data;
+  }
+  
+  try {
+    const response = await axios(config);
+    console.log(`✅ API request successful`);
+    return response.data;
+  } catch (error) {
+    console.error(`❌ API request failed [${method} ${endpoint}]:`);
+    console.error(`   Status: ${error.response?.status}`);
+    console.error(`   Message: ${error.response?.data?.message || error.message}`);
+    throw error;
+  }
+}
 
   /**
    * Get user's Kroger cart
