@@ -10,11 +10,11 @@ class KrogerOrderService {
     
     // Different scopes for different operations
     this.scopes = {
-      products: 'product.compact',
-      cart: 'cart.basic:write',
-      orders: 'order.basic:write',
-      profile: 'profile.compact'
-    };
+  products: 'product.compact',
+  cart: 'cart.basic:write',
+  // orders: 'order.basic:write',  // COMMENT OUT - not available for public API
+  profile: 'profile.compact'
+};
     
     // Token storage (in production, use proper session management)
     this.tokens = new Map();
@@ -26,10 +26,11 @@ class KrogerOrderService {
   /**
    * Get authorization URL for user to authenticate with Kroger
    */
-  getAuthURL(userId, requiredScopes = ['cart.basic:write', 'order.basic:write']) {
-    const state = this.generateState(userId);
-    const scope = requiredScopes.join(' ');
-    
+  getAuthURL(userId, requiredScopes = ['cart.basic:write', 'profile.compact']) {
+  // REMOVED 'order.basic:write' from default scopes
+  const state = this.generateState(userId);
+  const scope = requiredScopes.join(' ')
+  
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.clientId,

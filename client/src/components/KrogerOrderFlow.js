@@ -43,79 +43,88 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
     checkAuthStatus();
   }, [checkAuthStatus]);
 
-  // ✅ FIX: Prevent page reload by using popup window instead of direct redirect
-  const handleKrogerAuth = async (event) => {
-    // ✅ FIX: Prevent any default behavior
-    if (event) {
-      event.preventDefault();
+const handleKrogerAuth = async (event) => {
+  if (event) {
+    event.preventDefault();
+  }
+  
+  setIsLoading(true);
+  setError('');
+  
+  try {
+    const userId = currentUser?.uid || 'demo-user';
+    
+    // First, check if the server is configured
+    const configCheck = await fetch('http://localhost:3001/api/auth/kroger/status');
+    const configData = await configCheck.json();
+    
+    if (!configData.success) {
+      throw new Error('Kroger integration not configured on server');
     }
     
-    setIsLoading(true);
-    setError('');
+    // Build the OAuth URL - FIXED VERSION
+    const authUrl = `http://localhost:3001/api/auth/kroger/login?userId=${encodeURIComponent(userId)}`;
     
-    try {
-      // ✅ FIX: Use popup window instead of page redirect to prevent reload
-      const authUrl = `/api/auth/kroger/login?userId=${currentUser?.uid || 'demo-user'}`;
+    console.log('Opening Kroger OAuth URL:', authUrl);
+    
+    // Open popup window
+    const popup = window.open(
+      authUrl,
+      'kroger-auth',
+      'width=600,height=800,scrollbars=yes,resizable=yes,toolbar=no,menubar=no'
+    );
+    
+    if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+      throw new Error('Popup was blocked. Please allow popups for this site and try again.');
+    }
+    
+    // Focus the popup
+    popup.focus();
+    
+    // Listen for completion message
+    const handleMessage = (event) => {
+      console.log('Received message:', event.data);
       
-      // Open popup window for OAuth
-      const popup = window.open(
-        authUrl,
-        'kroger-auth',
-        'width=500,height=700,scrollbars=yes,resizable=yes'
-      );
-      
-      if (!popup) {
-        throw new Error('Popup blocked. Please allow popups for this site and try again.');
+      // Security: Check origin
+      if (event.origin !== 'http://localhost:3001') {
+        return;
       }
       
-      // Listen for popup completion
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkClosed);
-          setIsLoading(false);
-          // Recheck auth status after popup closes
-          checkAuthStatus();
-        }
-      }, 1000);
-      
-      // Listen for message from popup
-      const handleMessage = (event) => {
-        if (event.origin !== window.location.origin) return;
-        
-        if (event.data.type === 'KROGER_AUTH_SUCCESS') {
-          clearInterval(checkClosed);
-          popup.close();
-          setIsLoading(false);
-          checkAuthStatus(); // Recheck auth status
-          window.removeEventListener('message', handleMessage);
-        } else if (event.data.type === 'KROGER_AUTH_ERROR') {
-          clearInterval(checkClosed);
-          popup.close();
-          setIsLoading(false);
-          setError(event.data.error || 'Authentication failed');
-          window.removeEventListener('message', handleMessage);
-        }
-      };
-      
-      window.addEventListener('message', handleMessage);
-      
-      // Timeout after 5 minutes
-      setTimeout(() => {
-        if (!popup.closed) {
-          popup.close();
-          clearInterval(checkClosed);
-          setIsLoading(false);
-          setError('Authentication timed out');
-          window.removeEventListener('message', handleMessage);
-        }
-      }, 300000);
-      
-    } catch (error) {
-      console.error('Kroger auth failed:', error);
-      setError(error.message || 'Failed to start Kroger authentication');
-      setIsLoading(false);
-    }
-  };
+      if (event.data.type === 'KROGER_AUTH_SUCCESS') {
+        console.log('✅ Kroger auth successful!');
+        popup.close();
+        setIsLoading(false);
+        setStep('store-select');
+        loadNearbyStores();
+        window.removeEventListener('message', handleMessage);
+      } else if (event.data.type === 'KROGER_AUTH_ERROR') {
+        console.error('❌ Kroger auth failed:', event.data.error);
+        popup.close();
+        setIsLoading(false);
+        setError(event.data.error || 'Authentication failed');
+        window.removeEventListener('message', handleMessage);
+      }
+    };
+    
+    window.addEventListener('message', handleMessage);
+    
+    // Also check if popup was closed manually
+    const checkClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkClosed);
+        setIsLoading(false);
+        window.removeEventListener('message', handleMessage);
+        // Don't set error here, user might have completed auth
+        checkAuthStatus();
+      }
+    }, 1000);
+    
+  } catch (error) {
+    console.error('Kroger auth error:', error);
+    setError(error.message || 'Failed to start Kroger authentication');
+    setIsLoading(false);
+  }
+};
 
   const loadNearbyStores = async () => {
     setLoadingStores(true);

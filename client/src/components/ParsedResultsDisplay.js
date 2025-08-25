@@ -1,6 +1,7 @@
 // client/src/components/ParsedResultsDisplay.js
 import React, { useState, useEffect } from 'react';
 import { InlineSpinner } from './LoadingSpinner';
+import KrogerOrderFlow from './KrogerOrderFlow';
 
 function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStats }) {
   const [sortBy, setSortBy] = useState('confidence');
@@ -11,8 +12,10 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
 
   // NEW: Instacart modal visibility
   const [showInstacart, setShowInstacart] = useState(false);
+  
 
   // State management
+  const [showKroger, setShowKroger] = useState(false);
   const [updatingItems, setUpdatingItems] = useState(new Set());
   const [fetchingPrices, setFetchingPrices] = useState(new Set());
   const [exportingCSV, setExportingCSV] = useState(false);
@@ -964,19 +967,21 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
 
       {/* NEW: Instacart Actions */}
       <div style={styles.actions}>
-        <button
-          onClick={() => setShowInstacart(true)}
-          style={styles.primaryBtn}
-        >
-          🛍️ Continue to Instacart
-        </button>
-        <button
-          onClick={copyListToClipboard}
-          style={styles.secondaryBtn}
-        >
-          📋 Copy List
-        </button>
-      </div>
+  <button
+    onClick={() => setShowInstacart(true)}
+    style={styles.primaryBtn}
+  >
+    🛍️ Continue to Check Out
+  </button>
+  
+  
+  <button
+    onClick={copyListToClipboard}
+    style={styles.secondaryBtn}
+  >
+    📋 Copy List
+  </button>
+</div>
 
       {/* Total Summary */}
       {stats.totalEstimatedPrice > 0 && (
@@ -993,20 +998,42 @@ function ParsedResultsDisplay({ items, onItemsChange, _currentUser, _parsingStat
         <EnhancedInstacartModal
           items={items}
           onClose={() => setShowInstacart(false)}
+          onOpenKroger={() => {  // Add this prop
+            setShowInstacart(false);
+            setShowKroger(true);
+          }}
         />
       )}
+
+      {/* ADD KROGER MODAL HERE - Outside of Instacart modal */}
+      {showKroger && (
+        <KrogerOrderFlow
+          cartItems={items}
+          currentUser={_currentUser}
+          onClose={() => setShowKroger(false)}
+        />
+      )}  
     </div>
   );
 }
 
-// NEW: Enhanced Instacart Modal Component
-function EnhancedInstacartModal({ items, onClose }) {
-  const [selectedStore, setSelectedStore] = useState('kroger');
+// In ParsedResultsDisplay.js, replace the entire EnhancedInstacartModal function
+function EnhancedInstacartModal({ items, onClose, _currentUser }) {
+  const [selectedStore, setSelectedStore] = useState('safeway');
   const [isProcessing, setIsProcessing] = useState(false);
   const [deliveryOption, setDeliveryOption] = useState('delivery');
+  const [showKrogerFlow, setShowKrogerFlow] = useState(false);
 
   const stores = [
-    { id: 'kroger', name: 'Kroger', logo: '🛒', fee: '$3.99', minOrder: 35 },
+    { 
+      id: 'kroger', 
+      name: 'Kroger', 
+      logo: '🛒', 
+      fee: 'Direct', 
+      minOrder: 0,
+      isNative: true,
+      description: 'Send directly to Kroger cart'
+    },
     { id: 'safeway', name: 'Safeway', logo: '🏪', fee: '$4.99', minOrder: 35 },
     { id: 'wholefoods', name: 'Whole Foods', logo: '🌿', fee: '$4.99', minOrder: 35 },
     { id: 'costco', name: 'Costco', logo: '📦', fee: 'Free', minOrder: 0, membership: true },
@@ -1016,29 +1043,50 @@ function EnhancedInstacartModal({ items, onClose }) {
 
   const selectedStoreInfo = stores.find(s => s.id === selectedStore);
 
+  const handleStoreClick = (store) => {
+    if (store.id === 'kroger') {
+      // Immediately launch Kroger flow when Kroger card is clicked
+      setShowKrogerFlow(true);
+    } else {
+      // For other stores, just select them
+      setSelectedStore(store.id);
+    }
+  };
+
+  // If Kroger flow is active, show KrogerOrderFlow INSTEAD of the modal
+  if (showKrogerFlow) {
+    return (
+      <KrogerOrderFlow
+        cartItems={items}
+        currentUser={_currentUser}
+        onClose={onClose}
+      />
+    );
+  }
+
   const handleProceed = () => {
     setIsProcessing(true);
 
-    // Use selected items later; for now use top 5 names to seed search
-    const searchQuery = items
-      .filter(i => (i.productName || i.itemName))
-      .slice(0, 5)
-      .map(i => i.productName || i.itemName)
-      .join(' ');
-
+    // Copy list to clipboard for Instacart stores
+    const listText = items.map(item => 
+      `${item.quantity || 1} ${item.unit || ''} ${item.productName || item.itemName}`
+    ).join('\n');
+    
     setTimeout(() => {
-      const url = `https://www.instacart.com/store/${selectedStore}/search?query=${encodeURIComponent(searchQuery)}`;
-      window.open(url, '_blank');
-      onClose();
+      navigator.clipboard.writeText(listText).then(() => {
+        // Open Instacart
+        window.open('https://www.instacart.com/', '_blank');
+        alert('Your list has been copied! Select your store on Instacart and paste your list.');
+        onClose();
+      });
     }, 800);
   };
 
   const estimatedTotal = items.reduce((sum, item) => {
-    const avgPrice = 3.99; // placeholder when realPrice not present
+    const avgPrice = 3.99;
     const each = (item.realPrice ?? avgPrice) * (item.quantity || 1);
     return sum + each;
   }, 0);
-
 
   return (
     <div style={styles.modalOverlay} onClick={onClose}>
@@ -1047,101 +1095,124 @@ function EnhancedInstacartModal({ items, onClose }) {
 
         <h2 style={styles.modalTitle}>
           <span style={{ fontSize: '28px' }}>🛍️</span>
-          Continue to Instacart
+          Choose Your Store
         </h2>
-
-        {/* Delivery Options */}
-        <div style={styles.deliveryOptions}>
-          <label style={{
-            ...styles.optionCard,
-            ...(deliveryOption === 'delivery' ? styles.optionCardActive : {})
-          }}>
-            <input
-              type="radio"
-              value="delivery"
-              checked={deliveryOption === 'delivery'}
-              onChange={(e) => setDeliveryOption(e.target.value)}
-              style={{ display: 'none' }}
-            />
-            <span style={styles.optionIcon}>🚚</span>
-            <span>Delivery</span>
-          </label>
-
-          <label style={{
-            ...styles.optionCard,
-            ...(deliveryOption === 'pickup' ? styles.optionCardActive : {})
-          }}>
-            <input
-              type="radio"
-              value="pickup"
-              checked={deliveryOption === 'pickup'}
-              onChange={(e) => setDeliveryOption(e.target.value)}
-              style={{ display: 'none' }}
-            />
-            <span style={styles.optionIcon}>🏪</span>
-            <span>Pickup</span>
-          </label>
-        </div>
 
         {/* Store Selection Grid */}
         <div style={styles.storeGrid}>
           {stores.map(store => (
             <div
               key={store.id}
-              onClick={() => setSelectedStore(store.id)}
+              onClick={() => handleStoreClick(store)}
               style={{
                 ...styles.storeCard,
-                ...(selectedStore === store.id ? styles.storeCardActive : {})
+                ...(selectedStore === store.id && store.id !== 'kroger' ? styles.storeCardActive : {}),
+                ...(store.id === 'kroger' ? {
+                  background: 'linear-gradient(135deg, #0066cc, #004999)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 4px 15px rgba(0,102,204,0.3)'
+                } : {})
               }}
             >
-              <div style={styles.storeLogo}>{store.logo}</div>
-              <div style={styles.storeName}>{store.name}</div>
-              <div style={styles.storeFee}>{store.fee}</div>
+              <div style={{
+                ...styles.storeLogo,
+                ...(store.id === 'kroger' ? { fontSize: '32px' } : {})
+              }}>
+                {store.logo}
+              </div>
+              <div style={{
+                ...styles.storeName,
+                ...(store.id === 'kroger' ? { color: 'white', fontWeight: 'bold' } : {})
+              }}>
+                {store.name}
+              </div>
+              <div style={{
+                ...styles.storeFee,
+                ...(store.id === 'kroger' ? { color: '#90cdf4' } : {})
+              }}>
+                {store.fee}
+              </div>
               {store.membership && (
                 <div style={styles.membershipBadge}>Membership</div>
+              )}
+              {store.isNative && (
+                <div style={{
+                  position: 'absolute',
+                  top: '4px',
+                  right: '4px',
+                  background: 'rgba(255,255,255,0.9)',
+                  color: '#0066cc',
+                  fontSize: '10px',
+                  padding: '3px 6px',
+                  borderRadius: '4px',
+                  fontWeight: 'bold'
+                }}>
+                  API
+                </div>
+              )}
+              {store.id === 'kroger' && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '8px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  fontSize: '11px',
+                  color: '#90cdf4',
+                  whiteSpace: 'nowrap'
+                }}>
+                  Click to Connect
+                </div>
               )}
             </div>
           ))}
         </div>
 
-        {/* Order Summary */}
+        {/* Only show summary for non-Kroger stores */}
         <div style={styles.orderSummary}>
-          <h3 style={styles.summaryTitle}>Order Summary</h3>
+          <h3 style={styles.summaryTitle}>Your Cart</h3>
           <div style={styles.summaryRow}>
-            <span>Items ({items.length})</span>
+            <span>Items</span>
+            <span>{items.length}</span>
+          </div>
+          <div style={styles.summaryRow}>
+            <span>Est. Total</span>
             <span>${estimatedTotal.toFixed(2)}</span>
           </div>
-          <div style={styles.summaryRow}>
-            <span>Delivery Fee</span>
-            <span>{selectedStoreInfo?.fee}</span>
-          </div>
-          <div style={styles.summaryRow}>
-            <span>Service Fee</span>
-            <span>$2.99</span>
-          </div>
-          <div style={{
-            ...styles.summaryRow,
-            ...styles.summaryTotal
-          }}>
-            <span>Estimated Total</span>
-            <span>${(estimatedTotal + 2.99 + (parseFloat(selectedStoreInfo?.fee?.replace('$', '') || 0))).toFixed(2)}</span>
-          </div>
         </div>
 
-        {/* Action Buttons */}
-        <div style={styles.modalActions}>
-          <button
-            onClick={handleProceed}
-            disabled={isProcessing}
-            style={styles.proceedBtn}
-          >
-            {isProcessing ? '⏳ Opening Instacart...' : `🚀 Continue to ${selectedStoreInfo?.name}`}
-          </button>
-        </div>
+        {/* Action for Instacart stores only */}
+        {selectedStore !== 'kroger' && (
+          <>
+            <div style={styles.modalActions}>
+              <button
+                onClick={handleProceed}
+                disabled={isProcessing}
+                style={styles.proceedBtn}
+              >
+                {isProcessing ? '⏳ Opening Instacart...' : `📋 Copy List & Open Instacart`}
+              </button>
+            </div>
+            <p style={styles.disclaimer}>
+              Select {selectedStoreInfo?.name} on Instacart and paste your list
+            </p>
+          </>
+        )}
 
-        <p style={styles.disclaimer}>
-          You'll be redirected to Instacart to complete your order
-        </p>
+        {/* Instructions */}
+        <div style={{
+          marginTop: '20px',
+          padding: '12px',
+          backgroundColor: '#f0f9ff',
+          borderRadius: '8px',
+          fontSize: '13px',
+          color: '#0369a1'
+        }}>
+          <strong>🛒 Kroger:</strong> Direct API integration - sends items directly to your Kroger cart<br/>
+          <strong>🛍️ Other Stores:</strong> Copies your list to clipboard for use with Instacart
+        </div>
       </div>
     </div>
   );

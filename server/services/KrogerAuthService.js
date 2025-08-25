@@ -23,8 +23,7 @@ class KrogerAuthService {
     this.tokenRefreshBuffer = 5 * 60 * 1000; // Refresh 5 minutes before expiry
     
     console.log('🔐 Kroger Auth Service initialized');
-    // CHANGE FROM:
-    this.validateConfiguration();
+  
 
     // TO:
     try {
