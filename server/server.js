@@ -31,6 +31,15 @@ const initializeFirebase = () => {
 
 initializeFirebase();
 
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'https://cartsmash.vercel.app', // Your Vercel URL
+    'https://cartsmash.com' // Your custom domain
+  ],
+  credentials: true
+};
+
 // Middleware
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
