@@ -20,10 +20,6 @@ function getTimeAgo(date) {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
-
-
-
-
 // Sub-components
 function SyncStatusIndicator({ isSyncing, lastSync, error }) {
   if (!isSyncing && !lastSync && !error) return null;
@@ -205,7 +201,7 @@ function GroceryListForm({
   const [showProgress, setShowProgress] = useState(false);
   const { currentUser } = useAuth();
   
-   useEffect(() => {
+  useEffect(() => {
     console.log('🔍 GroceryListForm currentUser:', currentUser?.email || 'No user');
   }, [currentUser]);
  
@@ -221,6 +217,17 @@ function GroceryListForm({
   const isCartSyncing = false;
   const cartLastSync = null;
   const cartSyncError = null;
+
+  // Define trackEvent function (optional - for analytics)
+  const trackEvent = (action, category, label, value) => {
+    if (window.gtag) {
+      window.gtag('event', action, {
+        event_category: category,
+        event_label: label,
+        value: value
+      });
+    }
+  };
 
   // Show results when cart has items
   useEffect(() => {
@@ -276,6 +283,9 @@ function GroceryListForm({
     setError('');
     setShowProgress(true);
     setParsingProgress(0);
+
+    // Track event for analytics (optional)
+    trackEvent('parse_list', 'engagement', 'ai_parse', currentCart.length);
 
     try {
       console.log('💥 CARTSMASH: Processing list...');

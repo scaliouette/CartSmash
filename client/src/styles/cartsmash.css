@@ -3319,4 +3319,23 @@ button[onclick*="Instacart"],
   100% { transform: rotate(360deg); }
 }
 
+/* Add to cartsmash.css */
+.coming-soon-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  display: inline-block;
+}
+
+.beta-banner {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  padding: 12px;
+  text-align: center;
+  font-weight: 500;
+}
+
 }

@@ -5,6 +5,12 @@ const admin = require('firebase-admin');
 require('dotenv').config();
 const tokenStore = require('./services/TokenStore'); 
 
+Sentry.init({ 
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+  tracesSampleRate: 1.0
+});
+
 const app = express();
 
 // Initialize Firebase Admin SDK
@@ -68,6 +74,8 @@ app.get('/health', (req, res) => {
     firebase: admin.apps.length > 0 ? 'initialized' : 'not initialized'
   });
 });
+
+app.use('/api', require('./routes/health'));
 
 // Cart routes
 try {

@@ -3,6 +3,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { InlineSpinner } from './LoadingSpinner';
 import KrogerOrderFlow from './KrogerOrderFlow';
 
+
+
+
 function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats }) {
   // REMOVED unused aliases that were causing warnings
   // const cartItems = items;  // REMOVED - not used
@@ -31,6 +34,16 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
   const [newMealName, setNewMealName] = useState('');
   const [viewMealGroups, setViewMealGroups] = useState(false);
   const [validatingAll, setValidatingAll] = useState(false);
+
+  const trackEvent = (action, category, label, value) => {
+  if (window.gtag) {
+    window.gtag('event', action, {
+      event_category: category,
+      event_label: label,
+      value: value
+    });
+  }
+};
 
   // Mobile detection
   useEffect(() => {

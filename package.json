@@ -6,7 +6,6 @@
     "server:dev": "cd server && npm run dev",
     "client:dev": "cd client && npm start",
     "install:all": "npm install && cd client && npm install && cd ../server && npm install"
-
   },
   "devDependencies": {
     "concurrently": "^7.6.0"
@@ -20,6 +19,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.56.0",
     "@google/generative-ai": "^0.24.1",
+    "@sentry/node": "^10.6.0",
+    "@sentry/react": "^10.6.0",
     "axios": "^1.10.0",
     "canvas-confetti": "^1.6.0",
     "cors": "^2.8.5",
