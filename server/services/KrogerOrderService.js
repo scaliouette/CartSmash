@@ -323,26 +323,84 @@ async addItemsToCart(userId, items) {
     let result;
     
     if (existingCartId) {
-      // If cart exists, add items to it using POST /carts/{id}/items
-      console.log(`➕ Adding items to existing cart ${existingCartId}`);
+      // If cart exists, get its current contents first
+      console.log(`📋 Getting existing cart contents...`);
+      const existingCart = await this.makeUserRequest(userId, 'GET', `/carts/${existingCartId}`);
+      const existingItems = existingCart.data?.items || [];
       
-      // Add items one by one or in batch
-      const addPromises = uniqueItems.map(async (item) => {
-        try {
-          return await this.makeUserRequest(
-            userId,
-            'POST',
-            `/carts/${existingCartId}/items`,
-            item
-          );
-        } catch (error) {
-          console.warn(`⚠️ Failed to add item ${item.upc}:`, error.message);
-          return null;
+      // Create a map of existing UPCs to their current quantities
+      const existingUPCs = new Map();
+      existingItems.forEach(item => {
+        existingUPCs.set(item.upc, item);
+      });
+      
+      console.log(`📦 Cart has ${existingItems.length} existing items`);
+      
+      // Separate items into new items and items to update
+      const newItems = [];
+      const itemsToUpdate = [];
+      
+      uniqueItems.forEach(item => {
+        if (existingUPCs.has(item.upc)) {
+          // Item exists - need to update quantity
+          const existing = existingUPCs.get(item.upc);
+          itemsToUpdate.push({
+            upc: item.upc,
+            currentQty: existing.quantity,
+            addQty: item.quantity,
+            newQty: existing.quantity + item.quantity
+          });
+        } else {
+          // New item - can be added
+          newItems.push(item);
         }
       });
       
-      await Promise.all(addPromises);
-      console.log(`✅ Added items to existing cart`);
+      console.log(`📊 ${newItems.length} new items, ${itemsToUpdate.length} items to update`);
+      
+      // Add new items via POST
+      if (newItems.length > 0) {
+        console.log(`➕ Adding ${newItems.length} new items to cart...`);
+        const addPromises = newItems.map(async (item) => {
+          try {
+            return await this.makeUserRequest(
+              userId,
+              'POST',
+              `/carts/${existingCartId}/items`,
+              item
+            );
+          } catch (error) {
+            console.warn(`⚠️ Failed to add item ${item.upc}:`, error.message);
+            return null;
+          }
+        });
+        await Promise.all(addPromises);
+      }
+      
+      // Update existing items via PUT
+      if (itemsToUpdate.length > 0) {
+        console.log(`🔄 Updating quantities for ${itemsToUpdate.length} existing items...`);
+        const updatePromises = itemsToUpdate.map(async (item) => {
+          try {
+            return await this.makeUserRequest(
+              userId,
+              'PUT',
+              `/carts/${existingCartId}/items/${item.upc}`,
+              {
+                quantity: item.newQty,
+                modality: 'PICKUP',
+                allowSubstitutes: true
+              }
+            );
+          } catch (error) {
+            console.warn(`⚠️ Failed to update item ${item.upc} to qty ${item.newQty}:`, error.message);
+            return null;
+          }
+        });
+        await Promise.all(updatePromises);
+      }
+      
+      console.log(`✅ Cart update complete`);
       
       // Get the updated cart
       result = await this.makeUserRequest(userId, 'GET', `/carts/${existingCartId}`);
