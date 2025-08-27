@@ -42,7 +42,7 @@ const corsOptions = {
 
 // Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'https://cart-smash.vercel.app',
+  origin: process.env.CLIENT_URL || 'https://cart-smash-pstuhsccd-shawn-caliouettes-projects.vercel.app',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'User-ID']
