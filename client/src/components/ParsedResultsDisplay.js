@@ -48,7 +48,8 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
     setFetchingPrices(prev => new Set([...prev, ...itemIds]));
 
     try {
-      const response = await fetch('/api/cart/fetch-prices', {
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const response = await fetch(`${API_URL}/api/cart/fetch-prices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
