@@ -802,10 +802,22 @@ async sendCartToKroger(userId, smartCartItems, options = {}) {
     // Step 2: Clear existing cart if requested
     if (clearExistingCart) {
       try {
-        await this.makeUserRequest(userId, 'DELETE', '/cart');
-        console.log('🗑️ Cleared existing Kroger cart');
+        // Get list of carts first
+        const cartsResponse = await this.makeUserRequest(userId, 'GET', '/carts');
+        if (cartsResponse.data && cartsResponse.data.length > 0) {
+          // Delete each cart (you can't delete items individually in bulk)
+          for (const cart of cartsResponse.data) {
+            try {
+              await this.makeUserRequest(userId, 'DELETE', `/carts/${cart.id}`);
+              console.log(`🗑️ Deleted cart ${cart.id}`);
+            } catch (deleteError) {
+              console.warn(`⚠️ Could not delete cart ${cart.id}:`, deleteError.message);
+            }
+          }
+        }
+        console.log('🗑️ Cleared existing Kroger carts');
       } catch (error) {
-        console.warn('⚠️ Could not clear existing cart:', error.message);
+        console.warn('⚠️ Could not clear existing carts:', error.message);
       }
     }
     
