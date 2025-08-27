@@ -22,33 +22,58 @@ class KrogerAPIService {
   /**
    * Authenticate with Kroger API using Client Credentials flow
    */
-  async authenticate() {
-    try {
-      console.log('🔐 Authenticating with Kroger API...');
-      
-      const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
-      
-      const response = await axios.post(`${this.baseURL}/connect/oauth2/token`, 
-        'grant_type=client_credentials&scope=product.compact',
-        {
-          headers: {
-            'Authorization': `Basic ${credentials}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }
-      );
-      
-      this.accessToken = response.data.access_token;
-      this.tokenExpiry = Date.now() + (response.data.expires_in * 1000);
-      
-      console.log('✅ Kroger API authentication successful');
-      return true;
-      
-    } catch (error) {
-      console.error('❌ Kroger API authentication failed:', error.response?.data || error.message);
-      return false;
+// Fixed authenticate method for KrogerAPIService.js
+async authenticate() {
+  try {
+    console.log('🔐 Authenticating with Kroger API...');
+    
+    // Check if credentials exist
+    if (!this.clientId || !this.clientSecret) {
+      console.error('❌ Missing Kroger credentials in environment variables');
+      throw new Error('KROGER_CLIENT_ID and KROGER_CLIENT_SECRET must be set');
     }
+    
+    const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    
+    // Use URLSearchParams to properly format the body
+    const params = new URLSearchParams();
+    params.append('grant_type', 'client_credentials');
+    params.append('scope', 'product.compact');
+    
+    const response = await axios.post(
+      `${this.baseURL}/connect/oauth2/token`,
+      params.toString(), // Convert to proper form data
+      {
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
+        },
+        timeout: 10000 // 10 second timeout
+      }
+    );
+    
+    this.accessToken = response.data.access_token;
+    this.tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+    
+    console.log('✅ Kroger API authentication successful');
+    console.log(`   Token expires in: ${response.data.expires_in} seconds`);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Kroger API authentication failed:', error.response?.data || error.message);
+    
+    // Log more detailed error information
+    if (error.response?.status === 401) {
+      console.error('   Status: 401 - Invalid client credentials');
+      console.error('   Check your KROGER_CLIENT_ID and KROGER_CLIENT_SECRET');
+    } else if (error.response?.status === 400) {
+      console.error('   Status: 400 - Bad request format');
+    }
+    
+    throw new Error('Failed to authenticate with Kroger API');
   }
+}
 
   /**
    * Ensure we have a valid access token

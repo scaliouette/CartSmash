@@ -269,166 +269,494 @@ class KrogerOrderService {
   /**
    * Add items to user's Kroger cart
    */
-  async addItemsToCart(userId, items) {
-    try {
-      console.log(`➕ Adding ${items.length} items to Kroger cart for user ${userId}`);
-      
-      const cartItems = items.map(item => ({
-        upc: item.upc,
-        quantity: item.quantity || 1,
-        modality: item.modality || 'PICKUP' // PICKUP or DELIVERY
-      }));
-      
-      const requestData = {
-        items: cartItems
-      };
-      
-      const result = await this.makeUserRequest(userId, 'PUT', '/cart/add', requestData);
-      console.log(`✅ Successfully added items to cart for user ${userId}`);
-      return result;
-      
-    } catch (error) {
-      console.error(`❌ Failed to add items to cart: ${error.message}`);
-      throw error;
+
+async addItemsToCart(userId, items) {
+  try {
+    console.log(`➕ Adding ${items.length} items to Kroger cart for user ${userId}`);
+    
+    // Remove duplicates first
+    const uniqueItems = [];
+    const seenUPCs = new Set();
+    
+    for (const item of items) {
+      if (!seenUPCs.has(item.upc)) {
+        seenUPCs.add(item.upc);
+        uniqueItems.push({
+          upc: item.upc,
+          quantity: parseInt(item.quantity) || 1,
+          modality: item.modality || 'PICKUP'
+        });
+      } else {
+        // If duplicate, increase quantity of existing item
+        const existing = uniqueItems.find(i => i.upc === item.upc);
+        if (existing) {
+          existing.quantity += parseInt(item.quantity) || 1;
+        }
+      }
     }
+    
+    console.log(`📦 Sending ${uniqueItems.length} unique items to cart`);
+    
+    // First, try to get the existing cart
+    let cartExists = false;
+    try {
+      const existingCart = await this.makeUserRequest(userId, 'GET', '/cart');
+      cartExists = true;
+      console.log('✅ Cart exists, will add items to it');
+    } catch (error) {
+      if (error.response?.status === 404) {
+        console.log('📦 No cart exists, will create new one');
+        cartExists = false;
+      } else {
+        throw error;
+      }
+    }
+    
+    // Kroger API typically uses PUT for cart operations
+    // Try PUT first, then fall back to POST if needed
+    let result;
+    try {
+      result = await this.makeUserRequest(
+        userId, 
+        'PUT',  // Changed to PUT - Kroger typically uses PUT for cart updates
+        '/cart',  // FIXED: Removed extra spaces
+        { items: uniqueItems }
+      );
+      console.log(`✅ Successfully added items to cart using PUT`);
+    } catch (putError) {
+      // If PUT fails, try POST
+      if (putError.response?.status === 405 || putError.response?.status === 404) {
+        console.log('⚠️ PUT failed, trying POST method...');
+        try {
+          result = await this.makeUserRequest(
+            userId, 
+            'POST',
+            '/cart',  // No spaces!
+            { items: uniqueItems }
+          );
+          console.log(`✅ Successfully added items to cart using POST`);
+        } catch (postError) {
+          // If both fail, try the /cart/add endpoint
+          console.log('⚠️ POST to /cart failed, trying /cart/add endpoint...');
+          result = await this.makeUserRequest(
+            userId,
+            'PUT',
+            '/cart/add',  // Alternative endpoint
+            { items: uniqueItems }
+          );
+          console.log(`✅ Successfully added items using /cart/add endpoint`);
+        }
+      } else {
+        throw putError;
+      }
+    }
+    
+    console.log(`✅ Successfully added ${uniqueItems.length} items to cart for user ${userId}`);
+    return result;
+    
+  } catch (error) {
+    // Log detailed error information
+    console.error(`❌ Failed to add items to cart: ${error.message}`);
+    if (error.response?.data) {
+      console.error(`   Response data:`, JSON.stringify(error.response.data, null, 2));
+    }
+    if (error.response?.status) {
+      console.error(`   Status code: ${error.response.status}`);
+    }
+    throw error;
   }
+}
+
+
 
   /**
    * Convert Cart Smash items to Kroger cart format
    */
-  async prepareCartItems(smartCartItems, storeId) {
-    console.log(`🔄 Preparing ${smartCartItems.length} Cart Smash items for Kroger`);
+async prepareCartItems(smartCartItems, storeId, userId) {
+  console.log(`🔄 Preparing ${smartCartItems.length} Cart Smash items for Kroger`);
+  console.log(`📍 Using user token for: ${userId}`);
+  
+  const preparedItems = [];
+  const failedItems = [];
+  
+  // Process items in smaller batches to avoid rate limiting
+  const batchSize = 5;
+  for (let i = 0; i < smartCartItems.length; i += batchSize) {
+    const batch = smartCartItems.slice(i, Math.min(i + batchSize, smartCartItems.length));
     
-    const preparedItems = [];
-    const failedItems = [];
-    
-    for (const item of smartCartItems) {
+    await Promise.all(batch.map(async (item) => {
       try {
-        // If item has UPC from previous Kroger validation, use it
+        // If item already has UPC from previous Kroger validation, use it
         if (item.upc) {
           preparedItems.push({
             upc: item.upc,
-            quantity: item.quantity || 1,
+            quantity: parseInt(item.quantity) || 1,
             originalItem: item,
             modality: 'PICKUP'
           });
-          continue;
+          return;
         }
         
-        // If no UPC, try to find the product
-        if (!item.krogerProduct && (item.productName || item.itemName)) {
-          // Search for the product to get UPC
-          const KrogerAPIService = require('./KrogerAPIService');
-          const krogerService = new KrogerAPIService();
-          
-          const searchResults = await krogerService.searchProducts(
-            item.productName || item.itemName, 
-            storeId, 
-            1
-          );
-          
-          if (searchResults.length > 0) {
-            const product = searchResults[0];
-            preparedItems.push({
-              upc: product.upc,
-              quantity: item.quantity || 1,
-              originalItem: item,
-              modality: 'PICKUP',
-              foundProduct: product
-            });
-          } else {
-            failedItems.push({
-              item: item,
-              reason: 'Product not found in Kroger catalog'
-            });
-          }
-        } else {
+        // If no UPC, search for the product using the USER'S token
+        const searchTerm = item.productName || item.itemName || item.name;
+        
+        if (!searchTerm) {
           failedItems.push({
             item: item,
-            reason: 'No UPC or product name available'
+            reason: 'No product name available'
           });
+          return;
         }
         
+        console.log(`🔍 Searching for: "${searchTerm}" with user token`);
+        
+        try {
+          // Build the search URL
+          const searchParams = new URLSearchParams({
+            'filter.term': searchTerm,
+            'filter.locationId': storeId || '01400943',
+            'filter.limit': '5'
+          });
+          
+          // Use the user's authenticated token to search
+          const searchResults = await this.makeUserRequest(
+            userId,
+            'GET',
+            `/products?${searchParams.toString()}`
+          );
+          
+          const products = searchResults.data || [];
+          
+          if (products.length > 0) {
+            const product = products[0]; // Take the first/best match
+            
+            // Extract UPC - Kroger uses different field names
+            let upc = null;
+            
+            // Try different possible UPC locations in Kroger's response
+            if (product.upc) {
+              upc = product.upc;
+            } else if (product.upcs && product.upcs.length > 0) {
+              upc = product.upcs[0];
+            } else if (product.items && product.items[0]?.upc) {
+              upc = product.items[0].upc;
+            } else if (product.productId) {
+              // Fall back to productId if no UPC found
+              upc = product.productId;
+              console.log(`⚠️ Using productId as UPC for ${product.description}`);
+            }
+            
+            if (upc) {
+              preparedItems.push({
+                upc: upc,
+                quantity: parseInt(item.quantity) || 1,
+                originalItem: item,
+                modality: 'PICKUP',
+                foundProduct: {
+                  id: product.productId,
+                  name: product.description || product.brand,
+                  brand: product.brand,
+                  size: product.items?.[0]?.size,
+                  price: product.items?.[0]?.price?.regular || product.items?.[0]?.price?.promo
+                }
+              });
+              
+              console.log(`✅ Found: ${product.description || searchTerm} (UPC: ${upc})`);
+            } else {
+              console.log(`⚠️ No UPC found for product: ${product.description}`);
+              failedItems.push({
+                item: item,
+                reason: 'Product found but no UPC available',
+                product: product.description
+              });
+            }
+          } else {
+            console.log(`❌ No products found for: "${searchTerm}"`);
+            failedItems.push({
+              item: item,
+              reason: 'Product not found in Kroger catalog',
+              searchTerm: searchTerm
+            });
+          }
+        } catch (searchError) {
+          // Handle specific error cases
+          if (searchError.response?.status === 401) {
+            console.error(`🔐 User token expired or invalid for ${userId}`);
+            throw new Error('User authentication expired. Please re-authenticate with Kroger.');
+          }
+          
+          console.log(`❌ Search failed for "${searchTerm}":`, searchError.message);
+          failedItems.push({
+            item: item,
+            reason: `Search error: ${searchError.message}`,
+            searchTerm: searchTerm
+          });
+        }
       } catch (error) {
+        console.error(`❌ Error processing item:`, error.message);
         failedItems.push({
           item: item,
           reason: error.message
         });
       }
+    }));
+    
+    // Add a small delay between batches to avoid rate limiting
+    if (i + batchSize < smartCartItems.length) {
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
-    
-    console.log(`✅ Prepared ${preparedItems.length} items, ${failedItems.length} failed`);
-    
-    return {
-      preparedItems: preparedItems,
-      failedItems: failedItems,
-      summary: {
-        total: smartCartItems.length,
-        prepared: preparedItems.length,
-        failed: failedItems.length,
-        successRate: (preparedItems.length / smartCartItems.length * 100).toFixed(1) + '%'
-      }
-    };
   }
+  
+  console.log(`✅ Prepared ${preparedItems.length} items, ${failedItems.length} failed`);
+  
+  // Log detailed failure reasons
+  if (failedItems.length > 0) {
+    console.log('📋 Failed items summary:');
+    const reasonCounts = {};
+    failedItems.forEach(f => {
+      reasonCounts[f.reason] = (reasonCounts[f.reason] || 0) + 1;
+    });
+    Object.entries(reasonCounts).forEach(([reason, count]) => {
+      console.log(`   - ${reason}: ${count} items`);
+    });
+  }
+  
+  return {
+    preparedItems: preparedItems,
+    failedItems: failedItems,
+    summary: {
+      total: smartCartItems.length,
+      prepared: preparedItems.length,
+      failed: failedItems.length,
+      successRate: smartCartItems.length > 0 
+        ? (preparedItems.length / smartCartItems.length * 100).toFixed(1) + '%'
+        : '0%'
+    }
+  };
+}
 
-  /**
-   * Send complete Cart Smash to Kroger
-   */
-  async sendCartToKroger(userId, smartCartItems, options = {}) {
+// Add this diagnostic method to KrogerOrderService.js to test cart endpoints
+
+async diagnoseCartEndpoints(userId) {
+  console.log('🔬 Running cart endpoint diagnostics...\n');
+  
+  const testItem = {
+    upc: "0001111097139", // Use a valid UPC from your successful searches
+    quantity: 1,
+    modality: "PICKUP"
+  };
+  
+  const endpoints = [
+    // GET endpoints to check cart existence
+    { method: 'GET', path: '/cart', description: 'Get current cart' },
+    { method: 'GET', path: '/carts', description: 'Get all carts' },
+    { method: 'GET', path: '/cart/items', description: 'Get cart items' },
+    
+    // POST endpoints for cart creation
+    { method: 'POST', path: '/cart', body: { items: [testItem] }, description: 'Create cart with items' },
+    { method: 'POST', path: '/carts', body: {}, description: 'Create empty cart' },
+    
+    // PUT endpoints for adding items
+    { method: 'PUT', path: '/cart', body: { items: [testItem] }, description: 'Update cart with items' },
+    { method: 'PUT', path: '/cart/add', body: { items: [testItem] }, description: 'Add items to cart' },
+    { method: 'PUT', path: '/cart/items', body: { items: [testItem] }, description: 'Update cart items' },
+    
+    // PATCH endpoints as alternative
+    { method: 'PATCH', path: '/cart', body: { items: [testItem] }, description: 'Patch cart with items' },
+  ];
+  
+  const results = [];
+  
+  for (const endpoint of endpoints) {
     try {
-      const {
-        storeId = process.env.KROGER_DEFAULT_STORE,
-        modality = 'PICKUP', // PICKUP or DELIVERY
-        clearExistingCart = false
-      } = options;
-      
-      console.log(`🚀 Sending Cart Smash to Kroger for user ${userId}`);
-      console.log(`📍 Store: ${storeId}, Modality: ${modality}`);
-      
-      // Step 1: Prepare Cart Smash items for Kroger
-      const preparation = await this.prepareCartItems(smartCartItems, storeId);
-      
-      if (preparation.preparedItems.length === 0) {
-        throw new Error('No items could be prepared for Kroger cart');
-      }
-      
-      // Step 2: Clear existing cart if requested
-      if (clearExistingCart) {
-        try {
-          await this.makeUserRequest(userId, 'DELETE', '/cart');
-          console.log('🗑️ Cleared existing Kroger cart');
-        } catch (error) {
-          console.warn('⚠️ Could not clear existing cart:', error.message);
-        }
-      }
-      
-      // Step 3: Add items to Kroger cart
-      const addResult = await this.addItemsToCart(userId, preparation.preparedItems);
-      
-      // Step 4: Get updated cart to verify
-      const updatedCart = await this.getUserCart(userId);
+      const response = await this.makeUserRequest(
+        userId, 
+        endpoint.method, 
+        endpoint.path,
+        endpoint.body || null
+      );
       
       const result = {
         success: true,
-        krogerCartId: updatedCart.data?.id,
-        itemsAdded: preparation.preparedItems.length,
-        itemsFailed: preparation.failedItems.length,
-        totalItems: updatedCart.data?.items?.length || 0,
-        preparation: preparation,
-        krogerCart: updatedCart.data,
-        storeId: storeId,
-        modality: modality,
-        timestamp: new Date().toISOString()
+        endpoint: `${endpoint.method} ${endpoint.path}`,
+        description: endpoint.description,
+        status: response.status || 200,
+        hasData: !!response.data,
+        cartId: response.data?.id || response.data?.cartId || null
       };
       
-      console.log(`✅ Cart sent to Kroger successfully: ${result.itemsAdded}/${smartCartItems.length} items`);
-      return result;
+      results.push(result);
+      console.log(`✅ ${endpoint.method} ${endpoint.path}: SUCCESS`);
+      console.log(`   ${endpoint.description}`);
+      if (result.cartId) console.log(`   Cart ID: ${result.cartId}`);
       
     } catch (error) {
-      console.error('❌ Failed to send cart to Kroger:', error);
-      throw error;
+      const result = {
+        success: false,
+        endpoint: `${endpoint.method} ${endpoint.path}`,
+        description: endpoint.description,
+        status: error.response?.status || 'Network Error',
+        error: error.response?.data?.message || error.message
+      };
+      
+      results.push(result);
+      console.log(`❌ ${endpoint.method} ${endpoint.path}: ${result.status}`);
+      if (error.response?.data?.message) {
+        console.log(`   Error: ${error.response.data.message}`);
+      }
     }
+    
+    // Small delay to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 200));
   }
+  
+  // Analyze results
+  console.log('\n📊 Diagnostic Summary:');
+  console.log('=' .repeat(50));
+  
+  const workingEndpoints = results.filter(r => r.success);
+  const failedEndpoints = results.filter(r => !r.success);
+  
+  console.log(`✅ Working endpoints: ${workingEndpoints.length}`);
+  workingEndpoints.forEach(r => {
+    console.log(`   - ${r.endpoint}: ${r.description}`);
+  });
+  
+  console.log(`\n❌ Failed endpoints: ${failedEndpoints.length}`);
+  const errorGroups = {};
+  failedEndpoints.forEach(r => {
+    if (!errorGroups[r.status]) errorGroups[r.status] = [];
+    errorGroups[r.status].push(r.endpoint);
+  });
+  
+  Object.entries(errorGroups).forEach(([status, endpoints]) => {
+    console.log(`   ${status}: ${endpoints.join(', ')}`);
+  });
+  
+  // Recommend best approach
+  console.log('\n💡 Recommended approach:');
+  if (workingEndpoints.find(e => e.endpoint === 'PUT /cart')) {
+    console.log('   Use PUT /cart to add items');
+  } else if (workingEndpoints.find(e => e.endpoint === 'POST /cart')) {
+    console.log('   Use POST /cart to add items');
+  } else if (workingEndpoints.find(e => e.endpoint === 'PUT /cart/add')) {
+    console.log('   Use PUT /cart/add to add items');
+  } else {
+    console.log('   No standard cart endpoint found - check Kroger API documentation');
+  }
+  
+  return {
+    summary: {
+      totalTested: endpoints.length,
+      successful: workingEndpoints.length,
+      failed: failedEndpoints.length
+    },
+    workingEndpoints,
+    failedEndpoints,
+    recommendations: this.getCartRecommendations(workingEndpoints)
+  };
+}
+
+// Helper method for recommendations
+getCartRecommendations(workingEndpoints) {
+  const recommendations = [];
+  
+  if (workingEndpoints.find(e => e.endpoint.includes('GET /cart'))) {
+    recommendations.push('Cart retrieval is working');
+  }
+  
+  const addMethods = ['PUT /cart', 'POST /cart', 'PUT /cart/add', 'PUT /cart/items'];
+  const workingAdd = workingEndpoints.find(e => addMethods.includes(e.endpoint));
+  
+  if (workingAdd) {
+    recommendations.push(`Use ${workingAdd.endpoint} to add items to cart`);
+  } else {
+    recommendations.push('No working method found for adding items - check API docs');
+  }
+  
+  return recommendations;
+}
+
+// Add this to your routes to test it:
+// In kroger-orders.js, add a test endpoint:
+/*
+router.get('/test-cart/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const results = await krogerOrderService.diagnoseCartEndpoints(userId);
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+*/
+
+
+  
+  /**
+ * Send complete Cart Smash to Kroger
+ */
+async sendCartToKroger(userId, smartCartItems, options = {}) {
+  try {
+    const {
+      storeId = process.env.KROGER_DEFAULT_STORE || '01400943',
+      modality = 'PICKUP', // PICKUP or DELIVERY
+      clearExistingCart = false
+    } = options;
+    
+    console.log(`🚀 Sending Cart Smash to Kroger for user ${userId}`);
+    console.log(`📍 Store: ${storeId}, Modality: ${modality}`);
+    
+    // Step 1: Prepare Cart Smash items for Kroger - PASS userId HERE
+    const preparation = await this.prepareCartItems(smartCartItems, storeId, userId);
+    
+    if (preparation.preparedItems.length === 0) {
+      // If no items could be prepared, provide helpful error message
+      console.error('❌ No items could be prepared. Possible causes:');
+      console.error('   1. User token may have expired - try re-authenticating');
+      console.error('   2. Items not found in Kroger catalog');
+      console.error('   3. Network or API issues');
+      
+      throw new Error('No items could be prepared for Kroger cart. Please check authentication and try again.');
+    }
+    
+    // Step 2: Clear existing cart if requested
+    if (clearExistingCart) {
+      try {
+        await this.makeUserRequest(userId, 'DELETE', '/cart');
+        console.log('🗑️ Cleared existing Kroger cart');
+      } catch (error) {
+        console.warn('⚠️ Could not clear existing cart:', error.message);
+      }
+    }
+    
+    // Step 3: Add items to Kroger cart
+    const addResult = await this.addItemsToCart(userId, preparation.preparedItems);
+    
+    // Step 4: Get updated cart to verify
+    const updatedCart = await this.getUserCart(userId);
+    
+    const result = {
+      success: true,
+      krogerCartId: updatedCart.data?.id,
+      itemsAdded: preparation.preparedItems.length,
+      itemsFailed: preparation.failedItems.length,
+      totalItems: updatedCart.data?.items?.length || 0,
+      preparation: preparation,
+      krogerCart: updatedCart.data,
+      storeId: storeId,
+      modality: modality,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log(`✅ Cart sent to Kroger successfully: ${result.itemsAdded}/${smartCartItems.length} items`);
+    return result;
+    
+  } catch (error) {
+    console.error('❌ Failed to send cart to Kroger:', error);
+    throw error;
+  }
+}
 
   /**
    * Place order (checkout) with Kroger
