@@ -1,363 +1,582 @@
-// server/server.js - COMPLETE FIXED VERSION
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const bodyParser = require('body-parser');
+const rateLimit = require('express-rate-limit');
 const admin = require('firebase-admin');
+const mongoose = require('mongoose');
+const winston = require('winston');
+const axios = require('axios');
+const { OpenAI } = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
-const tokenStore = require('./services/TokenStore'); 
 
 const app = express();
+const PORT = process.env.PORT || 3001;
+const config = require('./config');
+const maintenanceMode = require('./middleware/maintenance');
+
+// Validate required environment variables
+const requiredEnvVars = [
+  'MONGODB_URI',
+  'FIREBASE_PROJECT_ID',
+  'FIREBASE_PRIVATE_KEY',
+  'FIREBASE_CLIENT_EMAIL',
+  'JWT_SECRET',
+  'KROGER_CLIENT_ID',
+  'KROGER_CLIENT_SECRET',
+  'KROGER_REDIRECT_URI'
+];
+
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingEnvVars.length > 0) {
+  console.error('❌ Missing required environment variables:', missingEnvVars);
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+}
+
+// Configure Winston Logger for production
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'cartsmash-api' },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    })
+  ]
+});
+
+// Initialize AI Services
+let openai, genAI;
+
+if (process.env.OPENAI_API_KEY) {
+  try {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+    logger.info('OpenAI service initialized');
+  } catch (error) {
+    logger.warn('OpenAI initialization failed:', error.message);
+  }
+}
+
+if (process.env.GOOGLE_AI_API_KEY) {
+  try {
+    genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+    logger.info('Google Generative AI service initialized');
+  } catch (error) {
+    logger.warn('Google AI initialization failed:', error.message);
+  }
+}
+
+// MongoDB Connection with proper configuration for production
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 10,
+  minPoolSize: 2
+})
+.then(() => {
+  logger.info('Connected to MongoDB Atlas successfully');
+})
+.catch((error) => {
+  logger.error('MongoDB connection failed:', error);
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+});
+
+mongoose.connection.on('error', (error) => {
+  logger.error('MongoDB connection error:', error);
+});
+
+mongoose.connection.on('disconnected', () => {
+  logger.warn('MongoDB disconnected');
+});
 
 // Initialize Firebase Admin SDK
 const initializeFirebase = () => {
-  try { 
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY) {
+  try {
+    if (admin.apps.length === 0) {
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
         }),
         databaseURL: process.env.FIREBASE_DATABASE_URL
       });
-    } else {
-      console.log('⚠️ No Firebase credentials found');
-      admin.initializeApp();
+      logger.info('Firebase Admin SDK initialized successfully');
     }
-    console.log('✅ Firebase Admin SDK initialized');
   } catch (error) {
-    console.error('❌ Failed to initialize Firebase:', error.message);
+    logger.error('Firebase initialization failed:', error);
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
   }
 };
 
 initializeFirebase();
 
-// Middleware
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'User-ID']
+// Import MongoDB-based token store
+const tokenStore = require('./services/TokenStore');
+
+// Security Middleware
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Trust proxy for Render
+app.set('trust proxy', 1);
 
-// Request logging
-if (process.env.NODE_ENV !== 'production') {
-  app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-    next();
+// Rate Limiting
+const createRateLimiter = (windowMs, max, message) => {
+  return rateLimit({
+    windowMs,
+    max,
+    message: {
+      error: message,
+      retryAfter: Math.ceil(windowMs / 1000) + ' seconds'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => {
+      // Skip rate limiting for health checks
+      return req.path === '/health' || req.path === '/api/health';
+    }
   });
+};
+
+// Apply rate limiting
+app.use('/api/', createRateLimiter(15 * 60 * 1000, 100, 'Too many requests'));
+app.use('/api/auth/', createRateLimiter(15 * 60 * 1000, 10, 'Too many authentication attempts'));
+app.use('/api/ai/', createRateLimiter(60 * 1000, 10, 'Too many AI requests'));
+
+// CORS Configuration for Production
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://cart-smash.vercel.app',
+      'https://cartsmash.vercel.app',
+      process.env.CLIENT_URL
+    ].filter(Boolean);
+
+    // Allow requests with no origin (mobile apps, Postman, etc)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      logger.warn(`CORS blocked request from: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'X-API-Key'
+  ],
+  exposedHeaders: ['X-Total-Count', 'X-Rate-Limit-Remaining'],
+  optionsSuccessStatus: 200,
+  maxAge: 86400
+};
+
+app.use(cors(corsOptions));
+
+// Body Parser Middleware
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+app.use(maintenanceMode);
+
+// Request Logging
+if (process.env.NODE_ENV === 'production') {
+  app.use(morgan('combined', {
+    stream: {
+      write: (message) => logger.info(message.trim())
+    },
+    skip: (req) => req.path === '/health'
+  }));
+} else {
+  app.use(morgan('dev'));
 }
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
+// Health Check Endpoints
+app.get('/health', async (req, res) => {
+  const stats = await tokenStore.getStats();
+  
+  const healthStatus = {
+    status: 'healthy',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    firebase: admin.apps.length > 0 ? 'initialized' : 'not initialized'
-  });
+    environment: process.env.NODE_ENV,
+    config: {
+      loaded: true,
+      environment: config.get('system.environment'),
+      maintenanceMode: config.isMaintenanceMode()
+    },
+    services: {
+      firebase: admin.apps.length > 0,
+      mongodb: mongoose.connection.readyState === 1,
+      kroger: !!(process.env.KROGER_CLIENT_ID && process.env.KROGER_CLIENT_SECRET),
+      openai: !!openai,
+      googleai: !!genAI
+    },
+    tokenStore: stats
+  };
+  
+  const isHealthy = healthStatus.services.firebase && healthStatus.services.mongodb;
+  res.status(isHealthy ? 200 : 503).json(healthStatus);
 });
 
-// Cart routes
-try {
-  const cartRoutes = require('./routes/cart');
-  app.use('/api/cart', cartRoutes);
-  console.log('✅ Cart routes loaded');
-} catch (error) {
-  console.log('⚠️ Cart routes not found:', error.message);
-}
-
-// Account routes
-try {
-  const accountRoutes = require('./routes/account');
-  app.use('/api/account', accountRoutes);
-  console.log('✅ Account routes loaded');
-} catch (error) {
-  console.log('⚠️ Account routes not found:', error.message);
-}
-
-// AI routes
-try {
-  const aiRoutes = require('./routes/ai');
-  app.use('/api/ai', aiRoutes);
-  console.log('✅ AI routes loaded');
-} catch (error) {
-  console.log('⚠️ AI routes not found:', error.message);
-}
-
-// Recipe routes
-try {
-  const recipesRoutes = require('./routes/recipes');
-  app.use('/api/recipes', recipesRoutes);
-  console.log('✅ Recipes routes loaded');
-} catch (error) {
-  console.log('⚠️ Recipes routes not found:', error.message);
-}
-
-// Kroger API routes
-try {
-  const krogerRoutes = require('./routes/kroger');
-  app.use('/api/kroger', krogerRoutes);
-  console.log('✅ Kroger API routes loaded');
-} catch (error) {
-  console.log('❌ Kroger API routes failed:', error.message);
-}
-
-// Kroger Order routes
-try {
-  const krogerOrderRoutes = require('./routes/kroger-orders');
-  app.use('/api/kroger-orders', krogerOrderRoutes);
-  console.log('✅ Kroger Order routes loaded');
-} catch (error) {
-  console.log('❌ Kroger Order routes failed:', error.message);
-}
-
-// Kroger OAuth endpoints
+// Kroger OAuth Endpoints
 app.get('/api/auth/kroger/login', (req, res) => {
   const { userId } = req.query;
   
-  console.log('🔐 Kroger OAuth login requested for user:', userId);
-  
-  if (!process.env.KROGER_CLIENT_ID) {
-    return res.status(500).json({ 
+  if (!userId) {
+    return res.status(400).json({ 
       success: false, 
-      error: 'Kroger OAuth not configured. Please set KROGER_CLIENT_ID in .env'
+      error: 'userId parameter is required' 
     });
   }
   
-  const state = Buffer.from(`${userId || 'demo'}-${Date.now()}`).toString('base64');
+  logger.info(`Kroger OAuth login requested for user: ${userId}`);
   
-  const authUrl = new URL('https://api-ce.kroger.com/v1/connect/oauth2/authorize');
+  const state = Buffer.from(`${userId}-${Date.now()}-${Math.random()}`).toString('base64');
+  const authUrl = new URL(`${process.env.KROGER_BASE_URL}/connect/oauth2/authorize`);
   authUrl.searchParams.append('response_type', 'code');
   authUrl.searchParams.append('client_id', process.env.KROGER_CLIENT_ID);
-  authUrl.searchParams.append('redirect_uri', process.env.KROGER_REDIRECT_URI || 'http://localhost:3001/api/auth/kroger/callback');
-  authUrl.searchParams.append('scope', 'cart.basic:write profile.compact product.compact');
+  authUrl.searchParams.append('redirect_uri', process.env.KROGER_REDIRECT_URI);
+  authUrl.searchParams.append('scope', process.env.KROGER_OAUTH_SCOPES || 'cart.basic:write profile.compact product.compact');
   authUrl.searchParams.append('state', state);
   
-  console.log('🔐 Redirecting to:', authUrl.toString());
   res.redirect(authUrl.toString());
 });
 
 app.get('/api/auth/kroger/callback', async (req, res) => {
   const { code, state, error } = req.query;
-
-  console.log('🔐 OAuth Callback received:', {
-    hasCode: !!code,
-    hasState: !!state,
-    error: error
-  });
   
   if (error) {
-    console.error('❌ Kroger OAuth error:', error);
-    return res.send(`
-      <html><body>
-        <h2 style="color: red; text-align: center; margin-top: 50px;">
-          Authentication Error: ${error}
-        </h2>
-        <script>
-          window.opener.postMessage({ 
-            type: 'KROGER_AUTH_ERROR', 
-            error: '${error}' 
-          }, '*');
-          setTimeout(() => window.close(), 3000);
-        </script>
-      </body></html>
-    `);
+    logger.error(`Kroger OAuth error: ${error}`);
+    return res.redirect(`${process.env.CLIENT_URL}/auth/error?message=${encodeURIComponent(error)}`);
   }
   
-  if (code) {
-    try {
-      // Extract userId from state
-      const decoded = Buffer.from(state, 'base64').toString();
-      const [userId] = decoded.split('-');
-      
-      console.log('🔄 Exchanging code for token...');
-      console.log('   User ID:', userId);
-      
-      // Create credentials for token exchange
-      const credentials = Buffer.from(
-        `${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`
-      ).toString('base64');
-      
-      // Exchange code for token
-      const axios = require('axios');
-      const tokenResponse = await axios.post(
-        'https://api-ce.kroger.com/v1/connect/oauth2/token',
-        new URLSearchParams({
-          grant_type: 'authorization_code',
-          code: code,
-          redirect_uri: process.env.KROGER_REDIRECT_URI || 'http://localhost:3001/api/auth/kroger/callback'
-        }).toString(),
-        {
-          headers: {
-            'Authorization': `Basic ${credentials}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }
-      );
-      
-      console.log('✅ Token exchange successful!');
-      console.log('   Expires in:', tokenResponse.data.expires_in, 'seconds');
-      
-      // Store tokens using persistent TokenStore
-      tokenStore.setTokens(
-        userId,
-        {
-          accessToken: tokenResponse.data.access_token,
-          expiresAt: Date.now() + (tokenResponse.data.expires_in * 1000),
-          scope: tokenResponse.data.scope
-        },
-        tokenResponse.data.refresh_token
-      );
-      
-      console.log('✅ Tokens stored persistently for user:', userId);
-      
-      // Success page
-      res.send(`
-        <html>
-        <head>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              height: 100vh;
-              margin: 0;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            }
-            .success-container {
-              background: white;
-              padding: 40px;
-              border-radius: 15px;
-              box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-              text-align: center;
-              max-width: 400px;
-            }
-            h2 { color: #10b981; margin-bottom: 15px; }
-            p { color: #666; margin: 10px 0; }
-            .checkmark {
-              width: 60px;
-              height: 60px;
-              margin: 0 auto 20px;
-              background: #10b981;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              animation: scaleIn 0.3s ease-in-out;
-            }
-            .checkmark svg {
-              width: 30px;
-              height: 30px;
-              fill: white;
-            }
-            @keyframes scaleIn {
-              from { transform: scale(0); }
-              to { transform: scale(1); }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="success-container">
-            <div class="checkmark">
-              <svg viewBox="0 0 24 24">
-                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-              </svg>
-            </div>
-            <h2>Successfully Connected!</h2>
-            <p>Your Kroger account has been linked.</p>
-            <p style="font-size: 14px; color: #999;">This window will close automatically...</p>
-          </div>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({ 
-                type: 'KROGER_AUTH_SUCCESS',
-                userId: '${userId}'
-              }, '*');
-            }
-            setTimeout(() => {
-              window.close();
-            }, 2000);
-          </script>
-        </body>
-        </html>
-      `);
-      
-    } catch (error) {
-      console.error('❌ Token exchange failed:', error.response?.data || error.message);
-      
-      const errorMessage = error.response?.data?.error_description || error.message;
-      res.send(`
-        <html><body>
-          <div style="text-align: center; padding: 50px; font-family: Arial;">
-            <h2 style="color: #ef4444;">❌ Authentication Failed</h2>
-            <p style="color: #666;">${errorMessage}</p>
-            <p style="color: #999; font-size: 14px;">This window will close automatically...</p>
-          </div>
-          <script>
-            window.opener.postMessage({ 
-              type: 'KROGER_AUTH_ERROR', 
-              error: '${errorMessage}' 
-            }, '*');
-            setTimeout(() => window.close(), 4000);
-          </script>
-        </body></html>
-      `);
+  if (!code || !state) {
+    return res.status(400).redirect(`${process.env.CLIENT_URL}/auth/error?message=missing_parameters`);
+  }
+
+  try {
+    const decoded = Buffer.from(state, 'base64').toString();
+    const [userId, timestamp] = decoded.split('-');
+    
+    // Validate state freshness (5 minutes)
+    if (Date.now() - parseInt(timestamp) > 300000) {
+      throw new Error('State expired');
     }
-  } else {
-    res.status(400).send('Missing authorization code');
+    
+    const credentials = Buffer.from(
+      `${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`
+    ).toString('base64');
+    
+    const tokenResponse = await axios.post(
+      `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
+      new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: process.env.KROGER_REDIRECT_URI
+      }).toString(),
+      {
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        timeout: 10000
+      }
+    );
+    
+    await tokenStore.setTokens(
+      userId,
+      {
+        accessToken: tokenResponse.data.access_token,
+        tokenType: tokenResponse.data.token_type || 'Bearer',
+        expiresAt: Date.now() + (tokenResponse.data.expires_in * 1000),
+        scope: tokenResponse.data.scope
+      },
+      tokenResponse.data.refresh_token
+    );
+    
+    logger.info(`Token exchange successful for user: ${userId}`);
+    res.redirect(`${process.env.CLIENT_URL}/auth/success`);
+    
+  } catch (error) {
+    logger.error('Token exchange failed:', error.message);
+    res.redirect(`${process.env.CLIENT_URL}/auth/error?message=token_exchange_failed`);
   }
 });
 
-app.get('/api/auth/kroger/status', (req, res) => {
-  const userId = req.headers['user-id'] || req.query.userId || 'demo-user';
-  
-  // Check persistent token store
-  const tokenInfo = tokenStore.getTokens(userId);
-  const isAuthenticated = !!tokenInfo;
-  
-  console.log(`🔍 Auth check for ${userId}: ${isAuthenticated ? '✅' : '❌'}`);
-  if (tokenInfo) {
-    console.log(`   Token expires: ${new Date(tokenInfo.expiresAt).toLocaleTimeString()}`);
-  }
-  
+// Add this root endpoint handler to your server.js file
+// Place it AFTER the health check endpoints and BEFORE the route loading
+
+// Root endpoint - API documentation
+app.get('/', (req, res) => {
   res.json({
-    success: true,
-    authenticated: isAuthenticated,
-    userId: userId,
-    needsAuth: !isAuthenticated,
-    tokenExpiry: tokenInfo?.expiresAt ? new Date(tokenInfo.expiresAt).toISOString() : null
+    name: 'CARTSMASH API',
+    version: '2.0.0',
+    status: 'operational',
+    message: 'Welcome to CARTSMASH - AI-powered grocery list parser API',
+    documentation: 'https://github.com/yourusername/cartsmash-server',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: {
+        'GET /health': 'System health check',
+        'GET /api/health': 'API health check'
+      },
+      authentication: {
+        'GET /api/auth/kroger/login': 'Initiate Kroger OAuth flow',
+        'GET /api/auth/kroger/callback': 'Kroger OAuth callback',
+        'GET /api/auth/kroger/status': 'Check authentication status',
+        'DELETE /api/auth/kroger/logout': 'Logout from Kroger'
+      },
+      cart: {
+        'POST /api/cart/parse': 'Parse grocery list text',
+        'POST /api/cart/validate-all': 'Validate all cart items',
+        'GET /api/cart': 'Get user cart',
+        'POST /api/cart/add': 'Add items to cart',
+        'DELETE /api/cart': 'Clear cart'
+      },
+      ai: {
+        'POST /api/ai/parse-grocery-list': 'AI-powered grocery parsing',
+        'POST /api/ai/claude': 'Claude AI integration',
+        'POST /api/ai/chatgpt': 'ChatGPT integration',
+        'POST /api/ai/smart-parse': 'Smart parsing with AI'
+      },
+      kroger: {
+        'GET /api/kroger/products/search': 'Search Kroger products',
+        'GET /api/kroger/products/:id': 'Get product details',
+        'POST /api/kroger/validate/item': 'Validate single item',
+        'POST /api/kroger/validate/batch': 'Batch validate items',
+        'GET /api/kroger/stores': 'Find nearby stores',
+        'GET /api/kroger/stores/nearby': 'Get nearby stores (legacy)'
+      },
+      orders: {
+        'POST /api/kroger-orders/cart/send': 'Send cart to Kroger',
+        'GET /api/kroger-orders/cart': 'Get Kroger cart',
+        'POST /api/kroger-orders/orders/place': 'Place order',
+        'GET /api/kroger-orders/orders/:id': 'Get order status',
+        'GET /api/kroger-orders/orders/history': 'Get order history'
+      },
+      grocery: {
+        'POST /api/grocery/parse': 'Parse grocery list'
+      }
+    },
+    authentication: {
+      type: 'Bearer Token',
+      header: 'Authorization: Bearer <firebase-id-token>',
+      description: 'Most endpoints require Firebase authentication'
+    },
+    rateLimit: {
+      general: '100 requests per 15 minutes',
+      authentication: '10 requests per 15 minutes',
+      ai: '10 requests per minute'
+    },
+    support: {
+      email: 'support@cartsmash.com',
+      documentation: 'https://cart-smash.vercel.app/docs',
+      issues: 'https://github.com/yourusername/cartsmash-server/issues'
+    }
   });
 });
 
-app.get('/api/kroger/stores/nearby', async (req, res) => {
-  const { lat, lng } = req.query;
-  
+// API root endpoint
+app.get('/api', (req, res) => {
   res.json({
-    success: true,
-    stores: [
+    message: 'CARTSMASH API v2.0',
+    status: 'operational',
+    timestamp: new Date().toISOString(),
+    documentation: '/api/docs',
+    health: '/api/health'
+  });
+});
+
+// API documentation endpoint
+app.get('/api/docs', (req, res) => {
+  res.json({
+    title: 'CARTSMASH API Documentation',
+    version: '2.0.0',
+    baseUrl: process.env.NODE_ENV === 'production' 
+      ? 'https://cartsmash-api.onrender.com' 
+      : 'http://localhost:3001',
+    authentication: {
+      type: 'Firebase ID Token',
+      description: 'Obtain ID token from Firebase Auth and include in Authorization header',
+      example: 'Authorization: Bearer eyJhbGciOiJS...'
+    },
+    endpoints: [
       {
-        id: '01400943',
-        name: 'Kroger - Zinfandel',
-        address: '10075 Bruceville Rd, Elk Grove, CA 95757',
-        distance: '2.1 miles',
-        services: ['Pickup', 'Delivery']
+        category: 'Cart Operations',
+        endpoints: [
+          {
+            method: 'POST',
+            path: '/api/cart/parse',
+            description: 'Parse grocery list text into structured items',
+            body: {
+              listText: 'string (required) - Raw grocery list text',
+              action: 'string (optional) - "merge" or "replace"',
+              userId: 'string (optional) - User identifier',
+              options: {
+                mergeDuplicates: 'boolean - Merge duplicate items',
+                useAI: 'boolean - Use AI for parsing'
+              }
+            },
+            response: {
+              success: 'boolean',
+              cart: 'array - Parsed cart items',
+              itemsAdded: 'number',
+              totalItems: 'number'
+            }
+          }
+        ]
       },
       {
-        id: '01400376',
-        name: 'Kroger - Elk Grove',
-        address: '8465 Elk Grove Blvd, Elk Grove, CA 95758',
-        distance: '3.5 miles',
-        services: ['Pickup', 'Delivery']
+        category: 'AI Services',
+        endpoints: [
+          {
+            method: 'POST',
+            path: '/api/ai/parse-grocery-list',
+            description: 'Parse grocery list using AI',
+            body: {
+              text: 'string (required) - Grocery list text',
+              userId: 'string (optional)'
+            },
+            response: {
+              success: 'boolean',
+              items: 'array - Parsed items',
+              totalItems: 'number',
+              aiService: 'string - AI service used'
+            }
+          },
+          {
+            method: 'POST',
+            path: '/api/ai/claude',
+            description: 'Process with Claude AI',
+            body: {
+              prompt: 'string (required)',
+              context: 'string (optional)',
+              options: 'object (optional)'
+            }
+          }
+        ]
+      },
+      {
+        category: 'Kroger Integration',
+        endpoints: [
+          {
+            method: 'GET',
+            path: '/api/kroger/products/search',
+            description: 'Search Kroger products',
+            query: {
+              q: 'string (required) - Search query',
+              locationId: 'string (optional) - Store location',
+              limit: 'number (optional) - Max results'
+            }
+          },
+          {
+            method: 'POST',
+            path: '/api/kroger-orders/cart/send',
+            description: 'Send cart to Kroger',
+            auth: 'Requires Kroger OAuth',
+            body: {
+              cartItems: 'array (required)',
+              storeId: 'string (optional)',
+              modality: 'string - PICKUP or DELIVERY'
+            }
+          }
+        ]
       }
-    ]
+    ],
+    errors: {
+      '400': 'Bad Request - Invalid parameters',
+      '401': 'Unauthorized - Missing or invalid authentication',
+      '403': 'Forbidden - Insufficient permissions',
+      '404': 'Not Found - Resource not found',
+      '429': 'Too Many Requests - Rate limit exceeded',
+      '500': 'Internal Server Error',
+      '503': 'Service Unavailable - Maintenance mode or service down'
+    },
+    examples: {
+      parseGroceryList: {
+        request: {
+          method: 'POST',
+          url: '/api/cart/parse',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer <firebase-token>'
+          },
+          body: {
+            listText: '2 lbs chicken breast\n1 gallon milk\n3 bananas',
+            action: 'merge'
+          }
+        },
+        response: {
+          success: true,
+          cart: [
+            {
+              id: 'item_123',
+              productName: 'chicken breast',
+              quantity: 2,
+              unit: 'lb',
+              category: 'meat'
+            }
+          ],
+          itemsAdded: 3,
+          totalItems: 3
+        }
+      }
+    }
   });
 });
 
-// 404 handler
+// Load route modules
+const routes = [
+  { path: '/api/cart', module: './routes/cart' },
+  { path: '/api/ai', module: './routes/ai' },
+  { path: '/api/kroger', module: './routes/kroger' },  // Add this
+  { path: '/api/kroger-orders', module: './routes/kroger-orders' },
+  { path: '/api/grocery', module: './routes/grocery' }
+];
+
+routes.forEach(route => {
+  try {
+    const routeModule = require(route.module);
+    app.use(route.path, routeModule);
+    logger.info(`${route.module} routes loaded`);
+  } catch (error) {
+    logger.error(`Failed to load ${route.module}:`, error.message);
+  }
+});
+
+// 404 Handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -366,37 +585,69 @@ app.use((req, res) => {
   });
 });
 
-// Error handler
+// Error Handler
 app.use((err, req, res, next) => {
-  console.error('Server error:', err.stack);
-  res.status(500).json({
+  logger.error('Unhandled error:', err);
+  
+  res.status(err.status || 500).json({
     success: false,
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+    error: process.env.NODE_ENV === 'production' ? 
+      'Internal server error' : err.message,
+    code: err.code || 'SERVER_ERROR'
   });
 });
 
-const PORT = process.env.PORT || 3001;
-
-const server = app.listen(PORT, () => {
-  console.log(`
-    ========================================
-    🚀 CARTSMASH Server Running
-    ========================================
-    Port: ${PORT}
-    Kroger: ${process.env.KROGER_CLIENT_ID ? '✅' : '❌ Not configured'}
+// Graceful Shutdown
+const gracefulShutdown = async (signal) => {
+  logger.info(`${signal} received. Starting graceful shutdown...`);
+  
+  const server = app.get('server');
+  if (server) {
+    server.close(async () => {
+      logger.info('HTTP server closed');
+      
+      try {
+        await mongoose.connection.close();
+        logger.info('MongoDB connection closed');
+        
+        if (admin.apps.length > 0) {
+          await Promise.all(admin.apps.map(app => app.delete()));
+          logger.info('Firebase connections closed');
+        }
+        
+        process.exit(0);
+      } catch (error) {
+        logger.error('Error during shutdown:', error);
+        process.exit(1);
+      }
+    });
     
-    Test: http://localhost:${PORT}/health
+    setTimeout(() => {
+      logger.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 30000);
+  }
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Start Server
+if (require.main === module) {
+  const server = app.listen(PORT, () => {
+    logger.info(`
     ========================================
-  `);
-});
-
-process.on('SIGTERM', () => {
-  server.close(() => process.exit(0));
-});
-
-process.on('SIGINT', () => {
-  server.close(() => process.exit(0));
-});
+    🚀 CARTSMASH Server Started
+    ========================================
+    Environment: ${process.env.NODE_ENV}
+    Port: ${PORT}
+    URL: https://cartsmash-api.onrender.com
+    Client: ${process.env.CLIENT_URL}
+    ========================================
+    `);
+  });
+  
+  app.set('server', server);
+}
 
 module.exports = app;

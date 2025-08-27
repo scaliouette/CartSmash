@@ -1,14 +1,14 @@
 {
   "aiParsing": {
     "strictMode": true,
-    "confidenceThreshold": 0.6,
+    "confidenceThreshold": 0.7,
     "enableAIValidation": true,
     "fallbackToSimple": true,
     "maxProcessingTime": 30,
     "enableCaching": true,
     "batchSize": 50,
     "enableProductValidation": true,
-    "enablePriceCheck": true,
+    "enablePriceCheck": false,
     "enableAlternatives": true,
     "showConfidenceScores": true,
     "autoReviewLowConfidence": true,
@@ -22,52 +22,64 @@
       "day names",
       "time references",
       "recipe steps",
-      "preparation methods"
+      "preparation methods",
+      "serving suggestions",
+      "optional ingredients"
     ],
     "includePatterns": [
       "quantity + product",
       "measurements",
       "food keywords",
-      "grocery terms"
+      "grocery terms",
+      "brand names",
+      "package sizes"
     ],
     "enableAutoCategories": true,
     "customCategories": [],
-    "cacheExpiryMinutes": 60,
+    "cacheExpiryMinutes": 120,
     "maxConcurrentRequests": 10,
     "exportFormat": "json"
   },
   "productValidation": {
     "enableRealTimeValidation": true,
-    "enablePriceChecking": true,
-    "enableAvailabilityCheck": true,
+    "enablePriceChecking": false,
+    "enableAvailabilityCheck": false,
     "preferredStores": [
-      "instacart",
-      "walmart"
+      "kroger"
     ],
-    "maxAlternatives": 5,
-    "priceThreshold": 100,
+    "maxAlternatives": 3,
+    "priceThreshold": 200,
     "validationTimeout": 5
   },
   "userInterface": {
     "theme": "light",
-    "showAdvancedFeatures": true,
+    "showAdvancedFeatures": false,
     "enableAnimations": true,
-    "autoSaveInterval": 30,
-    "showParsingStats": true,
+    "autoSaveInterval": 60,
+    "showParsingStats": false,
     "enableNotifications": true
   },
   "analytics": {
     "enableTracking": true,
     "enablePerformanceMonitoring": true,
     "enableUserFeedbackCollection": true,
-    "retentionDays": 30,
-    "enableExport": true
+    "retentionDays": 90,
+    "enableExport": false
   },
   "system": {
-    "environment": "development",
+    "environment": "production",
     "logLevel": "info",
     "enableDebugMode": false,
     "enableAPIRateLimiting": true,
-    "maxRequestsPerMinute": 100
+    "maxRequestsPerMinute": 100,
+    "enableHealthChecks": true,
+    "maintenanceMode": false
+  },
+  "kroger": {
+    "enableValidation": true,
+    "cacheProducts": true,
+    "cacheDuration": 3600,
+    "maxRetries": 3,
+    "retryDelay": 1000
   }
 }

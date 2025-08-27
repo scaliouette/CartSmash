@@ -1,115 +1,213 @@
-// server/services/TokenStore.js - Persistent token storage
-const fs = require('fs');
-const path = require('path');
+// server/services/TokenStore.js - Production MongoDB-based token storage
+const Token = require('../models/Token');
 
 class TokenStore {
   constructor() {
-    this.tokensFile = path.join(__dirname, '../.tokens.json');
-    this.refreshTokensFile = path.join(__dirname, '../.refresh-tokens.json');
-    this.tokens = this.loadTokens(this.tokensFile);
-    this.refreshTokens = this.loadTokens(this.refreshTokensFile);
-    console.log('🔐 TokenStore initialized with', this.tokens.size, 'user tokens');
+    this.cache = new Map(); // In-memory cache for performance
+    this.cacheExpiry = 5 * 60 * 1000; // 5 minutes cache
+    console.log('🔐 MongoDB TokenStore initialized');
+    
+    // Cleanup expired tokens every hour
+    setInterval(async () => {
+      await this.cleanupExpiredTokens();
+    }, 60 * 60 * 1000);
   }
 
-  loadTokens(filePath) {
+  async setTokens(userId, tokenInfo, refreshToken = null) {
     try {
-      if (fs.existsSync(filePath)) {
-        const data = fs.readFileSync(filePath, 'utf8');
-        const parsed = JSON.parse(data);
-        console.log(`📁 Loaded ${Object.keys(parsed).length} tokens from ${path.basename(filePath)}`);
-        return new Map(Object.entries(parsed));
+      const tokenData = {
+        userId,
+        accessToken: tokenInfo.accessToken,
+        refreshToken: refreshToken || tokenInfo.refreshToken,
+        tokenType: tokenInfo.tokenType || 'Bearer',
+        scope: tokenInfo.scope || 'cart.basic:write profile.compact',
+        expiresAt: new Date(tokenInfo.expiresAt || Date.now() + 3600000),
+        lastRefreshed: tokenInfo.lastRefreshed || null,
+        metadata: tokenInfo.metadata || {}
+      };
+
+      // Update or create token in database
+      const token = await Token.findOneAndUpdate(
+        { userId },
+        tokenData,
+        { 
+          upsert: true, 
+          new: true,
+          runValidators: true
+        }
+      );
+
+      // Update cache
+      this.cache.set(userId, {
+        ...tokenData,
+        cacheExpiry: Date.now() + this.cacheExpiry
+      });
+
+      console.log(`✅ Tokens stored for user: ${userId}`);
+      return tokenData;
+    } catch (error) {
+      console.error(`❌ Failed to store tokens for ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  async getTokens(userId) {
+    try {
+      // Check cache first
+      const cached = this.cache.get(userId);
+      if (cached && cached.cacheExpiry > Date.now() && cached.expiresAt > Date.now()) {
+        return cached;
       }
+
+      // Fetch from database
+      const token = await Token.findOne({ userId });
+      
+      if (!token) {
+        return null;
+      }
+
+      // Check if token is expired
+      if (token.expiresAt < new Date()) {
+        await Token.deleteOne({ userId });
+        this.cache.delete(userId);
+        return null;
+      }
+
+      // Decrypt and cache the tokens
+      const decrypted = token.getDecryptedTokens();
+      
+      const tokenData = {
+        accessToken: decrypted.accessToken,
+        refreshToken: decrypted.refreshToken,
+        tokenType: decrypted.tokenType,
+        scope: decrypted.scope,
+        expiresAt: token.expiresAt.getTime(),
+        savedAt: token.createdAt.getTime()
+      };
+
+      // Update cache
+      this.cache.set(userId, {
+        ...tokenData,
+        cacheExpiry: Date.now() + this.cacheExpiry
+      });
+
+      // Update last used timestamp asynchronously
+      token.updateLastUsed().catch(err => 
+        console.error(`Failed to update last used for ${userId}:`, err)
+      );
+
+      return tokenData;
     } catch (error) {
-      console.log('📁 No existing tokens found at', path.basename(filePath));
+      console.error(`❌ Failed to get tokens for ${userId}:`, error);
+      return null;
     }
-    return new Map();
   }
 
-  saveTokens() {
+  async getRefreshToken(userId) {
     try {
-      // Save access tokens
-      const tokenData = {};
-      this.tokens.forEach((value, key) => {
-        tokenData[key] = value;
-      });
-      fs.writeFileSync(this.tokensFile, JSON.stringify(tokenData, null, 2), 'utf8');
+      const token = await Token.findOne({ userId });
+      if (!token) return null;
       
-      // Save refresh tokens
-      const refreshData = {};
-      this.refreshTokens.forEach((value, key) => {
-        refreshData[key] = value;
-      });
-      fs.writeFileSync(this.refreshTokensFile, JSON.stringify(refreshData, null, 2), 'utf8');
-      
-      console.log('💾 Tokens saved to disk');
+      const decrypted = token.getDecryptedTokens();
+      return decrypted.refreshToken;
     } catch (error) {
-      console.error('❌ Failed to save tokens:', error.message);
+      console.error(`❌ Failed to get refresh token for ${userId}:`, error);
+      return null;
     }
   }
 
-  setTokens(userId, tokenInfo, refreshToken = null) {
-    this.tokens.set(userId, {
-      accessToken: tokenInfo.accessToken,
-      expiresAt: tokenInfo.expiresAt,
-      scope: tokenInfo.scope,
-      savedAt: Date.now()
-    });
-    
-    if (refreshToken) {
-      this.refreshTokens.set(userId, refreshToken);
-    }
-    
-    this.saveTokens();
-    console.log(`✅ Tokens stored for user: ${userId}`);
-    return tokenInfo;
-  }
+  async updateTokens(userId, newTokenInfo) {
+    try {
+      const token = await Token.findOne({ userId });
+      if (!token) {
+        throw new Error('Token not found for user');
+      }
 
-  getTokens(userId) {
-    const token = this.tokens.get(userId);
-    if (token && Date.now() < token.expiresAt) {
-      return token;
-    }
-    return null;
-  }
+      Object.assign(token, newTokenInfo);
+      await token.save();
 
-  getRefreshToken(userId) {
-    return this.refreshTokens.get(userId);
-  }
-
-  updateTokens(userId, newTokenInfo) {
-    const existing = this.tokens.get(userId);
-    if (existing) {
-      this.tokens.set(userId, {
-        ...existing,
-        ...newTokenInfo,
-        updatedAt: Date.now()
-      });
-      this.saveTokens();
+      // Clear cache to force refresh
+      this.cache.delete(userId);
+      
       console.log(`🔄 Tokens updated for user: ${userId}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Failed to update tokens for ${userId}:`, error);
+      return false;
     }
   }
 
-  deleteTokens(userId) {
-    this.tokens.delete(userId);
-    this.refreshTokens.delete(userId);
-    this.saveTokens();
-    console.log(`🗑️ Tokens deleted for user: ${userId}`);
+  async deleteTokens(userId) {
+    try {
+      await Token.deleteOne({ userId });
+      this.cache.delete(userId);
+      console.log(`🗑️ Tokens deleted for user: ${userId}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Failed to delete tokens for ${userId}:`, error);
+      return false;
+    }
   }
 
-  hasValidToken(userId) {
-    const token = this.getTokens(userId);
-    return token !== null;
+  async hasValidToken(userId) {
+    const tokens = await this.getTokens(userId);
+    return tokens !== null && tokens.expiresAt > Date.now();
   }
 
-  getAllUsers() {
-    return Array.from(this.tokens.keys());
+  async getAllUsers() {
+    try {
+      const tokens = await Token.find({}, 'userId').lean();
+      return tokens.map(t => t.userId);
+    } catch (error) {
+      console.error('❌ Failed to get all users:', error);
+      return [];
+    }
   }
 
-  clearAll() {
-    this.tokens.clear();
-    this.refreshTokens.clear();
-    this.saveTokens();
-    console.log('🗑️ All tokens cleared');
+  async cleanupExpiredTokens() {
+    try {
+      const count = await Token.cleanupExpired();
+      
+      // Clear expired cache entries
+      for (const [userId, cached] of this.cache.entries()) {
+        if (cached.expiresAt < Date.now()) {
+          this.cache.delete(userId);
+        }
+      }
+      
+      if (count > 0) {
+        console.log(`🧹 Cleaned up ${count} expired tokens`);
+      }
+      return count;
+    } catch (error) {
+      console.error('❌ Failed to cleanup tokens:', error);
+      return 0;
+    }
+  }
+
+  async getStats() {
+    try {
+      const total = await Token.countDocuments();
+      const expired = await Token.countDocuments({ 
+        expiresAt: { $lt: new Date() } 
+      });
+      const active = total - expired;
+      
+      return {
+        total,
+        active,
+        expired,
+        cached: this.cache.size
+      };
+    } catch (error) {
+      console.error('❌ Failed to get stats:', error);
+      return { total: 0, active: 0, expired: 0, cached: 0 };
+    }
+  }
+
+  clearCache() {
+    this.cache.clear();
+    console.log('🗑️ Token cache cleared');
   }
 }
 

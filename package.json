@@ -2,11 +2,17 @@
   "name": "cartsmash",
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
-    "server:dev": "cd server && npm run dev",
-    "client:dev": "cd client && npm start",
-    "install:all": "npm install && cd client && npm install && cd ../server && npm install"
-
+    "start": "NODE_ENV=production node server.js",
+    "dev": "NODE_ENV=development nodemon server.js",
+    "test": "NODE_ENV=test jest",
+    "test:watch": "jest --watch",
+    "test:db": "node scripts/test-mongodb.js",
+    "generate-keys": "node scripts/generate-keys.js",
+    "check-env": "node scripts/check-env.js",
+    "clean": "rm -f .tokens.json .refresh-tokens.json",
+    "build": "npm run clean && npm install",
+    "maintenance:on": "node scripts/maintenance.js on",
+    "maintenance:off": "node scripts/maintenance.js off"
   },
   "devDependencies": {
     "concurrently": "^7.6.0"

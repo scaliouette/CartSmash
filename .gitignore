@@ -1,27 +1,106 @@
 # Dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 package-lock.json
 
-# Environment variables
+# Environment Configuration
 .env
-.env.local
-.env.production
-.env.development
+.env.*
+!.env.example
 *.key
-node_modules/
+*.pem
+*.cert
+
+# Old Token Files (REMOVE THESE)
+.tokens.json
+.refresh-tokens.json
+server/.tokens.json
+server/.refresh-tokens.json
 
 # Production builds
 dist/
 build/
+out/
 
 # Logs
 logs/
 *.log
+npm-debug.log*
+pids/
+*.pid
+*.seed
+*.pid.lock
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
 # IDE files
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Testing
+coverage/
+.nyc_output/
+.coverage
+*.lcov
+test-results/
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+.cache/
+
+# MongoDB
+*.dump
+*.bson
+
+# Local config overrides
+server/config/settings.local.json
+server/config/settings.override.json
+
+# Security
+private/
+secrets/
+credentials/
+
+# MacOS
+*.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+.DocumentRevisions-V100
+.fseventsd
+.TemporaryItems
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
