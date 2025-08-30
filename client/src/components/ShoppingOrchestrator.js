@@ -9,7 +9,7 @@ function ShoppingOrchestrator({ items, recipe }) {
   const [deliveryTime, setDeliveryTime] = useState('today');
   const [servingSize, setServingSize] = useState(recipe?.servings || 4);
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+  const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
 
   // Available shopping vendors
   const availableVendors = [

@@ -17,8 +17,8 @@ class KrogerOrderService {
     };
     
     // CHANGE: Use TokenStore's maps instead of creating new ones
-    this.tokens = tokenStore.tokens;  // Use shared tokens
-    this.refreshTokens = tokenStore.refreshTokens;  // Use shared refresh tokens
+    
+    
     
     console.log('🛒 Kroger Order Service initialized');
     console.log(`   Active users: ${this.tokens.size}`);
@@ -104,104 +104,99 @@ class KrogerOrderService {
     }
   }
 
-  /**
-   * Check if user has valid authentication
-   */
- async ensureUserAuth(userId) {
-  // REMOVE THIS LINE - tokenStore already imported at top
-  // const tokenStore = require('./TokenStore');
-  
-  let tokenInfo = tokenStore.getTokens(userId);  // Just use it directly
-  
-  // If found in persistent store, update memory cache
-  if (tokenInfo && !this.tokens.has(userId)) {
-    this.tokens.set(userId, tokenInfo);
-    const refreshToken = tokenStore.getRefreshToken(userId);
-    if (refreshToken) {
-      this.refreshTokens.set(userId, refreshToken);
-    }
-  }
-  
-  // Now check memory cache
-  tokenInfo = this.tokens.get(userId);
-  
-  if (!tokenInfo) {
-    return { 
-      authenticated: false, 
-      reason: 'No tokens found - user needs to complete OAuth flow' 
-    };
-  }
-  
-  if (Date.now() >= tokenInfo.expiresAt) {
-    // Try to refresh token
-    const refreshed = await this.refreshUserToken(userId);
-    if (!refreshed) {
+
+async ensureUserAuth(userId) {
+  try {
+    // Get tokens from TokenStore (MongoDB)
+    const tokenInfo = await tokenStore.getTokens(userId);
+    
+    if (!tokenInfo) {
       return { 
         authenticated: false, 
-        reason: 'Token expired and refresh failed' 
+        reason: 'No tokens found - user needs to complete OAuth flow' 
       };
     }
-    tokenInfo = this.tokens.get(userId);
+    
+    // Check if token is expired
+    if (Date.now() >= tokenInfo.expiresAt) {
+      // Try to refresh the token
+      const refreshed = await this.refreshUserToken(userId);
+      if (!refreshed) {
+        return { 
+          authenticated: false, 
+          reason: 'Token expired and refresh failed' 
+        };
+      }
+      // Get the refreshed token info
+      return {
+        authenticated: true,
+        tokenInfo: await tokenStore.getTokens(userId)
+      };
+    }
+    
+    // Token is valid
+    return { 
+      authenticated: true, 
+      tokenInfo: tokenInfo
+    };
+  } catch (error) {
+    console.error(`Error checking auth for ${userId}:`, error);
+    return {
+      authenticated: false,
+      reason: `Authentication check failed: ${error.message}`
+    };
   }
-  
-  return { 
-    authenticated: true, 
-    tokenInfo: tokenInfo
-  };
 }
 
   /**
    * Refresh user's access token
    */
   async refreshUserToken(userId) {
-    const refreshToken = this.refreshTokens.get(userId);
+  try {
+    // Get refresh token from TokenStore
+    const refreshToken = await tokenStore.getRefreshToken(userId);
     
     if (!refreshToken) {
       console.log(`⚠️ No refresh token for user ${userId}`);
       return false;
     }
     
-    try {
-      console.log(`🔄 Refreshing token for user ${userId}`);
-      
-      const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
-      
-      const response = await axios.post(`${this.baseURL}/connect/oauth2/token`,
-        new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: refreshToken
-        }).toString(),
-        {
-          headers: {
-            'Authorization': `Basic ${credentials}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
+    console.log(`🔄 Refreshing token for user ${userId}`);
+    
+    const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    
+    const response = await axios.post(`${this.baseURL}/connect/oauth2/token`,
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken
+      }).toString(),
+      {
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
         }
-      );
-      
-      const tokenData = response.data;
-      
-      // Update stored tokens
-      this.tokens.set(userId, {
-        accessToken: tokenData.access_token,
-        expiresAt: Date.now() + (tokenData.expires_in * 1000),
-        scope: tokenData.scope
-      });
-      
-      if (tokenData.refresh_token) {
-        this.refreshTokens.set(userId, tokenData.refresh_token);
       }
-      
-      console.log(`✅ Token refreshed for user ${userId}`);
-      return true;
-      
-    } catch (error) {
-      console.error(`❌ Token refresh failed for user ${userId}:`, error.response?.data || error.message);
-      this.tokens.delete(userId);
-      this.refreshTokens.delete(userId);
-      return false;
-    }
+    );
+    
+    const tokenData = response.data;
+    
+    // Update tokens in TokenStore
+    await tokenStore.setTokens(userId, {
+      accessToken: tokenData.access_token,
+      tokenType: tokenData.token_type || 'Bearer',
+      expiresAt: Date.now() + (tokenData.expires_in * 1000),
+      scope: tokenData.scope
+    }, tokenData.refresh_token || refreshToken);
+    
+    console.log(`✅ Token refreshed for user ${userId}`);
+    return true;
+    
+  } catch (error) {
+    console.error(`❌ Token refresh failed for user ${userId}:`, error.response?.data || error.message);
+    await tokenStore.deleteTokens(userId);
+    return false;
   }
+}
 
   /**
    * Make authenticated API request for a specific user

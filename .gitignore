@@ -16,6 +16,7 @@ package-lock.json
 # Old Token Files (REMOVE THESE)
 .tokens.json
 .refresh-tokens.json
+*.tokens.json
 server/.tokens.json
 server/.refresh-tokens.json
 
