@@ -16,7 +16,7 @@ const configPath = path.join(__dirname, '..', 'config', 'settings.json');
 try {
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   
-  config.system.maintenanceMode = action === 'on';
+
   
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
   

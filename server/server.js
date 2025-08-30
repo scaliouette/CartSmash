@@ -15,7 +15,6 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 const config = require('./config');
-const maintenanceMode = require('./middleware/maintenance');
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -171,16 +170,26 @@ app.use('/api/auth/', createRateLimiter(15 * 60 * 1000, 10, 'Too many authentica
 app.use('/api/ai/', createRateLimiter(60 * 1000, 10, 'Too many AI requests'));
 
 // CORS Configuration for Production
+// CORS Configuration for Production
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       'https://cart-smash.vercel.app',
       'https://cartsmash.vercel.app',
+      'http://localhost:3000',  // Add for local development
+      'http://localhost:3001',  // Add for local development
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
       process.env.CLIENT_URL
     ].filter(Boolean);
 
     // Allow requests with no origin (mobile apps, Postman, etc)
     if (!origin) return callback(null, true);
+    
+    // Allow all Vercel preview deployments
+    if (origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
     
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -209,7 +218,7 @@ app.use(cors(corsOptions));
 // Body Parser Middleware
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
-app.use(maintenanceMode);
+
 
 // Request Logging
 if (process.env.NODE_ENV === 'production') {
@@ -233,8 +242,7 @@ app.get('/health', async (req, res) => {
     environment: process.env.NODE_ENV,
     config: {
       loaded: true,
-      environment: config.get('system.environment'),
-      maintenanceMode: config.isMaintenanceMode()
+      environment: config.get('system.environment')
     },
     services: {
       firebase: admin.apps.length > 0,

@@ -72,8 +72,8 @@
     "enableDebugMode": false,
     "enableAPIRateLimiting": true,
     "maxRequestsPerMinute": 100,
-    "enableHealthChecks": true,
-    "maintenanceMode": false
+    "enableHealthChecks": true
+  
   },
   "kroger": {
     "enableValidation": true,

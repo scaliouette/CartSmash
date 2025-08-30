@@ -80,9 +80,7 @@ class ConfigManager {
       config.system.logLevel = 'debug';
     }
     
-    if (process.env.MAINTENANCE_MODE === 'true') {
-      config.system.maintenanceMode = true;
-    }
+   
     
     if (process.env.KROGER_ENABLE_VALIDATION) {
       config.kroger.enableValidation = process.env.KROGER_ENABLE_VALIDATION === 'true';
@@ -131,9 +129,7 @@ class ConfigManager {
     return this.config.system.environment === 'development';
   }
 
-  isMaintenanceMode() {
-    return this.config.system.maintenanceMode === true;
-  }
+ 
 }
 
 // Export singleton instance

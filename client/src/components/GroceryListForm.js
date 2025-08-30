@@ -1,5 +1,5 @@
-// client/src/components/GroceryListForm.js
-import React, { useState, useEffect } from 'react';
+// client/src/components/GroceryListForm.js - FIXED VERSION
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import ParsedResultsDisplay from './ParsedResultsDisplay';
 import SmartAIAssistant from './SmartAIAssistant';
@@ -18,167 +18,6 @@ function getTimeAgo(date) {
   if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
   return `${Math.floor(seconds / 86400)} days ago`;
-}
-
-
-
-
-
-// Sub-components
-function SyncStatusIndicator({ isSyncing, lastSync, error }) {
-  if (!isSyncing && !lastSync && !error) return null;
-
-  return (
-    <div className="sync-status">
-      {isSyncing && (
-        <div className="sync-status-syncing">
-          <ButtonSpinner color="#3b82f6" />
-          <span>Saving...</span>
-        </div>
-      )}
-      {!isSyncing && lastSync && !error && (
-        <div className="sync-status-success">
-          ✅ Saved {getTimeAgo(lastSync)}
-        </div>
-      )}
-      {error && (
-        <div className="sync-status-error">
-          ⚠️ Save failed (saved locally)
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DraftRestorationBanner({ draft, onRestore, onDismiss }) {
-  if (!draft || !draft.content) return null;
-
-  const savedDate = new Date(draft.timestamp);
-  const timeAgo = getTimeAgo(savedDate);
-
-  return (
-    <div className="draft-banner">
-      <div className="draft-banner-content">
-        <div className="draft-banner-text">
-          <div className="draft-banner-title">
-            📝 Draft found from {timeAgo}
-          </div>
-          <div className="draft-banner-preview">
-            {draft.content.split('\n').slice(0, 2).join(' • ')}
-            {draft.content.split('\n').length > 2 && '...'}
-          </div>
-        </div>
-        <div className="draft-banner-actions">
-          <button onClick={onRestore} className="btn-restore">
-            Restore Draft
-          </button>
-          <button onClick={onDismiss} className="btn-dismiss">
-            Dismiss
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SmashButton({ onSubmit, isDisabled, itemCount, isLoading }) {
-  const [isSmashing, setIsSmashing] = useState(false);
-  const [buttonText, setButtonText] = useState('💥 CARTSMASH IT! 💥');
-
-  const triggerConfetti = () => {
-    const count = 200;
-    const defaults = { origin: { y: 0.7 } };
-
-    function fire(particleRatio, opts) {
-      confetti({
-        ...defaults,
-        ...opts,
-        particleCount: Math.floor(count * particleRatio)
-      });
-    }
-
-    fire(0.25, {
-      spread: 26,
-      startVelocity: 55,
-      colors: ['#FF6B35', '#F7931E', '#FFD23F']
-    });
-
-    fire(0.2, {
-      spread: 60,
-      colors: ['#FF6B35', '#F7931E', '#FFD23F', '#FFFFFF']
-    });
-
-    fire(0.35, {
-      spread: 100,
-      decay: 0.91,
-      scalar: 0.8,
-      colors: ['#FF6B35', '#F7931E', '#FFD23F']
-    });
-  };
-
-  const handleSmash = async (e) => {
-    e.preventDefault();
-    setIsSmashing(true);
-    triggerConfetti();
-    
-    if (navigator.vibrate) {
-      navigator.vibrate([100, 50, 100]);
-    }
-    
-    const smashTexts = [
-      '💥 SMASHING! 💥',
-      '🎯 AI ANALYZING! 🎯',
-      '🧠 SMART PROCESSING! 🧠', 
-      '📦 DETECTING ITEMS! 📦',
-      '✨ PARSING MAGIC! ✨'
-    ];
-    
-    let textIndex = 0;
-    const textInterval = setInterval(() => {
-      setButtonText(smashTexts[textIndex % smashTexts.length]);
-      textIndex++;
-    }, 300);
-
-    try {
-      await onSubmit(e);
-      setTimeout(() => {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#28a745', '#20c997', '#17a2b8']
-        });
-      }, 500);
-    } finally {
-      clearInterval(textInterval);
-      setButtonText('💥 CARTSMASH IT! 💥');
-      setIsSmashing(false);
-    }
-  };
-
-  return (
-    <button 
-      onClick={handleSmash}
-      disabled={isDisabled || isLoading}
-      className={`smash-button ${isSmashing ? 'smash-button-smashing' : ''}`}
-    >
-      {isLoading ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-          <ButtonSpinner />
-          <span>SMASHING...</span>
-        </div>
-      ) : (
-        <>
-          {buttonText}
-          {itemCount > 0 && !isSmashing && (
-            <div style={{ fontSize: '14px', marginTop: '4px', opacity: 0.9, fontWeight: '600' }}>
-              {itemCount} items to smash
-            </div>
-          )}
-        </>
-      )}
-    </button>
-  );
 }
 
 // Main Component
@@ -203,12 +42,14 @@ function GroceryListForm({
   const [validatingAll, setValidatingAll] = useState(false);
   const [parsingProgress, setParsingProgress] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
+  const [ingredientStyle, setIngredientStyle] = useState('basic');
+  const [selectedAI, setSelectedAI] = useState('claude');
+  const [messages, setMessages] = useState([]);
+  const [recipes, setRecipes] = useState([]);
+  const [waitingForAIResponse, setWaitingForAIResponse] = useState(false);
   const { currentUser } = useAuth();
-  
-   useEffect(() => {
-    console.log('🔍 GroceryListForm currentUser:', currentUser?.email || 'No user');
-  }, [currentUser]);
- 
+  const textareaRef = useRef(null);
+
   // Auto-save hooks
   const { 
     draft, 
@@ -218,55 +59,105 @@ function GroceryListForm({
     isSaving: isDraftSaving
   } = useGroceryListAutoSave(inputText);
 
-  const isCartSyncing = false;
-  const cartLastSync = null;
-  const cartSyncError = null;
-
   // Show results when cart has items
   useEffect(() => {
     setShowResults(currentCart.length > 0);
   }, [currentCart]);
 
-  // Auto-save cart to Firebase when it changes
-  useEffect(() => {
-    const saveToFirebase = async () => {
-      if (currentUser && currentCart.length > 0) {
-        try {
-          await userDataService.init();
-          await userDataService.saveShoppingList({
-            id: 'current-cart',
-            name: 'Current Cart',
-            items: currentCart,
-            itemCount: currentCart.length,
-            updatedAt: new Date().toISOString(),
-            autoSave: true
-          });
-          console.log('✅ Cart auto-saved to Firebase');
-        } catch (error) {
-          console.error('Failed to save cart to Firebase:', error);
-          // Save to localStorage as fallback
-          localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
-        }
-      } else if (currentCart.length > 0) {
-        // Save to localStorage if not logged in
-        localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
-      }
-    };
-
-    // Debounce the save (wait 2 seconds after changes stop)
-    const timer = setTimeout(saveToFirebase, 2000);
-    return () => clearTimeout(timer);
-  }, [currentCart, currentUser]);
-
-  const handleRestoreDraft = () => {
-    if (draft && draft.content) {
-      setInputText(draft.content);
-      setShowDraftBanner(false);
-      clearDraft();
+  const templates = [
+    {
+      id: 'weekly-meal',
+      icon: '📅',
+      title: 'Weekly Meal Plan',
+      description: 'Create a healthy 7-day meal plan with complete grocery shopping list for a family of 4.',
+      prompt: 'Create a healthy 7-day meal plan with complete grocery shopping list for a family of 4. Include breakfast, lunch, dinner, and snacks for each day.'
+    },
+    {
+      id: 'budget',
+      icon: '💰',
+      title: 'Budget Shopping',
+      description: 'Create a budget-friendly grocery list for $75 per week for 2 people.',
+      prompt: 'Create a budget-friendly grocery list for $75 per week for 2 people. Focus on nutritious, filling meals with affordable ingredients.'
+    },
+    {
+      id: 'quick-dinners',
+      icon: '⚡',
+      title: 'Quick Dinners',
+      description: 'Get 5 quick 30-minute dinner recipes using convenience ingredients.',
+      prompt: 'Give me 5 quick 30-minute dinner recipes using basic store-bought ingredients like jarred sauces, pre-made dough, and convenience items.'
+    },
+    {
+      id: 'healthy',
+      icon: '🥗',
+      title: 'Healthy Options',
+      description: 'Clean eating grocery list and meal plan focused on whole foods.',
+      prompt: 'Create a clean eating grocery list and meal plan for one week, focused on whole foods, lean proteins, fresh vegetables, and minimal processed foods.'
+    },
+    {
+      id: 'party',
+      icon: '🎉',
+      title: 'Party Planning',
+      description: 'Plan a complete party menu for 10 people with shopping list.',
+      prompt: 'Help me plan a party for 10 people. I need appetizers, main dishes, sides, desserts, and drinks with a complete shopping list.'
+    },
+    {
+      id: 'special-diet',
+      icon: '🍽️',
+      title: 'Special Diet',
+      description: 'Get customized meal plans for specific dietary needs.',
+      prompt: 'Create a meal plan and grocery list for specific dietary needs. Please specify: keto, vegan, gluten-free, dairy-free, or other requirements.'
     }
+  ];
+
+  const handleTemplateClick = (template) => {
+    setInputText(template.prompt);
+    setWaitingForAIResponse(false);
   };
 
-  const submitGroceryList = async (listText, recipeInfo = null) => {
+  const extractAIResponseText = (aiData) => {
+    // Check if the response is a string
+    if (typeof aiData === 'string') {
+      return aiData;
+    }
+    
+    // Check various possible response structures
+    const possiblePaths = [
+      aiData?.response,
+      aiData?.message,
+      aiData?.text,
+      aiData?.content,
+      aiData?.data?.response,
+      aiData?.data?.text,
+      aiData?.data?.content,
+      aiData?.result?.response,
+      aiData?.result?.text,
+      aiData?.completion,
+      aiData?.choices?.[0]?.message?.content,
+      aiData?.choices?.[0]?.text,
+      aiData?.output,
+      aiData?.generated_text
+    ];
+    
+    // Find the first non-empty response
+    for (const path of possiblePaths) {
+      if (path && typeof path === 'string' && path.trim()) {
+        return path;
+      }
+    }
+    
+    // If we still haven't found it, check if success is true and there's any string property
+    if (aiData?.success) {
+      for (const key in aiData) {
+        if (typeof aiData[key] === 'string' && aiData[key].length > 50) {
+          return aiData[key];
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  const submitGroceryList = async (listText, useAI = true) => {
     if (!listText.trim()) {
       setError('Please enter a grocery list');
       return;
@@ -276,15 +167,114 @@ function GroceryListForm({
     setError('');
     setShowProgress(true);
     setParsingProgress(0);
+    
+    // Track if we're waiting for AI
+    if (useAI) {
+      setWaitingForAIResponse(true);
+    }
 
+    let progressInterval;
     try {
-      console.log('💥 CARTSMASH: Processing list...');
-      
-      const progressInterval = setInterval(() => {
+      progressInterval = setInterval(() => {
         setParsingProgress(prev => Math.min(prev + 10, 90));
       }, 200);
       
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      
+      // If using AI, first generate a response
+      if (useAI && selectedAI) {
+        try {
+          console.log('Sending to AI:', { prompt: listText.substring(0, 100), ai: selectedAI });
+          
+          const aiResponse = await fetch(`${API_URL}/api/ai/${selectedAI}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: listText,
+              context: 'grocery_list_generation',
+              ingredientChoice: ingredientStyle,
+              options: {
+                includeRecipes: true,
+                formatAsList: true
+              }
+            })
+          });
+
+          if (!aiResponse.ok) {
+            const errorText = await aiResponse.text();
+            console.error('AI Response error:', errorText);
+            throw new Error(`AI request failed: ${aiResponse.status}`);
+          }
+
+          const aiData = await aiResponse.json();
+          console.log('AI response received, checking structure...');
+          
+          // Extract the response text using our helper function
+          const aiResponseText = extractAIResponseText(aiData);
+          
+          if (aiResponseText) {
+            console.log('AI response text found, length:', aiResponseText.length);
+            
+            // Add to message history
+            setMessages(prev => [...prev, 
+              { role: 'user', content: listText },
+              { role: 'assistant', content: aiResponseText, model: selectedAI }
+            ]);
+            
+            // IMPORTANT: Update the textarea with the AI response
+            setInputText(aiResponseText);
+            
+            // Also update via ref as a backup
+            if (textareaRef.current) {
+              textareaRef.current.value = aiResponseText;
+            }
+            
+            // Clear loading states
+            clearInterval(progressInterval);
+            setIsLoading(false);
+            setShowProgress(false);
+            setParsingProgress(0);
+            setWaitingForAIResponse(false);
+            
+            // Show success feedback
+            const successMessage = `✅ ${selectedAI === 'claude' ? 'Claude' : 'ChatGPT'} has generated your list! Review it and hit CARTSMASH to add items to cart.`;
+            console.log(successMessage);
+            
+            // Small delay to ensure state updates
+            setTimeout(() => {
+              console.log('Input text updated to:', inputText.substring(0, 50) + '...');
+            }, 100);
+            
+            // Exit here - user needs to review and hit CARTSMASH again
+            return;
+          } else {
+            console.error('No response text found in AI data:', Object.keys(aiData));
+            throw new Error('AI response was empty');
+          }
+        } catch (aiError) {
+          console.error('AI request failed:', aiError);
+          setError(`AI request failed: ${aiError.message}`);
+          clearInterval(progressInterval);
+          setIsLoading(false);
+          setShowProgress(false);
+          setParsingProgress(0);
+          setWaitingForAIResponse(false);
+          return;
+        }
+      }
+      
+      // This part runs when parsing the list (not using AI)
+      console.log('Parsing grocery list...');
+      
+      // Add confetti only when actually parsing items
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#FB4F14', '#002244', '#FFFFFF']
+      });
+      
+      // Parse the list
       const response = await fetch(`${API_URL}/api/cart/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -292,7 +282,6 @@ function GroceryListForm({
           listText: listText,
           action: mergeCart ? 'merge' : 'replace',
           userId: currentUser?.uid || null,
-          recipeInfo: recipeInfo,
           options: {
             mergeDuplicates: true,
             enhancedQuantityParsing: true,
@@ -315,15 +304,20 @@ function GroceryListForm({
         
         setParsingStats(data.parsing?.stats || null);
         clearDraft();
+        setInputText(''); // Clear input after successful parsing
+        setWaitingForAIResponse(false);
         
-        console.log(`✅ Parsed ${data.cart.length} items`);
+        console.log(`✅ Successfully parsed ${data.cart.length} items`);
       } else {
-        setError('No valid grocery items found');
+        setError('No valid grocery items found in the text');
       }
       
     } catch (err) {
-      console.error('❌ Parsing failed:', err);
+      console.error('Processing failed:', err);
       setError(`Failed to process: ${err.message}`);
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
     } finally {
       setIsLoading(false);
       setShowProgress(false);
@@ -333,25 +327,18 @@ function GroceryListForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await submitGroceryList(inputText);
-  };
-
-  const handleItemsChange = (updatedItems) => {
-    setCurrentCart(updatedItems);
-  };
-
-  const handleValidateAll = async () => {
-    if (!currentCart || currentCart.length === 0) return;
     
-    setValidatingAll(true);
-    try {
-      // Validation logic here
-      alert('🔍 Validation complete!');
-    } catch (error) {
-      console.error('Validation failed:', error);
-    } finally {
-      setValidatingAll(false);
-    }
+    // Determine if we should use AI or parse directly
+    const shouldUseAI = !waitingForAIResponse && 
+                       !inputText.includes('•') && 
+                       !inputText.includes('**') &&
+                       !inputText.includes('Here') &&
+                       !inputText.includes('\n-') &&
+                       messages.length === 0;
+    
+    console.log('Submit clicked. Using AI:', shouldUseAI);
+    
+    await submitGroceryList(inputText, shouldUseAI);
   };
 
   const handleNewList = () => {
@@ -360,19 +347,9 @@ function GroceryListForm({
     setError('');
     setParsingStats(null);
     setShowValidator(false);
+    setMessages([]);
+    setWaitingForAIResponse(false);
     clearDraft();
-  };
-
-  const handleShowValidator = () => {
-    const needsReview = currentCart.filter(item => 
-      item.needsReview || (item.confidence || 0) < 0.6
-    );
-    
-    if (needsReview.length > 0) {
-      setShowValidator(true);
-    } else {
-      alert('🎉 All items are validated!');
-    }
   };
 
   const handleSaveList = () => {
@@ -385,155 +362,283 @@ function GroceryListForm({
     }
   };
 
+  const handleItemsChange = (updatedItems) => {
+    setCurrentCart(updatedItems);
+  };
+
   return (
     <div className="container">
       {isLoading && (
-        <OverlaySpinner text="CARTSMASH is processing your list..." />
+        <OverlaySpinner text={waitingForAIResponse ? "AI is generating your list..." : "CARTSMASH is processing your list..."} />
       )}
 
       {showProgress && (
         <div className="progress-overlay">
           <ProgressSpinner 
             progress={parsingProgress} 
-            text="CARTSMASH AI analyzing your grocery list..."
+            text={waitingForAIResponse ? "AI is thinking..." : "Parsing your grocery list..."}
           />
         </div>
       )}
 
-      <div className="hero-section">
-        <h1 className="hero-title">
-          CARTSMASH.
+      <div className="hero-section" style={styles.heroSection}>
+        <h1 className="hero-title" style={styles.heroTitle}>
+          CARTSMASH
           <br />
-          <span className="hero-accent">Instantly.</span>
+          <span className="hero-accent" style={styles.heroAccent}>Shop Smarter, Save Faster</span>
         </h1>
-        <p className="hero-subtitle">
+        <p className="hero-subtitle" style={styles.heroSubtitle}>
           AI-powered grocery parsing that understands what you actually want to buy.
         </p>
       </div>
 
-      <div className="intelligence-banner">
-        <div className="banner-content">
-          <div className="banner-text">
-            <h3 className="banner-title">💥 CARTSMASH AI-Powered Smart Parsing</h3>
-            <p className="banner-subtitle">
-              • Recipes, lists, and carts all connected<br />
-              • Smart quantity parsing with container detection<br />
-              • Auto-save and cloud sync<br />
-              • Duplicate detection and merging
-            </p>
+      {/* Unified AI Assistant Container */}
+      <div style={styles.unifiedAssistantContainer}>
+        {/* Unified Header */}
+        <div style={styles.unifiedHeader}>
+          <div style={styles.headerContent}>
+            <div style={styles.titleSection}>
+              <span style={styles.mainIcon}>🛒</span>
+              <div>
+                <h2 style={styles.mainTitle}>CARTSMASH AI Assistant</h2>
+                <p style={styles.subtitle}>Smart grocery parsing powered by AI</p>
+              </div>
+            </div>
+            
+            {/* Feature badges */}
+            <div style={styles.featureBadges}>
+              <span style={styles.badge}>🎯 Recipe Integration</span>
+              <span style={styles.badge}>🔄 Auto-Save & Sync</span>
+              <span style={styles.badge}>📊 Smart Quantities</span>
+              <span style={styles.badge}>🔀 Duplicate Detection</span>
+            </div>
           </div>
-          <div className="banner-indicator">
-            <span className="indicator-icon">💥</span>
-            <span className="indicator-text">
-              {currentCart.length} items in cart
-            </span>
-          </div>
-        </div>
-      </div>
 
-      <div className="main-form">
-        <DraftRestorationBanner 
-          draft={showDraftBanner ? draft : null}
-          onRestore={handleRestoreDraft}
-          onDismiss={() => {
-            setShowDraftBanner(false);
-            clearDraft();
-          }}
-        />
-
-        <div className="input-section">
-          <label className="input-label">
-            Paste or Create Grocery List
-            {isDraftSaving && (
-              <span className="auto-save-indicator">
-                <ButtonSpinner color="#10b981" /> Saving...
-              </span>
-            )}
-          </label>
-          <textarea
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            className="textarea"
-            placeholder="Enter your grocery list here..."
-            rows="12"
-          />
-        </div>
-        
-        <div className="controls-section">
-          <div className="cart-action-toggle">
-            <label className="toggle-label">
-              <input
-                type="checkbox"
-                checked={mergeCart}
-                onChange={(e) => setMergeCart(e.target.checked)}
-                className="toggle-checkbox"
-              />
-              <span className="toggle-slider"></span>
-              <span className="toggle-text">
-                {mergeCart ? '🔀 Merge with cart' : '🔥 Replace cart'}
-              </span>
-            </label>
-            <div className="toggle-description">
-              {mergeCart 
-                ? `Add to existing ${currentCart.length} items`
-                : 'Replace entire cart with new items'
-              }
+          {/* Cart Status */}
+          <div style={styles.cartStatus}>
+            <div style={styles.cartIndicator}>
+              <span style={styles.cartCount}>{currentCart.length}</span>
+              <span style={styles.cartLabel}>items in cart</span>
             </div>
           </div>
         </div>
 
-        {error && (
-          <div className="error-message">
-            ❌ {error}
+        {/* Controls Bar */}
+        <div style={styles.controlsBar}>
+          {/* Action Buttons */}
+          <div style={styles.actionButtons}>
+            <button onClick={handleNewList} style={styles.actionBtn}>
+              📝 New List
+            </button>
+            <button 
+              onClick={handleSaveList} 
+              style={{...styles.actionBtn, ...(currentCart.length === 0 ? styles.disabledBtn : {})}}
+              disabled={currentCart.length === 0}
+            >
+              💾 Save List
+            </button>
+            <button onClick={() => setShowRecipeManager(true)} style={styles.actionBtn}>
+              📖 Recipes
+            </button>
+            <button onClick={() => setShowRecipeImporter(true)} style={styles.actionBtn}>
+              🔗 Import
+            </button>
           </div>
-        )}
 
-        <div className="button-group">
-          <SmashButton
-            onSubmit={handleSubmit}
-            isDisabled={!inputText.trim()}
-            isLoading={isLoading}
-            itemCount={inputText.split('\n').filter(line => line.trim()).length}
+          {/* Settings */}
+          <div style={styles.settings}>
+            {/* Merge/Replace Toggle */}
+            <div style={styles.settingGroup}>
+              <label style={styles.settingLabel}>Mode:</label>
+              <div style={styles.toggleButtons}>
+                <button
+                  onClick={() => setMergeCart(true)}
+                  style={{
+                    ...styles.toggleBtn,
+                    ...(mergeCart ? styles.toggleActive : {})
+                  }}
+                  title={`Add to existing ${currentCart.length} items`}
+                >
+                  🔀 Merge
+                </button>
+                <button
+                  onClick={() => setMergeCart(false)}
+                  style={{
+                    ...styles.toggleBtn,
+                    ...(!mergeCart ? styles.toggleActive : {})
+                  }}
+                  title="Replace entire cart with new items"
+                >
+                  🔥 Replace
+                </button>
+              </div>
+            </div>
+
+            {/* Ingredient Style */}
+            <div style={styles.settingGroup}>
+              <label style={styles.settingLabel}>Style:</label>
+              <div style={styles.toggleButtons}>
+                <button
+                  onClick={() => setIngredientStyle('basic')}
+                  style={{
+                    ...styles.toggleBtn,
+                    ...(ingredientStyle === 'basic' ? styles.toggleActive : {})
+                  }}
+                >
+                  🏪 Basic
+                </button>
+                <button
+                  onClick={() => setIngredientStyle('homemade')}
+                  style={{
+                    ...styles.toggleBtn,
+                    ...(ingredientStyle === 'homemade' ? styles.toggleActive : {})
+                  }}
+                >
+                  🍳 Homemade
+                </button>
+              </div>
+            </div>
+            
+            {/* AI Model */}
+            <div style={styles.settingGroup}>
+              <label style={styles.settingLabel}>AI:</label>
+              <div style={styles.toggleButtons}>
+                <button
+                  onClick={() => setSelectedAI('claude')}
+                  style={{
+                    ...styles.toggleBtn,
+                    ...(selectedAI === 'claude' ? styles.toggleActive : {})
+                  }}
+                >
+                  🤖 Claude
+                </button>
+                <button
+                  onClick={() => setSelectedAI('chatgpt')}
+                  style={{
+                    ...styles.toggleBtn,
+                    ...(selectedAI === 'chatgpt' ? styles.toggleActive : {})
+                  }}
+                >
+                  🧠 GPT
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Input Area */}
+        <div style={styles.mainInputArea}>
+          <textarea
+            ref={textareaRef}
+            value={inputText}
+            onChange={(e) => {
+              setInputText(e.target.value);
+              setWaitingForAIResponse(false);
+            }}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && e.shiftKey && e.ctrlKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
+            placeholder="Ask for meal plans, recipes, or grocery lists...
+
+Examples:
+• Create a healthy 7-day meal plan for my family
+• I need ingredients for chicken tacos
+• What can I make with chicken, rice, and broccoli?
+• Plan a birthday party menu for 20 people
+• Give me a keto-friendly shopping list
+
+Or paste any grocery list directly!"
+            style={styles.mainTextarea}
+            rows="8"
           />
           
-          {showResults && (
-            <div className="action-buttons">
-              <button onClick={handleNewList} className="btn btn-new">
-                📝 New List
-              </button>
-              
-              <button onClick={handleValidateAll} className="btn btn-validate">
-                {validatingAll ? <ButtonSpinner /> : '🔍'} Validate All
-              </button>
-              
-              <button onClick={handleShowValidator} className="btn btn-review">
-                ⚠️ Review Items
-              </button>
-              
-              <button onClick={handleSaveList} className="btn btn-save">
-                💾 Save List
-              </button>
-              
-              <button onClick={() => setShowRecipeManager(true)} className="btn btn-recipes">
-                📖 Manage Recipes
-              </button>
-              
-              <button onClick={() => {
-                console.log('Import Recipe button clicked!');
-                setShowRecipeImporter(true);
-              }} className="btn btn-import">
-                🔗 Import Recipe
-              </button>
+          {waitingForAIResponse && (
+            <div style={styles.aiStatusMessage}>
+              💡 AI response loaded! Review it above and hit CARTSMASH to add items to your cart.
             </div>
           )}
+          
+          <div style={styles.inputControls}>
+            <button 
+              onClick={handleSubmit}
+              disabled={!inputText.trim() || isLoading}
+              className={`smash-button ${isLoading ? 'smash-button-loading' : ''}`}
+              style={styles.smashButton}
+            >
+              {isLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                  <ButtonSpinner />
+                  <span>PROCESSING...</span>
+                </div>
+              ) : (
+                '🏈 CARTSMASH IT! 🏈'
+              )}
+            </button>
+          </div>
         </div>
 
-        <SyncStatusIndicator 
-          isSyncing={isCartSyncing}
-          lastSync={cartLastSync}
-          error={cartSyncError}
-        />
+        {/* Templates */}
+        <div style={styles.templatesSection}>
+          <h3 style={styles.templatesTitle}>Quick Templates</h3>
+          <div style={styles.templatesGrid}>
+            {templates.map(template => (
+              <div
+                key={template.id}
+                onClick={() => handleTemplateClick(template)}
+                style={styles.templateCard}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#FB4F14';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(251,79,20,0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#002244';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,2,68,0.08)';
+                }}
+              >
+                <div style={styles.templateIcon}>{template.icon}</div>
+                <h4 style={styles.templateTitle}>{template.title}</h4>
+                <p style={styles.templateDescription}>{template.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Messages/Response Area */}
+        {messages.length > 0 && (
+          <div style={styles.messagesContainer}>
+            <div style={styles.messagesHeader}>
+              <h3 style={styles.messagesTitle}>AI Conversation</h3>
+              <button onClick={() => setMessages([])} style={styles.clearButton}>
+                🗑️ Clear
+              </button>
+            </div>
+            {messages.map((msg, idx) => (
+              <div key={idx} style={{
+                ...styles.message,
+                ...(msg.role === 'user' ? styles.userMessage : styles.assistantMessage)
+              }}>
+                {msg.role === 'assistant' && (
+                  <div style={styles.messageHeader}>
+                    {msg.model === 'claude' ? '🤖 Claude' : '🧠 ChatGPT'}
+                  </div>
+                )}
+                <div style={styles.messageContent}>{msg.content}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {error && (
+        <div className="error-message" style={styles.errorMessage}>
+          ❌ {error}
+        </div>
+      )}
 
       {showResults && currentCart.length > 0 && (
         <ParsedResultsDisplay 
@@ -571,7 +676,7 @@ function GroceryListForm({
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'rgba(0, 2, 68, 0.5)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -581,7 +686,6 @@ function GroceryListForm({
             onClose={() => setShowRecipeImporter(false)}
             onRecipeImported={async (recipe) => {
               try {
-                // Save recipe to Firebase if logged in
                 if (currentUser) {
                   await userDataService.init();
                   await userDataService.saveRecipe({
@@ -592,17 +696,14 @@ function GroceryListForm({
                   console.log('✅ Recipe saved to Firebase');
                 }
                 
-                // Save recipe locally
                 saveRecipe(recipe);
                 
-                // Load ingredients to cart
                 if (recipe.items && recipe.items.length > 0) {
                   const newCart = mergeCart 
                     ? [...currentCart, ...recipe.items]
                     : recipe.items;
                   setCurrentCart(newCart);
                   
-                  // Save updated cart to Firebase
                   if (currentUser) {
                     await userDataService.saveShoppingList({
                       id: 'current-cart',
@@ -625,20 +726,375 @@ function GroceryListForm({
           />
         </div>
       )}
-
-      <SmartAIAssistant 
-        onGroceryListGenerated={(list) => {
-          setInputText(list);
-          if (list.trim()) {
-            setTimeout(() => submitGroceryList(list), 500);
-          }
-        }}
-        onRecipeGenerated={(recipe) => {
-          saveRecipe(recipe);
-        }}
-      />
     </div>
   );
 }
+
+// Styles
+const styles = {
+  heroSection: {
+    background: 'linear-gradient(135deg, #002244 0%, #003366 100%)',
+    padding: '60px 20px',
+    borderRadius: '16px',
+    marginBottom: '30px',
+    textAlign: 'center',
+    boxShadow: '0 10px 30px rgba(0, 2, 68, 0.3)'
+  },
+
+  heroTitle: {
+    fontSize: '48px',
+    fontWeight: 'bold',
+    color: 'white',
+    margin: '0 0 10px 0',
+    textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+  },
+
+  heroAccent: {
+    color: '#FB4F14',
+    textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+  },
+
+  heroSubtitle: {
+    fontSize: '18px',
+    color: 'rgba(255, 255, 255, 0.9)',
+    margin: 0
+  },
+
+  unifiedAssistantContainer: {
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    boxShadow: '0 4px 20px rgba(0,2,68,0.1)',
+    overflow: 'hidden',
+    marginBottom: '30px',
+    border: '2px solid #002244'
+  },
+  
+  unifiedHeader: {
+    background: 'linear-gradient(135deg, #FB4F14 0%, #FF6B35 100%)',
+    padding: '24px',
+    color: 'white',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '20px'
+  },
+  
+  headerContent: {
+    flex: '1 1 auto'
+  },
+  
+  titleSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    marginBottom: '12px'
+  },
+  
+  mainIcon: {
+    fontSize: '48px'
+  },
+  
+  mainTitle: {
+    margin: 0,
+    fontSize: '28px',
+    fontWeight: 'bold',
+    textShadow: '1px 1px 2px rgba(0,0,0,0.2)'
+  },
+  
+  subtitle: {
+    margin: '4px 0 0 0',
+    opacity: 0.95,
+    fontSize: '14px'
+  },
+  
+  featureBadges: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap'
+  },
+  
+  badge: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    padding: '4px 12px',
+    borderRadius: '16px',
+    fontSize: '13px',
+    fontWeight: '500',
+    backdropFilter: 'blur(10px)'
+  },
+  
+  cartStatus: {
+    backgroundColor: 'rgba(0, 2, 68, 0.9)',
+    padding: '16px 24px',
+    borderRadius: '12px',
+    backdropFilter: 'blur(10px)',
+    border: '2px solid rgba(255,255,255,0.3)'
+  },
+  
+  cartIndicator: {
+    textAlign: 'center'
+  },
+  
+  cartCount: {
+    fontSize: '36px',
+    fontWeight: 'bold',
+    display: 'block'
+  },
+  
+  cartLabel: {
+    fontSize: '14px',
+    opacity: 0.9
+  },
+  
+  controlsBar: {
+    backgroundColor: '#FFF5F2',
+    padding: '16px 24px',
+    borderBottom: '2px solid #FB4F14',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '16px'
+  },
+  
+  actionButtons: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap'
+  },
+  
+  actionBtn: {
+    padding: '8px 16px',
+    backgroundColor: 'white',
+    color: '#002244',
+    border: '2px solid #002244',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'all 0.2s'
+  },
+  
+  disabledBtn: {
+    opacity: 0.5,
+    cursor: 'not-allowed'
+  },
+  
+  settings: {
+    display: 'flex',
+    gap: '20px',
+    alignItems: 'center'
+  },
+  
+  settingGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  
+  settingLabel: {
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#002244'
+  },
+  
+  toggleButtons: {
+    display: 'flex',
+    backgroundColor: 'white',
+    borderRadius: '6px',
+    padding: '2px',
+    border: '2px solid #002244'
+  },
+  
+  toggleBtn: {
+    padding: '6px 12px',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    backgroundColor: 'transparent',
+    color: '#002244',
+    transition: 'all 0.2s',
+    fontWeight: '500'
+  },
+  
+  toggleActive: {
+    backgroundColor: '#FB4F14',
+    color: 'white'
+  },
+  
+  mainInputArea: {
+    padding: '30px',
+    backgroundColor: 'white'
+  },
+  
+  mainTextarea: {
+    width: '100%',
+    padding: '20px',
+    fontSize: '16px',
+    border: '3px solid #002244',
+    borderRadius: '12px',
+    resize: 'vertical',
+    fontFamily: 'inherit',
+    lineHeight: '1.5',
+    transition: 'border-color 0.2s',
+    outline: 'none',
+    boxSizing: 'border-box'
+  },
+
+  aiStatusMessage: {
+    backgroundColor: '#E6F7FF',
+    border: '2px solid #1890FF',
+    borderRadius: '8px',
+    padding: '12px 16px',
+    marginTop: '12px',
+    marginBottom: '12px',
+    color: '#002244',
+    fontSize: '14px',
+    fontWeight: '500',
+    textAlign: 'center'
+  },
+  
+  inputControls: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: '20px'
+  },
+  
+  smashButton: {
+    padding: '16px 32px',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    minWidth: '200px',
+    background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(251,79,20,0.3)',
+    transition: 'all 0.3s'
+  },
+  
+  templatesSection: {
+    padding: '30px',
+    backgroundColor: '#FFF5F2',
+    borderTop: '2px solid #FB4F14'
+  },
+  
+  templatesTitle: {
+    margin: '0 0 20px 0',
+    fontSize: '20px',
+    fontWeight: 'bold',
+    color: '#002244'
+  },
+  
+  templatesGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+    gap: '16px'
+  },
+  
+  templateCard: {
+    padding: '20px',
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    border: '2px solid #002244',
+    cursor: 'pointer',
+    transition: 'all 0.3s',
+    boxShadow: '0 2px 8px rgba(0,2,68,0.08)'
+  },
+  
+  templateIcon: {
+    fontSize: '32px',
+    marginBottom: '8px'
+  },
+  
+  templateTitle: {
+    margin: '0 0 6px 0',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#002244'
+  },
+  
+  templateDescription: {
+    margin: 0,
+    fontSize: '13px',
+    color: '#666',
+    lineHeight: '1.4'
+  },
+  
+  messagesContainer: {
+    padding: '20px 30px 30px',
+    backgroundColor: 'white',
+    borderTop: '2px solid #002244'
+  },
+  
+  messagesHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '16px'
+  },
+  
+  messagesTitle: {
+    margin: 0,
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#002244'
+  },
+  
+  clearButton: {
+    padding: '6px 12px',
+    backgroundColor: '#8B0000',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '500'
+  },
+  
+  message: {
+    marginBottom: '12px',
+    padding: '12px 16px',
+    borderRadius: '8px'
+  },
+  
+  userMessage: {
+    backgroundColor: '#002244',
+    color: 'white'
+  },
+  
+  assistantMessage: {
+    backgroundColor: '#FFF5F2',
+    color: '#002244',
+    border: '1px solid #FB4F14'
+  },
+  
+  messageHeader: {
+    fontSize: '12px',
+    fontWeight: 'bold',
+    marginBottom: '8px',
+    opacity: 0.8
+  },
+  
+  messageContent: {
+    fontSize: '14px',
+    lineHeight: '1.5',
+    whiteSpace: 'pre-wrap'
+  },
+
+  errorMessage: {
+    backgroundColor: '#FEE',
+    color: '#8B0000',
+    padding: '12px',
+    borderRadius: '8px',
+    border: '2px solid #8B0000',
+    marginTop: '16px',
+    marginBottom: '16px',
+    fontWeight: '500'
+  }
+};
 
 export default GroceryListForm;
