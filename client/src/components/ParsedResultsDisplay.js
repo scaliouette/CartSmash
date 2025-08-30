@@ -1,13 +1,9 @@
-// client/src/components/ParsedResultsDisplay.js - FIXED VERSION
+// client/src/components/ParsedResultsDisplay.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { InlineSpinner } from './LoadingSpinner';
 import KrogerOrderFlow from './KrogerOrderFlow';
 
 function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats }) {
-  // REMOVED unused aliases that were causing warnings
-  // const cartItems = items;  // REMOVED - not used
-  // const setCartItems = onItemsChange;  // REMOVED - not used
-  
   // Debug log to verify currentUser is being received
   useEffect(() => {
     console.log('🔍 ParsedResultsDisplay received currentUser:', currentUser?.email || 'No user');
@@ -102,7 +98,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
         return newSet;
       });
     }
-  }, [items, onItemsChange]); // Fixed dependencies
+  }, [items, onItemsChange]);
 
   // Fetch real-time prices on mount - Fixed dependencies
   useEffect(() => {
@@ -110,7 +106,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
     if (itemsNeedingPrices.length > 0) {
       fetchRealTimePrices(itemsNeedingPrices);
     }
-  }, [items, fetchRealTimePrices]); // Added missing dependencies
+  }, [items, fetchRealTimePrices]);
 
   // Load meal groups from localStorage
   useEffect(() => {
@@ -351,9 +347,9 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
   };
 
   const getConfidenceColor = (confidence) => {
-    if (confidence >= 0.8) return '#10b981';
-    if (confidence >= 0.6) return '#f59e0b';
-    return '#ef4444';
+    if (confidence >= 0.8) return '#FB4F14'; // Orange for high
+    if (confidence >= 0.6) return '#FFA500'; // Light orange for medium
+    return '#002244'; // Navy blue for low
   };
 
   const getConfidenceLabel = (confidence) => {
@@ -595,7 +591,8 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
             <span
               style={{
                 ...styles.confidenceBadge,
-                backgroundColor: getConfidenceColor(item.confidence || 0)
+                backgroundColor: getConfidenceColor(item.confidence || 0),
+                color: item.confidence >= 0.6 ? 'white' : 'white'
               }}
             >
               {getConfidenceLabel(item.confidence || 0)}
@@ -604,7 +601,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
 
           <div style={styles.itemPrice}>
             {isFetchingPrice ? (
-              <InlineSpinner text="" color="#10b981" />
+              <InlineSpinner text="" color="#FB4F14" />
             ) : item.realPrice ? (
               <>
                 <span>${(item.realPrice * (item.quantity || 1)).toFixed(2)}</span>
@@ -625,7 +622,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
 
           <div style={styles.itemActions}>
             {isUpdating ? (
-              <InlineSpinner text="" color="#6b7280" />
+              <InlineSpinner text="" color="#002244" />
             ) : (
               <button
                 onClick={() => handleRemoveItem(item.id)}
@@ -656,9 +653,6 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
     );
   };
 
-  // Rest of component continues with the actual return statement...
-  // (continuing with the JSX return and other components)
-
   return (
     <div style={{
       ...styles.container,
@@ -670,7 +664,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
         ...(isMobile ? styles.headerMobile : {})
       }}>
         <h3 style={styles.title}>
-          ✅ CART SMASH Results ({items.length} items)
+          🛒 Shopping List Results ({items.length} items)
         </h3>
         <div style={styles.headerActions}>
           <button
@@ -742,6 +736,162 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
             )}
           </div>
         </div>
+      )}
+
+      {/* Stats Panel (Collapsible) */}
+      {showStats && (
+        <div style={styles.statsPanel}>
+          <h4 style={styles.statsTitle}>📊 Parsing Statistics</h4>
+
+          <div style={styles.statsGrid}>
+            <div style={styles.statCard}>
+              <div style={styles.statValue}>{stats.total}</div>
+              <div style={styles.statLabel}>Total Items</div>
+            </div>
+
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statValue, color: '#FB4F14' }}>{stats.highConfidence}</div>
+              <div style={styles.statLabel}>High Confidence</div>
+            </div>
+
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statValue, color: '#FFA500' }}>{stats.mediumConfidence}</div>
+              <div style={styles.statLabel}>Medium Confidence</div>
+            </div>
+
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statValue, color: '#002244' }}>{stats.lowConfidence}</div>
+              <div style={styles.statLabel}>Need Review</div>
+            </div>
+
+            <div style={styles.statCard}>
+              <div style={styles.statValue}>{stats.categories}</div>
+              <div style={styles.statLabel}>Categories</div>
+            </div>
+
+            <div style={styles.statCard}>
+              <div style={styles.statValue}>{(stats.averageConfidence * 100).toFixed(1)}%</div>
+              <div style={styles.statLabel}>Avg Confidence</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Controls */}
+      <div style={styles.controls}>
+        <div style={styles.controlGroup}>
+          <label style={styles.controlLabel}>Sort by:</label>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={styles.select}
+          >
+            <option value="confidence">Confidence (High to Low)</option>
+            <option value="category">Category (A to Z)</option>
+            <option value="name">Name (A to Z)</option>
+            <option value="price">Price (High to Low)</option>
+          </select>
+        </div>
+
+        <div style={styles.controlGroup}>
+          <label style={styles.controlLabel}>Filter:</label>
+          <select
+            value={filterBy}
+            onChange={(e) => setFilterBy(e.target.value)}
+            style={styles.select}
+          >
+            <option value="all">All Items</option>
+            <option value="high-confidence">High Confidence Only</option>
+            <option value="needs-review">Needs Review Only</option>
+            <optgroup label="By Category">
+              <option value="produce">🥬 Produce</option>
+              <option value="dairy">🥛 Dairy</option>
+              <option value="meat">🥩 Meat</option>
+              <option value="pantry">🥫 Pantry</option>
+              <option value="beverages">🥤 Beverages</option>
+              <option value="frozen">🧊 Frozen</option>
+              <option value="bakery">🍞 Bakery</option>
+              <option value="snacks">🍿 Snacks</option>
+              <option value="other">📦 Other</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      {/* List Header */}
+      <div style={styles.listHeader}>
+        <div
+          style={styles.headerCheckbox}
+          onClick={toggleSelectAll}
+        >
+          <div style={{
+            ...styles.checkboxVisual,
+            ...(selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? styles.checkboxVisualSelected : {})
+          }}>
+            {selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 && '✓'}
+          </div>
+        </div>
+        <div style={styles.headerCategory}></div>
+        <div style={styles.headerName}>Product Name</div>
+        <div style={styles.headerQuantity}>Qty</div>
+        <div style={styles.headerUnit}>Unit</div>
+        <div style={styles.headerConfidence}>Status</div>
+        <div style={styles.headerPrice}>Price</div>
+        <div style={styles.headerActions}></div>
+      </div>
+
+      {/* Items List */}
+      <div style={styles.itemsList}>
+        {sortBy === 'category' ? renderGroupedItems() : filteredAndSortedItems.map((item, index) => renderItem(item, index))}
+      </div>
+
+      {/* Actions */}
+      <div style={styles.actions}>
+        <button
+          onClick={() => setShowInstacart(true)}
+          style={styles.primaryBtn}
+        >
+          🛍️ Continue to Check Out
+        </button>
+        
+        <button
+          onClick={copyListToClipboard}
+          style={styles.secondaryBtn}
+        >
+          📋 Copy List
+        </button>
+      </div>
+
+      {/* Total Summary */}
+      {stats.totalEstimatedPrice > 0 && (
+        <div style={styles.totalSummary}>
+          <h4 style={styles.totalTitle}>💰 Estimated Total: ${stats.totalEstimatedPrice.toFixed(2)}</h4>
+          <p style={styles.totalNote}>
+            *Prices are estimates and may vary by location and availability
+          </p>
+        </div>
+      )}
+
+      {/* Instacart Modal */}
+      {showInstacart && (
+        <EnhancedInstacartModal
+          items={items}
+          currentUser={currentUser}
+          onClose={() => setShowInstacart(false)}
+          onOpenKroger={() => {
+            setShowInstacart(false);
+            setShowKroger(true);
+          }}
+        />
+      )}
+
+      {/* Kroger Modal */}
+      {showKroger && (
+        <KrogerOrderFlow
+          cartItems={items}
+          currentUser={currentUser}
+          onClose={() => setShowKroger(false)}
+        />
       )}
 
       {/* Meal Planner Modal */}
@@ -845,172 +995,14 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
           </div>
         </div>
       )}
-
-      {/* Stats Panel (Collapsible) */}
-      {showStats && (
-        <div style={styles.statsPanel}>
-          <h4 style={styles.statsTitle}>📊 Parsing Statistics</h4>
-
-          <div style={styles.statsGrid}>
-            <div style={styles.statCard}>
-              <div style={styles.statValue}>{stats.total}</div>
-              <div style={styles.statLabel}>Total Items</div>
-            </div>
-
-            <div style={styles.statCard}>
-              <div style={{ ...styles.statValue, color: '#10b981' }}>{stats.highConfidence}</div>
-              <div style={styles.statLabel}>High Confidence</div>
-            </div>
-
-            <div style={styles.statCard}>
-              <div style={{ ...styles.statValue, color: '#f59e0b' }}>{stats.mediumConfidence}</div>
-              <div style={styles.statLabel}>Medium Confidence</div>
-            </div>
-
-            <div style={styles.statCard}>
-              <div style={{ ...styles.statValue, color: '#ef4444' }}>{stats.lowConfidence}</div>
-              <div style={styles.statLabel}>Need Review</div>
-            </div>
-
-            <div style={styles.statCard}>
-              <div style={styles.statValue}>{stats.categories}</div>
-              <div style={styles.statLabel}>Categories</div>
-            </div>
-
-            <div style={styles.statCard}>
-              <div style={styles.statValue}>{(stats.averageConfidence * 100).toFixed(1)}%</div>
-              <div style={styles.statLabel}>Avg Confidence</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Controls */}
-      <div style={styles.controls}>
-        <div style={styles.controlGroup}>
-          <label style={styles.controlLabel}>Sort by:</label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            style={styles.select}
-          >
-            <option value="confidence">Confidence (High to Low)</option>
-            <option value="category">Category (A to Z)</option>
-            <option value="name">Name (A to Z)</option>
-            <option value="price">Price (High to Low)</option>
-          </select>
-        </div>
-
-        <div style={styles.controlGroup}>
-          <label style={styles.controlLabel}>Filter:</label>
-          <select
-            value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
-            style={styles.select}
-          >
-            <option value="all">All Items</option>
-            <option value="high-confidence">High Confidence Only</option>
-            <option value="needs-review">Needs Review Only</option>
-            <optgroup label="By Category">
-              <option value="produce">🥬 Produce</option>
-              <option value="dairy">🥛 Dairy</option>
-              <option value="meat">🥩 Meat</option>
-              <option value="pantry">🥫 Pantry</option>
-              <option value="beverages">🥤 Beverages</option>
-              <option value="frozen">🧊 Frozen</option>
-              <option value="bakery">🍞 Bakery</option>
-              <option value="snacks">🍿 Snacks</option>
-              <option value="other">📦 Other</option>
-            </optgroup>
-          </select>
-        </div>
-      </div>
-
-      {/* List Header */}
-      <div style={styles.listHeader}>
-        <div
-          style={styles.headerCheckbox}
-          onClick={toggleSelectAll}
-        >
-          <div style={{
-            ...styles.checkboxVisual,
-            ...(selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? styles.checkboxVisualSelected : {})
-          }}>
-            {selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 && '✓'}
-          </div>
-        </div>
-        <div style={styles.headerCategory}></div>
-        <div style={styles.headerName}>Product Name</div>
-        <div style={styles.headerQuantity}>Qty</div>
-        <div style={styles.headerUnit}>Unit</div>
-        <div style={styles.headerConfidence}>Status</div>
-        <div style={styles.headerPrice}>Price</div>
-        <div style={styles.headerActions}></div>
-      </div>
-
-      {/* Items List */}
-      <div style={styles.itemsList}>
-        {sortBy === 'category' ? renderGroupedItems() : filteredAndSortedItems.map((item, index) => renderItem(item, index))}
-      </div>
-
-      {/* NEW: Instacart Actions */}
-      <div style={styles.actions}>
-  <button
-    onClick={() => setShowInstacart(true)}
-    style={styles.primaryBtn}
-  >
-    🛍️ Continue to Check Out
-  </button>
-  
-  
-  <button
-    onClick={copyListToClipboard}
-    style={styles.secondaryBtn}
-  >
-    📋 Copy List
-  </button>
-</div>
-
-      {/* Total Summary */}
-      {stats.totalEstimatedPrice > 0 && (
-        <div style={styles.totalSummary}>
-          <h4 style={styles.totalTitle}>💰 Estimated Total: ${stats.totalEstimatedPrice.toFixed(2)}</h4>
-          <p style={styles.totalNote}>
-            *Prices are estimates and may vary by location and availability
-          </p>
-        </div>
-      )}
-
-      {/* NEW: Enhanced Instacart Modal */}
-      {showInstacart && (
-  <EnhancedInstacartModal
-    items={items}
-    currentUser={currentUser}  // ← ADD THIS LINE
-    onClose={() => setShowInstacart(false)}
-    onOpenKroger={() => {
-      setShowInstacart(false);
-      setShowKroger(true);
-    }}
-  />
-)}
-
-      {/* Kroger Modal - Outside of Instacart modal */}
-      {showKroger && (
-        <KrogerOrderFlow
-          cartItems={items}
-          currentUser={currentUser}  // Pass _currentUser here
-          onClose={() => setShowKroger(false)}
-        />
-      )}  
     </div>
   );
 }
 
-// In ParsedResultsDisplay.js, replace the entire EnhancedInstacartModal function
+// Enhanced Instacart Modal Function
 function EnhancedInstacartModal({ items, onClose, currentUser }) {
   const [selectedStore, setSelectedStore] = useState('safeway');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [deliveryOption, setDeliveryOption] = useState('delivery');
   const [showKrogerFlow, setShowKrogerFlow] = useState(false);
 
   const stores = [
@@ -1034,15 +1026,12 @@ function EnhancedInstacartModal({ items, onClose, currentUser }) {
 
   const handleStoreClick = (store) => {
     if (store.id === 'kroger') {
-      // Immediately launch Kroger flow when Kroger card is clicked
       setShowKrogerFlow(true);
     } else {
-      // For other stores, just select them
       setSelectedStore(store.id);
     }
   };
 
-  // If Kroger flow is active, show KrogerOrderFlow INSTEAD of the modal
   if (showKrogerFlow) {
     return (
       <KrogerOrderFlow
@@ -1056,14 +1045,12 @@ function EnhancedInstacartModal({ items, onClose, currentUser }) {
   const handleProceed = () => {
     setIsProcessing(true);
 
-    // Copy list to clipboard for Instacart stores
     const listText = items.map(item => 
       `${item.quantity || 1} ${item.unit || ''} ${item.productName || item.itemName}`
     ).join('\n');
     
     setTimeout(() => {
       navigator.clipboard.writeText(listText).then(() => {
-        // Open Instacart
         window.open('https://www.instacart.com/', '_blank');
         alert('Your list has been copied! Select your store on Instacart and paste your list.');
         onClose();
@@ -1087,7 +1074,6 @@ function EnhancedInstacartModal({ items, onClose, currentUser }) {
           Choose Your Store
         </h2>
 
-        {/* Store Selection Grid */}
         <div style={styles.storeGrid}>
           {stores.map(store => (
             <div
@@ -1097,12 +1083,12 @@ function EnhancedInstacartModal({ items, onClose, currentUser }) {
                 ...styles.storeCard,
                 ...(selectedStore === store.id && store.id !== 'kroger' ? styles.storeCardActive : {}),
                 ...(store.id === 'kroger' ? {
-                  background: 'linear-gradient(135deg, #0066cc, #004999)',
+                  background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
                   color: 'white',
                   cursor: 'pointer',
                   position: 'relative',
                   transform: 'scale(1.05)',
-                  boxShadow: '0 4px 15px rgba(0,102,204,0.3)'
+                  boxShadow: '0 4px 15px rgba(251,79,20,0.3)'
                 } : {})
               }}
             >
@@ -1120,7 +1106,7 @@ function EnhancedInstacartModal({ items, onClose, currentUser }) {
               </div>
               <div style={{
                 ...styles.storeFee,
-                ...(store.id === 'kroger' ? { color: '#90cdf4' } : {})
+                ...(store.id === 'kroger' ? { color: '#FFE5D9' } : {})
               }}>
                 {store.fee}
               </div>
@@ -1133,7 +1119,7 @@ function EnhancedInstacartModal({ items, onClose, currentUser }) {
                   top: '4px',
                   right: '4px',
                   background: 'rgba(255,255,255,0.9)',
-                  color: '#0066cc',
+                  color: '#FB4F14',
                   fontSize: '10px',
                   padding: '3px 6px',
                   borderRadius: '4px',
@@ -1149,7 +1135,7 @@ function EnhancedInstacartModal({ items, onClose, currentUser }) {
                   left: '50%',
                   transform: 'translateX(-50%)',
                   fontSize: '11px',
-                  color: '#90cdf4',
+                  color: '#FFE5D9',
                   whiteSpace: 'nowrap'
                 }}>
                   Click to Connect
@@ -1159,7 +1145,6 @@ function EnhancedInstacartModal({ items, onClose, currentUser }) {
           ))}
         </div>
 
-        {/* Only show summary for non-Kroger stores */}
         <div style={styles.orderSummary}>
           <h3 style={styles.summaryTitle}>Your Cart</h3>
           <div style={styles.summaryRow}>
@@ -1172,7 +1157,6 @@ function EnhancedInstacartModal({ items, onClose, currentUser }) {
           </div>
         </div>
 
-        {/* Action for Instacart stores only */}
         {selectedStore !== 'kroger' && (
           <>
             <div style={styles.modalActions}>
@@ -1190,14 +1174,13 @@ function EnhancedInstacartModal({ items, onClose, currentUser }) {
           </>
         )}
 
-        {/* Instructions */}
         <div style={{
           marginTop: '20px',
           padding: '12px',
-          backgroundColor: '#f0f9ff',
+          backgroundColor: '#FFF5F2',
           borderRadius: '8px',
           fontSize: '13px',
-          color: '#0369a1'
+          color: '#002244'
         }}>
           <strong>🛒 Kroger:</strong> Direct API integration - sends items directly to your Kroger cart<br/>
           <strong>🛍️ Other Stores:</strong> Copies your list to clipboard for use with Instacart
@@ -1214,7 +1197,7 @@ const styles = {
     padding: '20px',
     margin: '20px 0',
     boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    border: '1px solid #e5e7eb'
+    border: '2px solid #002244'
   },
 
   containerMobile: {
@@ -1239,7 +1222,7 @@ const styles = {
   },
 
   title: {
-    color: '#1f2937',
+    color: '#002244',
     margin: 0,
     fontSize: '24px',
     fontWeight: 'bold'
@@ -1253,7 +1236,7 @@ const styles = {
 
   toggleButton: {
     padding: '8px 16px',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1264,7 +1247,7 @@ const styles = {
 
   refreshButton: {
     padding: '8px 16px',
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#FB4F14',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1279,7 +1262,7 @@ const styles = {
 
   exportButton: {
     padding: '8px 16px',
-    backgroundColor: '#10b981',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1294,7 +1277,7 @@ const styles = {
 
   // Batch operations styles
   batchOperationsBar: {
-    background: '#fef3c7',
+    background: 'linear-gradient(135deg, #FFF5F0, #FFE5D9)',
     padding: '12px 16px',
     borderRadius: '8px',
     marginBottom: '16px',
@@ -1303,13 +1286,13 @@ const styles = {
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: '10px',
-    border: '1px solid #fbbf24'
+    border: '1px solid #FB4F14'
   },
 
   batchOperationsTitle: {
     fontSize: '14px',
     fontWeight: '600',
-    color: '#92400e'
+    color: '#002244'
   },
 
   batchOperationsButtons: {
@@ -1320,7 +1303,7 @@ const styles = {
 
   batchButton: {
     padding: '6px 12px',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1331,7 +1314,7 @@ const styles = {
 
   batchButtonSuccess: {
     padding: '6px 12px',
-    backgroundColor: '#10b981',
+    backgroundColor: '#FB4F14',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1346,7 +1329,7 @@ const styles = {
 
   batchButtonDanger: {
     padding: '6px 12px',
-    backgroundColor: '#ef4444',
+    backgroundColor: '#8B0000',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1355,192 +1338,16 @@ const styles = {
     fontWeight: '500'
   },
 
-  // Meal planner modal styles
-  mealPlannerModal: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 3000
-  },
-
-  mealPlannerContent: {
-    backgroundColor: 'white',
-    padding: '24px',
-    borderRadius: '12px',
-    width: '90%',
-    maxWidth: '400px',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
-  },
-
-  mealPlannerTitle: {
-    margin: '0 0 16px 0',
-    fontSize: '20px',
-    color: '#1f2937'
-  },
-
-  mealNameInput: {
-    width: '100%',
-    padding: '10px',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
-    fontSize: '14px',
-    marginTop: '8px'
-  },
-
-  existingMeals: {
-    marginTop: '16px',
-    paddingTop: '16px',
-    borderTop: '1px solid #e5e7eb'
-  },
-
-  existingMealButton: {
-    display: 'block',
-    width: '100%',
-    padding: '8px',
-    marginTop: '8px',
-    backgroundColor: '#f3f4f6',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    textAlign: 'left'
-  },
-
-  mealPlannerActions: {
-    display: 'flex',
-    gap: '10px',
-    marginTop: '20px'
-  },
-
-  mealPlannerSave: {
-    flex: 1,
-    padding: '10px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: '500'
-  },
-
-  mealPlannerCancel: {
-    flex: 1,
-    padding: '10px',
-    backgroundColor: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: '500'
-  },
-
-  // Meal groups modal
-  mealGroupsModal: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 3000
-  },
-
-  mealGroupsContent: {
-    backgroundColor: 'white',
-    padding: '24px',
-    borderRadius: '12px',
-    width: '90%',
-    maxWidth: '600px',
-    maxHeight: '80vh',
-    overflowY: 'auto',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-    position: 'relative'
-  },
-
-  mealGroupsTitle: {
-    margin: '0 0 20px 0',
-    fontSize: '24px',
-    color: '#1f2937'
-  },
-
-  mealGroupsClose: {
-    position: 'absolute',
-    top: '20px',
-    right: '20px',
-    background: 'none',
-    border: 'none',
-    fontSize: '24px',
-    cursor: 'pointer',
-    color: '#6b7280'
-  },
-
-  mealGroupSection: {
-    marginBottom: '20px',
-    padding: '16px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '8px',
-    border: '1px solid #e5e7eb'
-  },
-
-  mealGroupHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '12px'
-  },
-
-  mealGroupName: {
-    margin: 0,
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#1f2937'
-  },
-
-  mealGroupDeleteButton: {
-    padding: '6px 12px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '12px',
-    fontWeight: '500'
-  },
-
-  mealItemsList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  },
-
-  mealItem: {
-    display: 'flex',
-    gap: '12px',
-    padding: '8px',
-    backgroundColor: 'white',
-    borderRadius: '6px',
-    fontSize: '14px',
-    alignItems: 'center'
-  },
-
   statsPanel: {
-    background: '#f9fafb',
+    background: 'linear-gradient(135deg, #002244, #003366)',
     padding: '20px',
     borderRadius: '8px',
     marginBottom: '20px',
-    border: '1px solid #e5e7eb'
+    color: 'white'
   },
 
   statsTitle: {
-    color: '#374151',
+    color: 'white',
     margin: '0 0 15px 0',
     fontSize: '18px',
     fontWeight: 'bold'
@@ -1553,23 +1360,24 @@ const styles = {
   },
 
   statCard: {
-    background: 'white',
+    background: 'rgba(255, 255, 255, 0.1)',
     padding: '15px',
     borderRadius: '8px',
     textAlign: 'center',
-    border: '1px solid #e5e7eb'
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    backdropFilter: 'blur(10px)'
   },
 
   statValue: {
     fontSize: '24px',
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: 'white',
     marginBottom: '4px'
   },
 
   statLabel: {
     fontSize: '12px',
-    color: '#6b7280',
+    color: 'rgba(255, 255, 255, 0.8)',
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
   },
@@ -1590,12 +1398,12 @@ const styles = {
   controlLabel: {
     fontSize: '14px',
     fontWeight: '500',
-    color: '#374151'
+    color: '#002244'
   },
 
   select: {
     padding: '6px 12px',
-    border: '1px solid #d1d5db',
+    border: '2px solid #002244',
     borderRadius: '6px',
     fontSize: '14px',
     backgroundColor: 'white'
@@ -1606,12 +1414,12 @@ const styles = {
     gridTemplateColumns: '40px 40px 1fr 80px 120px 70px 80px 40px',
     gap: '10px',
     padding: '10px 15px',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#002244',
     borderRadius: '8px 8px 0 0',
     fontSize: '13px',
     fontWeight: '600',
-    color: '#374151',
-    borderBottom: '2px solid #e5e7eb',
+    color: 'white',
+    borderBottom: '2px solid #FB4F14',
     alignItems: 'center'
   },
 
@@ -1621,6 +1429,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'center'
   },
+  
   headerCategory: { textAlign: 'center' },
   headerName: {},
   headerQuantity: { textAlign: 'center' },
@@ -1634,7 +1443,7 @@ const styles = {
     overflowY: 'auto',
     overflowX: 'hidden',
     borderRadius: '0 0 8px 8px',
-    border: '1px solid #e5e7eb',
+    border: '2px solid #002244',
     borderTop: 'none'
   },
 
@@ -1643,11 +1452,11 @@ const styles = {
     alignItems: 'center',
     gap: '8px',
     padding: '10px 15px',
-    backgroundColor: '#f9fafb',
-    borderBottom: '1px solid #e5e7eb',
+    backgroundColor: '#FFF5F2',
+    borderBottom: '1px solid #FB4F14',
     fontSize: '14px',
     fontWeight: '600',
-    color: '#4b5563',
+    color: '#002244',
     position: 'sticky',
     top: 0,
     zIndex: 10
@@ -1663,7 +1472,7 @@ const styles = {
 
   categoryCount: {
     fontSize: '12px',
-    color: '#9ca3af',
+    color: '#666',
     fontWeight: 'normal'
   },
 
@@ -1683,8 +1492,8 @@ const styles = {
   },
 
   itemRowEditing: {
-    backgroundColor: '#f0f9ff',
-    boxShadow: 'inset 0 0 0 2px #3b82f6'
+    backgroundColor: '#FFF5F2',
+    boxShadow: 'inset 0 0 0 2px #FB4F14'
   },
 
   itemRowUpdating: {
@@ -1693,7 +1502,7 @@ const styles = {
   },
 
   itemRowSelected: {
-    backgroundColor: '#fef3c7'
+    backgroundColor: '#FFE5D9'
   },
 
   itemCheckbox: {
@@ -1708,13 +1517,13 @@ const styles = {
   },
 
   itemCheckboxSelected: {
-    backgroundColor: 'rgba(251, 191, 36, 0.2)'
+    backgroundColor: 'rgba(251, 79, 20, 0.2)'
   },
 
   checkboxVisual: {
     width: '20px',
     height: '20px',
-    border: '2px solid #d1d5db',
+    border: '2px solid #002244',
     borderRadius: '4px',
     display: 'flex',
     alignItems: 'center',
@@ -1727,8 +1536,8 @@ const styles = {
   },
 
   checkboxVisualSelected: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6'
+    backgroundColor: '#FB4F14',
+    borderColor: '#FB4F14'
   },
 
   itemCategory: {
@@ -1745,7 +1554,7 @@ const styles = {
 
   itemNameText: {
     cursor: 'pointer',
-    color: '#1f2937',
+    color: '#002244',
     fontSize: '14px',
     fontWeight: '500',
     textOverflow: 'ellipsis',
@@ -1757,7 +1566,7 @@ const styles = {
   itemNameInput: {
     width: '100%',
     padding: '4px 8px',
-    border: '1px solid #3b82f6',
+    border: '2px solid #FB4F14',
     borderRadius: '4px',
     fontSize: '14px',
     fontWeight: '500',
@@ -1771,7 +1580,7 @@ const styles = {
   quantityInput: {
     width: '60px',
     padding: '4px 8px',
-    border: '1px solid #d1d5db',
+    border: '1px solid #002244',
     borderRadius: '4px',
     fontSize: '14px',
     textAlign: 'center'
@@ -1784,7 +1593,7 @@ const styles = {
   unitSelect: {
     width: '100%',
     padding: '4px 8px',
-    border: '1px solid #d1d5db',
+    border: '1px solid #002244',
     borderRadius: '4px',
     fontSize: '14px',
     backgroundColor: 'white'
@@ -1807,7 +1616,7 @@ const styles = {
   itemPrice: {
     textAlign: 'right',
     fontWeight: '600',
-    color: '#059669',
+    color: '#FB4F14',
     fontSize: '14px',
     minWidth: '80px',
     display: 'flex',
@@ -1832,7 +1641,7 @@ const styles = {
   },
 
   removeButton: {
-    background: '#ef4444',
+    background: '#8B0000',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -1848,19 +1657,19 @@ const styles = {
   },
 
   priceHistoryPanel: {
-    background: '#ecfdf5',
+    background: '#FFF5F2',
     padding: '12px',
     marginLeft: '80px',
     marginRight: '15px',
     marginBottom: '8px',
     borderRadius: '8px',
-    border: '1px solid #10b981'
+    border: '1px solid #FB4F14'
   },
 
   priceHistoryHeader: {
     fontSize: '14px',
     fontWeight: '600',
-    color: '#065f46',
+    color: '#002244',
     marginBottom: '8px'
   },
 
@@ -1880,34 +1689,33 @@ const styles = {
   },
 
   salePrice: {
-    color: '#ef4444',
+    color: '#FB4F14',
     fontWeight: '600'
   },
 
   totalSummary: {
-    background: 'linear-gradient(135deg, #dbeafe, #bfdbfe)',
+    background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
     padding: '20px',
     borderRadius: '8px',
     textAlign: 'center',
-    border: '1px solid #93c5fd',
+    border: '2px solid #002244',
     marginTop: '20px'
   },
 
   totalTitle: {
-    color: '#1e40af',
+    color: 'white',
     margin: '0 0 8px 0',
     fontSize: '20px',
     fontWeight: 'bold'
   },
 
   totalNote: {
-    color: '#3730a3',
+    color: '#FFE5D9',
     margin: 0,
     fontSize: '14px',
     fontStyle: 'italic'
   },
 
-  /* NEW: Instacart action buttons */
   actions: {
     display: 'flex',
     gap: '12px',
@@ -1918,32 +1726,32 @@ const styles = {
 
   primaryBtn: {
     padding: '12px 18px',
-    background: 'linear-gradient(135deg, #10b981, #34d399)',
+    background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
     color: 'white',
     border: 'none',
     borderRadius: '10px',
     fontSize: '14px',
     fontWeight: 'bold',
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(16,185,129,0.25)'
+    boxShadow: '0 4px 12px rgba(251,79,20,0.25)'
   },
 
   secondaryBtn: {
     padding: '12px 18px',
     background: 'white',
-    color: '#6b7280',
-    border: '2px solid #e5e7eb',
+    color: '#002244',
+    border: '2px solid #002244',
     borderRadius: '10px',
     fontSize: '14px',
     fontWeight: 'bold',
     cursor: 'pointer'
   },
 
-  /* NEW: Modal styles for Instacart */
+  // Modal styles
   modalOverlay: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(0,0,0,0.5)',
+    background: 'rgba(0, 2, 68, 0.7)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1960,7 +1768,8 @@ const styles = {
     overflow: 'auto',
     padding: '28px',
     position: 'relative',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.25)'
+    boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+    border: '3px solid #002244'
   },
 
   closeBtn: {
@@ -1969,52 +1778,24 @@ const styles = {
     right: '12px',
     width: '32px',
     height: '32px',
-    background: '#f3f4f6',
+    background: '#002244',
+    color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: '20px',
-    cursor: 'pointer',
-    color: '#6b7280'
+    cursor: 'pointer'
   },
 
   modalTitle: {
     fontSize: '22px',
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#002244',
     marginBottom: '20px',
     textAlign: 'center',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: '10px'
-  },
-
-  deliveryOptions: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '12px',
-    marginBottom: '20px'
-  },
-
-  optionCard: {
-    padding: '14px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    justifyContent: 'center'
-  },
-
-  optionCardActive: {
-    borderColor: '#3b82f6',
-    background: '#eff6ff'
-  },
-
-  optionIcon: {
-    fontSize: '18px'
   },
 
   storeGrid: {
@@ -2035,8 +1816,8 @@ const styles = {
   },
 
   storeCardActive: {
-    borderColor: '#10b981',
-    background: '#d1fae5'
+    borderColor: '#FB4F14',
+    background: '#FFF5F2'
   },
 
   storeLogo: {
@@ -2047,7 +1828,7 @@ const styles = {
   storeName: {
     fontSize: '14px',
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#002244',
     marginBottom: '2px'
   },
 
@@ -2060,8 +1841,8 @@ const styles = {
     position: 'absolute',
     top: '6px',
     right: '6px',
-    background: '#fbbf24',
-    color: '#92400e',
+    background: '#FB4F14',
+    color: 'white',
     fontSize: '10px',
     padding: '2px 6px',
     borderRadius: '4px',
@@ -2069,7 +1850,7 @@ const styles = {
   },
 
   orderSummary: {
-    background: '#f9fafb',
+    background: '#FFF5F2',
     padding: '14px',
     borderRadius: '12px',
     marginBottom: '18px'
@@ -2078,7 +1859,7 @@ const styles = {
   summaryTitle: {
     fontSize: '15px',
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#002244',
     marginBottom: '10px'
   },
 
@@ -2090,14 +1871,6 @@ const styles = {
     color: '#6b7280'
   },
 
-  summaryTotal: {
-    borderTop: '1px solid #e5e7eb',
-    paddingTop: '10px',
-    fontWeight: 'bold',
-    fontSize: '16px',
-    color: '#1f2937'
-  },
-
   modalActions: {
     display: 'flex',
     gap: '10px'
@@ -2106,14 +1879,14 @@ const styles = {
   proceedBtn: {
     flex: 1,
     padding: '14px',
-    background: 'linear-gradient(135deg, #10b981, #34d399)',
+    background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
     color: 'white',
     border: 'none',
     borderRadius: '12px',
     fontSize: '15px',
     fontWeight: 'bold',
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(16,185,129,0.3)'
+    boxShadow: '0 4px 12px rgba(251,79,20,0.3)'
   },
 
   disclaimer: {
@@ -2121,6 +1894,187 @@ const styles = {
     fontSize: '12px',
     color: '#9ca3af',
     marginTop: '12px'
+  },
+
+  // Meal planner modal styles
+  mealPlannerModal: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 2, 68, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 3000
+  },
+
+  mealPlannerContent: {
+    backgroundColor: 'white',
+    padding: '24px',
+    borderRadius: '12px',
+    width: '90%',
+    maxWidth: '400px',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+    border: '2px solid #002244'
+  },
+
+  mealPlannerTitle: {
+    margin: '0 0 16px 0',
+    fontSize: '20px',
+    color: '#002244'
+  },
+
+  mealNameInput: {
+    width: '100%',
+    padding: '10px',
+    border: '2px solid #002244',
+    borderRadius: '6px',
+    fontSize: '14px',
+    marginTop: '8px'
+  },
+
+  existingMeals: {
+    marginTop: '16px',
+    paddingTop: '16px',
+    borderTop: '1px solid #e5e7eb'
+  },
+
+  existingMealButton: {
+    display: 'block',
+    width: '100%',
+    padding: '8px',
+    marginTop: '8px',
+    backgroundColor: '#FFF5F2',
+    border: '1px solid #FB4F14',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    textAlign: 'left'
+  },
+
+  mealPlannerActions: {
+    display: 'flex',
+    gap: '10px',
+    marginTop: '20px'
+  },
+
+  mealPlannerSave: {
+    flex: 1,
+    padding: '10px',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: '500'
+  },
+
+  mealPlannerCancel: {
+    flex: 1,
+    padding: '10px',
+    backgroundColor: '#002244',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: '500'
+  },
+
+  // Meal groups modal
+  mealGroupsModal: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 2, 68, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 3000
+  },
+
+  mealGroupsContent: {
+    backgroundColor: 'white',
+    padding: '24px',
+    borderRadius: '12px',
+    width: '90%',
+    maxWidth: '600px',
+    maxHeight: '80vh',
+    overflowY: 'auto',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+    position: 'relative',
+    border: '2px solid #002244'
+  },
+
+  mealGroupsTitle: {
+    margin: '0 0 20px 0',
+    fontSize: '24px',
+    color: '#002244'
+  },
+
+  mealGroupsClose: {
+    position: 'absolute',
+    top: '20px',
+    right: '20px',
+    background: '#002244',
+    color: 'white',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    width: '32px',
+    height: '32px',
+    borderRadius: '6px'
+  },
+
+  mealGroupSection: {
+    marginBottom: '20px',
+    padding: '16px',
+    backgroundColor: '#FFF5F2',
+    borderRadius: '8px',
+    border: '1px solid #FB4F14'
+  },
+
+  mealGroupHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px'
+  },
+
+  mealGroupName: {
+    margin: 0,
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#002244'
+  },
+
+  mealGroupDeleteButton: {
+    padding: '6px 12px',
+    backgroundColor: '#8B0000',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '500'
+  },
+
+  mealItemsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+
+  mealItem: {
+    display: 'flex',
+    gap: '12px',
+    padding: '8px',
+    backgroundColor: 'white',
+    borderRadius: '6px',
+    fontSize: '14px',
+    alignItems: 'center'
   }
 };
 
