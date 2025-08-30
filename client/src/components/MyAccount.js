@@ -1,4 +1,4 @@
-// client/src/components/MyAccount.js - FIXED WITH MEAL PLAN PERSISTENCE & LIST EDITING
+// client/src/components/MyAccount.js - BRONCOS THEMED VERSION
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import RecipeManager from './RecipeManager';
@@ -13,7 +13,7 @@ function MyAccount({
   deleteList,
   deleteRecipe,
   onMealPlanUpdate,
-  onListUpdate // New prop for updating lists
+  onListUpdate
 }) {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
@@ -97,69 +97,67 @@ function MyAccount({
     }
   };
 
-// In MyAccount.js - Replace the handleGenerateShoppingList function
-const handleGenerateShoppingList = async (mealPlan) => {
-  try {
-    console.log('Generating shopping list from meal plan:', mealPlan);
-    
-    let allItems = [];
-    
-    // First check if there's already a shopping list
-    if (mealPlan.shoppingList?.items?.length > 0) {
-      allItems = mealPlan.shoppingList.items;
-    } 
-    // Otherwise collect from all meals
-    else if (mealPlan.days) {
-      const itemsMap = new Map(); // Use map to merge duplicates
+  const handleGenerateShoppingList = async (mealPlan) => {
+    try {
+      console.log('Generating shopping list from meal plan:', mealPlan);
       
-      Object.entries(mealPlan.days).forEach(([day, dayMeals]) => {
-        Object.entries(dayMeals || {}).forEach(([mealType, meal]) => {
-          if (meal?.items?.length > 0) {
-            meal.items.forEach(item => {
-              const key = item.productName || item.name;
-              if (key) {
-                if (itemsMap.has(key)) {
-                  // Merge quantities for duplicates
-                  const existing = itemsMap.get(key);
-                  existing.quantity = (existing.quantity || 1) + (item.quantity || 1);
-                } else {
-                  itemsMap.set(key, { ...item });
+      let allItems = [];
+      
+      // First check if there's already a shopping list
+      if (mealPlan.shoppingList?.items?.length > 0) {
+        allItems = mealPlan.shoppingList.items;
+      } 
+      // Otherwise collect from all meals
+      else if (mealPlan.days) {
+        const itemsMap = new Map(); // Use map to merge duplicates
+        
+        Object.entries(mealPlan.days).forEach(([day, dayMeals]) => {
+          Object.entries(dayMeals || {}).forEach(([mealType, meal]) => {
+            if (meal?.items?.length > 0) {
+              meal.items.forEach(item => {
+                const key = item.productName || item.name;
+                if (key) {
+                  if (itemsMap.has(key)) {
+                    // Merge quantities for duplicates
+                    const existing = itemsMap.get(key);
+                    existing.quantity = (existing.quantity || 1) + (item.quantity || 1);
+                  } else {
+                    itemsMap.set(key, { ...item });
+                  }
                 }
-              }
-            });
-          }
+              });
+            }
+          });
         });
-      });
-      
-      allItems = Array.from(itemsMap.values());
-    }
-    
-    if (allItems.length > 0) {
-      // Create a proper list object
-      const shoppingList = {
-        id: `list_${Date.now()}`,
-        name: `${mealPlan.name} - Shopping List`,
-        items: allItems,
-        itemCount: allItems.length,
-        createdAt: new Date().toISOString(),
-        fromMealPlan: mealPlan.id
-      };
-      
-      if (onListSelect) {
-        onListSelect(shoppingList);
+        
+        allItems = Array.from(itemsMap.values());
       }
       
-      alert(`✅ Generated shopping list with ${allItems.length} items`);
-    } else {
-      alert('⚠️ No items found. Make sure to add recipes with ingredients to your meal plan.');
+      if (allItems.length > 0) {
+        // Create a proper list object
+        const shoppingList = {
+          id: `list_${Date.now()}`,
+          name: `${mealPlan.name} - Shopping List`,
+          items: allItems,
+          itemCount: allItems.length,
+          createdAt: new Date().toISOString(),
+          fromMealPlan: mealPlan.id
+        };
+        
+        if (onListSelect) {
+          onListSelect(shoppingList);
+        }
+        
+        alert(`✅ Generated shopping list with ${allItems.length} items`);
+      } else {
+        alert('⚠️ No items found. Make sure to add recipes with ingredients to your meal plan.');
+      }
+      
+    } catch (error) {
+      console.error('Error generating shopping list:', error);
+      alert('Failed to generate shopping list');
     }
-    
-  } catch (error) {
-    console.error('Error generating shopping list:', error);
-    alert('Failed to generate shopping list');
-  }
-};
-
+  };
 
   const renderShoppingLists = () => (
     <div style={styles.listsContainer}>
@@ -233,17 +231,17 @@ const handleGenerateShoppingList = async (mealPlan) => {
       </div>
       
       {!localMealPlans || localMealPlans.length === 0 ? (
-  <div style={styles.emptyState}>
-    <div style={styles.emptyIcon}>📅</div>
-    <p>No meal plans yet</p>
-    <p style={styles.emptyHint}>
-      Create a meal plan to organize your weekly shopping!
-      <br /><br />
-      <strong>How to add meals:</strong><br />
-      1. Click "Create Meal Plan"<br />
-      2. Click "+ Add" or "📖 Recipe" buttons for each day/meal<br />
-      3. Save your plan to generate a shopping list
-    </p>
+        <div style={styles.emptyState}>
+          <div style={styles.emptyIcon}>📅</div>
+          <p>No meal plans yet</p>
+          <p style={styles.emptyHint}>
+            Create a meal plan to organize your weekly shopping!
+            <br /><br />
+            <strong>How to add meals:</strong><br />
+            1. Click "Create Meal Plan"<br />
+            2. Click "+ Add" or "📖 Recipe" buttons for each day/meal<br />
+            3. Save your plan to generate a shopping list
+          </p>
           <button 
             onClick={() => setShowMealPlanModal(true)}
             style={styles.createFirstPlanButton}
@@ -323,7 +321,6 @@ const handleGenerateShoppingList = async (mealPlan) => {
     </div>
   );
 
-  // Other render methods remain the same...
   const renderOverview = () => (
     <div style={styles.overviewContainer}>
       <div style={styles.welcomeSection}>
@@ -698,25 +695,25 @@ function ListEditModal({ list, onClose, onSave }) {
 }
 
 function MealPlanModal({ isOpen, onClose, editingPlan, savedRecipes, onSave }) {
-    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const mealTypes = ['breakfast', 'lunch', 'dinner'];
-    
-      const [planName, setPlanName] = useState(editingPlan?.name || '');
-    const [weekOf, setWeekOf] = useState(editingPlan?.weekOf || new Date().toISOString().split('T')[0]);
-    const [mealSelections, setMealSelections] = useState(editingPlan?.days || {});
-    const [showRecipePicker, setShowRecipePicker] = useState(null);
+  const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const mealTypes = ['breakfast', 'lunch', 'dinner'];
+  
+  const [planName, setPlanName] = useState(editingPlan?.name || '');
+  const [weekOf, setWeekOf] = useState(editingPlan?.weekOf || new Date().toISOString().split('T')[0]);
+  const [mealSelections, setMealSelections] = useState(editingPlan?.days || {});
+  const [showRecipePicker, setShowRecipePicker] = useState(null);
 
   // Calculate total meals for display
   const totalMeals = Object.values(mealSelections).reduce((sum, day) => 
     sum + Object.values(day || {}).filter(meal => meal).length, 0
   );
 
-const totalRecipes = Object.values(mealSelections).reduce((recipes, day) => {
-  Object.values(day || {}).forEach(meal => {
-    if (meal?.recipeId) recipes.add(meal.name);
-  });
-  return recipes;
-}, new Set()).size;
+  const totalRecipes = Object.values(mealSelections).reduce((recipes, day) => {
+    Object.values(day || {}).forEach(meal => {
+      if (meal?.recipeId) recipes.add(meal.name);
+    });
+    return recipes;
+  }, new Set()).size;
   
   const handleMealToggle = (day, mealType, recipe = null) => {
     setMealSelections(prev => ({
@@ -733,33 +730,33 @@ const totalRecipes = Object.values(mealSelections).reduce((recipes, day) => {
   };
 
   const handleSelectRecipe = (recipe) => {
-  if (showRecipePicker) {
-    const { day, mealType } = showRecipePicker;
-    
-    console.log('Adding recipe to meal plan:', recipe);
-    
-    // Parse recipe ingredients to items
-    let recipeItems = [];
-    
-    // Check if recipe has already parsed ingredients
-    if (recipe.parsedIngredients && recipe.parsedIngredients.length > 0) {
-      recipeItems = recipe.parsedIngredients;
-    } else if (recipe.items && recipe.items.length > 0) {
-      recipeItems = recipe.items;
-    } else if (recipe.ingredients) {
-      // Parse raw ingredients
-      const lines = recipe.ingredients.split('\n').filter(line => line.trim());
-      recipeItems = lines.map((line, idx) => ({
-        id: `${recipe.id}_${idx}`,
-        name: line,
-        productName: line,
-        quantity: 1,
-        unit: 'each',
-        category: 'other'
-      }));
-    }
-    
-    console.log('Recipe items:', recipeItems);
+    if (showRecipePicker) {
+      const { day, mealType } = showRecipePicker;
+      
+      console.log('Adding recipe to meal plan:', recipe);
+      
+      // Parse recipe ingredients to items
+      let recipeItems = [];
+      
+      // Check if recipe has already parsed ingredients
+      if (recipe.parsedIngredients && recipe.parsedIngredients.length > 0) {
+        recipeItems = recipe.parsedIngredients;
+      } else if (recipe.items && recipe.items.length > 0) {
+        recipeItems = recipe.items;
+      } else if (recipe.ingredients) {
+        // Parse raw ingredients
+        const lines = recipe.ingredients.split('\n').filter(line => line.trim());
+        recipeItems = lines.map((line, idx) => ({
+          id: `${recipe.id}_${idx}`,
+          name: line,
+          productName: line,
+          quantity: 1,
+          unit: 'each',
+          category: 'other'
+        }));
+      }
+      
+      console.log('Recipe items:', recipeItems);
       
       handleMealToggle(day, mealType, {
         name: recipe.name,
@@ -805,77 +802,47 @@ const totalRecipes = Object.values(mealSelections).reduce((recipes, day) => {
   };
 
   const handleSave = () => {
-  let totalMeals = 0;
-  let allItems = [];
-  let allRecipes = [];
-  
-  // Debug logging to see what's being saved
-  console.log('Saving meal plan with selections:', mealSelections);
-  
-const handleSave = () => {
-  let totalMeals = 0;
-  let allItems = [];
-  let allRecipes = [];
-  
-  // Debug logging to see what's being saved
-  console.log('Saving meal plan with selections:', mealSelections);
-  
-  Object.entries(mealSelections).forEach(([day, dayMeals]) => {
-    if (dayMeals) {
-      Object.entries(dayMeals).forEach(([mealType, meal]) => {
-        if (meal) {
-          totalMeals++;
-          console.log(`Found meal for ${day} ${mealType}:`, meal);
-          
-          // Handle items from recipes or manual meals
-          if (meal.items && meal.items.length > 0) {
-            allItems = [...allItems, ...meal.items];
-          } else if (meal.ingredients) {
-            // Handle raw ingredients from recipes
-            const lines = meal.ingredients.split('\n').filter(line => line.trim());
-            const parsedItems = lines.map((line, idx) => ({
-              id: `${meal.recipeId || 'meal'}_${day}_${mealType}_${idx}`,
-              name: line,
-              productName: line,
-              quantity: 1,
-              unit: 'each'
-            }));
-            allItems = [...allItems, ...parsedItems];
-            meal.items = parsedItems; // Add items to meal for future reference
+    let totalMeals = 0;
+    let allItems = [];
+    let allRecipes = [];
+    
+    // Debug logging to see what's being saved
+    console.log('Saving meal plan with selections:', mealSelections);
+    
+    Object.entries(mealSelections).forEach(([day, dayMeals]) => {
+      if (dayMeals) {
+        Object.entries(dayMeals).forEach(([mealType, meal]) => {
+          if (meal) {
+            totalMeals++;
+            console.log(`Found meal for ${day} ${mealType}:`, meal);
+            
+            // Handle items from recipes or manual meals
+            if (meal.items && meal.items.length > 0) {
+              allItems = [...allItems, ...meal.items];
+            } else if (meal.ingredients) {
+              // Handle raw ingredients from recipes
+              const lines = meal.ingredients.split('\n').filter(line => line.trim());
+              const parsedItems = lines.map((line, idx) => ({
+                id: `${meal.recipeId || 'meal'}_${day}_${mealType}_${idx}`,
+                name: line,
+                productName: line,
+                quantity: 1,
+                unit: 'each'
+              }));
+              allItems = [...allItems, ...parsedItems];
+              meal.items = parsedItems; // Add items to meal for future reference
+            }
+            
+            if (meal.recipeId) {
+              allRecipes.push({
+                id: meal.recipeId,
+                name: meal.name
+              });
+            }
           }
-          
-          if (meal.recipeId) {
-            allRecipes.push({
-              id: meal.recipeId,
-              name: meal.name
-            });
-          }
-        }
-      });
-    }
-  });  // <-- This closes the forEach
-
-  const plan = {
-    id: editingPlan?.id || `mealplan_${Date.now()}`,
-    name: planName || `Meal Plan - ${new Date(weekOf).toLocaleDateString()}`,
-    weekOf,
-    days: mealSelections,
-    totalMeals,
-    totalItems: allItems.length,
-    recipes: allRecipes,
-    shoppingList: {
-      items: allItems,
-      name: `${planName || 'Meal Plan'} - Shopping List`
-    },
-    createdAt: editingPlan?.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-
-  console.log('Final meal plan to save:', plan);
-  console.log(`Total meals: ${totalMeals}, Total items: ${allItems.length}`);
-
-  onSave(plan);
-};  // <-- This closes the function
+        });
+      }
+    });
 
     const plan = {
       id: editingPlan?.id || `mealplan_${Date.now()}`,
@@ -892,6 +859,9 @@ const handleSave = () => {
       createdAt: editingPlan?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+
+    console.log('Final meal plan to save:', plan);
+    console.log(`Total meals: ${totalMeals}, Total items: ${allItems.length}`);
 
     onSave(plan);
   };
@@ -1024,36 +994,51 @@ const handleSave = () => {
   );
 }
 
-// Styles
+// Styles - Broncos Theme
 const styles = {
   container: {
     backgroundColor: 'white',
     borderRadius: '16px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-    overflow: 'hidden'
+    boxShadow: '0 4px 20px rgba(0,2,68,0.1)',
+    overflow: 'hidden',
+    border: '3px solid #002244'
   },
 
   header: {
     padding: '32px',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white'
+    background: 'linear-gradient(135deg, #002244 0%, #003366 100%)',
+    color: 'white',
+    position: 'relative',
+    overflow: 'hidden'
+  },
+
+  header: {
+    content: '""',
+    position: 'absolute',
+    top: '-50%',
+    right: '-10%',
+    width: '300px',
+    height: '300px',
+    background: 'rgba(251, 79, 20, 0.1)',
+    borderRadius: '50%'
   },
 
   title: {
     margin: 0,
     fontSize: '32px',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
   },
 
   email: {
     margin: '8px 0 0 0',
-    opacity: 0.9
+    opacity: 0.95
   },
 
   tabs: {
     display: 'flex',
-    borderBottom: '2px solid #e5e7eb',
-    backgroundColor: '#f9fafb'
+    borderBottom: '3px solid #FB4F14',
+    backgroundColor: '#FFF5F2'
   },
 
   tab: {
@@ -1064,20 +1049,22 @@ const styles = {
     cursor: 'pointer',
     fontSize: '15px',
     fontWeight: '500',
-    color: '#6b7280',
+    color: '#002244',
     transition: 'all 0.2s'
   },
 
   tabActive: {
     backgroundColor: 'white',
-    color: '#1f2937',
-    borderBottom: '2px solid #667eea',
-    marginBottom: '-2px'
+    color: '#FB4F14',
+    borderBottom: '3px solid #FB4F14',
+    marginBottom: '-3px',
+    fontWeight: 'bold'
   },
 
   content: {
     padding: '32px',
-    minHeight: '400px'
+    minHeight: '400px',
+    backgroundColor: 'white'
   },
 
   // Overview styles
@@ -1094,12 +1081,12 @@ const styles = {
   welcomeTitle: {
     margin: '0 0 8px 0',
     fontSize: '28px',
-    color: '#1f2937'
+    color: '#002244'
   },
 
   welcomeSubtitle: {
     margin: 0,
-    color: '#6b7280'
+    color: '#666'
   },
 
   statsGrid: {
@@ -1110,10 +1097,11 @@ const styles = {
 
   statCard: {
     padding: '24px',
-    backgroundColor: '#f9fafb',
+    background: 'linear-gradient(135deg, #FFF5F2, white)',
     borderRadius: '12px',
     textAlign: 'center',
-    border: '1px solid #e5e7eb'
+    border: '2px solid #FB4F14',
+    boxShadow: '0 2px 8px rgba(251,79,20,0.1)'
   },
 
   statIcon: {
@@ -1124,13 +1112,13 @@ const styles = {
   statValue: {
     fontSize: '32px',
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#002244',
     marginBottom: '4px'
   },
 
   statLabel: {
     fontSize: '14px',
-    color: '#6b7280'
+    color: '#666'
   },
 
   // Lists styles
@@ -1143,7 +1131,8 @@ const styles = {
   pageTitle: {
     margin: 0,
     fontSize: '24px',
-    color: '#1f2937'
+    color: '#002244',
+    fontWeight: 'bold'
   },
 
   listGrid: {
@@ -1154,22 +1143,24 @@ const styles = {
 
   listCard: {
     padding: '20px',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF5F2',
     borderRadius: '12px',
-    border: '1px solid #e5e7eb'
+    border: '2px solid #002244',
+    boxShadow: '0 2px 8px rgba(0,2,68,0.1)'
   },
 
   listName: {
     margin: '0 0 8px 0',
     fontSize: '18px',
-    color: '#1f2937'
+    color: '#002244',
+    fontWeight: 'bold'
   },
 
   listMeta: {
     display: 'flex',
     gap: '8px',
     fontSize: '14px',
-    color: '#6b7280',
+    color: '#666',
     marginBottom: '16px'
   },
 
@@ -1197,17 +1188,18 @@ const styles = {
   primaryButton: {
     flex: 1,
     padding: '8px 16px',
-    backgroundColor: '#10b981',
+    backgroundColor: '#FB4F14',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    transition: 'all 0.2s'
   },
 
   editButton: {
     padding: '8px 12px',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1216,7 +1208,7 @@ const styles = {
 
   deleteButton: {
     padding: '8px 12px',
-    backgroundColor: '#ef4444',
+    backgroundColor: '#8B0000',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1238,17 +1230,18 @@ const styles = {
 
   addMealPlanButton: {
     padding: '10px 20px',
-    backgroundColor: '#10b981',
+    backgroundColor: '#FB4F14',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    boxShadow: '0 2px 8px rgba(251,79,20,0.2)'
   },
 
   createFirstPlanButton: {
     padding: '12px 24px',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -1265,10 +1258,10 @@ const styles = {
 
   mealPlanCard: {
     padding: '20px',
-    backgroundColor: '#f0f9ff',
+    background: 'linear-gradient(135deg, #FFF5F2, white)',
     borderRadius: '12px',
-    border: '2px solid #3b82f6',
-    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.1)'
+    border: '3px solid #FB4F14',
+    boxShadow: '0 2px 8px rgba(251, 79, 20, 0.15)'
   },
 
   mealPlanHeader: {
@@ -1281,16 +1274,17 @@ const styles = {
   mealPlanName: {
     margin: 0,
     fontSize: '20px',
-    color: '#1f2937',
+    color: '#002244',
     fontWeight: 'bold'
   },
 
   mealPlanDate: {
     fontSize: '12px',
-    color: '#6b7280',
+    color: '#666',
     backgroundColor: 'white',
     padding: '4px 8px',
-    borderRadius: '4px'
+    borderRadius: '4px',
+    border: '1px solid #002244'
   },
 
   mealPlanDays: {
@@ -1308,8 +1302,9 @@ const styles = {
 
   dayName: {
     fontSize: '14px',
-    color: '#374151',
-    minWidth: '80px'
+    color: '#002244',
+    minWidth: '80px',
+    fontWeight: '600'
   },
 
   dayMeals: {
@@ -1321,21 +1316,23 @@ const styles = {
   mealTag: {
     fontSize: '11px',
     padding: '2px 6px',
-    backgroundColor: '#fef3c7',
-    color: '#92400e',
+    backgroundColor: '#FFE5D9',
+    color: '#002244',
     borderRadius: '4px',
-    fontWeight: '500'
+    fontWeight: '500',
+    border: '1px solid #FB4F14'
   },
 
   mealPlanStats: {
     display: 'flex',
     gap: '16px',
     padding: '12px 0',
-    borderTop: '1px solid #e0e7ff',
-    borderBottom: '1px solid #e0e7ff',
+    borderTop: '2px solid #FB4F14',
+    borderBottom: '2px solid #FB4F14',
     marginBottom: '16px',
     fontSize: '14px',
-    color: '#4b5563'
+    color: '#002244',
+    fontWeight: '500'
   },
 
   mealPlanActions: {
@@ -1346,7 +1343,7 @@ const styles = {
   loadMealPlanButton: {
     flex: 1,
     padding: '10px',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1356,7 +1353,7 @@ const styles = {
 
   editMealPlanButton: {
     padding: '10px',
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#FB4F14',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1365,7 +1362,7 @@ const styles = {
 
   deleteMealPlanButton: {
     padding: '10px',
-    backgroundColor: '#ef4444',
+    backgroundColor: '#8B0000',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1387,7 +1384,7 @@ const styles = {
 
   addRecipeButton: {
     padding: '10px 20px',
-    backgroundColor: '#10b981',
+    backgroundColor: '#FB4F14',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -1403,15 +1400,16 @@ const styles = {
 
   recipeCard: {
     padding: '20px',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF5F2',
     borderRadius: '12px',
-    border: '1px solid #e5e7eb'
+    border: '2px solid #002244'
   },
 
   recipeName: {
     margin: '0 0 8px 0',
     fontSize: '18px',
-    color: '#1f2937'
+    color: '#002244',
+    fontWeight: 'bold'
   },
 
   recipeIngredients: {
@@ -1436,7 +1434,7 @@ const styles = {
   useRecipeButton: {
     flex: 1,
     padding: '10px',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1446,7 +1444,7 @@ const styles = {
 
   deleteRecipeButton: {
     padding: '10px',
-    backgroundColor: '#ef4444',
+    backgroundColor: '#8B0000',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1456,7 +1454,7 @@ const styles = {
   emptyState: {
     textAlign: 'center',
     padding: '60px 20px',
-    color: '#6b7280'
+    color: '#666'
   },
 
   emptyIcon: {
@@ -1472,7 +1470,7 @@ const styles = {
   }
 };
 
-// Modal Styles
+// Modal Styles - Broncos Theme
 const modalStyles = {
   overlay: {
     position: 'fixed',
@@ -1480,7 +1478,7 @@ const modalStyles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 2, 68, 0.7)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1494,32 +1492,35 @@ const modalStyles = {
     maxWidth: '900px',
     maxHeight: '90vh',
     overflow: 'auto',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    border: '3px solid #002244'
   },
 
   header: {
     padding: '24px',
-    borderBottom: '2px solid #e5e7eb',
+    borderBottom: '3px solid #FB4F14',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    background: 'linear-gradient(135deg, #FFF5F2, white)'
   },
 
   title: {
     margin: 0,
     fontSize: '24px',
-    color: '#1f2937'
+    color: '#002244',
+    fontWeight: 'bold'
   },
 
   closeButton: {
     width: '32px',
     height: '32px',
     border: 'none',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#002244',
+    color: 'white',
     borderRadius: '8px',
     fontSize: '20px',
-    cursor: 'pointer',
-    color: '#6b7280'
+    cursor: 'pointer'
   },
 
   content: {
@@ -1535,13 +1536,13 @@ const modalStyles = {
     marginBottom: '8px',
     fontSize: '14px',
     fontWeight: '600',
-    color: '#374151'
+    color: '#002244'
   },
 
   input: {
     width: '100%',
     padding: '10px',
-    border: '2px solid #e5e7eb',
+    border: '2px solid #002244',
     borderRadius: '8px',
     fontSize: '14px'
   },
@@ -1550,7 +1551,7 @@ const modalStyles = {
     margin: '0 0 16px 0',
     fontSize: '18px',
     fontWeight: 'bold',
-    color: '#1f2937'
+    color: '#002244'
   },
 
   itemsSection: {
@@ -1566,14 +1567,14 @@ const modalStyles = {
   addItemInput: {
     flex: 1,
     padding: '10px',
-    border: '2px solid #e5e7eb',
+    border: '2px solid #002244',
     borderRadius: '8px',
     fontSize: '14px'
   },
 
   addItemButton: {
     padding: '10px 20px',
-    backgroundColor: '#10b981',
+    backgroundColor: '#FB4F14',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -1584,9 +1585,10 @@ const modalStyles = {
   itemsList: {
     maxHeight: '300px',
     overflowY: 'auto',
-    border: '1px solid #e5e7eb',
+    border: '2px solid #002244',
     borderRadius: '8px',
-    padding: '12px'
+    padding: '12px',
+    backgroundColor: '#FFF5F2'
   },
 
   itemRow: {
@@ -1595,14 +1597,15 @@ const modalStyles = {
     alignItems: 'center',
     marginBottom: '8px',
     padding: '8px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '6px'
+    backgroundColor: 'white',
+    borderRadius: '6px',
+    border: '1px solid #FB4F14'
   },
 
   quantityInput: {
     width: '60px',
     padding: '6px',
-    border: '1px solid #d1d5db',
+    border: '1px solid #002244',
     borderRadius: '4px',
     fontSize: '14px'
   },
@@ -1610,7 +1613,7 @@ const modalStyles = {
   unitSelect: {
     width: '80px',
     padding: '6px',
-    border: '1px solid #d1d5db',
+    border: '1px solid #002244',
     borderRadius: '4px',
     fontSize: '14px'
   },
@@ -1618,14 +1621,14 @@ const modalStyles = {
   nameInput: {
     flex: 1,
     padding: '6px',
-    border: '1px solid #d1d5db',
+    border: '1px solid #002244',
     borderRadius: '4px',
     fontSize: '14px'
   },
 
   removeItemButton: {
     padding: '6px 10px',
-    backgroundColor: '#ef4444',
+    backgroundColor: '#8B0000',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -1642,16 +1645,16 @@ const modalStyles = {
 
   dayCard: {
     padding: '16px',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF5F2',
     borderRadius: '8px',
-    border: '1px solid #e5e7eb'
+    border: '2px solid #002244'
   },
 
   dayTitle: {
     margin: '0 0 12px 0',
     fontSize: '16px',
     fontWeight: 'bold',
-    color: '#1f2937'
+    color: '#002244'
   },
 
   meals: {
@@ -1662,91 +1665,16 @@ const modalStyles = {
 
   mealRow: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '4px'
-  },
-
-  mealLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '14px',
-    color: '#4b5563'
-  },
-
-  checkbox: {
-    cursor: 'pointer'
-  },
-
-  actions: {
-    display: 'flex',
-    gap: '12px',
-    justifyContent: 'flex-end',
-    marginTop: '24px'
-  },
-
-  saveButton: {
-    padding: '12px 24px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  },
-
-  cancelButton: {
-    padding: '12px 24px',
-    backgroundColor: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  },
-
-  recipeSection: {
-  marginTop: '20px',
-  marginBottom: '20px',
-  padding: '16px',
-  backgroundColor: '#f9fafb',
-  borderRadius: '8px'
-},
-
-recipeGrid: {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-  gap: '8px',
-  marginTop: '12px'
-},
-
-recipeOption: {
-  padding: '8px 12px',
-  backgroundColor: 'white',
-  border: '2px solid #e5e7eb',
-  borderRadius: '6px',
-  cursor: 'pointer',
-  fontSize: '13px',
-  textAlign: 'center',
-  transition: 'all 0.2s',
-  ':hover': {
-    borderColor: '#3b82f6',
-    backgroundColor: '#eff6ff'
-  }
-},
-
-mealRow: {
-    display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '8px 0',
-    borderBottom: '1px solid #f3f4f6'
+    borderBottom: '1px solid #FFE5D9'
   },
 
   mealTypeLabel: {
     fontSize: '13px',
     fontWeight: '500',
-    color: '#4b5563',
+    color: '#002244',
     minWidth: '70px'
   },
 
@@ -1756,20 +1684,20 @@ mealRow: {
     alignItems: 'center',
     gap: '8px',
     padding: '4px 8px',
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#FFE5D9',
     borderRadius: '6px',
     fontSize: '13px'
   },
 
   mealName: {
     flex: 1,
-    color: '#0369a1',
+    color: '#002244',
     fontWeight: '500'
   },
 
   itemCount: {
     fontSize: '11px',
-    color: '#64748b',
+    color: '#666',
     fontStyle: 'italic'
   },
 
@@ -1777,7 +1705,7 @@ mealRow: {
     width: '20px',
     height: '20px',
     border: 'none',
-    backgroundColor: '#ef4444',
+    backgroundColor: '#8B0000',
     color: 'white',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -1792,7 +1720,7 @@ mealRow: {
 
   addMealBtn: {
     padding: '3px 10px',
-    backgroundColor: '#10b981',
+    backgroundColor: '#FB4F14',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -1802,7 +1730,7 @@ mealRow: {
 
   addRecipeBtn: {
     padding: '3px 10px',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -1816,7 +1744,7 @@ mealRow: {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,2,68,0.7)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1830,13 +1758,14 @@ mealRow: {
     width: '90%',
     maxWidth: '500px',
     maxHeight: '70vh',
-    overflow: 'auto'
+    overflow: 'auto',
+    border: '3px solid #002244'
   },
 
   recipePickerTitle: {
     margin: '0 0 16px 0',
     fontSize: '18px',
-    color: '#1f2937'
+    color: '#002244'
   },
 
   recipeList: {
@@ -1848,34 +1777,30 @@ mealRow: {
 
   recipeItem: {
     padding: '12px',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF5F2',
     borderRadius: '8px',
     cursor: 'pointer',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     border: '2px solid transparent',
-    transition: 'all 0.2s',
-    ':hover': {
-      borderColor: '#3b82f6',
-      backgroundColor: '#eff6ff'
-    }
+    transition: 'all 0.2s'
   },
 
   recipeName: {
     fontWeight: '500',
-    color: '#1f2937'
+    color: '#002244'
   },
 
   recipeIngredientCount: {
     fontSize: '12px',
-    color: '#6b7280'
+    color: '#666'
   },
 
   cancelRecipeBtn: {
     width: '100%',
     padding: '10px',
-    backgroundColor: '#6b7280',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -1886,11 +1811,37 @@ mealRow: {
   planSummary: {
     marginTop: '20px',
     padding: '16px',
-    backgroundColor: '#f0f9ff',
+    backgroundColor: '#FFF5F2',
     borderRadius: '8px',
-    border: '1px solid #0284c7'
-  }
+    border: '2px solid #FB4F14'
+  },
 
+  actions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    marginTop: '24px'
+  },
+
+  saveButton: {
+    padding: '12px 24px',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold'
+  },
+
+  cancelButton: {
+    padding: '12px 24px',
+    backgroundColor: '#002244',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold'
+  }
 };
 
 export default MyAccount;

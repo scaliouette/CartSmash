@@ -14,30 +14,43 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const config = require('./config');
 
-// Configure Winston Logger
+// Validate required environment variables
+const requiredEnvVars = [
+  'MONGODB_URI',
+  'FIREBASE_PROJECT_ID',
+  'FIREBASE_PRIVATE_KEY',
+  'FIREBASE_CLIENT_EMAIL',
+  'JWT_SECRET',
+  'KROGER_CLIENT_ID',
+  'KROGER_CLIENT_SECRET',
+  'KROGER_REDIRECT_URI'
+];
+
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingEnvVars.length > 0) {
+  console.error('❌ Missing required environment variables:', missingEnvVars);
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+}
+
+// Configure Winston Logger for production
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
-    winston.format.colorize(),
-    winston.format.printf(({ timestamp, level, message, stack }) => {
-      return `${timestamp} [${level}]: ${message}${stack ? '\n' + stack : ''}`;
-    })
+    winston.format.json()
   ),
+  defaultMeta: { service: 'cartsmash-api' },
   transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({ 
-      filename: 'logs/error.log', 
-      level: 'error',
-      handleExceptions: true,
-      handleRejections: true
-    }),
-    new winston.transports.File({ 
-      filename: 'logs/combined.log',
-      handleExceptions: true,
-      handleRejections: true
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
     })
   ]
 });
@@ -45,157 +58,79 @@ const logger = winston.createLogger({
 // Initialize AI Services
 let openai, genAI;
 
-try {
-  if (process.env.OPENAI_API_KEY) {
+if (process.env.OPENAI_API_KEY) {
+  try {
     openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY
     });
     logger.info('OpenAI service initialized');
+  } catch (error) {
+    logger.warn('OpenAI initialization failed:', error.message);
   }
-} catch (error) {
-  logger.warn('OpenAI initialization failed:', error.message);
 }
 
-try {
-  if (process.env.GOOGLE_AI_API_KEY) {
+if (process.env.GOOGLE_AI_API_KEY) {
+  try {
     genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
     logger.info('Google Generative AI service initialized');
+  } catch (error) {
+    logger.warn('Google AI initialization failed:', error.message);
   }
-} catch (error) {
-  logger.warn('Google AI initialization failed:', error.message);
 }
 
-// MongoDB Connection
-if (process.env.MONGODB_URI) {
-  mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  })
-  .then(() => {
-    logger.info('Connected to MongoDB successfully');
-  })
-  .catch((error) => {
-    logger.error('MongoDB connection failed:', error);
-  });
+// MongoDB Connection with proper configuration for production
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 10,
+  minPoolSize: 2
+})
+.then(() => {
+  logger.info('Connected to MongoDB Atlas successfully');
+})
+.catch((error) => {
+  logger.error('MongoDB connection failed:', error);
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+});
 
-  mongoose.connection.on('error', (error) => {
-    logger.error('MongoDB connection error:', error);
-  });
+mongoose.connection.on('error', (error) => {
+  logger.error('MongoDB connection error:', error);
+});
 
-  mongoose.connection.on('disconnected', () => {
-    logger.warn('MongoDB disconnected');
-  });
-}
+mongoose.connection.on('disconnected', () => {
+  logger.warn('MongoDB disconnected');
+});
 
 // Initialize Firebase Admin SDK
 const initializeFirebase = () => {
   try {
     if (admin.apps.length === 0) {
-      const firebaseConfig = {
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        databaseURL: process.env.FIREBASE_DATABASE_URL
-      };
-
-      if (process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
-        firebaseConfig.credential = admin.credential.cert({
+      admin.initializeApp({
+        credential: admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
           privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-        });
-      }
-
-      admin.initializeApp(firebaseConfig);
+        }),
+        databaseURL: process.env.FIREBASE_DATABASE_URL
+      });
       logger.info('Firebase Admin SDK initialized successfully');
     }
   } catch (error) {
     logger.error('Firebase initialization failed:', error);
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
   }
 };
 
 initializeFirebase();
 
-// Token Store with persistent storage capability
-class TokenStore {
-  constructor() {
-    this.tokens = new Map();
-    this.refreshTokens = new Map();
-    this.loadTokens();
-  }
-
-  loadTokens() {
-    try {
-      if (mongoose.connection.readyState === 1) {
-        // Load from database if MongoDB is connected
-        logger.info('Token store ready with database persistence');
-      } else {
-        // Use in-memory storage
-        logger.info('Token store using in-memory storage');
-      }
-    } catch (error) {
-      logger.warn('Token store initialization:', error.message);
-    }
-  }
-
-  setTokens(userId, tokenData, refreshToken = null) {
-    this.tokens.set(userId, {
-      ...tokenData,
-      createdAt: Date.now(),
-      lastUsed: Date.now()
-    });
-    
-    if (refreshToken) {
-      this.refreshTokens.set(userId, refreshToken);
-    }
-    
-    logger.info(`Tokens stored for user: ${userId}`);
-  }
-
-  getTokens(userId) {
-    const tokens = this.tokens.get(userId);
-    if (tokens) {
-      // Update last used timestamp
-      tokens.lastUsed = Date.now();
-      this.tokens.set(userId, tokens);
-    }
-    return tokens;
-  }
-
-  getRefreshToken(userId) {
-    return this.refreshTokens.get(userId);
-  }
-
-  removeTokens(userId) {
-    this.tokens.delete(userId);
-    this.refreshTokens.delete(userId);
-    logger.info(`Tokens removed for user: ${userId}`);
-  }
-
-  cleanupExpiredTokens() {
-    const now = Date.now();
-    for (const [userId, tokenData] of this.tokens.entries()) {
-      if (tokenData.expiresAt && tokenData.expiresAt < now) {
-        this.removeTokens(userId);
-      }
-    }
-  }
-
-  getStats() {
-    return {
-      totalUsers: this.tokens.size,
-      activeTokens: Array.from(this.tokens.values()).filter(t => t.expiresAt > Date.now()).length,
-      expiredTokens: Array.from(this.tokens.values()).filter(t => t.expiresAt <= Date.now()).length
-    };
-  }
-}
-
-const tokenStore = new TokenStore();
-
-// Cleanup expired tokens every hour
-setInterval(() => {
-  tokenStore.cleanupExpiredTokens();
-}, 3600000);
+// Import MongoDB-based token store
+const tokenStore = require('./services/TokenStore');
 
 // Security Middleware
 app.use(helmet({
@@ -208,6 +143,9 @@ app.use(helmet({
   }
 }));
 
+// Trust proxy for Render
+app.set('trust proxy', 1);
+
 // Rate Limiting
 const createRateLimiter = (windowMs, max, message) => {
   return rateLimit({
@@ -219,43 +157,41 @@ const createRateLimiter = (windowMs, max, message) => {
     },
     standardHeaders: true,
     legacyHeaders: false,
-    handler: (req, res) => {
-      logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
-      res.status(429).json({
-        error: message,
-        retryAfter: Math.ceil(windowMs / 1000)
-      });
+    skip: (req) => {
+      // Skip rate limiting for health checks
+      return req.path === '/health' || req.path === '/api/health';
     }
   });
 };
 
-// Different rate limits for different endpoints
-const generalLimiter = createRateLimiter(15 * 60 * 1000, 100, 'Too many requests, please try again later');
-const authLimiter = createRateLimiter(15 * 60 * 1000, 5, 'Too many authentication attempts, please try again later');
-const aiLimiter = createRateLimiter(60 * 1000, 10, 'Too many AI requests, please try again in a minute');
-
 // Apply rate limiting
-app.use('/api/', generalLimiter);
-app.use('/api/auth/', authLimiter);
-app.use('/api/ai/', aiLimiter);
+app.use('/api/', createRateLimiter(15 * 60 * 1000, 100, 'Too many requests'));
+app.use('/api/auth/', createRateLimiter(15 * 60 * 1000, 10, 'Too many authentication attempts'));
+app.use('/api/ai/', createRateLimiter(60 * 1000, 10, 'Too many AI requests'));
 
-// CORS Configuration
+// CORS Configuration for Production
+// CORS Configuration for Production
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://cart-smash-git-main-shawn-caliouettes-projects.vercel.app',
-      'https://cart-smash-pstuhsccd-shawn-caliouettes-projects.vercel.app',
+      'https://cart-smash.vercel.app',
       'https://cartsmash.vercel.app',
-      'https://cartsmash.com',
-      process.env.CORS_ORIGIN,
+      'http://localhost:3000',  // Add for local development
+      'http://localhost:3001',  // Add for local development
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
       process.env.CLIENT_URL
     ].filter(Boolean);
 
+    // Allow requests with no origin (mobile apps, Postman, etc)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Allow all Vercel preview deployments
+    if (origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       logger.warn(`CORS blocked request from: ${origin}`);
@@ -270,64 +206,44 @@ const corsOptions = {
     'Content-Type',
     'Accept',
     'Authorization',
-    'User-ID',
-    'X-API-Key',
-    'Cache-Control'
+    'X-API-Key'
   ],
   exposedHeaders: ['X-Total-Count', 'X-Rate-Limit-Remaining'],
   optionsSuccessStatus: 200,
-  maxAge: 86400 // 24 hours
+  maxAge: 86400
 };
 
 app.use(cors(corsOptions));
 
 // Body Parser Middleware
-app.use(bodyParser.json({ 
-  limit: '10mb',
-  verify: (req, res, buf) => {
-    req.rawBody = buf;
-  }
-}));
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use(bodyParser.urlencoded({ 
-  extended: true, 
-  limit: '10mb',
-  parameterLimit: 50000
-}));
 
-// Additional Express middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Request Logging
+if (process.env.NODE_ENV === 'production') {
+  app.use(morgan('combined', {
+    stream: {
+      write: (message) => logger.info(message.trim())
+    },
+    skip: (req) => req.path === '/health'
+  }));
+} else {
+  app.use(morgan('dev'));
+}
 
-// Request Logging with Morgan and Winston
-app.use(morgan('combined', {
-  stream: {
-    write: (message) => {
-      logger.info(message.trim());
-    }
-  },
-  skip: (req, res) => {
-    // Skip logging for health checks in production
-    return process.env.NODE_ENV === 'production' && req.path === '/health';
-  }
-}));
-
-// Request ID middleware
-app.use((req, res, next) => {
-  req.id = Date.now().toString(36) + Math.random().toString(36).substr(2);
-  res.setHeader('X-Request-ID', req.id);
-  next();
-});
-
-// Health Check Endpoint
-app.get('/health', (req, res) => {
+// Health Check Endpoints
+app.get('/health', async (req, res) => {
+  const stats = await tokenStore.getStats();
+  
   const healthStatus = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    uptime: Math.floor(process.uptime()),
-    memory: process.memoryUsage(),
+    environment: process.env.NODE_ENV,
+    config: {
+      loaded: true,
+      environment: config.get('system.environment')
+    },
     services: {
       firebase: admin.apps.length > 0,
       mongodb: mongoose.connection.readyState === 1,
@@ -335,91 +251,64 @@ app.get('/health', (req, res) => {
       openai: !!openai,
       googleai: !!genAI
     },
-    tokenStore: tokenStore.getStats(),
-    system: {
-      nodeVersion: process.version,
-      platform: process.platform,
-      arch: process.arch
-    }
+    tokenStore: stats
   };
   
-  const overallHealthy = Object.values(healthStatus.services).some(service => service === true);
-  
-  res.status(overallHealthy ? 200 : 503).json(healthStatus);
-});
-
-// API Health Check
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'API operational',
-    timestamp: new Date().toISOString(),
-    endpoints: [
-      '/health',
-      '/api/health',
-      '/api/auth/kroger/*',
-      '/api/cart/*',
-      '/api/ai/*',
-      '/api/kroger/*',
-      '/api/recipes/*'
-    ]
-  });
+  const isHealthy = healthStatus.services.firebase && healthStatus.services.mongodb;
+  res.status(isHealthy ? 200 : 503).json(healthStatus);
 });
 
 // Kroger OAuth Endpoints
 app.get('/api/auth/kroger/login', (req, res) => {
   const { userId } = req.query;
   
-  logger.info(`Kroger OAuth login requested for user: ${userId}`);
-  
-  if (!process.env.KROGER_CLIENT_ID) {
-    return res.status(500).json({ 
+  if (!userId) {
+    return res.status(400).json({ 
       success: false, 
-      error: 'Kroger OAuth not configured. Please set KROGER_CLIENT_ID in environment variables'
+      error: 'userId parameter is required' 
     });
   }
   
-  const state = Buffer.from(`${userId || 'demo'}-${Date.now()}-${Math.random()}`).toString('base64');
-  const baseURL = process.env.KROGER_BASE_URL || 'https://api-ce.kroger.com/v1';
+  logger.info(`Kroger OAuth login requested for user: ${userId}`);
   
-  const authUrl = new URL(`${baseURL}/connect/oauth2/authorize`);
+  const state = Buffer.from(`${userId}-${Date.now()}-${Math.random()}`).toString('base64');
+  const authUrl = new URL(`${process.env.KROGER_BASE_URL}/connect/oauth2/authorize`);
   authUrl.searchParams.append('response_type', 'code');
   authUrl.searchParams.append('client_id', process.env.KROGER_CLIENT_ID);
   authUrl.searchParams.append('redirect_uri', process.env.KROGER_REDIRECT_URI);
   authUrl.searchParams.append('scope', process.env.KROGER_OAUTH_SCOPES || 'cart.basic:write profile.compact product.compact');
   authUrl.searchParams.append('state', state);
   
-  logger.info(`Redirecting to Kroger OAuth: ${authUrl.toString()}`);
   res.redirect(authUrl.toString());
 });
 
 app.get('/api/auth/kroger/callback', async (req, res) => {
   const { code, state, error } = req.query;
-
-  logger.info(`OAuth Callback - Code: ${!!code}, State: ${!!state}, Error: ${error}`);
   
   if (error) {
     logger.error(`Kroger OAuth error: ${error}`);
-    return res.send(generateOAuthErrorPage(error));
+    return res.redirect(`${process.env.CLIENT_URL}/auth/error?message=${encodeURIComponent(error)}`);
   }
   
-  if (!code) {
-    return res.status(400).send(generateOAuthErrorPage('Missing authorization code'));
+  if (!code || !state) {
+    return res.status(400).redirect(`${process.env.CLIENT_URL}/auth/error?message=missing_parameters`);
   }
 
   try {
     const decoded = Buffer.from(state, 'base64').toString();
-    const [userId] = decoded.split('-');
+    const [userId, timestamp] = decoded.split('-');
     
-    logger.info(`Exchanging code for token for user: ${userId}`);
+    // Validate state freshness (5 minutes)
+    if (Date.now() - parseInt(timestamp) > 300000) {
+      throw new Error('State expired');
+    }
     
     const credentials = Buffer.from(
       `${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`
     ).toString('base64');
     
-    const baseURL = process.env.KROGER_BASE_URL || 'https://api-ce.kroger.com/v1';
-    
     const tokenResponse = await axios.post(
-      `${baseURL}/connect/oauth2/token`,
+      `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
       new URLSearchParams({
         grant_type: 'authorization_code',
         code: code,
@@ -434,7 +323,7 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
       }
     );
     
-    tokenStore.setTokens(
+    await tokenStore.setTokens(
       userId,
       {
         accessToken: tokenResponse.data.access_token,
@@ -446,478 +335,278 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
     );
     
     logger.info(`Token exchange successful for user: ${userId}`);
-    
-    res.send(generateOAuthSuccessPage(userId));
+    res.redirect(`${process.env.CLIENT_URL}/auth/success`);
     
   } catch (error) {
-    logger.error('Token exchange failed:', error.response?.data || error.message);
-    res.send(generateOAuthErrorPage(error.response?.data?.error_description || error.message));
+    logger.error('Token exchange failed:', error.message);
+    res.redirect(`${process.env.CLIENT_URL}/auth/error?message=token_exchange_failed`);
   }
 });
 
-app.get('/api/auth/kroger/status', async (req, res) => {
-  const userId = req.headers['user-id'] || req.query.userId || 'demo-user';
-  
-  try {
-    const tokenInfo = tokenStore.getTokens(userId);
-    const isAuthenticated = !!tokenInfo && tokenInfo.expiresAt > Date.now();
-    
-    logger.info(`Auth status check for ${userId}: ${isAuthenticated ? 'authenticated' : 'not authenticated'}`);
-    
-    res.json({
-      success: true,
-      authenticated: isAuthenticated,
-      userId: userId,
-      needsAuth: !isAuthenticated,
-      tokenExpiry: tokenInfo?.expiresAt ? new Date(tokenInfo.expiresAt).toISOString() : null,
-      scope: tokenInfo?.scope,
-      lastUsed: tokenInfo?.lastUsed ? new Date(tokenInfo.lastUsed).toISOString() : null
-    });
-  } catch (error) {
-    logger.error(`Auth status check failed for ${userId}:`, error);
-    res.status(500).json({
-      success: false,
-      authenticated: false,
-      error: error.message
-    });
-  }
-});
+// Add this root endpoint handler to your server.js file
+// Place it AFTER the health check endpoints and BEFORE the route loading
 
-app.delete('/api/auth/kroger/logout', (req, res) => {
-  const userId = req.headers['user-id'] || req.query.userId || 'demo-user';
-  
-  tokenStore.removeTokens(userId);
-  logger.info(`User ${userId} logged out from Kroger`);
-  
+// Root endpoint - API documentation
+app.get('/', (req, res) => {
   res.json({
-    success: true,
-    message: 'Successfully logged out from Kroger'
+    name: 'CARTSMASH API',
+    version: '2.0.0',
+    status: 'operational',
+    message: 'Welcome to CARTSMASH - AI-powered grocery list parser API',
+    documentation: 'https://github.com/yourusername/cartsmash-server',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: {
+        'GET /health': 'System health check',
+        'GET /api/health': 'API health check'
+      },
+      authentication: {
+        'GET /api/auth/kroger/login': 'Initiate Kroger OAuth flow',
+        'GET /api/auth/kroger/callback': 'Kroger OAuth callback',
+        'GET /api/auth/kroger/status': 'Check authentication status',
+        'DELETE /api/auth/kroger/logout': 'Logout from Kroger'
+      },
+      cart: {
+        'POST /api/cart/parse': 'Parse grocery list text',
+        'POST /api/cart/validate-all': 'Validate all cart items',
+        'GET /api/cart': 'Get user cart',
+        'POST /api/cart/add': 'Add items to cart',
+        'DELETE /api/cart': 'Clear cart'
+      },
+      ai: {
+        'POST /api/ai/parse-grocery-list': 'AI-powered grocery parsing',
+        'POST /api/ai/claude': 'Claude AI integration',
+        'POST /api/ai/chatgpt': 'ChatGPT integration',
+        'POST /api/ai/smart-parse': 'Smart parsing with AI'
+      },
+      kroger: {
+        'GET /api/kroger/products/search': 'Search Kroger products',
+        'GET /api/kroger/products/:id': 'Get product details',
+        'POST /api/kroger/validate/item': 'Validate single item',
+        'POST /api/kroger/validate/batch': 'Batch validate items',
+        'GET /api/kroger/stores': 'Find nearby stores',
+        'GET /api/kroger/stores/nearby': 'Get nearby stores (legacy)'
+      },
+      orders: {
+        'POST /api/kroger-orders/cart/send': 'Send cart to Kroger',
+        'GET /api/kroger-orders/cart': 'Get Kroger cart',
+        'POST /api/kroger-orders/orders/place': 'Place order',
+        'GET /api/kroger-orders/orders/:id': 'Get order status',
+        'GET /api/kroger-orders/orders/history': 'Get order history'
+      },
+      grocery: {
+        'POST /api/grocery/parse': 'Parse grocery list'
+      }
+    },
+    authentication: {
+      type: 'Bearer Token',
+      header: 'Authorization: Bearer <firebase-id-token>',
+      description: 'Most endpoints require Firebase authentication'
+    },
+    rateLimit: {
+      general: '100 requests per 15 minutes',
+      authentication: '10 requests per 15 minutes',
+      ai: '10 requests per minute'
+    },
+    support: {
+      email: 'support@cartsmash.com',
+      documentation: 'https://cart-smash.vercel.app/docs',
+      issues: 'https://github.com/yourusername/cartsmash-server/issues'
+    }
   });
 });
 
-// Mock Kroger stores endpoint
-app.get('/api/kroger/stores/nearby', async (req, res) => {
-  const { lat, lng, radius = 10 } = req.query;
-  
-  try {
-    // Mock store data - in production, this would call actual Kroger API
-    const stores = [
-      {
-        id: '01400943',
-        name: 'Kroger - Zinfandel',
-        address: '10075 Bruceville Rd, Elk Grove, CA 95757',
-        distance: '2.1 miles',
-        services: ['Pickup', 'Delivery'],
-        hours: {
-          open: '06:00',
-          close: '24:00'
-        },
-        phone: '(916) 686-9101'
-      },
-      {
-        id: '01400376',
-        name: 'Kroger - Elk Grove',
-        address: '8465 Elk Grove Blvd, Elk Grove, CA 95758',
-        distance: '3.5 miles',
-        services: ['Pickup', 'Delivery'],
-        hours: {
-          open: '06:00',
-          close: '23:00'
-        },
-        phone: '(916) 685-0439'
-      },
-      {
-        id: '01400512',
-        name: 'Kroger - Rancho Cordova',
-        address: '2715 E Bidwell St, Folsom, CA 95630',
-        distance: '8.2 miles',
-        services: ['Pickup'],
-        hours: {
-          open: '06:00',
-          close: '23:00'
-        },
-        phone: '(916) 932-3195'
-      }
-    ];
-    
-    res.json({
-      success: true,
-      stores: stores,
-      searchParams: { lat, lng, radius },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Failed to fetch nearby stores:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch nearby stores'
-    });
-  }
-});
-
-// AI Endpoint for grocery list parsing
-app.post('/api/ai/parse-grocery-list', async (req, res) => {
-  const { text, userId = 'anonymous' } = req.body;
-  
-  if (!text || text.trim().length === 0) {
-    return res.status(400).json({
-      success: false,
-      error: 'No text provided for parsing'
-    });
-  }
-  
-  try {
-    logger.info(`AI parsing request from user: ${userId}`);
-    
-    let parsedItems = [];
-    
-    if (openai) {
-      // Use OpenAI for parsing
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [{
-          role: "system",
-          content: "Parse the following grocery list into structured data. Return a JSON array of objects with properties: itemName, quantity, unit, category, confidence (0-1). Categories should be: produce, dairy, meat, pantry, bakery, frozen, other."
-        }, {
-          role: "user",
-          content: text
-        }],
-        temperature: 0.1,
-        max_tokens: 1000
-      });
-      
-      try {
-        parsedItems = JSON.parse(completion.choices[0].message.content);
-      } catch (parseError) {
-        logger.error('Failed to parse OpenAI response:', parseError);
-        parsedItems = fallbackParsing(text);
-      }
-    } else if (genAI) {
-      // Use Google Generative AI as fallback
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-      const prompt = `Parse this grocery list into JSON format with itemName, quantity, unit, category, confidence: ${text}`;
-      
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      
-      try {
-        parsedItems = JSON.parse(response.text());
-      } catch (parseError) {
-        logger.error('Failed to parse Google AI response:', parseError);
-        parsedItems = fallbackParsing(text);
-      }
-    } else {
-      // Fallback to simple parsing
-      parsedItems = fallbackParsing(text);
-    }
-    
-    res.json({
-      success: true,
-      items: parsedItems,
-      totalItems: parsedItems.length,
-      aiService: openai ? 'openai' : genAI ? 'google' : 'fallback',
-      processingTime: Date.now() - req.startTime,
-      userId: userId
-    });
-    
-  } catch (error) {
-    logger.error('AI parsing failed:', error);
-    
-    // Return fallback parsing on error
-    const fallbackItems = fallbackParsing(text);
-    
-    res.json({
-      success: true,
-      items: fallbackItems,
-      totalItems: fallbackItems.length,
-      aiService: 'fallback',
-      warning: 'AI service unavailable, using fallback parsing',
-      userId: userId
-    });
-  }
-});
-
-// Fallback parsing function
-function fallbackParsing(text) {
-  const lines = text.split('\n').filter(line => line.trim().length > 0);
-  
-  return lines.map((line, index) => {
-    const trimmed = line.trim();
-    const quantityMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(.+)/);
-    
-    let itemName, quantity = 1, unit = '';
-    
-    if (quantityMatch) {
-      quantity = parseFloat(quantityMatch[1]);
-      itemName = quantityMatch[2].trim();
-    } else {
-      itemName = trimmed;
-    }
-    
-    // Simple category guessing
-    let category = 'other';
-    const lowerItem = itemName.toLowerCase();
-    
-    if (lowerItem.includes('milk') || lowerItem.includes('cheese') || lowerItem.includes('yogurt')) {
-      category = 'dairy';
-    } else if (lowerItem.includes('apple') || lowerItem.includes('banana') || lowerItem.includes('lettuce')) {
-      category = 'produce';
-    } else if (lowerItem.includes('bread') || lowerItem.includes('bagel')) {
-      category = 'bakery';
-    } else if (lowerItem.includes('chicken') || lowerItem.includes('beef') || lowerItem.includes('fish')) {
-      category = 'meat';
-    }
-    
-    return {
-      id: `item_${index}_${Date.now()}`,
-      itemName,
-      quantity,
-      unit,
-      category,
-      confidence: 0.7,
-      originalText: trimmed
-    };
+// API root endpoint
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'CARTSMASH API v2.0',
+    status: 'operational',
+    timestamp: new Date().toISOString(),
+    documentation: '/api/docs',
+    health: '/api/health'
   });
-}
+});
 
-// Load route modules with comprehensive error handling
+// API documentation endpoint
+app.get('/api/docs', (req, res) => {
+  res.json({
+    title: 'CARTSMASH API Documentation',
+    version: '2.0.0',
+    baseUrl: process.env.NODE_ENV === 'production' 
+      ? 'https://cartsmash-api.onrender.com' 
+      : 'http://localhost:3001',
+    authentication: {
+      type: 'Firebase ID Token',
+      description: 'Obtain ID token from Firebase Auth and include in Authorization header',
+      example: 'Authorization: Bearer eyJhbGciOiJS...'
+    },
+    endpoints: [
+      {
+        category: 'Cart Operations',
+        endpoints: [
+          {
+            method: 'POST',
+            path: '/api/cart/parse',
+            description: 'Parse grocery list text into structured items',
+            body: {
+              listText: 'string (required) - Raw grocery list text',
+              action: 'string (optional) - "merge" or "replace"',
+              userId: 'string (optional) - User identifier',
+              options: {
+                mergeDuplicates: 'boolean - Merge duplicate items',
+                useAI: 'boolean - Use AI for parsing'
+              }
+            },
+            response: {
+              success: 'boolean',
+              cart: 'array - Parsed cart items',
+              itemsAdded: 'number',
+              totalItems: 'number'
+            }
+          }
+        ]
+      },
+      {
+        category: 'AI Services',
+        endpoints: [
+          {
+            method: 'POST',
+            path: '/api/ai/parse-grocery-list',
+            description: 'Parse grocery list using AI',
+            body: {
+              text: 'string (required) - Grocery list text',
+              userId: 'string (optional)'
+            },
+            response: {
+              success: 'boolean',
+              items: 'array - Parsed items',
+              totalItems: 'number',
+              aiService: 'string - AI service used'
+            }
+          },
+          {
+            method: 'POST',
+            path: '/api/ai/claude',
+            description: 'Process with Claude AI',
+            body: {
+              prompt: 'string (required)',
+              context: 'string (optional)',
+              options: 'object (optional)'
+            }
+          }
+        ]
+      },
+      {
+        category: 'Kroger Integration',
+        endpoints: [
+          {
+            method: 'GET',
+            path: '/api/kroger/products/search',
+            description: 'Search Kroger products',
+            query: {
+              q: 'string (required) - Search query',
+              locationId: 'string (optional) - Store location',
+              limit: 'number (optional) - Max results'
+            }
+          },
+          {
+            method: 'POST',
+            path: '/api/kroger-orders/cart/send',
+            description: 'Send cart to Kroger',
+            auth: 'Requires Kroger OAuth',
+            body: {
+              cartItems: 'array (required)',
+              storeId: 'string (optional)',
+              modality: 'string - PICKUP or DELIVERY'
+            }
+          }
+        ]
+      }
+    ],
+    errors: {
+      '400': 'Bad Request - Invalid parameters',
+      '401': 'Unauthorized - Missing or invalid authentication',
+      '403': 'Forbidden - Insufficient permissions',
+      '404': 'Not Found - Resource not found',
+      '429': 'Too Many Requests - Rate limit exceeded',
+      '500': 'Internal Server Error',
+      '503': 'Service Unavailable - Maintenance mode or service down'
+    },
+    examples: {
+      parseGroceryList: {
+        request: {
+          method: 'POST',
+          url: '/api/cart/parse',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer <firebase-token>'
+          },
+          body: {
+            listText: '2 lbs chicken breast\n1 gallon milk\n3 bananas',
+            action: 'merge'
+          }
+        },
+        response: {
+          success: true,
+          cart: [
+            {
+              id: 'item_123',
+              productName: 'chicken breast',
+              quantity: 2,
+              unit: 'lb',
+              category: 'meat'
+            }
+          ],
+          itemsAdded: 3,
+          totalItems: 3
+        }
+      }
+    }
+  });
+});
+
+// Load route modules
 const routes = [
-  { path: '/api/cart', module: './routes/cart', name: 'Cart' },
-  { path: '/api/account', module: './routes/account', name: 'Account' },
-  { path: '/api/recipes', module: './routes/recipes', name: 'Recipes' },
-  { path: '/api/kroger', module: './routes/kroger', name: 'Kroger API' },
-  { path: '/api/kroger-orders', module: './routes/kroger-orders', name: 'Kroger Orders' },
-  { path: '/api/analytics', module: './routes/analytics', name: 'Analytics' },
-  { path: '/api/users', module: './routes/users', name: 'Users' }
+  { path: '/api/cart', module: './routes/cart' },
+  { path: '/api/ai', module: './routes/ai' },
+  { path: '/api/kroger', module: './routes/kroger' },  // Add this
+  { path: '/api/kroger-orders', module: './routes/kroger-orders' },
+  { path: '/api/grocery', module: './routes/grocery' }
 ];
 
 routes.forEach(route => {
   try {
     const routeModule = require(route.module);
     app.use(route.path, routeModule);
-    logger.info(`${route.name} routes loaded successfully`);
+    logger.info(`${route.module} routes loaded`);
   } catch (error) {
-    logger.warn(`${route.name} routes not found or failed to load: ${error.message}`);
+    logger.error(`Failed to load ${route.module}:`, error.message);
   }
 });
 
-// OAuth helper functions
-function generateOAuthSuccessPage(userId) {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Authentication Successful - CartSmash</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          color: white;
-        }
-        .container {
-          text-align: center;
-          background: rgba(255, 255, 255, 0.1);
-          padding: 3rem;
-          border-radius: 20px;
-          backdrop-filter: blur(20px);
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-          max-width: 450px;
-          width: 90%;
-        }
-        .success-icon {
-          font-size: 80px;
-          margin-bottom: 1.5rem;
-          animation: bounceIn 0.6s ease-out;
-        }
-        h1 {
-          font-size: 28px;
-          margin-bottom: 1rem;
-          font-weight: 600;
-        }
-        p {
-          font-size: 16px;
-          margin-bottom: 1rem;
-          opacity: 0.9;
-          line-height: 1.5;
-        }
-        .status {
-          background: rgba(255, 255, 255, 0.2);
-          padding: 1rem;
-          border-radius: 10px;
-          margin: 1.5rem 0;
-        }
-        @keyframes bounceIn {
-          0% { transform: scale(0.3); opacity: 0; }
-          50% { transform: scale(1.05); }
-          70% { transform: scale(0.9); }
-          100% { transform: scale(1); opacity: 1; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="success-icon">✅</div>
-        <h1>Successfully Connected!</h1>
-        <p>Your Kroger account has been linked to CartSmash.</p>
-        <div class="status">
-          <p><strong>Status:</strong> Authentication Complete</p>
-          <p><strong>User ID:</strong> ${userId}</p>
-        </div>
-        <p style="font-size: 14px; opacity: 0.7;">This window will close automatically in 3 seconds...</p>
-      </div>
-      <script>
-        if (window.opener) {
-          window.opener.postMessage({ 
-            type: 'KROGER_AUTH_SUCCESS',
-            userId: '${userId}',
-            timestamp: new Date().toISOString()
-          }, '*');
-        }
-        setTimeout(() => window.close(), 3000);
-      </script>
-    </body>
-    </html>
-  `;
-}
-
-function generateOAuthErrorPage(errorMessage) {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Authentication Error - CartSmash</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-          color: white;
-        }
-        .container {
-          text-align: center;
-          background: rgba(255, 255, 255, 0.1);
-          padding: 3rem;
-          border-radius: 20px;
-          backdrop-filter: blur(20px);
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-          max-width: 450px;
-          width: 90%;
-        }
-        .error-icon {
-          font-size: 80px;
-          margin-bottom: 1.5rem;
-          animation: shake 0.5s ease-in-out;
-        }
-        h1 {
-          font-size: 28px;
-          margin-bottom: 1rem;
-          font-weight: 600;
-        }
-        .error-detail {
-          background: rgba(0, 0, 0, 0.2);
-          padding: 1.5rem;
-          border-radius: 10px;
-          margin: 1.5rem 0;
-          font-family: monospace;
-          font-size: 14px;
-          word-break: break-word;
-        }
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-          20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="error-icon">❌</div>
-        <h1>Authentication Failed</h1>
-        <p>Unable to connect your Kroger account.</p>
-        <div class="error-detail">
-          <strong>Error:</strong> ${errorMessage}
-        </div>
-        <p style="font-size: 14px; opacity: 0.7;">This window will close automatically in 5 seconds...</p>
-      </div>
-      <script>
-        if (window.opener) {
-          window.opener.postMessage({ 
-            type: 'KROGER_AUTH_ERROR', 
-            error: '${errorMessage}',
-            timestamp: new Date().toISOString()
-          }, '*');
-        }
-        setTimeout(() => window.close(), 5000);
-      </script>
-    </body>
-    </html>
-  `;
-}
-
 // 404 Handler
 app.use((req, res) => {
-  logger.warn(`404 - Route not found: ${req.method} ${req.path} from ${req.ip}`);
   res.status(404).json({
     success: false,
     error: 'Endpoint not found',
-    message: `Cannot ${req.method} ${req.path}`,
-    timestamp: new Date().toISOString(),
-    requestId: req.id,
-    availableEndpoints: [
-      'GET /health',
-      'GET /api/health',
-      'GET /api/auth/kroger/login',
-      'GET /api/auth/kroger/callback',
-      'GET /api/auth/kroger/status',
-      'DELETE /api/auth/kroger/logout',
-      'GET /api/kroger/stores/nearby',
-      'POST /api/ai/parse-grocery-list'
-    ]
+    message: `Cannot ${req.method} ${req.path}`
   });
 });
 
-// Global Error Handler
+// Error Handler
 app.use((err, req, res, next) => {
-  const errorId = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
-  logger.error('Global error handler:', {
-    errorId,
-    message: err.message,
-    stack: err.stack,
-    url: req.url,
-    method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
-    requestId: req.id
-  });
-  
-  const isDevelopment = process.env.NODE_ENV !== 'production';
+  logger.error('Unhandled error:', err);
   
   res.status(err.status || 500).json({
     success: false,
-    error: isDevelopment ? err.message : 'Internal server error',
-    errorId: errorId,
-    requestId: req.id,
-    timestamp: new Date().toISOString(),
-    ...(isDevelopment && { stack: err.stack })
+    error: process.env.NODE_ENV === 'production' ? 
+      'Internal server error' : err.message,
+    code: err.code || 'SERVER_ERROR'
   });
 });
 
-// Graceful Shutdown Handlers
-const gracefulShutdown = (signal) => {
+// Graceful Shutdown
+const gracefulShutdown = async (signal) => {
   logger.info(`${signal} received. Starting graceful shutdown...`);
   
   const server = app.get('server');
@@ -925,25 +614,24 @@ const gracefulShutdown = (signal) => {
     server.close(async () => {
       logger.info('HTTP server closed');
       
-      // Close database connections
-      if (mongoose.connection.readyState === 1) {
+      try {
         await mongoose.connection.close();
         logger.info('MongoDB connection closed');
+        
+        if (admin.apps.length > 0) {
+          await Promise.all(admin.apps.map(app => app.delete()));
+          logger.info('Firebase connections closed');
+        }
+        
+        process.exit(0);
+      } catch (error) {
+        logger.error('Error during shutdown:', error);
+        process.exit(1);
       }
-      
-      // Close Firebase connections
-      if (admin.apps.length > 0) {
-        await Promise.all(admin.apps.map(app => app.delete()));
-        logger.info('Firebase connections closed');
-      }
-      
-      logger.info('Graceful shutdown completed');
-      process.exit(0);
     });
     
-    // Force close server after 30 seconds
     setTimeout(() => {
-      logger.error('Could not close connections in time, forcefully shutting down');
+      logger.error('Forced shutdown after timeout');
       process.exit(1);
     }, 30000);
   }
@@ -952,67 +640,22 @@ const gracefulShutdown = (signal) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Unhandled promise rejection handler
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Promise Rejection:', { reason, promise });
-});
-
-// Uncaught exception handler
-process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', error);
-  process.exit(1);
-});
-
 // Start Server
 if (require.main === module) {
   const server = app.listen(PORT, () => {
     logger.info(`
     ========================================
-    🚀 CARTSMASH Server Started Successfully
+    🚀 CARTSMASH Server Started
     ========================================
+    Environment: ${process.env.NODE_ENV}
     Port: ${PORT}
-    Environment: ${process.env.NODE_ENV || 'development'}
-    Firebase: ${admin.apps.length > 0 ? '✅ Connected' : '⚠️  Limited'}
-    MongoDB: ${mongoose.connection.readyState === 1 ? '✅ Connected' : '⚠️  Disconnected'}
-    Kroger: ${process.env.KROGER_CLIENT_ID ? '✅ Configured' : '❌ Not configured'}
-    OpenAI: ${openai ? '✅ Available' : '❌ Not configured'}
-    Google AI: ${genAI ? '✅ Available' : '❌ Not configured'}
-    
-    Health Check: http://localhost:${PORT}/health
-    API Health: http://localhost:${PORT}/api/health
-    
-    Process ID: ${process.pid}
-    Node Version: ${process.version}
-    Platform: ${process.platform}
-    Architecture: ${process.arch}
+    URL: https://cartsmash-api.onrender.com
+    Client: ${process.env.CLIENT_URL}
     ========================================
     `);
   });
   
-  // Store server reference for graceful shutdown
   app.set('server', server);
-  
-  // Handle server errors
-  server.on('error', (error) => {
-    if (error.syscall !== 'listen') {
-      throw error;
-    }
-    
-    const bind = typeof PORT === 'string' ? 'Pipe ' + PORT : 'Port ' + PORT;
-    
-    switch (error.code) {
-      case 'EACCES':
-        logger.error(bind + ' requires elevated privileges');
-        process.exit(1);
-        break;
-      case 'EADDRINUSE':
-        logger.error(bind + ' is already in use');
-        process.exit(1);
-        break;
-      default:
-        throw error;
-    }
-  });
 }
 
 module.exports = app;

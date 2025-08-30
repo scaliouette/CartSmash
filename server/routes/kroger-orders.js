@@ -173,6 +173,8 @@ router.get('/cart', async (req, res) => {
   }
 });
 
+
+
 /**
  * Place order (checkout)
  */

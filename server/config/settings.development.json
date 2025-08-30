@@ -1,0 +1,39 @@
+{
+  "aiParsing": {
+    "strictMode": false,
+    "confidenceThreshold": 0.5,
+    "enableAIValidation": true,
+    "fallbackToSimple": true,
+    "maxProcessingTime": 60,
+    "enableCaching": false,
+    "batchSize": 20,
+    "enableProductValidation": true,
+    "enablePriceCheck": true,
+    "enableAlternatives": true,
+    "showConfidenceScores": true,
+    "autoReviewLowConfidence": true,
+    "enableSmartSuggestions": true,
+    "preferredAI": "claude",
+    "enableGeminiValidation": true,
+    "apiTimeout": 30,
+    "cacheExpiryMinutes": 10,
+    "maxConcurrentRequests": 5,
+    "exportFormat": "json"
+  },
+  "productValidation": {
+    "enableRealTimeValidation": true,
+    "enablePriceChecking": true,
+    "enableAvailabilityCheck": true,
+    "preferredStores": ["kroger"],
+    "maxAlternatives": 5,
+    "priceThreshold": 100,
+    "validationTimeout": 10
+  },
+  "system": {
+    "environment": "development",
+    "logLevel": "debug",
+    "enableDebugMode": true,
+    "enableAPIRateLimiting": false,
+    "maxRequestsPerMinute": 1000
+  }
+}
