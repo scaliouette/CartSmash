@@ -355,7 +355,7 @@ app.get('/api/auth/kroger/login', (req, res) => {
           `response_type=code&` +
           `client_id=${process.env.KROGER_CLIENT_ID}&` +
           `redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}&` +
-          `scope=${encodeURIComponent('cart.basic:write profile.compact product.compact')}&` +
+          `scope=${encodeURIComponent('cart.basic:rw profile.compact product.compact')}&` +
           `state=${state}`;
         
         console.log(`🔍 [LEGACY DEBUG] Generated OAuth URL: ${authUrl}`);
@@ -802,6 +802,15 @@ app.get('/', (req, res) => {
         'GET /api/auth/kroger/status': 'Check authentication status',
         'DELETE /api/auth/kroger/logout': 'Logout from Kroger'
       },
+      account: {
+        'POST /api/account/logout': 'Logout and clean up all tokens and data',
+        'GET /api/account/profile': 'Get user profile',
+        'PUT /api/account/profile': 'Update user profile',
+        'GET /api/account/lists': 'Get saved lists',
+        'POST /api/account/lists': 'Save a new list',
+        'GET /api/account/stats': 'Get user statistics',
+        'GET /api/account/export': 'Export all user data'
+      },
       cart: {
         'POST /api/cart/parse': 'Parse grocery list text',
         'POST /api/cart/validate-all': 'Validate all cart items',
@@ -1007,7 +1016,8 @@ const routes = [
   { path: '/api/ai', module: './routes/ai' },
   { path: '/api/kroger', module: './routes/kroger' },  // Add this
   { path: '/api/kroger-orders', module: './routes/kroger-orders' },
-  { path: '/api/grocery', module: './routes/grocery' }
+  { path: '/api/grocery', module: './routes/grocery' },
+  { path: '/api/account', module: './routes/account' }
 ];
 
 routes.forEach(route => {

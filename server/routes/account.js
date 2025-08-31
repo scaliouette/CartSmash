@@ -1147,6 +1147,42 @@ async function updateUserStats(userId, amount, itemCount) {
   }
 }
 
+// POST /api/account/logout - Logout user and clean up tokens
+router.post('/logout', authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    
+    console.log(`🚪 Processing logout for user: ${userId}`);
+    
+    // Import services (lazy loading to avoid circular dependencies)
+    const KrogerAuthService = require('../services/KrogerAuthService');
+    const authService = new KrogerAuthService();
+    
+    // Clean up Kroger OAuth tokens and states
+    const result = await authService.logoutUser(userId);
+    
+    // Also clean up any cart data in Firestore
+    await db.collection('carts').doc(userId).delete().catch(err => {
+      console.warn(`⚠️ Could not clean up cart for ${userId}:`, err.message);
+    });
+    
+    console.log(`✅ User ${userId} logged out successfully`);
+    
+    res.json({
+      success: true,
+      message: 'Logged out successfully',
+      details: result
+    });
+  } catch (error) {
+    console.error('❌ Logout error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to logout',
+      message: error.message
+    });
+  }
+});
+
 // GET /api/account/export - Export all user data
 router.get('/export', authenticateUser, async (req, res) => {
   try {
