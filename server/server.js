@@ -269,7 +269,7 @@ app.get('/health', async (req, res) => {
       `response_type=code&` +
       `client_id=${process.env.KROGER_CLIENT_ID}&` +
       `redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}&` +
-      `scope=${encodeURIComponent('cart.basic:write profile.compact product.compact')}&` +
+      `scope=${encodeURIComponent('cart.basic:write cart.basic:rw profile.compact product.compact')}&` +
       `state=${state}`;
     
     res.redirect(authUrl);

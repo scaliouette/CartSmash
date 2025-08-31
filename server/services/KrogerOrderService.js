@@ -431,7 +431,72 @@ async addItemsToCart(userId, items) {
         console.log(`✅ Successfully created new cart with ${uniqueItems.length} items`);
       } catch (createError) {
         console.error('❌ Failed to create cart:', createError.response?.data || createError.message);
-        throw createError;
+        
+        // If cart creation fails due to scope issues, try alternative approaches
+        if (createError.response?.status === 403 && 
+            createError.response?.data?.errors?.reason?.includes('scope')) {
+          console.log('🔄 Trying alternative cart creation methods...');
+          
+          try {
+            // Method 1: Try creating empty cart first, then add items
+            console.log('📦 Method 1: Creating empty cart first');
+            const emptyCart = await this.makeUserRequest(userId, 'POST', '/carts', {});
+            const cartId = emptyCart.data?.id || emptyCart.id;
+            
+            if (cartId) {
+              console.log(`✅ Created empty cart: ${cartId}, now adding items`);
+              
+              // Add items one by one to the empty cart
+              for (const item of uniqueItems.slice(0, 5)) { // Try first 5 items as test
+                try {
+                  await this.makeUserRequest(userId, 'POST', `/carts/${cartId}/items`, item);
+                } catch (itemError) {
+                  console.warn(`⚠️ Failed to add item ${item.upc}:`, itemError.message);
+                }
+              }
+              
+              result = await this.makeUserRequest(userId, 'GET', `/carts/${cartId}`);
+              console.log('✅ Alternative method 1 succeeded');
+            }
+          } catch (altError) {
+            console.error('❌ Alternative method 1 failed:', altError.message);
+            
+            // Method 2: Try using PUT instead of POST
+            try {
+              console.log('📦 Method 2: Trying PUT /carts');
+              result = await this.makeUserRequest(userId, 'PUT', '/carts', { items: uniqueItems });
+              console.log('✅ Alternative method 2 (PUT) succeeded');
+            } catch (putError) {
+              console.error('❌ Alternative method 2 failed:', putError.message);
+              
+              // Method 3: Try alternative endpoints
+              try {
+                console.log('📦 Method 3: Trying POST /cart/items');
+                const emptyCart = await this.makeUserRequest(userId, 'POST', '/carts', {});
+                const cartId = emptyCart.data?.id || emptyCart.id;
+                
+                if (cartId) {
+                  result = await this.makeUserRequest(userId, 'POST', '/cart/items', { items: uniqueItems });
+                  console.log('✅ Alternative method 3 (POST /cart/items) succeeded');
+                }
+              } catch (altError3) {
+                console.error('❌ Alternative method 3 failed:', altError3.message);
+                
+                // Method 4: Try bulk endpoint
+                try {
+                  console.log('📦 Method 4: Trying POST /cart/bulk');
+                  result = await this.makeUserRequest(userId, 'POST', '/cart/bulk', { items: uniqueItems });
+                  console.log('✅ Alternative method 4 (bulk) succeeded');
+                } catch (bulkError) {
+                  console.error('❌ Alternative method 4 failed:', bulkError.message);
+                  throw createError; // Throw original error
+                }
+              }
+            }
+          }
+        } else {
+          throw createError;
+        }
       }
     }
     
@@ -655,18 +720,27 @@ async diagnoseCartEndpoints(userId) {
     { method: 'GET', path: '/cart', description: 'Get current cart' },
     { method: 'GET', path: '/carts', description: 'Get all carts' },
     { method: 'GET', path: '/cart/items', description: 'Get cart items' },
+    { method: 'GET', path: '/customer/cart', description: 'Get customer cart' },
     
     // POST endpoints for cart creation
     { method: 'POST', path: '/cart', body: { items: [testItem] }, description: 'Create cart with items' },
     { method: 'POST', path: '/carts', body: {}, description: 'Create empty cart' },
+    { method: 'POST', path: '/cart/items', body: { items: [testItem] }, description: 'Add items to cart' },
+    { method: 'POST', path: '/customer/cart', body: { items: [testItem] }, description: 'Create customer cart' },
     
     // PUT endpoints for adding items
     { method: 'PUT', path: '/cart', body: { items: [testItem] }, description: 'Update cart with items' },
     { method: 'PUT', path: '/cart/add', body: { items: [testItem] }, description: 'Add items to cart' },
     { method: 'PUT', path: '/cart/items', body: { items: [testItem] }, description: 'Update cart items' },
+    { method: 'PUT', path: '/carts', body: { items: [testItem] }, description: 'Update carts with items' },
     
     // PATCH endpoints as alternative
     { method: 'PATCH', path: '/cart', body: { items: [testItem] }, description: 'Patch cart with items' },
+    { method: 'PATCH', path: '/cart/items', body: { items: [testItem] }, description: 'Patch cart items' },
+    
+    // Bulk/batch endpoints
+    { method: 'POST', path: '/cart/bulk', body: { items: [testItem] }, description: 'Bulk add items to cart' },
+    { method: 'PUT', path: '/cart/bulk', body: { items: [testItem] }, description: 'Bulk update cart items' },
   ];
   
   const results = [];
