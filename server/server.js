@@ -381,6 +381,39 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
   }
 });
 
+app.get('/api/test/kroger-creds', async (req, res) => {
+  try {
+    const credentials = Buffer.from(
+      `${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`
+    ).toString('base64');
+    
+    const response = await axios.post(
+      `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
+      new URLSearchParams({
+        grant_type: 'client_credentials',
+        scope: 'product.compact'
+      }).toString(),
+      {
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Client credentials valid',
+      expiresIn: response.data.expires_in
+    });
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      error: error.response?.data || error.message
+    });
+  }
+});
+
   // Add this temporary debug route to your server.js
   app.get('/api/debug/kroger-config', (req, res) => {
     res.json({
