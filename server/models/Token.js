@@ -1,7 +1,6 @@
 // server/models/Token.js - MongoDB Schema for secure token storage
 const mongoose = require('mongoose');
 const crypto = require('crypto');
-const Token = require('../models/Token'); 
 
 const tokenSchema = new mongoose.Schema({
   userId: {
@@ -126,6 +125,7 @@ tokenSchema.methods.updateLastUsed = async function() {
   return this.save();
 };
 
+// ONLY ONE model declaration!
 const Token = mongoose.model('Token', tokenSchema);
 
 module.exports = Token;
