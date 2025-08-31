@@ -1450,7 +1450,6 @@ const styles = {
   headerUnit: { textAlign: 'center' },
   headerConfidence: { textAlign: 'center' },
   headerPrice: { textAlign: 'right' },
-  headerActions: { textAlign: 'center' },
 
   itemsList: {
     maxHeight: '600px',

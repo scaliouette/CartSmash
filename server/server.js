@@ -206,7 +206,8 @@ const corsOptions = {
     'Content-Type',
     'Accept',
     'Authorization',
-    'X-API-Key'
+    'X-API-Key',
+    'User-ID' 
   ],
   exposedHeaders: ['X-Total-Count', 'X-Rate-Limit-Remaining'],
   optionsSuccessStatus: 200,
