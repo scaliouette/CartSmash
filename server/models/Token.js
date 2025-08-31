@@ -1,6 +1,7 @@
 // server/models/Token.js - MongoDB Schema for secure token storage
 const mongoose = require('mongoose');
 const crypto = require('crypto');
+const Token = require('../models/Token'); 
 
 const tokenSchema = new mongoose.Schema({
   userId: {

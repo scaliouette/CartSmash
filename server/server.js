@@ -350,21 +350,19 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
     logger.info(`Using client ID: ${process.env.KROGER_CLIENT_ID}`);
     logger.info(`Token endpoint: ${process.env.KROGER_BASE_URL}/connect/oauth2/token`);
     
-    const tokenResponse = await axios.post(
-      `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
-      new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: code,
-        redirect_uri: process.env.KROGER_REDIRECT_URI
-      }).toString(),
-      {
-        headers: {
-          'Authorization': `Basic ${credentials}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        timeout: 10000
-      }
-    );
+
+const tokenResponse = await axios.post(
+  `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
+  `grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}`,
+  {
+    headers: {
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json'
+    },
+    timeout: 10000
+  }
+);
     
     // ... rest of success handling
     
@@ -386,6 +384,24 @@ app.get('/api/test/kroger-creds', async (req, res) => {
     const credentials = Buffer.from(
       `${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`
     ).toString('base64');
+
+    // Line 385 - Add proper success response:
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>Success</title></head>
+      <body>
+        <script>
+          window.opener.postMessage({
+            type: 'KROGER_AUTH_SUCCESS',
+            userId: '${userId}'
+          }, '${process.env.CLIENT_URL || 'https://cart-smash.vercel.app'}');
+          setTimeout(() => window.close(), 1000);
+        </script>
+        <h3>Authentication successful! This window will close automatically...</h3>
+      </body>
+      </html>
+    `);
     
     const response = await axios.post(
       `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,

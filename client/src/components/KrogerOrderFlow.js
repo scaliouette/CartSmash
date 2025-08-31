@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import LoadingSpinner, { ButtonSpinner } from './LoadingSpinner';
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+
 function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
   const [step, setStep] = useState('auth');
   const [selectedStore, setSelectedStore] = useState(null);
@@ -53,7 +55,7 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
         latitude = 38.5816;
         longitude = -121.4944;
       }
-      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      
       const response = await fetch(`${API_URL}/api/kroger/stores/nearby?lat=${latitude}&lng=${longitude}`, {
         headers: {
           'User-ID': userId
@@ -100,7 +102,7 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
     
     try {
       console.log('🔍 Checking auth for user:', userId);
-      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      
       const response = await fetch(`${API_URL}/api/auth/kroger/status?userId=${encodeURIComponent(userId)}`, {
         headers: {
           'User-ID': userId
@@ -165,7 +167,7 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
       console.log('🔐 Starting Kroger auth for user:', userId);
       
       // Build the OAuth URL with actual user ID
-      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';   
+         
       const authUrl = `${API_URL}/api/auth/kroger/login?userId=${encodeURIComponent(userId)}`;
       
       console.log('🔗 Opening Kroger OAuth URL:', authUrl);
@@ -187,8 +189,11 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
       const handleMessage = (event) => {
         console.log('📨 Received message:', event.data);
         
-        const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-          if (event.origin !== new URL(API_URL).origin) {
+        
+        // if (event.origin !== new URL(API_URL).origin) {
+//   return;
+        
+        if (event.origin !== new URL(API_URL).origin) {
             return;
 }
         
@@ -246,7 +251,7 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
       console.log('🛒 Sending cart to Kroger for user:', userId);
       console.log('   Store:', selectedStore.id);
       console.log('   Items:', cartItems.length);
-      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      
       const response = await fetch(`${API_URL}/api/kroger-orders/cart/send`, {
         method: 'POST',
         headers: {
