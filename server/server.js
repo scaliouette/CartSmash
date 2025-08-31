@@ -257,28 +257,23 @@ app.get('/health', async (req, res) => {
 });
 
 // Kroger OAuth Endpoints
-app.get('/api/auth/kroger/login', (req, res) => {
-  const { userId } = req.query;
-  
-  if (!userId) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'userId parameter is required' 
-    });
-  }
-  
-  logger.info(`Kroger OAuth login requested for user: ${userId}`);
-  
-  const state = Buffer.from(`${userId}-${Date.now()}-${Math.random()}`).toString('base64');
-  const authUrl = new URL(`${process.env.KROGER_BASE_URL}/connect/oauth2/authorize`);
-  authUrl.searchParams.append('response_type', 'code');
-  authUrl.searchParams.append('client_id', process.env.KROGER_CLIENT_ID);
-  authUrl.searchParams.append('redirect_uri', process.env.KROGER_REDIRECT_URI);
-  authUrl.searchParams.append('scope', process.env.KROGER_OAUTH_SCOPES || 'cart.basic:write profile.compact product.compact');
-  authUrl.searchParams.append('state', state);
-  
-  res.redirect(authUrl.toString());
-});
+  app.get('/api/auth/kroger/login', (req, res) => {
+    const { userId } = req.query;
+    
+    logger.info(`Kroger OAuth login requested for user: ${userId}`);
+    
+    const state = Buffer.from(`${userId}-${Date.now()}-${Math.random()}`).toString('base64');
+    
+    // CHANGE THIS LINE - use 'rw' instead of 'write'
+    const authUrl = `${process.env.KROGER_BASE_URL}/connect/oauth2/authorize?` +
+      `response_type=code&` +
+      `client_id=${process.env.KROGER_CLIENT_ID}&` +
+      `redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}&` +
+      `scope=${encodeURIComponent('cart.basic:rw profile.compact product.compact')}&` +  // Changed from 'write' to 'rw'
+      `state=${state}`;
+    
+    res.redirect(authUrl);
+  });
 
 // Add Kroger auth status check endpoint
 app.get('/api/auth/kroger/status', async (req, res) => {
