@@ -224,7 +224,16 @@ router.get('/pricing', async (req, res) => {
   }
 });
 
+// Temporary endpoint to clear token - REMOVE AFTER USE
+router.post('/clear-token/:userId', async (req, res) => {
+  const tokenStore = require('../services/TokenStore');
+  const { userId } = req.params;
+  await tokenStore.deleteTokens(userId);
+  res.json({ success: true, message: 'Token cleared' });
+});
 
+console.log('✅ Kroger API routes loaded successfully');
+module.exports = router;
 
 // GET /api/kroger/stores/nearby - Find nearby stores
   router.get('/stores/nearby', async (req, res) => {
