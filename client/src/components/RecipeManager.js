@@ -31,7 +31,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
 
       // Then try to fetch from server
       if (currentUser?.uid) {
-        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';;
         const response = await fetch(`${API_URL}/api/recipes`, {
           headers: { 
             'user-id': currentUser.uid,
@@ -92,7 +92,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
     // Try to save to server (don't wait for it)
     if (currentUser?.uid) {
       try {
-        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';;
         await fetch(`${API_URL}/api/recipes`, {
           method: editingRecipe ? 'PUT' : 'POST',
           headers: { 
@@ -156,7 +156,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
 
       // Also delete from server
       if (currentUser?.uid) {
-        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';;
         fetch(`${API_URL}/api/recipes/${recipeId}`, {
           method: 'DELETE',
           headers: { 'user-id': currentUser.uid }

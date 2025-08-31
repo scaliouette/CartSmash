@@ -14,7 +14,7 @@ export const useCart = () => {
 
 export const CartProvider = ({ children }) => {
   const { currentUser } = useAuth();
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+ const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';;
   
   // Core State
   const [currentCart, setCurrentCart] = useState([]);

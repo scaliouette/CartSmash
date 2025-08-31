@@ -282,16 +282,75 @@ app.get('/api/auth/kroger/login', (req, res) => {
   res.redirect(authUrl.toString());
 });
 
+// Add Kroger auth status check endpoint
+app.get('/api/auth/kroger/status', async (req, res) => {
+  const { userId } = req.query;
+  
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      error: 'userId parameter is required'
+    });
+  }
+  
+  try {
+    const hasToken = await tokenStore.hasValidToken(userId);
+    
+    if (hasToken) {
+      const tokenInfo = await tokenStore.getTokens(userId);
+      res.json({
+        success: true,
+        userId: userId,
+        authenticated: true,
+        tokenInfo: {
+          expiresAt: tokenInfo.expiresAt,
+          scope: tokenInfo.scope
+        }
+      });
+    } else {
+      res.json({
+        success: true,
+        userId: userId,
+        authenticated: false,
+        tokenInfo: null,
+        needsAuth: true
+      });
+    }
+  } catch (error) {
+    logger.error('Auth status check failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check authentication status'
+    });
+  }
+});
+
 app.get('/api/auth/kroger/callback', async (req, res) => {
   const { code, state, error } = req.query;
   
   if (error) {
     logger.error(`Kroger OAuth error: ${error}`);
-    return res.redirect(`${process.env.CLIENT_URL}/auth/error?message=${encodeURIComponent(error)}`);
+    return res.send(`
+      <html>
+        <body style="font-family: Arial; padding: 40px; text-align: center;">
+          <h2>❌ Authentication Failed</h2>
+          <p>${error}</p>
+          <button onclick="window.close()">Close Window</button>
+        </body>
+      </html>
+    `);
   }
   
   if (!code || !state) {
-    return res.status(400).redirect(`${process.env.CLIENT_URL}/auth/error?message=missing_parameters`);
+    return res.status(400).send(`
+      <html>
+        <body style="font-family: Arial; padding: 40px; text-align: center;">
+          <h2>❌ Authentication Failed</h2>
+          <p>Missing required parameters</p>
+          <button onclick="window.close()">Close Window</button>
+        </body>
+      </html>
+    `);
   }
 
   try {
@@ -335,13 +394,49 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
     );
     
     logger.info(`Token exchange successful for user: ${userId}`);
-    res.redirect(`${process.env.CLIENT_URL}/auth/success`);
+    
+    // Send HTML page with postMessage
+    res.send(`
+      <html>
+        <head>
+          <title>Kroger Authentication Success</title>
+        </head>
+        <body style="font-family: Arial; padding: 40px; text-align: center;">
+          <h2>✅ Successfully Connected to Kroger!</h2>
+          <p>Your account has been linked. You can now send items to your Kroger cart.</p>
+          <p>User ID: <strong>${userId}</strong></p>
+          <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px;">
+            Close Window
+          </button>
+          <script>
+            // Send message to parent window if opened as popup
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'KROGER_AUTH_SUCCESS',
+                userId: '${userId}'
+              }, '${process.env.CLIENT_URL || 'https://cart-smash.vercel.app'}');
+            }
+            // Auto-close after 3 seconds
+            setTimeout(() => window.close(), 3000);
+          </script>
+        </body>
+      </html>
+    `);
     
   } catch (error) {
     logger.error('Token exchange failed:', error.message);
-    res.redirect(`${process.env.CLIENT_URL}/auth/error?message=token_exchange_failed`);
+    res.send(`
+      <html>
+        <body style="font-family: Arial; padding: 40px; text-align: center;">
+          <h2>❌ Authentication Failed</h2>
+          <p>${error.message}</p>
+          <button onclick="window.close()">Close Window</button>
+        </body>
+      </html>
+    `);
   }
 });
+
 
 // Add this root endpoint handler to your server.js file
 // Place it AFTER the health check endpoints and BEFORE the route loading

@@ -15,7 +15,8 @@ function ParsingAnalyticsDashboard({ onClose }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/analytics/parsing?range=${timeRange}`);
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const response = await fetch(`${API_URL}//api/analytics/parsing?range=${timeRange}`);
       if (response.ok) {
         const data = await response.json();
         setAnalytics(data);

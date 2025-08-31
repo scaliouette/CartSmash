@@ -179,7 +179,7 @@ function GroceryListForm({
         setParsingProgress(prev => Math.min(prev + 10, 90));
       }, 200);
       
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+     const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';;
       
       // If using AI, first generate a response
       if (useAI && selectedAI) {
