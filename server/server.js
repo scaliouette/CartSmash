@@ -176,21 +176,17 @@ const corsOptions = {
     const allowedOrigins = [
       'https://cart-smash.vercel.app',
       'https://cartsmash.vercel.app',
-      'http://localhost:3000',  // Add for local development
-      'http://localhost:3001',  // Add for local development
+      'http://localhost:3000',
+      'http://localhost:3001',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:3001',
       process.env.CLIENT_URL
     ].filter(Boolean);
 
-    // Allow requests with no origin (mobile apps, Postman, etc)
     if (!origin) return callback(null, true);
-    
-    // Allow all Vercel preview deployments
     if (origin.includes('.vercel.app')) {
       return callback(null, true);
     }
-    
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -207,7 +203,8 @@ const corsOptions = {
     'Accept',
     'Authorization',
     'X-API-Key',
-    'User-ID' 
+    'User-ID',        // ADD THIS
+    'user-id'         // ADD THIS (lowercase version too)
   ],
   exposedHeaders: ['X-Total-Count', 'X-Rate-Limit-Remaining'],
   optionsSuccessStatus: 200,
