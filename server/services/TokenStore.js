@@ -20,7 +20,7 @@ class TokenStore {
         accessToken: tokenInfo.accessToken,
         refreshToken: refreshToken || tokenInfo.refreshToken,
         tokenType: tokenInfo.tokenType || 'Bearer',
-        scope: tokenInfo.scope || 'cart.basic:read cart.basic profile.compact product.compact',
+        scope: tokenInfo.scope || 'cart.basic cart.basic profile.compact product.compact',
         expiresAt: new Date(tokenInfo.expiresAt || Date.now() + 3600000),
         lastRefreshed: tokenInfo.lastRefreshed || null,
         metadata: tokenInfo.metadata || {}
