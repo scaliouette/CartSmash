@@ -161,7 +161,7 @@ router.get('/health', (req, res) => {
  * Start Kroger OAuth2 authentication
  */
 router.post('/kroger/login', (req, res) => {
-  const { scopes = ['cart.basic:write', 'order.basic:write'], forceReauth = false } = req.body;
+  const { scopes = ['cart.basic:write:write', 'order.basic:write'], forceReauth = false } = req.body;
   
   console.log(`🔐 Starting Kroger OAuth for user: ${req.userId}`);
   
