@@ -330,7 +330,22 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
   
   if (error) {
     logger.error(`Kroger OAuth error: ${error}`);
-    return res.send(`...error page...`);
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+      <body>
+        <h3>Authentication Failed</h3>
+        <p>Error: ${error}</p>
+        <script>
+          window.opener.postMessage({
+            type: 'KROGER_AUTH_ERROR',
+            error: '${error}'
+          }, '${process.env.CLIENT_URL || 'https://cart-smash.vercel.app'}');
+          setTimeout(() => window.close(), 2000);
+        </script>
+      </body>
+      </html>
+    `);
   }
   
   try {
@@ -341,33 +356,74 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
       throw new Error('State expired');
     }
     
+    // Check credentials exist
+    if (!process.env.KROGER_CLIENT_ID || !process.env.KROGER_CLIENT_SECRET) {
+      throw new Error('Missing Kroger credentials');
+    }
+    
     const credentials = Buffer.from(
       `${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`
     ).toString('base64');
     
-    // ADD THESE DEBUG LOGS
     logger.info(`Attempting token exchange for user: ${userId}`);
     logger.info(`Using client ID: ${process.env.KROGER_CLIENT_ID}`);
     logger.info(`Token endpoint: ${process.env.KROGER_BASE_URL}/connect/oauth2/token`);
     
-
-const tokenResponse = await axios.post(
-  `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
-  `grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}`,
-  {
-    headers: {
-      'Authorization': `Basic ${credentials}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'application/json'
-    },
-    timeout: 10000
-  }
-);
+    const tokenResponse = await axios.post(
+      `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
+      `grant_type=authorization_code&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}`,
+      {
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
+        },
+        timeout: 10000
+      }
+    );
     
-    // ... rest of success handling
+    // Save tokens to database
+    await tokenStore.setTokens(userId, {
+      accessToken: tokenResponse.data.access_token,
+      refreshToken: tokenResponse.data.refresh_token,
+      tokenType: tokenResponse.data.token_type || 'Bearer',
+      scope: tokenResponse.data.scope,
+      expiresAt: new Date(Date.now() + (tokenResponse.data.expires_in * 1000))
+    });
+    
+    logger.info(`✅ Tokens saved for user: ${userId}`);
+    
+    // Send success page with postMessage
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Success - CartSmash</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+          h2 { color: #10b981; }
+        </style>
+      </head>
+      <body>
+        <h2>✅ Authentication Successful!</h2>
+        <p>Connecting to Kroger...</p>
+        <p>This window will close automatically.</p>
+        <script>
+          try {
+            window.opener.postMessage({
+              type: 'KROGER_AUTH_SUCCESS',
+              userId: '${userId}'
+            }, '${process.env.CLIENT_URL || 'https://cart-smash.vercel.app'}');
+          } catch (e) {
+            console.error('Failed to send message:', e);
+          }
+          setTimeout(() => window.close(), 1500);
+        </script>
+      </body>
+      </html>
+    `);
     
   } catch (error) {
-    // IMPROVE ERROR LOGGING
     logger.error('Token exchange failed:', {
       status: error.response?.status,
       statusText: error.response?.statusText,
@@ -375,40 +431,52 @@ const tokenResponse = await axios.post(
       message: error.message
     });
     
-    res.send(`...error page with message: ${error.response?.data?.error_description || error.message}...`);
+    const errorMessage = error.response?.data?.error_description || error.message || 'Authentication failed';
+    
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Error - CartSmash</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+          h2 { color: #dc2626; }
+        </style>
+      </head>
+      <body>
+        <h2>❌ Authentication Failed</h2>
+        <p>Error: ${errorMessage}</p>
+        <p>Please close this window and try again.</p>
+        <script>
+          window.opener.postMessage({
+            type: 'KROGER_AUTH_ERROR',
+            error: '${errorMessage.replace(/'/g, "\\'")}'
+          }, '${process.env.CLIENT_URL || 'https://cart-smash.vercel.app'}');
+          setTimeout(() => window.close(), 3000);
+        </script>
+      </body>
+      </html>
+    `);
   }
 });
 
 app.get('/api/test/kroger-creds', async (req, res) => {
   try {
+    // Check credentials exist
+    if (!process.env.KROGER_CLIENT_ID || !process.env.KROGER_CLIENT_SECRET) {
+      return res.status(500).json({
+        success: false,
+        error: 'Kroger credentials not configured'
+      });
+    }
+    
     const credentials = Buffer.from(
       `${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`
     ).toString('base64');
-
-    // Line 385 - Add proper success response:
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head><title>Success</title></head>
-      <body>
-        <script>
-          window.opener.postMessage({
-            type: 'KROGER_AUTH_SUCCESS',
-            userId: '${userId}'
-          }, '${process.env.CLIENT_URL || 'https://cart-smash.vercel.app'}');
-          setTimeout(() => window.close(), 1000);
-        </script>
-        <h3>Authentication successful! This window will close automatically...</h3>
-      </body>
-      </html>
-    `);
     
     const response = await axios.post(
       `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
-      new URLSearchParams({
-        grant_type: 'client_credentials',
-        scope: 'product.compact'
-      }).toString(),
+      'grant_type=client_credentials&scope=product.compact',
       {
         headers: {
           'Authorization': `Basic ${credentials}`,
@@ -423,9 +491,10 @@ app.get('/api/test/kroger-creds', async (req, res) => {
       expiresIn: response.data.expires_in
     });
   } catch (error) {
+    console.error('Credential test failed:', error.response?.data || error.message);
     res.status(401).json({
       success: false,
-      error: error.response?.data || error.message
+      error: error.response?.data?.error_description || error.message
     });
   }
 });
