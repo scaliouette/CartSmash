@@ -16,6 +16,45 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const config = require('./config');
 
+// Enhanced logging for Render debugging
+console.log('🚀 [RENDER DEBUG] Server starting with environment configuration:');
+console.log(`   NODE_ENV: ${process.env.NODE_ENV || 'NOT_SET'}`);
+console.log(`   PORT: ${PORT}`);
+console.log(`   Platform: ${process.platform}`);
+console.log(`   Node Version: ${process.version}`);
+console.log(`   Current Time: ${new Date().toISOString()}`);
+console.log(`   Working Directory: ${process.cwd()}`);
+console.log(`   Memory Usage: ${JSON.stringify(process.memoryUsage(), null, 2)}`);
+
+// Environment variable status check
+const envStatus = {
+  MONGODB_URI: !!process.env.MONGODB_URI,
+  FIREBASE_PROJECT_ID: !!process.env.FIREBASE_PROJECT_ID,
+  FIREBASE_PRIVATE_KEY: !!process.env.FIREBASE_PRIVATE_KEY,
+  FIREBASE_CLIENT_EMAIL: !!process.env.FIREBASE_CLIENT_EMAIL,
+  JWT_SECRET: !!process.env.JWT_SECRET,
+  KROGER_CLIENT_ID: !!process.env.KROGER_CLIENT_ID,
+  KROGER_CLIENT_SECRET: !!process.env.KROGER_CLIENT_SECRET,
+  KROGER_REDIRECT_URI: !!process.env.KROGER_REDIRECT_URI,
+  KROGER_BASE_URL: !!process.env.KROGER_BASE_URL,
+  KROGER_OAUTH_SCOPES: !!process.env.KROGER_OAUTH_SCOPES,
+  OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+  ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY
+};
+
+console.log('📊 [RENDER DEBUG] Environment Variables Status:');
+Object.entries(envStatus).forEach(([key, value]) => {
+  console.log(`   ${key}: ${value ? '✅ SET' : '❌ MISSING'}`);
+});
+
+// Show actual values for non-sensitive config
+console.log('🔧 [RENDER DEBUG] Configuration Values:');
+console.log(`   KROGER_BASE_URL: ${process.env.KROGER_BASE_URL || 'NOT_SET'}`);
+console.log(`   KROGER_REDIRECT_URI: ${process.env.KROGER_REDIRECT_URI || 'NOT_SET'}`);
+console.log(`   KROGER_OAUTH_SCOPES: ${process.env.KROGER_OAUTH_SCOPES || 'NOT_SET'}`);
+console.log(`   CORS_ORIGIN: ${process.env.CORS_ORIGIN || 'NOT_SET'}`);
+console.log(`   CLIENT_URL: ${process.env.CLIENT_URL || 'NOT_SET'}`);
+
 // Validate required environment variables
 const requiredEnvVars = [
   'MONGODB_URI',
@@ -269,7 +308,7 @@ app.get('/health', async (req, res) => {
       `response_type=code&` +
       `client_id=${process.env.KROGER_CLIENT_ID}&` +
       `redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}&` +
-      `scope=${encodeURIComponent('cart.basic:write cart.basic:rw profile.compact product.compact')}&` +
+      `scope=${encodeURIComponent('cart.basic:write profile.compact product.compact')}&` +
       `state=${state}`;
     
     res.redirect(authUrl);

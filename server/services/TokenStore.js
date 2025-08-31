@@ -20,7 +20,7 @@ class TokenStore {
         accessToken: tokenInfo.accessToken,
         refreshToken: refreshToken || tokenInfo.refreshToken,
         tokenType: tokenInfo.tokenType || 'Bearer',
-        scope: tokenInfo.scope || 'cart.basic:write cart.basic:rw profile.compact product.compact',
+        scope: tokenInfo.scope || 'cart.basic:write profile.compact product.compact',
         expiresAt: new Date(tokenInfo.expiresAt || Date.now() + 3600000),
         lastRefreshed: tokenInfo.lastRefreshed || null,
         metadata: tokenInfo.metadata || {}
@@ -43,36 +43,56 @@ class TokenStore {
         cacheExpiry: Date.now() + this.cacheExpiry
       });
 
-      console.log(`✅ Tokens stored for user: ${userId}`);
+      console.log(`✅ [RENDER DEBUG] Tokens stored for user: ${userId}`);
+      console.log(`   Access Token Length: ${tokenData.accessToken.length}`);
+      console.log(`   Scopes: ${tokenData.scope}`);
+      console.log(`   Expires At: ${tokenData.expiresAt}`);
+      console.log(`   Token Type: ${tokenData.tokenType}`);
       return tokenData;
     } catch (error) {
-      console.error(`❌ Failed to store tokens for ${userId}:`, error);
+      console.error(`❌ [RENDER DEBUG] Failed to store tokens for ${userId}:`, error.message);
+      console.error(`   Error Type: ${error.constructor.name}`);
+      console.error(`   Error Stack: ${error.stack}`);
       throw error;
     }
   }
 
   async getTokens(userId) {
     try {
+      console.log(`🔍 [RENDER DEBUG] Getting tokens for user: ${userId}`);
+      
       // Check cache first
       const cached = this.cache.get(userId);
       if (cached && cached.cacheExpiry > Date.now() && cached.expiresAt > Date.now()) {
+        console.log(`✅ [RENDER DEBUG] Returning cached tokens for ${userId}`);
+        console.log(`   Cache expires: ${new Date(cached.cacheExpiry).toISOString()}`);
+        console.log(`   Token expires: ${new Date(cached.expiresAt).toISOString()}`);
         return cached;
       }
 
+      console.log(`🔍 [RENDER DEBUG] Cache miss, fetching from database for ${userId}`);
+      
       // Fetch from database
       const token = await Token.findOne({ userId });
       
       if (!token) {
+        console.log(`❌ [RENDER DEBUG] No token found in database for ${userId}`);
         return null;
       }
 
+      console.log(`✅ [RENDER DEBUG] Token found in database for ${userId}`);
+      console.log(`   Token expires: ${token.expiresAt.toISOString()}`);
+      console.log(`   Current time: ${new Date().toISOString()}`);
+      
       // Check if token is expired
       if (token.expiresAt < new Date()) {
+        console.log(`⏰ [RENDER DEBUG] Token expired for ${userId}, deleting`);
         await Token.deleteOne({ userId });
         this.cache.delete(userId);
         return null;
       }
 
+      console.log(`🔓 [RENDER DEBUG] Decrypting tokens for ${userId}`);
       // Decrypt and cache the tokens
       const decrypted = token.getDecryptedTokens();
       

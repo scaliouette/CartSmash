@@ -84,21 +84,29 @@ router.post('/cart/send', async (req, res) => {
     clearExistingCart = false 
   } = req.body;
 
-  console.log('📦 Cart Send Request:', {
-    userId: req.userId,
-    itemCount: cartItems?.length,
-    storeId: storeId,
-    firstItem: cartItems?.[0]
-  });
+  console.log('📦 [RENDER DEBUG] Cart Send Request Received:');
+  console.log(`   User ID: ${req.userId}`);
+  console.log(`   Item Count: ${cartItems?.length || 0}`);
+  console.log(`   Store ID: ${storeId || 'NOT_PROVIDED'}`);
+  console.log(`   Modality: ${modality}`);
+  console.log(`   Clear Existing: ${clearExistingCart}`);
+  console.log(`   Request Headers: ${JSON.stringify({
+    'user-id': req.headers['user-id'],
+    'content-type': req.headers['content-type'],
+    'user-agent': req.headers['user-agent']
+  }, null, 2)}`);
+  console.log(`   First Item Preview: ${JSON.stringify(cartItems?.[0] || {}, null, 2)}`);
+  console.log(`   Environment: NODE_ENV=${process.env.NODE_ENV}, PORT=${process.env.PORT}`);
   
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
+    console.error('❌ [RENDER DEBUG] Invalid cartItems array');
     return res.status(400).json({
       success: false,
       error: 'cartItems is required and must be a non-empty array'
     });
   }
   
-  console.log(`🛒 Sending ${cartItems.length} items to Kroger for user: ${req.userId}`);
+  console.log(`🛒 [RENDER DEBUG] Sending ${cartItems.length} items to Kroger for user: ${req.userId}`);
   
   try {
     const result = await orderService.sendCartToKroger(req.userId, cartItems, {
@@ -114,10 +122,24 @@ router.post('/cart/send', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Send cart to Kroger failed:', error);
+    console.error('❌ [RENDER DEBUG] Send cart to Kroger failed - Complete Error Analysis:');
+    console.error(`   Error Type: ${error.constructor.name}`);
+    console.error(`   Error Message: ${error.message}`);
+    console.error(`   HTTP Status: ${error.response?.status || 'NO_STATUS'}`);
+    console.error(`   HTTP Status Text: ${error.response?.statusText || 'NO_STATUS_TEXT'}`);
+    console.error(`   Response Headers: ${JSON.stringify(error.response?.headers || {}, null, 2)}`);
+    console.error(`   Response Data: ${JSON.stringify(error.response?.data || {}, null, 2)}`);
+    console.error(`   Request URL: ${error.config?.url || 'NO_URL'}`);
+    console.error(`   Request Method: ${error.config?.method || 'NO_METHOD'}`);
+    console.error(`   Request Headers: ${JSON.stringify(error.config?.headers || {}, null, 2)}`);
+    console.error(`   Network Error: ${!error.response ? 'YES (no response)' : 'NO (response received)'}`);
+    console.error(`   Error Code: ${error.code || 'NO_CODE'}`);
+    console.error(`   Error Stack: ${error.stack}`);
+    console.error(`   Current Time: ${new Date().toISOString()}`);
     
     // Handle specific authentication errors
     if (error.message.includes('not authenticated') || error.message.includes('REAUTHENTICATION_REQUIRED')) {
+      console.error('🔐 [RENDER DEBUG] Authentication error detected - sending 401 response');
       return res.status(401).json({
         success: false,
         error: 'User authentication required',
@@ -126,15 +148,31 @@ router.post('/cart/send', async (req, res) => {
           : 'Please complete Kroger authentication first',
         needsAuth: true,
         requiresReauth: error.message.includes('REAUTHENTICATION_REQUIRED'),
-        details: error.message
+        details: error.message,
+        debugInfo: {
+          errorType: error.constructor.name,
+          hasResponse: !!error.response,
+          status: error.response?.status,
+          timestamp: new Date().toISOString()
+        }
       });
     }
     
+    console.error('🚨 [RENDER DEBUG] Sending 500 error response to client');
     res.status(500).json({
       success: false,
       error: 'Failed to send cart to Kroger',
-      message: error.message, 
-      details: error.stack // ADD THIS
+      message: error.message,
+      details: error.stack,
+      debugInfo: {
+        errorType: error.constructor.name,
+        hasResponse: !!error.response,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        networkError: !error.response,
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV
+      }
     });
   }
 });

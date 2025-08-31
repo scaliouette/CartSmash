@@ -16,11 +16,20 @@ class KrogerOrderService {
       profile: 'profile.compact'
     };
     
-    // CHANGE: Use TokenStore's maps instead of creating new ones
+    // Enhanced logging for Render debugging
+    console.log('🛒 Kroger Order Service initializing with config:');
+    console.log(`   Base URL: ${this.baseURL}`);
+    console.log(`   Client ID: ${this.clientId ? this.clientId.substring(0, 8) + '...' : 'NOT SET'}`);
+    console.log(`   Client Secret: ${this.clientSecret ? '***SET***' : 'NOT SET'}`);
+    console.log(`   Redirect URI: ${this.redirectUri}`);
+    console.log(`   Available Scopes: ${JSON.stringify(this.scopes)}`);
+    console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
     
+    if (!this.clientId || !this.clientSecret) {
+      console.error('❌ CRITICAL: Missing Kroger API credentials in environment!');
+    }
     
-    
-        console.log('🛒 Kroger Order Service initialized');
+    console.log('🛒 Kroger Order Service initialized');
     // Note: Async initialization moved to separate method to avoid constructor anti-pattern
   }
 
@@ -220,44 +229,68 @@ async ensureUserAuth(userId) {
    * Make authenticated API request for a specific user
    */
   async makeUserRequest(userId, method, endpoint, data = null) {
-  console.log(`📡 Making API request for user: "${userId}"`);
+  console.log(`📡 [RENDER DEBUG] Making API request for user: "${userId}"`);
   console.log(`   Method: ${method} ${endpoint}`);
+  console.log(`   Base URL: ${this.baseURL}`);
+  console.log(`   Timestamp: ${new Date().toISOString()}`);
   
   const authCheck = await this.ensureUserAuth(userId);
   
   if (!authCheck.authenticated) {
-    console.log(`❌ User not authenticated: ${authCheck.reason}`);
+    console.log(`❌ [RENDER DEBUG] User not authenticated: ${authCheck.reason}`);
     throw new Error(`User not authenticated: ${authCheck.reason}`);
   }
   
-  console.log(`✅ User authenticated, token exists`);
+  console.log(`✅ [RENDER DEBUG] User authenticated, token exists`);
   console.log(`   Token (first 20 chars): ${authCheck.tokenInfo.accessToken.substring(0, 20)}...`);
+  console.log(`   Token Scopes: ${authCheck.tokenInfo.scope}`);
+  console.log(`   Token Expires: ${authCheck.tokenInfo.expiresAt}`);
   
   const config = {
     method: method,
     url: `${this.baseURL}${endpoint}`,
     headers: {
       'Authorization': `Bearer ${authCheck.tokenInfo.accessToken}`,
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'User-Agent': 'CartSmash/1.0 (Render Deployment)',
+      'X-Request-ID': `${userId}-${Date.now()}`
     }
   };
   
-  console.log(`   Full URL: ${config.url}`);
-  console.log(`   Auth header set: ${config.headers.Authorization.substring(0, 30)}...`);
+  console.log(`   [RENDER DEBUG] Full URL: ${config.url}`);
+  console.log(`   [RENDER DEBUG] Auth header set: ${config.headers.Authorization.substring(0, 30)}...`);
   
   if (data) {
     config.headers['Content-Type'] = 'application/json';
     config.data = data;
+    console.log(`   [RENDER DEBUG] Request payload size: ${JSON.stringify(data).length} characters`);
+    console.log(`   [RENDER DEBUG] Request payload preview: ${JSON.stringify(data).substring(0, 200)}...`);
   }
   
   try {
+    console.log(`   [RENDER DEBUG] Sending request to Kroger API...`);
     const response = await axios(config);
-    console.log(`✅ API request successful`);
+    console.log(`✅ [RENDER DEBUG] API request successful`);
+    console.log(`   Status: ${response.status} ${response.statusText}`);
+    console.log(`   Response Headers: ${JSON.stringify(response.headers, null, 2)}`);
+    console.log(`   Response Size: ${JSON.stringify(response.data).length} characters`);
+    console.log(`   Response Preview: ${JSON.stringify(response.data).substring(0, 300)}...`);
     return response.data;
   } catch (error) {
-    console.error(`❌ API request failed [${method} ${endpoint}]:`);
-    console.error(`   Status: ${error.response?.status}`);
+    console.error(`❌ [RENDER DEBUG] API request failed [${method} ${endpoint}]:`);
+    console.error(`   Error Type: ${error.constructor.name}`);
+    console.error(`   Status: ${error.response?.status || 'NO_STATUS'}`);
+    console.error(`   Status Text: ${error.response?.statusText || 'NO_STATUS_TEXT'}`);
     console.error(`   Message: ${error.response?.data?.message || error.message}`);
+    console.error(`   Full Error Data: ${JSON.stringify(error.response?.data || {}, null, 2)}`);
+    console.error(`   Request Config: ${JSON.stringify({
+      method: config.method,
+      url: config.url,
+      headers: { ...config.headers, Authorization: '[REDACTED]' }
+    }, null, 2)}`);
+    console.error(`   Network Error: ${!error.response ? 'YES (no response received)' : 'NO (response received)'}`);
+    console.error(`   Error Code: ${error.code || 'NO_CODE'}`);
+    console.error(`   Error Stack: ${error.stack}`);
     throw error;
   }
 }
@@ -430,7 +463,25 @@ async addItemsToCart(userId, items) {
         );
         console.log(`✅ Successfully created new cart with ${uniqueItems.length} items`);
       } catch (createError) {
-        console.error('❌ Failed to create cart:', createError.response?.data || createError.message);
+        console.error('❌ Cart creation failed - Enhanced debugging info:');
+        console.error(`   Status: ${createError.response?.status || 'NO_STATUS'}`);
+        console.error(`   Status Text: ${createError.response?.statusText || 'NO_STATUS_TEXT'}`);
+        console.error(`   Headers: ${JSON.stringify(createError.response?.headers || {}, null, 2)}`);
+        console.error(`   Response Data: ${JSON.stringify(createError.response?.data || {}, null, 2)}`);
+        console.error(`   Error Message: ${createError.message}`);
+        console.error(`   Request URL: ${createError.config?.url || 'NO_URL'}`);
+        console.error(`   Request Method: ${createError.config?.method || 'NO_METHOD'}`);
+        console.error(`   Request Headers: ${JSON.stringify(createError.config?.headers || {}, null, 2)}`);
+        
+        // Log token information for debugging
+        const tokenInfo = await tokenStore.getTokens(userId);
+        if (tokenInfo) {
+          console.error(`   User Token Scopes: ${tokenInfo.scope || 'NO_SCOPES'}`);
+          console.error(`   Token Expires: ${tokenInfo.expiresAt || 'NO_EXPIRY'}`);
+          console.error(`   Token Type: ${tokenInfo.tokenType || 'NO_TYPE'}`);
+        } else {
+          console.error(`   User Token: NO_TOKEN_FOUND for userId=${userId}`);
+        }
         
         // If cart creation fails due to scope issues, try alternative approaches
         if (createError.response?.status === 403 && 
@@ -439,8 +490,8 @@ async addItemsToCart(userId, items) {
           
           // Check if user has the required scopes
           const tokenInfo = await tokenStore.getTokens(userId);
-          if (tokenInfo && tokenInfo.scope && !tokenInfo.scope.includes('cart.basic:rw')) {
-            console.log('🔒 User token missing required scope "cart.basic:rw"');
+          if (tokenInfo && tokenInfo.scope && !tokenInfo.scope.includes('cart.basic:write')) {
+            console.log('🔒 User token missing required scope "cart.basic:write"');
             console.log(`   Current scopes: ${tokenInfo.scope}`);
             console.log('🚪 User needs to re-authenticate to get updated scopes');
             
