@@ -226,7 +226,8 @@ async ensureUserAuth(userId) {
 }
 
   /**
-   * Get client credentials token for cart operations with cart.basic:rw scope
+   * Get client credentials token (NOTE: Cannot be used for cart operations - cart.basic:write requires user OAuth)
+   * Only valid for product search and non-cart endpoints
    */
   async getClientCredentialsToken() {
     try {
@@ -236,7 +237,7 @@ async ensureUserAuth(userId) {
       
       const params = new URLSearchParams();
       params.append('grant_type', 'client_credentials');
-      params.append('scope', 'cart.basic:rw product.compact'); // Include cart.basic:rw scope
+      params.append('scope', 'product.compact'); // Only product scope - cart.basic:write requires user OAuth
       
       const response = await axios.post(
         `${this.baseURL}/connect/oauth2/token`,
@@ -249,7 +250,7 @@ async ensureUserAuth(userId) {
         }
       );
       
-      console.log('✅ Client credentials token obtained with cart.basic:rw scope');
+      console.log('✅ Client credentials token obtained with product.compact scope (cart operations require user OAuth)');
       return {
         accessToken: response.data.access_token,
         tokenType: response.data.token_type || 'Bearer',
@@ -272,7 +273,7 @@ async ensureUserAuth(userId) {
     console.log(`   Timestamp: ${new Date().toISOString()}`);
     
     try {
-      // Get client credentials token with cart.basic:rw scope
+      // Get client credentials token (product search only - cart operations require user OAuth)
       const tokenInfo = await this.getClientCredentialsToken();
       
       const config = {
@@ -337,9 +338,8 @@ async ensureUserAuth(userId) {
   
   // ENHANCED TOKEN ANALYSIS
   console.log(`🔍 [RENDER DEBUG] DETAILED TOKEN ANALYSIS:`);
-  console.log(`   Required cart scope: cart.basic:write (OAuth) OR cart.basic:rw (API)`);
+  console.log(`   Required cart scope: cart.basic:write (OAuth and API)`);
   console.log(`   Token has cart.basic:write: ${authCheck.tokenInfo.scope?.includes('cart.basic:write') || false}`);
-  console.log(`   Token has cart.basic:rw: ${authCheck.tokenInfo.scope?.includes('cart.basic:rw') || false}`);
   console.log(`   All token scopes: ${authCheck.tokenInfo.scope?.split(' ') || []}`);
   console.log(`   Token type: ${authCheck.tokenInfo.tokenType || 'Bearer'}`);
   console.log(`   Token expires at: ${new Date(authCheck.tokenInfo.expiresAt).toISOString()}`);
@@ -434,6 +434,21 @@ async getUserCart(userId) {
 async addItemsToCart(userId, items) {
   try {
     console.log(`➕ Adding ${items.length} items to Kroger cart for user ${userId}`);
+    
+    // CRITICAL: Ensure user has valid OAuth tokens before attempting cart operations
+    const authCheck = await this.ensureUserAuth(userId);
+    if (!authCheck.authenticated) {
+      console.error(`❌ User ${userId} not authenticated with Kroger OAuth`);
+      throw new Error(`AUTHENTICATION_REQUIRED: User must complete Kroger OAuth before cart operations. ${authCheck.reason}`);
+    }
+    
+    // Verify user has cart.basic:write scope
+    if (!authCheck.tokenInfo.scope?.includes('cart.basic:write')) {
+      console.error(`❌ User ${userId} missing cart.basic:write scope: ${authCheck.tokenInfo.scope}`);
+      throw new Error('INSUFFICIENT_SCOPE: User token missing cart.basic:write scope. Please re-authenticate with Kroger.');
+    }
+    
+    console.log(`✅ User ${userId} authenticated with cart.basic:write scope`);
     
     // Remove duplicates first
     const uniqueItems = [];
@@ -676,16 +691,8 @@ async addItemsToCart(userId, items) {
           } catch (altError) {
             console.error('❌ Alternative method 1 failed:', altError.message);
             
-            // Try client credentials as early fallback
-            try {
-              console.log('📦 Early fallback: Trying client credentials with cart.basic:rw');
-              result = await this.makeClientRequest('POST', '/carts', { items: uniqueItems });
-              console.log('✅ Early client credentials fallback succeeded');
-              return result;
-            } catch (earlyClientError) {
-              console.error('❌ Early client credentials failed:', earlyClientError.message);
-              // Continue to other methods
-            }
+            // Client credentials cannot be used for cart operations (cart.basic:write requires user OAuth)
+            console.log('⚠️ Skipping client credentials fallback - cart.basic:write requires user OAuth');
             
             // Method 2: Try using PUT instead of POST
             try {
@@ -716,15 +723,9 @@ async addItemsToCart(userId, items) {
                 } catch (bulkError) {
                   console.error('❌ Alternative method 4 failed:', bulkError.message);
                   
-                  // Method 5: Try using client credentials with cart.basic:rw scope
-                  try {
-                    console.log('📦 Method 5: Trying client credentials with cart.basic:rw');
-                    result = await this.makeClientRequest('POST', '/carts', { items: uniqueItems });
-                    console.log('✅ Alternative method 5 (client credentials) succeeded');
-                  } catch (clientError) {
-                    console.error('❌ Alternative method 5 failed:', clientError.message);
-                    throw createError; // Throw original error
-                  }
+                  // Method 5: Cannot use client credentials for cart operations
+                  console.log('⚠️ Method 5 skipped: Client credentials invalid for cart.basic:write scope');
+                  throw createError; // Throw original error
                 }
               }
             }

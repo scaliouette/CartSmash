@@ -3,7 +3,9 @@
     "allow": [
       "WebFetch(domain:developer.kroger.com)",
       "Bash(npm test)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebSearch",
+      "WebFetch(domain:documenter.getpostman.com)"
     ],
     "deny": [],
     "ask": []
