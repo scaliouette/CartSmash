@@ -52,7 +52,9 @@ const tokenSchema = new mongoose.Schema({
 tokenSchema.pre('save', function(next) {
   if (this.isModified('accessToken')) {
     const algorithm = 'aes-256-gcm';
-    const key = Buffer.from(process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET, 'base64');
+    const keyString = process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET || 'default-key-for-dev';
+    // Use consistent key handling - just pad to 32 chars
+    const key = Buffer.from(keyString.padEnd(32, '0').slice(0, 32));
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(algorithm, key, iv);
     
@@ -65,7 +67,9 @@ tokenSchema.pre('save', function(next) {
   
   if (this.isModified('refreshToken') && this.refreshToken) {
     const algorithm = 'aes-256-gcm';
-    const key = Buffer.from(process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET, 'base64');
+    const keyString = process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET || 'default-key-for-dev';
+    // Use consistent key handling - just pad to 32 chars
+    const key = Buffer.from(keyString.padEnd(32, '0').slice(0, 32));
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(algorithm, key, iv);
     
@@ -79,26 +83,36 @@ tokenSchema.pre('save', function(next) {
   next();
 });
 
-// Decrypt token when retrieving
+// Decrypt token when retrieving (keep your current version, it's correct)
 tokenSchema.methods.getDecryptedTokens = function() {
   const algorithm = 'aes-256-gcm';
-  const key = Buffer.from(process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET, 'base64');
+  const keyString = process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET || 'default-key-for-dev';
+  
+  // Use same key handling as encryption
+  const key = Buffer.from(keyString.padEnd(32, '0').slice(0, 32));
   
   const decryptToken = (encryptedToken) => {
     if (!encryptedToken) return null;
     
-    const parts = encryptedToken.split(':');
-    const iv = Buffer.from(parts[0], 'hex');
-    const authTag = Buffer.from(parts[1], 'hex');
-    const encrypted = parts[2];
-    
-    const decipher = crypto.createDecipheriv(algorithm, key, iv);
-    decipher.setAuthTag(authTag);
-    
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    
-    return decrypted;
+    try {
+      const parts = encryptedToken.split(':');
+      if (parts.length !== 3) return encryptedToken; // Return as-is if not encrypted
+      
+      const iv = Buffer.from(parts[0], 'hex');
+      const authTag = Buffer.from(parts[1], 'hex');
+      const encrypted = parts[2];
+      
+      const decipher = crypto.createDecipheriv(algorithm, key, iv);
+      decipher.setAuthTag(authTag);
+      
+      let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+      
+      return decrypted;
+    } catch (err) {
+      console.error('Decryption failed, returning raw token');
+      return encryptedToken; // Return raw if decryption fails
+    }
   };
   
   return {
