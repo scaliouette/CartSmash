@@ -247,7 +247,7 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
       console.log('   Store:', selectedStore.id);
       console.log('   Items:', cartItems.length);
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-      const response = await fetch('/api/kroger-orders/cart/send', {
+      const response = await fetch(`${API_URL}/api/kroger-orders/cart/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
