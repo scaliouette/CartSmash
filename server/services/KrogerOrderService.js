@@ -435,6 +435,21 @@ async addItemsToCart(userId, items) {
         // If cart creation fails due to scope issues, try alternative approaches
         if (createError.response?.status === 403 && 
             createError.response?.data?.errors?.reason?.includes('scope')) {
+          console.log('🔄 Scope issue detected - checking if user needs re-authentication...');
+          
+          // Check if user has the required scopes
+          const tokenInfo = await tokenStore.getTokens(userId);
+          if (tokenInfo && tokenInfo.scope && !tokenInfo.scope.includes('cart.basic:rw')) {
+            console.log('🔒 User token missing required scope "cart.basic:rw"');
+            console.log(`   Current scopes: ${tokenInfo.scope}`);
+            console.log('🚪 User needs to re-authenticate to get updated scopes');
+            
+            // Clear the existing token to force re-authentication
+            await tokenStore.deleteTokens(userId);
+            
+            throw new Error('REAUTHENTICATION_REQUIRED: Your current login session does not have permission to manage carts. Please log in again to get updated permissions.');
+          }
+          
           console.log('🔄 Trying alternative cart creation methods...');
           
           try {

@@ -117,13 +117,16 @@ router.post('/cart/send', async (req, res) => {
     console.error('❌ Send cart to Kroger failed:', error);
     
     // Handle specific authentication errors
-    if (error.message.includes('not authenticated')) {
+    if (error.message.includes('not authenticated') || error.message.includes('REAUTHENTICATION_REQUIRED')) {
       return res.status(401).json({
         success: false,
-        error: 'User not authenticated with Kroger',
-        message: 'Please complete Kroger authentication first',
+        error: 'User authentication required',
+        message: error.message.includes('REAUTHENTICATION_REQUIRED') 
+          ? error.message.split(': ')[1] 
+          : 'Please complete Kroger authentication first',
         needsAuth: true,
-        details: error.message // ADD THIS
+        requiresReauth: error.message.includes('REAUTHENTICATION_REQUIRED'),
+        details: error.message
       });
     }
     
