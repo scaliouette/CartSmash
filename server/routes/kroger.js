@@ -224,41 +224,51 @@ router.get('/pricing', async (req, res) => {
   }
 });
 
-// Find stores near a location
-router.get('/stores', async (req, res) => {
-  const { zipCode, radius = 10, limit = 10 } = req.query;
-  
-  if (!zipCode) {
-    return res.status(400).json({
-      success: false,
-      error: 'zipCode query parameter is required'
-    });
-  }
-  
-  console.log(`🏪 Finding stores near ${zipCode}`);
-  
-  try {
-    const stores = await krogerService.findStores(zipCode, parseInt(radius), parseInt(limit));
-    
-    res.json({
-      success: true,
-      zipCode: zipCode,
-      radius: parseInt(radius),
-      stores: stores,
-      count: stores.length,
-      timestamp: new Date().toISOString()
-    });
-    
-  } catch (error) {
-    console.error(`❌ Store search failed: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Store search failed',
-      message: error.message,
-      zipCode: zipCode
-    });
-  }
-});
+
+
+// GET /api/kroger/stores/nearby - Find nearby stores
+  router.get('/stores/nearby', async (req, res) => {
+    try {
+      const { lat, lng, radius = 10 } = req.query;
+      
+      // For now, return default stores for Sacramento area
+      const stores = [
+        {
+          id: '01400943',
+          name: 'Kroger - Zinfandel',
+          address: '10075 Bruceville Rd, Elk Grove, CA 95757',
+          distance: '2.1 miles',
+          services: ['Pickup', 'Delivery']
+        },
+        {
+          id: '01400376',
+          name: 'Kroger - Elk Grove',
+          address: '8465 Elk Grove Blvd, Elk Grove, CA 95758',
+          distance: '3.5 miles',
+          services: ['Pickup', 'Delivery']
+        },
+        {
+          id: '01400819',
+          name: 'Kroger - Sacramento',
+          address: '3615 Bradshaw Rd, Sacramento, CA 95827',
+          distance: '5.2 miles',
+          services: ['Pickup', 'Delivery']
+        }
+      ];
+      
+      res.json({
+        success: true,
+        stores: stores,
+        location: { lat: parseFloat(lat), lng: parseFloat(lng) }
+      });
+    } catch (error) {
+      console.error('Store search failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to find stores'
+      });
+    }
+  });
 
 // Enhanced cart validation endpoint
 router.post('/cart/validate', async (req, res) => {
