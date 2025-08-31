@@ -235,49 +235,71 @@ router.post('/clear-token/:userId', async (req, res) => {
 console.log('✅ Kroger API routes loaded successfully');
 module.exports = router;
 
-// GET /api/kroger/stores/nearby - Find nearby stores
-  router.get('/stores/nearby', async (req, res) => {
-    try {
-      const { lat, lng, radius = 10 } = req.query;
-      
-      // For now, return default stores for Sacramento area
-      const stores = [
-        {
-          id: '01400943',
-          name: 'Kroger - Zinfandel',
-          address: '10075 Bruceville Rd, Elk Grove, CA 95757',
-          distance: '2.1 miles',
-          services: ['Pickup', 'Delivery']
-        },
-        {
-          id: '01400376',
-          name: 'Kroger - Elk Grove',
-          address: '8465 Elk Grove Blvd, Elk Grove, CA 95758',
-          distance: '3.5 miles',
-          services: ['Pickup', 'Delivery']
-        },
-        {
-          id: '01400819',
-          name: 'Kroger - Sacramento',
-          address: '3615 Bradshaw Rd, Sacramento, CA 95827',
-          distance: '5.2 miles',
-          services: ['Pickup', 'Delivery']
-        }
-      ];
-      
-      res.json({
-        success: true,
-        stores: stores,
-        location: { lat: parseFloat(lat), lng: parseFloat(lng) }
-      });
-    } catch (error) {
-      console.error('Store search failed:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to find stores'
-      });
-    }
-  });
+// GET /api/kroger/stores/nearby - Find nearby stores with auth status
+router.get('/stores/nearby', async (req, res) => {
+  try {
+    const { lat, lng, radius = 10, userId } = req.query;
+    const userIdToUse = userId || req.headers['user-id'] || 'demo-user';
+    
+    console.log(`🏪 [STORES] Getting nearby stores for user: ${userIdToUse}`);
+    
+    // Check authentication status
+    const tokenStore = require('../services/TokenStore');
+    const tokens = await tokenStore.getTokens(userIdToUse);
+    const isAuthenticated = !!tokens;
+    
+    console.log(`   Authentication Status: ${isAuthenticated ? '✅ Authenticated' : '❌ Not Authenticated'}`);
+    
+    // Return stores (enhanced for Sacramento area)
+    const stores = [
+      {
+        id: '01400943',
+        name: 'Kroger - Zinfandel',
+        address: '10075 Bruceville Rd, Elk Grove, CA 95757',
+        distance: '2.1 miles',
+        services: ['Pickup', 'Delivery'],
+        isDefault: true,
+        available: isAuthenticated
+      },
+      {
+        id: '01400376',
+        name: 'Kroger - Elk Grove',
+        address: '8465 Elk Grove Blvd, Elk Grove, CA 95758',
+        distance: '3.5 miles',
+        services: ['Pickup', 'Delivery'],
+        available: isAuthenticated
+      },
+      {
+        id: '01400819',
+        name: 'Kroger - Sacramento',
+        address: '3615 Bradshaw Rd, Sacramento, CA 95827',
+        distance: '5.2 miles',
+        services: ['Pickup', 'Delivery'],
+        available: isAuthenticated
+      }
+    ];
+    
+    res.json({
+      success: true,
+      authenticated: isAuthenticated,
+      stores: stores,
+      location: { lat: parseFloat(lat) || 38.7583, lng: parseFloat(lng) || -121.302 },
+      message: isAuthenticated 
+        ? `Found ${stores.length} available stores`
+        : 'Please authenticate with Kroger to use stores',
+      canProceed: isAuthenticated,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Store search failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to find stores',
+      message: error.message
+    });
+  }
+});
 
 // Enhanced cart validation endpoint
 router.post('/cart/validate', async (req, res) => {
@@ -438,6 +460,58 @@ router.post('/cache/clear', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to clear cache',
+      message: error.message
+    });
+  }
+});
+
+// Authentication flow status endpoint for debugging
+router.get('/auth-flow-status', async (req, res) => {
+  try {
+    const userId = req.query.userId || req.headers['user-id'] || 'demo-user';
+    
+    console.log(`🔍 [AUTH-FLOW] Checking complete auth flow status for: ${userId}`);
+    
+    const tokenStore = require('../services/TokenStore');
+    const tokens = await tokenStore.getTokens(userId);
+    
+    const authStatus = {
+      isAuthenticated: !!tokens,
+      userId: userId,
+      tokenExists: !!tokens,
+      tokenInfo: tokens ? {
+        scopes: tokens.scope,
+        expiresAt: tokens.expiresAt,
+        tokenType: tokens.tokenType
+      } : null,
+      nextSteps: []
+    };
+    
+    if (!tokens) {
+      authStatus.nextSteps.push('Start OAuth flow');
+      authStatus.authUrl = `/api/auth/kroger/start?userId=${userId}`;
+    } else {
+      authStatus.nextSteps.push('Select store');
+      authStatus.nextSteps.push('Send cart items');
+      authStatus.storesUrl = `/api/kroger/stores/nearby?userId=${userId}`;
+    }
+    
+    res.json({
+      success: true,
+      authFlow: authStatus,
+      recommendations: {
+        immediateAction: !tokens ? 'AUTHENTICATE' : 'SELECT_STORE',
+        canProceedToCart: !!tokens,
+        nextEndpoint: !tokens ? authStatus.authUrl : authStatus.storesUrl
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Auth flow status failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check auth flow status',
       message: error.message
     });
   }

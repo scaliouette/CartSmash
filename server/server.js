@@ -472,18 +472,29 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
         <p>This window will close automatically.</p>
         <script>
           try {
-            // Small delay to ensure backend processing is complete
+            // Immediately send success message with store trigger
             setTimeout(() => {
               window.opener.postMessage({
                 type: 'KROGER_AUTH_SUCCESS',
                 userId: '${userId}',
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                triggerStoreSelection: true,
+                nextAction: 'SELECT_STORE'
               }, '${process.env.CLIENT_URL || 'https://cart-smash.vercel.app'}');
-            }, 500);
+              
+              // Also send a specific store selection trigger
+              setTimeout(() => {
+                window.opener.postMessage({
+                  type: 'TRIGGER_STORE_SELECTION',
+                  userId: '${userId}',
+                  authenticated: true
+                }, '${process.env.CLIENT_URL || 'https://cart-smash.vercel.app'}');
+              }, 100);
+            }, 300); // Reduced delay for faster response
           } catch (e) {
             console.error('Failed to send message:', e);
           }
-          setTimeout(() => window.close(), 2500);
+          setTimeout(() => window.close(), 2000); // Faster close
         </script>
       </body>
       </html>
@@ -523,6 +534,69 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
       </body>
       </html>
     `);
+  }
+});
+
+// New endpoint: Get authentication status AND stores in one call
+app.get('/api/auth/kroger/status-and-stores', async (req, res) => {
+  try {
+    const userId = req.headers['user-id'] || req.query.userId || 'demo-user';
+    
+    console.log(`🔍 [AUTH+STORES] Checking auth status and stores for user: ${userId}`);
+    
+    const tokenStore = require('./services/TokenStore');
+    const tokens = await tokenStore.getTokens(userId);
+    
+    const isAuthenticated = !!tokens;
+    
+    // Always return stores, but mark if authentication is needed
+    const stores = [
+      {
+        id: '01400943',
+        name: 'Kroger - Zinfandel',
+        address: '10075 Bruceville Rd, Elk Grove, CA 95757',
+        distance: '2.1 miles',
+        services: ['Pickup', 'Delivery'],
+        isDefault: true
+      },
+      {
+        id: '01400376',
+        name: 'Kroger - Elk Grove', 
+        address: '8465 Elk Grove Blvd, Elk Grove, CA 95758',
+        distance: '3.5 miles',
+        services: ['Pickup', 'Delivery']
+      },
+      {
+        id: '01400819',
+        name: 'Kroger - Sacramento',
+        address: '3615 Bradshaw Rd, Sacramento, CA 95827', 
+        distance: '5.2 miles',
+        services: ['Pickup', 'Delivery']
+      }
+    ];
+
+    res.json({
+      success: true,
+      authenticated: isAuthenticated,
+      userId: userId,
+      stores: stores,
+      tokenInfo: tokens ? {
+        scopes: tokens.scope,
+        expiresAt: tokens.expiresAt
+      } : null,
+      message: isAuthenticated 
+        ? 'User authenticated - ready to select store'
+        : 'User needs authentication',
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Auth+Stores check failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check authentication and stores',
+      message: error.message
+    });
   }
 });
 
