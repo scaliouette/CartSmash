@@ -287,17 +287,25 @@ app.get('/api/auth/kroger/status', async (req, res) => {
   }
   
   try {
-    const hasToken = await tokenStore.hasValidToken(userId);
+    // First check if user exists in database at all
+    const tokenInfo = await tokenStore.getTokens(userId);
+    const hasValidToken = await tokenStore.hasValidToken(userId);
     
-    if (hasToken) {
-      const tokenInfo = await tokenStore.getTokens(userId);
+    if (hasValidToken && tokenInfo) {
       res.json({
         success: true,
         userId: userId,
         authenticated: true,
         tokenInfo: {
           expiresAt: tokenInfo.expiresAt,
-          scope: tokenInfo.scope
+          scope: tokenInfo.scope,
+          hasAccessToken: !!tokenInfo.accessToken,
+          hasRefreshToken: !!tokenInfo.refreshToken
+        },
+        debug: {
+          tokenExists: !!tokenInfo,
+          isValid: hasValidToken,
+          currentTime: new Date().toISOString()
         }
       });
     } else {
@@ -306,7 +314,12 @@ app.get('/api/auth/kroger/status', async (req, res) => {
         userId: userId,
         authenticated: false,
         tokenInfo: null,
-        needsAuth: true
+        needsAuth: true,
+        debug: {
+          tokenExists: !!tokenInfo,
+          isValid: hasValidToken,
+          currentTime: new Date().toISOString()
+        }
       });
     }
   } catch (error) {
@@ -395,7 +408,13 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
       expiresAt: new Date(Date.now() + (tokenResponse.data.expires_in * 1000))
     });
     
-    logger.info(`✅ Tokens saved for user: ${userId}`);
+    // Verify tokens were saved properly to prevent race conditions
+    const savedTokens = await tokenStore.getTokens(userId);
+    if (!savedTokens) {
+      throw new Error('Failed to save tokens to database');
+    }
+    
+    logger.info(`✅ Tokens saved and verified for user: ${userId}`);
     
     // Send success page with postMessage
     res.send(`
@@ -414,14 +433,18 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
         <p>This window will close automatically.</p>
         <script>
           try {
-            window.opener.postMessage({
-              type: 'KROGER_AUTH_SUCCESS',
-              userId: '${userId}'
-            }, '${process.env.CLIENT_URL || 'https://cart-smash.vercel.app'}');
+            // Small delay to ensure backend processing is complete
+            setTimeout(() => {
+              window.opener.postMessage({
+                type: 'KROGER_AUTH_SUCCESS',
+                userId: '${userId}',
+                timestamp: Date.now()
+              }, '${process.env.CLIENT_URL || 'https://cart-smash.vercel.app'}');
+            }, 500);
           } catch (e) {
             console.error('Failed to send message:', e);
           }
-          setTimeout(() => window.close(), 1500);
+          setTimeout(() => window.close(), 2500);
         </script>
       </body>
       </html>
