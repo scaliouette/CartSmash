@@ -369,9 +369,18 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
     logger.info(`Using client ID: ${process.env.KROGER_CLIENT_ID}`);
     logger.info(`Token endpoint: ${process.env.KROGER_BASE_URL}/connect/oauth2/token`);
     
+    // USE URLSearchParams for proper formatting
+    const params = new URLSearchParams();
+    params.append('grant_type', 'authorization_code');
+    params.append('code', code);  // Don't encode - URLSearchParams handles it
+    params.append('redirect_uri', process.env.KROGER_REDIRECT_URI);
+    
+    // Log the exact request body for debugging
+    logger.info(`Token exchange body: ${params.toString()}`);
+    
     const tokenResponse = await axios.post(
       `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
-      `grant_type=authorization_code&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}`,
+      params.toString(),  // Use params.toString()
       {
         headers: {
           'Authorization': `Basic ${credentials}`,
@@ -485,21 +494,17 @@ app.get('/api/debug/kroger-auth', (req, res) => {
 
 app.get('/api/test/kroger-creds', async (req, res) => {
   try {
-    // Check credentials exist
-    if (!process.env.KROGER_CLIENT_ID || !process.env.KROGER_CLIENT_SECRET) {
-      return res.status(500).json({
-        success: false,
-        error: 'Kroger credentials not configured'
-      });
-    }
-    
     const credentials = Buffer.from(
       `${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`
     ).toString('base64');
     
+    const params = new URLSearchParams();
+    params.append('grant_type', 'client_credentials');
+    params.append('scope', 'product.compact');
+    
     const response = await axios.post(
       `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
-      'grant_type=client_credentials&scope=product.compact',
+      params.toString(),
       {
         headers: {
           'Authorization': `Basic ${credentials}`,
@@ -517,7 +522,7 @@ app.get('/api/test/kroger-creds', async (req, res) => {
     console.error('Credential test failed:', error.response?.data || error.message);
     res.status(401).json({
       success: false,
-      error: error.response?.data?.error_description || error.message
+      error: error.response?.data || error.message
     });
   }
 });
