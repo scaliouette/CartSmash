@@ -42,16 +42,16 @@ async authenticate() {
     params.append('redirect_uri', process.env.KROGER_REDIRECT_URI);
 
     const tokenResponse = await axios.post(
-  `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
-  params.toString(),
-  {
-    headers: {
-      'Authorization': `Basic ${credentials}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    timeout: 10000
-  }
-);
+      `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
+      params.toString(),
+      {
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        timeout: 10000
+      }
+    );
     
     const response = await axios.post(
       `${this.baseURL}/connect/oauth2/token`,

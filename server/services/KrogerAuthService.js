@@ -53,7 +53,7 @@ class KrogerAuthService {
     }
     
     // Default scopes (remove order.basic:write as it's often not available)
-    this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:write profile.compact product.compact').split(' ');
+    this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:rw profile.compact product.compact').split(' ');
     
     // Encryption key for state tokens
     this.encryptionKey = process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET;
