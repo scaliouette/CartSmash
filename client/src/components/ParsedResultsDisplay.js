@@ -397,7 +397,8 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
     localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
 
     try {
-      const response = await fetch(`/api/cart/items/${itemId}`, {
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const response = await fetch(`${API_URL}/api/cart/items/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value })
