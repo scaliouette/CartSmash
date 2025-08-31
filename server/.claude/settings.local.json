@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:developer.kroger.com)"
+      "WebFetch(domain:developer.kroger.com)",
+      "Bash(npm test)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []
