@@ -226,6 +226,95 @@ async ensureUserAuth(userId) {
 }
 
   /**
+   * Get client credentials token for cart operations with cart.basic:rw scope
+   */
+  async getClientCredentialsToken() {
+    try {
+      const credentials = Buffer.from(
+        `${this.clientId}:${this.clientSecret}`
+      ).toString('base64');
+      
+      const params = new URLSearchParams();
+      params.append('grant_type', 'client_credentials');
+      params.append('scope', 'cart.basic:rw product.compact'); // Include cart.basic:rw scope
+      
+      const response = await axios.post(
+        `${this.baseURL}/connect/oauth2/token`,
+        params.toString(),
+        {
+          headers: {
+            'Authorization': `Basic ${credentials}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+      
+      console.log('✅ Client credentials token obtained with cart.basic:rw scope');
+      return {
+        accessToken: response.data.access_token,
+        tokenType: response.data.token_type || 'Bearer',
+        scope: response.data.scope,
+        expiresIn: response.data.expires_in
+      };
+    } catch (error) {
+      console.error('❌ Client credentials token failed:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Make API request using client credentials token (for cart operations)
+   */
+  async makeClientRequest(method, endpoint, data = null) {
+    console.log(`📡 [CLIENT CREDENTIALS] Making API request`);
+    console.log(`   Method: ${method} ${endpoint}`);
+    console.log(`   Base URL: ${this.baseURL}`);
+    console.log(`   Timestamp: ${new Date().toISOString()}`);
+    
+    try {
+      // Get client credentials token with cart.basic:rw scope
+      const tokenInfo = await this.getClientCredentialsToken();
+      
+      const config = {
+        method: method.toLowerCase(),
+        url: `${this.baseURL}${endpoint}`,
+        headers: {
+          'Authorization': `${tokenInfo.tokenType} ${tokenInfo.accessToken}`,
+          'Accept': 'application/json',
+          'User-Agent': 'CartSmash/1.0 (Render Deployment)',
+          'X-Request-ID': `client-${Date.now()}`
+        }
+      };
+
+      if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+        config.data = data;
+        config.headers['Content-Type'] = 'application/json';
+      }
+
+      console.log(`   [CLIENT CREDENTIALS] Full URL: ${config.url}`);
+      console.log(`   [CLIENT CREDENTIALS] Auth header set: ${tokenInfo.tokenType} ${tokenInfo.accessToken.substring(0, 20)}...`);
+      console.log(`   [CLIENT CREDENTIALS] Sending request to Kroger API...`);
+
+      const response = await axios(config);
+      
+      console.log(`✅ [CLIENT CREDENTIALS] API request successful`);
+      console.log(`   Status: ${response.status} ${response.statusText}`);
+      
+      return response.data;
+    } catch (error) {
+      console.error(`❌ [CLIENT CREDENTIALS] API request failed [${method} ${endpoint}]:`);
+      console.error(`   Error Type: ${error.constructor.name}`);
+      console.error(`   Status: ${error.response?.status}`);
+      console.error(`   Status Text: ${error.response?.statusText}`);
+      console.error(`   Message: ${error.message}`);
+      if (error.response?.data) {
+        console.error(`   Response Data:`, error.response.data);
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Make authenticated API request for a specific user
    */
   async makeUserRequest(userId, method, endpoint, data = null) {
@@ -489,7 +578,6 @@ async addItemsToCart(userId, items) {
         console.log(`   Current time: ${new Date().toISOString()}`);
         console.log(`   Token valid: ${preReqTokenInfo.expiresAt > Date.now()}`);
         console.log(`   Has cart.basic:write scope: ${preReqTokenInfo.scope?.includes('cart.basic:write') || false}`);
-        console.log(`   Has cart.basic:rw scope: ${preReqTokenInfo.scope?.includes('cart.basic:rw') || false}`);
       } else {
         console.log(`   ❌ NO TOKEN FOUND for user ${userId}`);
       }
@@ -588,6 +676,17 @@ async addItemsToCart(userId, items) {
           } catch (altError) {
             console.error('❌ Alternative method 1 failed:', altError.message);
             
+            // Try client credentials as early fallback
+            try {
+              console.log('📦 Early fallback: Trying client credentials with cart.basic:rw');
+              result = await this.makeClientRequest('POST', '/carts', { items: uniqueItems });
+              console.log('✅ Early client credentials fallback succeeded');
+              return result;
+            } catch (earlyClientError) {
+              console.error('❌ Early client credentials failed:', earlyClientError.message);
+              // Continue to other methods
+            }
+            
             // Method 2: Try using PUT instead of POST
             try {
               console.log('📦 Method 2: Trying PUT /carts');
@@ -616,7 +715,16 @@ async addItemsToCart(userId, items) {
                   console.log('✅ Alternative method 4 (bulk) succeeded');
                 } catch (bulkError) {
                   console.error('❌ Alternative method 4 failed:', bulkError.message);
-                  throw createError; // Throw original error
+                  
+                  // Method 5: Try using client credentials with cart.basic:rw scope
+                  try {
+                    console.log('📦 Method 5: Trying client credentials with cart.basic:rw');
+                    result = await this.makeClientRequest('POST', '/carts', { items: uniqueItems });
+                    console.log('✅ Alternative method 5 (client credentials) succeeded');
+                  } catch (clientError) {
+                    console.error('❌ Alternative method 5 failed:', clientError.message);
+                    throw createError; // Throw original error
+                  }
                 }
               }
             }

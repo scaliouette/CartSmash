@@ -52,7 +52,7 @@ class KrogerAuthService {
       this.redirectUri = process.env.KROGER_REDIRECT_URI;
     }
     
-    // Default scopes - OAuth portal requires cart.basic:write (cart.basic:rw is invalid for OAuth)
+    // Default scopes - OAuth portal requires cart.basic:write
     this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:write profile.compact product.compact').split(' ');
     
     // Encryption key for state tokens
