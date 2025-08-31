@@ -295,31 +295,90 @@ app.get('/health', async (req, res) => {
   res.status(isHealthy ? 200 : 503).json(healthStatus);
 });
 
-// Kroger OAuth Endpoints
-  app.get('/api/auth/kroger/login', (req, res) => {
-    const { userId } = req.query;
+// Import Azure B2C service at the top of your file (add this import)
+const KrogerAzureB2CService = require('./services/KrogerAzureB2CService');
+const azureB2CService = new KrogerAzureB2CService();
+
+// Updated Kroger OAuth Endpoints with Azure B2C support
+app.get('/api/auth/kroger/login', (req, res) => {
+    const { userId, useAzureB2C = 'true' } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'userId parameter is required'
+      });
+    }
     
     logger.info(`Kroger OAuth login requested for user: ${userId}`);
     
-    const state = Buffer.from(`${userId}-${Date.now()}-${Math.random()}`).toString('base64');
-    
-    console.log(`🔍 [SERVER DEBUG] OAUTH URL GENERATION:`);
-    console.log(`   KROGER_BASE_URL: ${process.env.KROGER_BASE_URL || 'NOT_SET'}`);
-    console.log(`   KROGER_CLIENT_ID: ${process.env.KROGER_CLIENT_ID || 'NOT_SET'}`);
-    console.log(`   KROGER_REDIRECT_URI: ${process.env.KROGER_REDIRECT_URI || 'NOT_SET'}`);
-    
-    // CHANGE THIS LINE - use 'rw' instead of 'write'
-    const authUrl = `${process.env.KROGER_BASE_URL}/connect/oauth2/authorize?` +
-      `response_type=code&` +
-      `client_id=${process.env.KROGER_CLIENT_ID}&` +
-      `redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}&` +
-      `scope=${encodeURIComponent('cart.basic:write profile.compact product.compact')}&` +
-      `state=${state}`;
-    
-    console.log(`🔍 [SERVER DEBUG] Generated OAuth URL: ${authUrl}`);
-    console.log(`🔍 [SERVER DEBUG] Redirecting user to Kroger OAuth...`);
-    
-    res.redirect(authUrl);
+    try {
+      const shouldUseAzureB2C = useAzureB2C === 'true';
+      
+      if (shouldUseAzureB2C) {
+        console.log('🔐 Using Azure B2C authentication flow');
+        
+        // Generate Azure B2C auth URLs
+        const authURLs = azureB2CService.generateHybridAuthURL(userId);
+        
+        console.log(`🔍 [AZURE B2C DEBUG] Generated auth URLs:`);
+        console.log(`   Primary: ${authURLs.primary.name}`);
+        console.log(`   URL: ${authURLs.primary.url.authURL.substring(0, 100)}...`);
+        console.log(`   Scopes: ${authURLs.primary.url.scopes}`);
+        
+        // Return JSON with multiple options instead of redirecting
+        res.json({
+          success: true,
+          authType: 'azure_b2c',
+          userId: userId,
+          primary: authURLs.primary,
+          alternatives: authURLs.alternatives,
+          instructions: {
+            step1: 'Try the primary Azure B2C URL first',
+            step2: 'If authentication fails, try alternative approaches',
+            step3: 'Monitor server logs for specific error messages'
+          }
+        });
+        
+      } else {
+        console.log('🔐 Using legacy OAuth authentication flow');
+        
+        // Legacy OAuth flow (fallback)
+        const state = Buffer.from(`${userId}-${Date.now()}-${Math.random()}`).toString('base64');
+        
+        console.log(`🔍 [LEGACY DEBUG] OAUTH URL GENERATION:`);
+        console.log(`   KROGER_BASE_URL: ${process.env.KROGER_BASE_URL}`);
+        console.log(`   KROGER_CLIENT_ID: ${process.env.KROGER_CLIENT_ID}`);
+        console.log(`   KROGER_REDIRECT_URI: ${process.env.KROGER_REDIRECT_URI}`);
+        
+        const authUrl = `${process.env.KROGER_BASE_URL}/connect/oauth2/authorize?` +
+          `response_type=code&` +
+          `client_id=${process.env.KROGER_CLIENT_ID}&` +
+          `redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}&` +
+          `scope=${encodeURIComponent('cart.basic:write profile.compact product.compact')}&` +
+          `state=${state}`;
+        
+        console.log(`🔍 [LEGACY DEBUG] Generated OAuth URL: ${authUrl}`);
+        
+        res.json({
+          success: true,
+          authType: 'legacy_oauth',
+          authURL: authUrl,
+          state: state,
+          instructions: {
+            redirect: 'User should visit authURL to complete authentication'
+          }
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Auth URL generation failed:', error.message);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to generate authentication URL',
+        message: error.message
+      });
+    }
   });
 
 // Add Kroger auth status check endpoint
@@ -404,12 +463,48 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
   }
   
   try {
-    const decoded = Buffer.from(state, 'base64').toString();
-    const [userId, timestamp] = decoded.split('-');
+    console.log('🔄 Processing OAuth callback with Azure B2C support...');
     
-    if (Date.now() - parseInt(timestamp) > 300000) {
-      throw new Error('State expired');
-    }
+    // Try Azure B2C callback processing first
+    try {
+      const result = await azureB2CService.processAuthCallback(code, state, req.query);
+      
+      console.log('✅ Azure B2C authentication successful!');
+      logger.info(`Azure B2C authentication completed for user: ${result.userId}`);
+      
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <body>
+          <h3>Authentication Successful!</h3>
+          <p>Azure B2C authentication completed successfully.</p>
+          <p>Auth Type: ${result.authType}</p>
+          <p>Scope: ${result.scope}</p>
+          <script>
+            window.opener.postMessage({
+              type: 'KROGER_AUTH_SUCCESS',
+              authType: '${result.authType}',
+              userId: '${result.userId}',
+              scope: '${result.scope}'
+            }, '${process.env.CLIENT_URL || 'https://cart-smash.vercel.app'}');
+            setTimeout(() => window.close(), 3000);
+          </script>
+        </body>
+        </html>
+      `);
+      
+    } catch (azureB2CError) {
+      console.log('❌ Azure B2C callback failed, trying legacy OAuth...');
+      console.log(`   Azure B2C error: ${azureB2CError.message}`);
+      
+      // Fallback to legacy OAuth processing
+      try {
+        const decoded = Buffer.from(state, 'base64').toString();
+        const [userId, timestamp] = decoded.split('-');
+        
+        if (Date.now() - parseInt(timestamp) > 300000) {
+          throw new Error('State expired');
+        }
     
     // Check credentials exist
     if (!process.env.KROGER_CLIENT_ID || !process.env.KROGER_CLIENT_SECRET) {
@@ -507,6 +602,12 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
       </body>
       </html>
     `);
+      
+      } catch (legacyError) {
+        console.error('❌ Legacy OAuth also failed:', legacyError.message);
+        throw legacyError;
+      }
+    }
     
   } catch (error) {
     logger.error('Token exchange failed:', {

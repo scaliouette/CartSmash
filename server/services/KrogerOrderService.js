@@ -131,30 +131,42 @@ class KrogerOrderService {
 
 async ensureUserAuth(userId) {
   try {
-    // Get tokens from TokenStore (MongoDB)
+    // Get tokens from TokenStore (MongoDB) - supports both Azure B2C and legacy OAuth tokens
     const tokenInfo = await tokenStore.getTokens(userId);
     
     if (!tokenInfo) {
       return { 
         authenticated: false, 
-        reason: 'No tokens found - user needs to complete OAuth flow' 
+        reason: 'No tokens found - user needs to complete OAuth flow (Azure B2C or legacy)' 
       };
     }
     
+    console.log(`🔍 Auth check for user ${userId}:`);
+    console.log(`   Auth type: ${tokenInfo.authType || 'legacy'}`);
+    console.log(`   Scope: ${tokenInfo.scope}`);
+    console.log(`   Expires: ${new Date(tokenInfo.expiresAt).toISOString()}`);
+    console.log(`   Client ID: ${tokenInfo.clientId || 'not stored'}`);
+    
     // Check if token is expired
     if (Date.now() >= tokenInfo.expiresAt) {
-      // Try to refresh the token
+      console.log(`⏰ Token expired for user ${userId}, attempting refresh...`);
+      
+      // Try to refresh the token (works for both Azure B2C and legacy)
       const refreshed = await this.refreshUserToken(userId);
       if (!refreshed) {
         return { 
           authenticated: false, 
-          reason: 'Token expired and refresh failed' 
+          reason: `Token expired and refresh failed (auth type: ${tokenInfo.authType || 'legacy'})` 
         };
       }
+      
       // Get the refreshed token info
+      const refreshedTokenInfo = await tokenStore.getTokens(userId);
+      console.log(`✅ Token refreshed for user ${userId}`);
+      
       return {
         authenticated: true,
-        tokenInfo: await tokenStore.getTokens(userId)
+        tokenInfo: refreshedTokenInfo
       };
     }
     
