@@ -52,9 +52,8 @@ class KrogerAuthService {
       this.redirectUri = process.env.KROGER_REDIRECT_URI;
     }
     
-    // Default scopes - TEST: Try requesting cart.basic:rw for OAuth to see if that works
-    // Theory: OAuth portal accepts cart.basic:write but API expects cart.basic:rw
-    this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:rw profile.compact product.compact').split(' ');
+    // Default scopes - OAuth portal requires cart.basic:write (cart.basic:rw is invalid for OAuth)
+    this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:write profile.compact product.compact').split(' ');
     
     // Encryption key for state tokens
     this.encryptionKey = process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET;

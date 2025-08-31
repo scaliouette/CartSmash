@@ -54,7 +54,7 @@ class KrogerOrderService {
   /**
    * Get authorization URL for user to authenticate with Kroger
    */
-  getAuthURL(userId, requiredScopes = ['cart.basic:rw', 'profile.compact']) {
+  getAuthURL(userId, requiredScopes = ['cart.basic:write', 'profile.compact']) {
   // REMOVED 'order.basic:write' from default scopes
   const state = this.generateState(userId);
   const scope = requiredScopes.join(' ')
@@ -248,7 +248,8 @@ async ensureUserAuth(userId) {
   
   // ENHANCED TOKEN ANALYSIS
   console.log(`🔍 [RENDER DEBUG] DETAILED TOKEN ANALYSIS:`);
-  console.log(`   Required cart scope: cart.basic:rw`);
+  console.log(`   Required cart scope: cart.basic:write (OAuth) OR cart.basic:rw (API)`);
+  console.log(`   Token has cart.basic:write: ${authCheck.tokenInfo.scope?.includes('cart.basic:write') || false}`);
   console.log(`   Token has cart.basic:rw: ${authCheck.tokenInfo.scope?.includes('cart.basic:rw') || false}`);
   console.log(`   All token scopes: ${authCheck.tokenInfo.scope?.split(' ') || []}`);
   console.log(`   Token type: ${authCheck.tokenInfo.tokenType || 'Bearer'}`);
@@ -487,6 +488,7 @@ async addItemsToCart(userId, items) {
         console.log(`   Token type: ${preReqTokenInfo.tokenType}`);
         console.log(`   Current time: ${new Date().toISOString()}`);
         console.log(`   Token valid: ${preReqTokenInfo.expiresAt > Date.now()}`);
+        console.log(`   Has cart.basic:write scope: ${preReqTokenInfo.scope?.includes('cart.basic:write') || false}`);
         console.log(`   Has cart.basic:rw scope: ${preReqTokenInfo.scope?.includes('cart.basic:rw') || false}`);
       } else {
         console.log(`   ❌ NO TOKEN FOUND for user ${userId}`);
@@ -549,8 +551,8 @@ async addItemsToCart(userId, items) {
           
           // Check if user has the required scopes
           const tokenInfo = await tokenStore.getTokens(userId);
-          if (tokenInfo && tokenInfo.scope && !tokenInfo.scope.includes('cart.basic:rw')) {
-            console.log('🔒 User token missing required scope "cart.basic:rw"');
+          if (tokenInfo && tokenInfo.scope && !tokenInfo.scope.includes('cart.basic:write')) {
+            console.log('🔒 User token missing required scope "cart.basic:write"');
             console.log(`   Current scopes: ${tokenInfo.scope}`);
             console.log('🚪 User needs to re-authenticate to get updated scopes');
             
