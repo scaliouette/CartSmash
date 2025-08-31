@@ -5,7 +5,7 @@ const tokenStore = require('./TokenStore');  // ADD THIS AT TOP
 
 class KrogerOrderService {
   constructor() {
-    this.baseURL = process.env.KROGER_BASE_URL || 'https://api-ce.kroger.com/v1';
+    this.baseURL = process.env.KROGER_BASE_URL || 'https://api.kroger.com/v1';
     this.clientId = process.env.KROGER_CLIENT_ID;
     this.clientSecret = process.env.KROGER_CLIENT_SECRET;
     this.redirectUri = process.env.KROGER_REDIRECT_URI;
@@ -20,8 +20,16 @@ class KrogerOrderService {
     
     
     
-    console.log('🛒 Kroger Order Service initialized');
-    console.log(`   Active users: ${this.tokens.size}`);
+        console.log('🛒 Kroger Order Service initialized');
+    this.getActiveUserCount().then(count => {
+      console.log(`   Active users: ${count}`);
+    });
+  }
+
+  async getActiveUserCount() {
+    const stats = await tokenStore.getStats();
+    return stats.active || 0;
+  
   }
 
   /**
@@ -55,16 +63,16 @@ class KrogerOrderService {
    */
   async exchangeCodeForToken(code, state, userId) {
     try {
-      console.log(`🔄 Exchanging auth code for tokens - User: ${userId}`);
+      console.log(`🔄 Exchanging auth code for tokens - User: ${userId}`)
       
       // Verify state matches
-      if (!this.verifyState(state, userId)) {
+       if (!this.verifyState(state, userId)) {
         throw new Error('Invalid state parameter - possible CSRF attack');
       }
       
       const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
       
-      const response = await axios.post(`${this.baseURL}/connect/oauth2/token`, 
+       const response = await axios.post(`${this.baseURL}/connect/oauth2/token`, 
         new URLSearchParams({
           grant_type: 'authorization_code',
           code: code,
@@ -181,20 +189,23 @@ async ensureUserAuth(userId) {
     const tokenData = response.data;
     
     // Update tokens in TokenStore
-    await tokenStore.setTokens(userId, {
-      accessToken: tokenData.access_token,
-      tokenType: tokenData.token_type || 'Bearer',
-      expiresAt: Date.now() + (tokenData.expires_in * 1000),
-      scope: tokenData.scope
-    }, tokenData.refresh_token || refreshToken);
+     await tokenStore.setTokens(userId, {
+        accessToken: tokenData.access_token,
+        tokenType: tokenData.token_type || 'Bearer',
+        expiresAt: Date.now() + (tokenData.expires_in * 1000),
+        scope: tokenData.scope
+      }, tokenData.refresh_token);
     
-    console.log(`✅ Token refreshed for user ${userId}`);
-    return true;
+    console.log(`✅ Token exchange successful for user ${userId}`);
+      return {
+        success: true,
+        expiresIn: tokenData.expires_in,
+        scope: tokenData.scope
+      };
     
   } catch (error) {
-    console.error(`❌ Token refresh failed for user ${userId}:`, error.response?.data || error.message);
-    await tokenStore.deleteTokens(userId);
-    return false;
+      console.error('❌ Token exchange failed:', error.response?.data || error.message);
+      throw new Error('Failed to authenticate with Kroger');
   }
 }
 
@@ -1020,33 +1031,40 @@ async sendCartToKroger(userId, smartCartItems, options = {}) {
   /**
    * Get service health and user authentication status
    */
-  getServiceHealth(userId = null) {
+    // Update getServiceHealth to use TokenStore
+  async getServiceHealth(userId = null) {
+    const stats = await tokenStore.getStats();
+    
     const health = {
       service: 'kroger_orders',
       configured: !!(this.clientId && this.clientSecret && this.redirectUri),
-      activeUsers: this.tokens.size,
+      activeUsers: stats.active || 0,
       baseURL: this.baseURL
     };
     
     if (userId) {
-      const tokenInfo = this.tokens.get(userId);
-      health.userAuth = {
-        authenticated: !!tokenInfo && Date.now() < tokenInfo.expiresAt,
-        expiresAt: tokenInfo?.expiresAt,
-        scope: tokenInfo?.scope,
-        hasRefreshToken: this.refreshTokens.has(userId)
-      };
+      const hasToken = await tokenStore.hasValidToken(userId);
+      if (hasToken) {
+        const tokenInfo = await tokenStore.getTokens(userId);
+        health.userAuth = {
+          authenticated: true,
+          expiresAt: tokenInfo?.expiresAt,
+          scope: tokenInfo?.scope,
+          hasRefreshToken: !!tokenInfo?.refreshToken
+        };
+      } else {
+        health.userAuth = {
+          authenticated: false
+        };
+      }
     }
     
     return health;
   }
 
-  /**
-   * Clear user tokens (logout)
-   */
-  clearUserTokens(userId) {
-    this.tokens.delete(userId);
-    this.refreshTokens.delete(userId);
+  // Update clearUserTokens to use TokenStore
+  async clearUserTokens(userId) {
+    await tokenStore.deleteTokens(userId);
     console.log(`🚪 Cleared tokens for user ${userId}`);
   }
 }

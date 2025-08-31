@@ -35,7 +35,7 @@ class KrogerAuthService {
     
     // Use CE API for development, production API for production
     this.baseURL = isDevelopment 
-      ? 'https://api-ce.kroger.com/v1'
+      ? 'https://api.kroger.com/v1'
       : (process.env.KROGER_BASE_URL || 'https://api.kroger.com/v1');
     
     // Use appropriate credentials based on environment

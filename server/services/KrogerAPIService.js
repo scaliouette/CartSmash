@@ -3,7 +3,7 @@ const axios = require('axios');
 
 class KrogerAPIService {
   constructor() {
-    this.baseURL = process.env.KROGER_BASE_URL || 'https://api-ce.kroger.com/v1';
+    this.baseURL = process.env.KROGER_BASE_URL || 'https://api.kroger.com/v1';
     this.clientId = process.env.KROGER_CLIENT_ID;
     this.clientSecret = process.env.KROGER_CLIENT_SECRET;
     this.accessToken = null;
