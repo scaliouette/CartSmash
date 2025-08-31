@@ -326,36 +326,17 @@ app.get('/api/auth/kroger/status', async (req, res) => {
 app.get('/api/auth/kroger/callback', async (req, res) => {
   const { code, state, error } = req.query;
   
+  logger.info(`Kroger callback received - code: ${!!code}, state: ${!!state}, error: ${error}`);
+  
   if (error) {
     logger.error(`Kroger OAuth error: ${error}`);
-    return res.send(`
-      <html>
-        <body style="font-family: Arial; padding: 40px; text-align: center;">
-          <h2>❌ Authentication Failed</h2>
-          <p>${error}</p>
-          <button onclick="window.close()">Close Window</button>
-        </body>
-      </html>
-    `);
+    return res.send(`...error page...`);
   }
   
-  if (!code || !state) {
-    return res.status(400).send(`
-      <html>
-        <body style="font-family: Arial; padding: 40px; text-align: center;">
-          <h2>❌ Authentication Failed</h2>
-          <p>Missing required parameters</p>
-          <button onclick="window.close()">Close Window</button>
-        </body>
-      </html>
-    `);
-  }
-
   try {
     const decoded = Buffer.from(state, 'base64').toString();
     const [userId, timestamp] = decoded.split('-');
     
-    // Validate state freshness (5 minutes)
     if (Date.now() - parseInt(timestamp) > 300000) {
       throw new Error('State expired');
     }
@@ -363,6 +344,11 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
     const credentials = Buffer.from(
       `${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`
     ).toString('base64');
+    
+    // ADD THESE DEBUG LOGS
+    logger.info(`Attempting token exchange for user: ${userId}`);
+    logger.info(`Using client ID: ${process.env.KROGER_CLIENT_ID}`);
+    logger.info(`Token endpoint: ${process.env.KROGER_BASE_URL}/connect/oauth2/token`);
     
     const tokenResponse = await axios.post(
       `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
@@ -380,61 +366,32 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
       }
     );
     
-    await tokenStore.setTokens(
-      userId,
-      {
-        accessToken: tokenResponse.data.access_token,
-        tokenType: tokenResponse.data.token_type || 'Bearer',
-        expiresAt: Date.now() + (tokenResponse.data.expires_in * 1000),
-        scope: tokenResponse.data.scope
-      },
-      tokenResponse.data.refresh_token
-    );
-    
-    logger.info(`Token exchange successful for user: ${userId}`);
-    
-    // Send HTML page with postMessage
-    res.send(`
-      <html>
-        <head>
-          <title>Kroger Authentication Success</title>
-        </head>
-        <body style="font-family: Arial; padding: 40px; text-align: center;">
-          <h2>✅ Successfully Connected to Kroger!</h2>
-          <p>Your account has been linked. You can now send items to your Kroger cart.</p>
-          <p>User ID: <strong>${userId}</strong></p>
-          <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px;">
-            Close Window
-          </button>
-          <script>
-            // Send message to parent window if opened as popup
-            if (window.opener) {
-              window.opener.postMessage({
-                type: 'KROGER_AUTH_SUCCESS',
-                userId: '${userId}'
-              }, '${process.env.CLIENT_URL || 'https://cart-smash.vercel.app'}');
-            }
-            // Auto-close after 3 seconds
-            setTimeout(() => window.close(), 3000);
-          </script>
-        </body>
-      </html>
-    `);
+    // ... rest of success handling
     
   } catch (error) {
-    logger.error('Token exchange failed:', error.message);
-    res.send(`
-      <html>
-        <body style="font-family: Arial; padding: 40px; text-align: center;">
-          <h2>❌ Authentication Failed</h2>
-          <p>${error.message}</p>
-          <button onclick="window.close()">Close Window</button>
-        </body>
-      </html>
-    `);
+    // IMPROVE ERROR LOGGING
+    logger.error('Token exchange failed:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
+    
+    res.send(`...error page with message: ${error.response?.data?.error_description || error.message}...`);
   }
 });
 
+  // Add this temporary debug route to your server.js
+  app.get('/api/debug/kroger-config', (req, res) => {
+    res.json({
+      hasClientId: !!process.env.KROGER_CLIENT_ID,
+      clientIdLength: process.env.KROGER_CLIENT_ID?.length,
+      clientIdPrefix: process.env.KROGER_CLIENT_ID?.substring(0, 10),
+      baseUrl: process.env.KROGER_BASE_URL,
+      redirectUri: process.env.KROGER_REDIRECT_URI,
+      scopes: process.env.KROGER_OAUTH_SCOPES
+    });
+  });
 
 // Add this root endpoint handler to your server.js file
 // Place it AFTER the health check endpoints and BEFORE the route loading
