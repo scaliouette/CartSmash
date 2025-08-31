@@ -460,6 +460,29 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
   }
 });
 
+app.get('/api/debug/kroger-auth', (req, res) => {
+  const clientId = process.env.KROGER_CLIENT_ID;
+  const clientSecret = process.env.KROGER_CLIENT_SECRET;
+  
+  // Create Basic auth the same way as in callback
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  
+  res.json({
+    clientId: clientId,
+    clientIdLength: clientId?.length,
+    secretFirst4: clientSecret?.substring(0, 4),
+    secretLast4: clientSecret?.substring(clientSecret.length - 4),
+    secretLength: clientSecret?.length,
+    expectedSecretLength: 40, // Kroger secrets are typically 40 chars
+    hasSpaces: {
+      inClientId: clientId !== clientId?.trim(),
+      inSecret: clientSecret !== clientSecret?.trim()
+    },
+    credentialsHeader: `Basic ${credentials}`,
+    testAuth: `${clientId}:${clientSecret}`
+  });
+});
+
 app.get('/api/test/kroger-creds', async (req, res) => {
   try {
     // Check credentials exist

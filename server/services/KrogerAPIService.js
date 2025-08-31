@@ -37,8 +37,21 @@ async authenticate() {
     
     // Use URLSearchParams to properly format the body
     const params = new URLSearchParams();
-    params.append('grant_type', 'client_credentials');
-    params.append('scope', 'product.compact');
+    params.append('grant_type', 'authorization_code');
+    params.append('code', code);
+    params.append('redirect_uri', process.env.KROGER_REDIRECT_URI);
+
+    const tokenResponse = await axios.post(
+  `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
+  params.toString(),
+  {
+    headers: {
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    timeout: 10000
+  }
+);
     
     const response = await axios.post(
       `${this.baseURL}/connect/oauth2/token`,

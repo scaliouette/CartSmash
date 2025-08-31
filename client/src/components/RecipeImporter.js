@@ -37,7 +37,7 @@ function RecipeImporter({ onRecipeImported, onClose }) {
     setError('');
 
     try {
-     const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';;
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       const response = await fetch(`${API_URL}/api/recipes/import-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -137,7 +137,7 @@ function RecipeImporter({ onRecipeImported, onClose }) {
 
     try {
       // Parse ingredients to cart items
-     const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';;
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       const parseResponse = await fetch(`${API_URL}/api/cart/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

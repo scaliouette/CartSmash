@@ -148,7 +148,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
       const editedFields = editedItems.get(itemId) || {};
       
       // Call backend to re-validate with AI
-     const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';;
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       const response = await fetch(`${API_URL}/api/ai/validate-products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -222,7 +222,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
       });
       
       // Call backend to validate all with AI
-     const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';;
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       const response = await fetch(`${API_URL}/api/ai/validate-products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
