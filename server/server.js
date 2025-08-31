@@ -303,13 +303,21 @@ app.get('/health', async (req, res) => {
     
     const state = Buffer.from(`${userId}-${Date.now()}-${Math.random()}`).toString('base64');
     
+    console.log(`🔍 [SERVER DEBUG] OAUTH URL GENERATION:`);
+    console.log(`   KROGER_BASE_URL: ${process.env.KROGER_BASE_URL || 'NOT_SET'}`);
+    console.log(`   KROGER_CLIENT_ID: ${process.env.KROGER_CLIENT_ID || 'NOT_SET'}`);
+    console.log(`   KROGER_REDIRECT_URI: ${process.env.KROGER_REDIRECT_URI || 'NOT_SET'}`);
+    
     // CHANGE THIS LINE - use 'rw' instead of 'write'
     const authUrl = `${process.env.KROGER_BASE_URL}/connect/oauth2/authorize?` +
       `response_type=code&` +
       `client_id=${process.env.KROGER_CLIENT_ID}&` +
       `redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}&` +
-      `scope=${encodeURIComponent('cart.basic:write profile.compact product.compact')}&` +
+      `scope=${encodeURIComponent('cart.basic:rw profile.compact product.compact')}&` +
       `state=${state}`;
+    
+    console.log(`🔍 [SERVER DEBUG] Generated OAuth URL: ${authUrl}`);
+    console.log(`🔍 [SERVER DEBUG] Redirecting user to Kroger OAuth...`);
     
     res.redirect(authUrl);
   });

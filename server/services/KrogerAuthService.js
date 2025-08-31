@@ -52,8 +52,9 @@ class KrogerAuthService {
       this.redirectUri = process.env.KROGER_REDIRECT_URI;
     }
     
-    // Default scopes (remove order.basic:write as it's often not available)
-    this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:write profile.compact product.compact').split(' ');
+    // Default scopes - TEST: Try requesting cart.basic:rw for OAuth to see if that works
+    // Theory: OAuth portal accepts cart.basic:write but API expects cart.basic:rw
+    this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:rw profile.compact product.compact').split(' ');
     
     // Encryption key for state tokens
     this.encryptionKey = process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET;
@@ -118,6 +119,12 @@ class KrogerAuthService {
       
       console.log(`🔗 Generated auth URL for user ${userId}`);
       console.log(`   Scopes: ${scopeString}`);
+      console.log(`🔍 [AUTH DEBUG] OAUTH URL ANALYSIS:`);
+      console.log(`   Base URL: ${this.baseURL}`);
+      console.log(`   Client ID: ${this.clientId}`);
+      console.log(`   Redirect URI: ${this.redirectUri}`);
+      console.log(`   Full auth URL: ${authURL}`);
+      console.log(`   URL Length: ${authURL.length} characters`);
       
       return {
         authURL: authURL,
