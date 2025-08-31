@@ -12,7 +12,7 @@ class KrogerOrderService {
     
     this.scopes = {
       products: 'product.compact',
-      cart: 'cart.basic:rw',
+      cart: 'cart.basic:rw:write',
       profile: 'profile.compact'
     };
     
@@ -54,7 +54,7 @@ class KrogerOrderService {
   /**
    * Get authorization URL for user to authenticate with Kroger
    */
-  getAuthURL(userId, requiredScopes = ['cart.basic:rw', 'profile.compact']) {
+  getAuthURL(userId, requiredScopes = ['cart.basic:rw:write', 'profile.compact']) {
   // REMOVED 'order.basic:write' from default scopes
   const state = this.generateState(userId);
   const scope = requiredScopes.join(' ')
@@ -490,8 +490,8 @@ async addItemsToCart(userId, items) {
           
           // Check if user has the required scopes
           const tokenInfo = await tokenStore.getTokens(userId);
-          if (tokenInfo && tokenInfo.scope && !tokenInfo.scope.includes('cart.basic:rw')) {
-            console.log('🔒 User token missing required scope "cart.basic:rw"');
+          if (tokenInfo && tokenInfo.scope && !tokenInfo.scope.includes('cart.basic:rw:write')) {
+            console.log('🔒 User token missing required scope "cart.basic:rw:write"');
             console.log(`   Current scopes: ${tokenInfo.scope}`);
             console.log('🚪 User needs to re-authenticate to get updated scopes');
             
