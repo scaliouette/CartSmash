@@ -12,7 +12,7 @@ class KrogerOrderService {
     
     this.scopes = {
       products: 'product.compact',
-      cart: 'cart.basic:rw:write',
+      cart: 'cart.basic:write',
       profile: 'profile.compact'
     };
     
@@ -54,7 +54,7 @@ class KrogerOrderService {
   /**
    * Get authorization URL for user to authenticate with Kroger
    */
-  getAuthURL(userId, requiredScopes = ['cart.basic:rw:write', 'profile.compact']) {
+  getAuthURL(userId, requiredScopes = ['cart.basic:write', 'profile.compact']) {
   // REMOVED 'order.basic:write' from default scopes
   const state = this.generateState(userId);
   const scope = requiredScopes.join(' ')
@@ -245,6 +245,23 @@ async ensureUserAuth(userId) {
   console.log(`   Token (first 20 chars): ${authCheck.tokenInfo.accessToken.substring(0, 20)}...`);
   console.log(`   Token Scopes: ${authCheck.tokenInfo.scope}`);
   console.log(`   Token Expires: ${authCheck.tokenInfo.expiresAt}`);
+  
+  // ENHANCED TOKEN ANALYSIS
+  console.log(`🔍 [RENDER DEBUG] DETAILED TOKEN ANALYSIS:`);
+  console.log(`   Required cart scope: cart.basic:write`);
+  console.log(`   Token has cart.basic:write: ${authCheck.tokenInfo.scope?.includes('cart.basic:write') || false}`);
+  console.log(`   All token scopes: ${authCheck.tokenInfo.scope?.split(' ') || []}`);
+  console.log(`   Token type: ${authCheck.tokenInfo.tokenType || 'Bearer'}`);
+  console.log(`   Token expires at: ${new Date(authCheck.tokenInfo.expiresAt).toISOString()}`);
+  console.log(`   Current time: ${new Date().toISOString()}`);
+  console.log(`   Token valid (time): ${authCheck.tokenInfo.expiresAt > Date.now()}`);
+  console.log(`   Minutes until expiry: ${Math.round((authCheck.tokenInfo.expiresAt - Date.now()) / 60000)}`);
+  
+  // Check for specific scope patterns
+  const scopes = authCheck.tokenInfo.scope?.split(' ') || [];
+  console.log(`   Cart-related scopes found:`, scopes.filter(s => s.includes('cart')));
+  console.log(`   Write-related scopes found:`, scopes.filter(s => s.includes('write')));
+  console.log(`   All scopes count: ${scopes.length}`);
   
   const config = {
     method: method,
@@ -454,6 +471,27 @@ async addItemsToCart(userId, items) {
     } else {
       // No cart exists, create a new one with items
       console.log('🛒 Creating new cart with items');
+      
+      // DETAILED DEBUGGING: Log everything before making the request
+      console.log('📋 PRE-REQUEST CART CREATION DEBUG:');
+      console.log(`   User ID: ${userId}`);
+      console.log(`   Endpoint: POST /carts`);
+      console.log(`   Items to add: ${uniqueItems.length}`);
+      console.log(`   Items payload:`, JSON.stringify(uniqueItems, null, 2));
+      
+      // Check user token details before request
+      const preReqTokenInfo = await tokenStore.getTokens(userId);
+      if (preReqTokenInfo) {
+        console.log(`   Token scopes: ${preReqTokenInfo.scope}`);
+        console.log(`   Token expires at: ${new Date(preReqTokenInfo.expiresAt).toISOString()}`);
+        console.log(`   Token type: ${preReqTokenInfo.tokenType}`);
+        console.log(`   Current time: ${new Date().toISOString()}`);
+        console.log(`   Token valid: ${preReqTokenInfo.expiresAt > Date.now()}`);
+        console.log(`   Has cart.basic:write scope: ${preReqTokenInfo.scope?.includes('cart.basic:write') || false}`);
+      } else {
+        console.log(`   ❌ NO TOKEN FOUND for user ${userId}`);
+      }
+      
       try {
         result = await this.makeUserRequest(
           userId, 
@@ -483,6 +521,27 @@ async addItemsToCart(userId, items) {
           console.error(`   User Token: NO_TOKEN_FOUND for userId=${userId}`);
         }
         
+        // ENHANCED ERROR ANALYSIS
+        console.error('🔍 [RENDER DEBUG] COMPREHENSIVE ERROR ANALYSIS:');
+        console.error(`   Is this a scope error?: ${createError.response?.data?.errors?.reason?.includes('scope') || false}`);
+        console.error(`   Is this a rate limit?: ${createError.response?.status === 429 || createError.response?.headers?.['retry-after']}`);
+        console.error(`   Is this auth related?: ${createError.response?.status === 401 || createError.response?.status === 403}`);
+        console.error(`   Error code from Kroger: ${createError.response?.data?.errors?.code || 'NO_CODE'}`);
+        console.error(`   Exact error reason: "${createError.response?.data?.errors?.reason || 'NO_REASON'}"`);
+        console.error(`   API endpoint used: ${createError.config?.url || 'NO_URL'}`);
+        console.error(`   Request timestamp: ${new Date().toISOString()}`);
+        console.error(`   X-Correlation-ID: ${createError.response?.headers?.['x-correlation-id'] || 'NO_CORRELATION_ID'}`);
+        
+        // Check if error message contains any scope hints
+        const errorReason = createError.response?.data?.errors?.reason || '';
+        if (errorReason.includes('scope')) {
+          console.error(`🎯 [RENDER DEBUG] SCOPE-SPECIFIC ANALYSIS:`);
+          console.error(`   Error mentions scope: TRUE`);
+          console.error(`   Expected scope in error: ${errorReason.match(/expected \[(.*?)\]/) ? errorReason.match(/expected \[(.*?)\]/)[1] : 'NOT_FOUND'}`);
+          console.error(`   Current token scope: ${tokenInfo?.scope || 'NO_TOKEN'}`);
+          console.error(`   Scope mismatch detected: ${!tokenInfo?.scope?.includes('cart.basic:write') && errorReason.includes('cart')}`);
+        }
+        
         // If cart creation fails due to scope issues, try alternative approaches
         if (createError.response?.status === 403 && 
             createError.response?.data?.errors?.reason?.includes('scope')) {
@@ -490,8 +549,8 @@ async addItemsToCart(userId, items) {
           
           // Check if user has the required scopes
           const tokenInfo = await tokenStore.getTokens(userId);
-          if (tokenInfo && tokenInfo.scope && !tokenInfo.scope.includes('cart.basic:rw:write')) {
-            console.log('🔒 User token missing required scope "cart.basic:rw:write"');
+          if (tokenInfo && tokenInfo.scope && !tokenInfo.scope.includes('cart.basic:write')) {
+            console.log('🔒 User token missing required scope "cart.basic:write"');
             console.log(`   Current scopes: ${tokenInfo.scope}`);
             console.log('🚪 User needs to re-authenticate to get updated scopes');
             

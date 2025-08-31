@@ -53,7 +53,7 @@ class KrogerAuthService {
     }
     
     // Default scopes (remove order.basic:write as it's often not available)
-    this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:rw:write profile.compact product.compact').split(' ');
+    this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:write profile.compact product.compact').split(' ');
     
     // Encryption key for state tokens
     this.encryptionKey = process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET;
@@ -109,8 +109,8 @@ class KrogerAuthService {
         state: state
       });
 
-      // Add optional parameters - TEMPORARY: Always force consent due to scope change
-      if (forceReauth || true) {
+      // Add optional parameters
+      if (forceReauth) {
         authParams.append('prompt', 'consent');
       }
 
@@ -222,11 +222,6 @@ class KrogerAuthService {
    */
   async getValidToken(userId) {
     try {
-      // TEMPORARY: Force re-authentication for all users due to scope change from cart.basic:write to cart.basic:rw
-      console.log(`🔒 Forcing re-authentication for user ${userId} due to scope update`);
-      await tokenStore.deleteTokens(userId);
-      return null;
-      
       // Get tokens from MongoDB
       const tokenInfo = await tokenStore.getTokens(userId);
       
@@ -375,18 +370,22 @@ class KrogerAuthService {
    */
   async isUserAuthenticated(userId) {
     try {
-      // TEMPORARY: Force re-authentication for all users due to scope change
-      console.log(`🔒 Forcing authentication check to false for user ${userId} due to scope update`);
-      await tokenStore.deleteTokens(userId);
-      return { authenticated: false, reason: 'scope_update_required' };
-      
+      console.log(`🔍 [AUTH DEBUG] Checking authentication for user: ${userId}`);
       const hasToken = await tokenStore.hasValidToken(userId);
+      console.log(`🔍 [AUTH DEBUG] hasValidToken result: ${hasToken}`);
       
       if (!hasToken) {
         return { authenticated: false };
       }
       
       const tokenInfo = await tokenStore.getTokens(userId);
+      console.log(`🔍 [AUTH DEBUG] Retrieved token info:`, {
+        hasToken: !!tokenInfo,
+        scope: tokenInfo?.scope,
+        expiresAt: tokenInfo?.expiresAt ? new Date(tokenInfo.expiresAt).toISOString() : null,
+        tokenType: tokenInfo?.tokenType,
+        isExpired: tokenInfo?.expiresAt ? tokenInfo.expiresAt <= Date.now() : null
+      });
       
       return {
         authenticated: true,
