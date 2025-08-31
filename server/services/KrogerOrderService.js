@@ -12,7 +12,7 @@ class KrogerOrderService {
     
     this.scopes = {
       products: 'product.compact',
-      cart: 'cart.basic:rw',
+      cart: 'cart.basic:write',
       profile: 'profile.compact'
     };
     
@@ -21,9 +21,19 @@ class KrogerOrderService {
     
     
         console.log('🛒 Kroger Order Service initialized');
-    this.getActiveUserCount().then(count => {
+    // Note: Async initialization moved to separate method to avoid constructor anti-pattern
+  }
+
+  /**
+   * Initialize async operations that couldn't be done in constructor
+   */
+  async initialize() {
+    try {
+      const count = await this.getActiveUserCount();
       console.log(`   Active users: ${count}`);
-    });
+    } catch (error) {
+      console.warn('⚠️ Could not get initial user count:', error.message);
+    }
   }
 
   async getActiveUserCount() {
@@ -35,7 +45,7 @@ class KrogerOrderService {
   /**
    * Get authorization URL for user to authenticate with Kroger
    */
-  getAuthURL(userId, requiredScopes = ['cart.basic:rw', 'profile.compact']) {
+  getAuthURL(userId, requiredScopes = ['cart.basic:write', 'profile.compact']) {
   // REMOVED 'order.basic:write' from default scopes
   const state = this.generateState(userId);
   const scope = requiredScopes.join(' ')
@@ -88,16 +98,13 @@ class KrogerOrderService {
       
       const tokenData = response.data;
       
-      // Store tokens securely
-      this.tokens.set(userId, {
+      // Store tokens securely using TokenStore
+      await tokenStore.setTokens(userId, {
         accessToken: tokenData.access_token,
+        tokenType: tokenData.token_type || 'Bearer',
         expiresAt: Date.now() + (tokenData.expires_in * 1000),
         scope: tokenData.scope
-      });
-      
-      if (tokenData.refresh_token) {
-        this.refreshTokens.set(userId, tokenData.refresh_token);
-      }
+      }, tokenData.refresh_token);
       
       console.log(`✅ Token exchange successful for user ${userId}`);
       return {

@@ -2,14 +2,47 @@
 const express = require('express');
 const router = express.Router();
 const AIProductParser = require('../utils/aiProductParser');
+const { validateUserId, validateQuantity, sanitizeText } = require('../utils/validation');
 
 // Initialize AI parser
 const productParser = new AIProductParser();
 
-// In-memory storage (replace with database in production)
-let cartItems = new Map();
-let savedLists = new Map();
-let savedRecipes = new Map();
+// In-memory storage with size limits to prevent memory leaks
+class BoundedMap {
+  constructor(maxSize = 1000) {
+    this.map = new Map();
+    this.maxSize = maxSize;
+  }
+  
+  set(key, value) {
+    if (this.map.size >= this.maxSize && !this.map.has(key)) {
+      // Remove oldest entry (FIFO)
+      const firstKey = this.map.keys().next().value;
+      this.map.delete(firstKey);
+    }
+    this.map.set(key, value);
+  }
+  
+  get(key) {
+    return this.map.get(key);
+  }
+  
+  has(key) {
+    return this.map.has(key);
+  }
+  
+  delete(key) {
+    return this.map.delete(key);
+  }
+  
+  size() {
+    return this.map.size;
+  }
+}
+
+let cartItems = new BoundedMap(1000);
+let savedLists = new BoundedMap(500);
+let savedRecipes = new BoundedMap(500);
 
 // Helper function to normalize product names for comparison
 function normalizeProductName(name) {
@@ -77,9 +110,10 @@ function mergeDuplicates(items) {
   return merged;
 }
 
-// Middleware to get user ID
+// Middleware to get user ID with validation
 const getUserId = (req) => {
-  return req.headers['user-id'] || req.body?.userId || 'default-user';
+  const userId = req.headers['user-id'] || req.body?.userId || 'default-user';
+  return validateUserId(userId);
 };
 
 // POST /api/cart/parse - Parse grocery list with AI INTEGRATION

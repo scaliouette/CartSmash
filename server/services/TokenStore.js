@@ -7,8 +7,8 @@ class TokenStore {
     this.cacheExpiry = 5 * 60 * 1000; // 5 minutes cache
     console.log('🔐 MongoDB TokenStore initialized');
     
-    // Cleanup expired tokens every hour
-    setInterval(async () => {
+    // Cleanup expired tokens every hour (store interval ID for proper cleanup)
+    this.cleanupInterval = setInterval(async () => {
       await this.cleanupExpiredTokens();
     }, 60 * 60 * 1000);
   }
@@ -20,7 +20,7 @@ class TokenStore {
         accessToken: tokenInfo.accessToken,
         refreshToken: refreshToken || tokenInfo.refreshToken,
         tokenType: tokenInfo.tokenType || 'Bearer',
-        scope: tokenInfo.scope || 'cart.basic:rw profile.compact product.compact',
+        scope: tokenInfo.scope || 'cart.basic:write profile.compact product.compact',
         expiresAt: new Date(tokenInfo.expiresAt || Date.now() + 3600000),
         lastRefreshed: tokenInfo.lastRefreshed || null,
         metadata: tokenInfo.metadata || {}
@@ -209,9 +209,18 @@ class TokenStore {
     this.cache.clear();
     console.log('🗑️ Token cache cleared');
   }
+
+  /**
+   * Cleanup method to clear intervals and prevent memory leaks
+   */
+  destroy() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+      console.log('🧹 TokenStore cleanup interval cleared');
+    }
+  }
 }
-
-
 
 // Export singleton instance
 module.exports = new TokenStore();

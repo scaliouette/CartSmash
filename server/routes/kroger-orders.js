@@ -18,6 +18,13 @@ try {
 const orderService = KrogerOrderService ? new KrogerOrderService() : null;
 const authService = KrogerAuthService ? new KrogerAuthService() : null;
 
+// Initialize async operations for services
+if (orderService) {
+  orderService.initialize().catch(error => {
+    console.warn('⚠️ KrogerOrderService initialization failed:', error.message);
+  });
+}
+
 // Middleware
 const requireServices = (req, res, next) => {
   if (!orderService) {

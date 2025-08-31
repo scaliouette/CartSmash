@@ -16,8 +16,8 @@ class KrogerAuthService {
     this.stateExpiry = 10 * 60 * 1000; // 10 minutes
     this.tokenRefreshBuffer = 5 * 60 * 1000; // Refresh 5 minutes before expiry
     
-    // Cleanup expired states every hour
-    setInterval(() => this.cleanup(), 60 * 60 * 1000);
+    // Cleanup expired states every hour (store interval ID for proper cleanup)
+    this.cleanupInterval = setInterval(() => this.cleanup(), 60 * 60 * 1000);
     
     console.log('🔐 Kroger Auth Service initialized');
     console.log(`   Environment: ${process.env.NODE_ENV}`);
@@ -53,7 +53,7 @@ class KrogerAuthService {
     }
     
     // Default scopes (remove order.basic:write as it's often not available)
-    this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:rw profile.compact product.compact').split(' ');
+    this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:write profile.compact product.compact').split(' ');
     
     // Encryption key for state tokens
     this.encryptionKey = process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET;
@@ -488,6 +488,17 @@ class KrogerAuthService {
       },
       timestamp: new Date().toISOString()
     };
+  }
+
+  /**
+   * Cleanup method to clear intervals and prevent memory leaks
+   */
+  destroy() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+      console.log('🧹 KrogerAuthService cleanup interval cleared');
+    }
   }
 }
 

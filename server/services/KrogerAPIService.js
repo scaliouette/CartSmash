@@ -9,7 +9,8 @@ class KrogerAPIService {
     this.accessToken = null;
     this.tokenExpiry = null;
     
-    // Cache for API responses
+    // Cache for API responses with size limit to prevent memory leaks
+    this.maxCacheSize = 500;
     this.cache = new Map();
     this.cacheExpiry = new Map();
     
@@ -441,6 +442,14 @@ async authenticate() {
    * Cache management methods
    */
   setCacheWithExpiry(key, value, ttlMs) {
+    // Enforce cache size limit to prevent memory leaks
+    if (this.cache.size >= this.maxCacheSize && !this.cache.has(key)) {
+      // Remove oldest entries (FIFO)
+      const oldestKey = this.cache.keys().next().value;
+      this.cache.delete(oldestKey);
+      this.cacheExpiry.delete(oldestKey);
+    }
+    
     this.cache.set(key, value);
     this.cacheExpiry.set(key, Date.now() + ttlMs);
   }

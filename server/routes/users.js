@@ -3,12 +3,44 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/auth');
 
-// In-memory storage (replace with database in production)
-const userProfiles = new Map();
-const userLists = new Map();
-const userMeals = new Map();
-const userRecipes = new Map();
-const userHistory = new Map();
+// In-memory storage with size limits to prevent memory leaks
+class BoundedMap {
+  constructor(maxSize = 1000) {
+    this.map = new Map();
+    this.maxSize = maxSize;
+  }
+  
+  set(key, value) {
+    if (this.map.size >= this.maxSize && !this.map.has(key)) {
+      // Remove oldest entry (FIFO)
+      const firstKey = this.map.keys().next().value;
+      this.map.delete(firstKey);
+    }
+    this.map.set(key, value);
+  }
+  
+  get(key) {
+    return this.map.get(key);
+  }
+  
+  has(key) {
+    return this.map.has(key);
+  }
+  
+  delete(key) {
+    return this.map.delete(key);
+  }
+  
+  size() {
+    return this.map.size;
+  }
+}
+
+const userProfiles = new BoundedMap(1000);
+const userLists = new BoundedMap(1000);
+const userMeals = new BoundedMap(1000);
+const userRecipes = new BoundedMap(1000);
+const userHistory = new BoundedMap(2000); // More history entries
 
 // GET /api/users/:userId/profile - Get user profile
 router.get('/:userId/profile', authMiddleware, async (req, res) => {
