@@ -433,6 +433,12 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
       `${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`
     ).toString('base64');
     
+    console.log(`🔄 [OAUTH DEBUG] Attempting token exchange for user: ${userId}`);
+    console.log(`   Using client ID: ${process.env.KROGER_CLIENT_ID}`);
+    console.log(`   Token endpoint: ${process.env.KROGER_BASE_URL}/connect/oauth2/token`);
+    console.log(`   Redirect URI: ${process.env.KROGER_REDIRECT_URI}`);
+    console.log(`   Authorization code: ${code?.substring(0, 20)}...`);
+    
     logger.info(`Attempting token exchange for user: ${userId}`);
     logger.info(`Using client ID: ${process.env.KROGER_CLIENT_ID}`);
     logger.info(`Token endpoint: ${process.env.KROGER_BASE_URL}/connect/oauth2/token`);
@@ -444,29 +450,50 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
     params.append('redirect_uri', process.env.KROGER_REDIRECT_URI);
     
     // Log the exact request body for debugging
+    console.log(`🔄 [OAUTH DEBUG] Token exchange body: ${params.toString()}`);
     logger.info(`Token exchange body: ${params.toString()}`);
     
-    const tokenResponse = await axios.post(
-      `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
-      params.toString(),  // Use params.toString()
-      {
-        headers: {
-          'Authorization': `Basic ${credentials}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json'
-        },
-        timeout: 10000
-      }
-    );
-    
-    // Save tokens to database
-    await tokenStore.setTokens(userId, {
-      accessToken: tokenResponse.data.access_token,
-      refreshToken: tokenResponse.data.refresh_token,
-      tokenType: tokenResponse.data.token_type || 'Bearer',
-      scope: tokenResponse.data.scope,
-      expiresAt: new Date(Date.now() + (tokenResponse.data.expires_in * 1000))
-    });
+    try {
+      console.log(`🔄 [OAUTH DEBUG] Making token exchange request...`);
+      const tokenResponse = await axios.post(
+        `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
+        params.toString(),  // Use params.toString()
+        {
+          headers: {
+            'Authorization': `Basic ${credentials}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+          },
+          timeout: 10000
+        }
+      );
+      
+      console.log(`✅ [OAUTH DEBUG] Token exchange successful!`);
+      console.log(`   Response status: ${tokenResponse.status}`);
+      console.log(`   Access token length: ${tokenResponse.data.access_token?.length || 0}`);
+      console.log(`   Token type: ${tokenResponse.data.token_type}`);
+      console.log(`   Scope: ${tokenResponse.data.scope}`);
+      console.log(`   Expires in: ${tokenResponse.data.expires_in}s`);
+      
+      // Save tokens to database
+      console.log(`🔄 [OAUTH DEBUG] Saving tokens to database...`);
+      await tokenStore.setTokens(userId, {
+        accessToken: tokenResponse.data.access_token,
+        refreshToken: tokenResponse.data.refresh_token,
+        tokenType: tokenResponse.data.token_type || 'Bearer',
+        scope: tokenResponse.data.scope,
+        expiresAt: new Date(Date.now() + (tokenResponse.data.expires_in * 1000))
+      });
+      
+      console.log(`✅ [OAUTH DEBUG] Tokens saved successfully for user: ${userId}`);
+      
+    } catch (tokenExchangeError) {
+      console.error(`❌ [OAUTH DEBUG] Token exchange failed:`, tokenExchangeError.message);
+      console.error(`   Status: ${tokenExchangeError.response?.status}`);
+      console.error(`   Status Text: ${tokenExchangeError.response?.statusText}`);
+      console.error(`   Response Data:`, tokenExchangeError.response?.data);
+      throw tokenExchangeError;
+    }
     
     // Verify tokens were saved properly to prevent race conditions
     const savedTokens = await tokenStore.getTokens(userId);
