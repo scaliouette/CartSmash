@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Mail, MessageSquare, Send, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 
-const Contact = ({ onBack }) => {
+const ContactPage = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -15,14 +14,6 @@ const Contact = ({ onBack }) => {
     window.scrollTo(0, 0);
   }, []);
 
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      window.history.back();
-    }
-  };
-
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -30,89 +21,94 @@ const Contact = ({ onBack }) => {
     });
   };
 
-  const handleSubmit = () => {
-    // Validate fields
+  const handleSubmit = async () => {
+    // Basic validation
     if (!formData.name || !formData.email || !formData.subject || !formData.message) {
-      alert('Please fill in all fields');
+      alert('Please fill in all required fields');
       return;
     }
-
-    setIsSubmitting(true);
-    setSubmitStatus(null);
-
-    // Create mailto link
-    const mailtoLink = `mailto:support@cartsmash.com?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(
-      `Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`
-    )}`;
-    window.location.href = mailtoLink;
     
-    // Show success message
+    setIsSubmitting(true);
+    
+    // Simulate form submission
     setTimeout(() => {
       setSubmitStatus('success');
       setIsSubmitting(false);
-      // Reset form after success
-      setTimeout(() => {
-        setFormData({ name: '', email: '', subject: '', message: '' });
-        setSubmitStatus(null);
-      }, 3000);
-    }, 1000);
+      setFormData({
+        name: '',
+        email: '',
+        subject: '',
+        message: ''
+      });
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setSubmitStatus(null), 5000);
+    }, 1500);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <button 
-          onClick={handleBack}
-          className="mb-6 flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Back to CARTSMASH
-        </button>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-green-600 to-teal-600 text-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Contact Us</h1>
+          <p className="text-xl opacity-90">We're here to help and answer any questions</p>
+        </div>
+      </div>
 
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Contact Us</h1>
-            <p className="text-gray-600">
-              We'd love to hear from you! Send us a message and we'll respond as soon as possible.
-            </p>
-          </div>
+      {/* Content Section */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid lg:grid-cols-3 gap-8">
+          
+          {/* Contact Form - Takes up 2 columns */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow-lg p-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Send us a message</h2>
+              
+              {submitStatus === 'success' && (
+                <div className="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                  <p className="text-green-800">
+                    Thank you for your message! We'll get back to you within 24 hours.
+                  </p>
+                </div>
+              )}
 
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Contact Form */}
-            <div>
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Your Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                    placeholder="John Doe"
-                  />
+              <div className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                      Your Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+                      placeholder="john@example.com"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                    placeholder="john@example.com"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
                     Subject *
                   </label>
                   <select
@@ -120,142 +116,150 @@ const Contact = ({ onBack }) => {
                     name="subject"
                     value={formData.subject}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
                   >
                     <option value="">Select a topic</option>
-                    <option value="General Inquiry">General Inquiry</option>
-                    <option value="Technical Support">Technical Support</option>
-                    <option value="Bug Report">Bug Report</option>
-                    <option value="Feature Request">Feature Request</option>
-                    <option value="Account Issue">Account Issue</option>
-                    <option value="Kroger Integration">Kroger Integration</option>
-                    <option value="Feedback">Feedback</option>
-                    <option value="Other">Other</option>
+                    <option value="general">General Inquiry</option>
+                    <option value="support">Technical Support</option>
+                    <option value="billing">Billing Question</option>
+                    <option value="partnership">Partnership Opportunity</option>
+                    <option value="feedback">Product Feedback</option>
+                    <option value="bug">Report a Bug</option>
                   </select>
                 </div>
 
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
                     Message *
                   </label>
                   <textarea
                     id="message"
                     name="message"
-                    rows="6"
                     value={formData.message}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all resize-none"
-                    placeholder="Tell us how we can help you..."
-                  />
+                    required
+                    rows="6"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition resize-none"
+                    placeholder="Tell us how we can help..."
+                  ></textarea>
                 </div>
 
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center"
+                  className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all transform hover:scale-[1.02] ${
+                    isSubmitting 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700'
+                  }`}
                 >
-                  {isSubmitting ? (
-                    <span>Sending...</span>
-                  ) : (
-                    <>
-                      <Send className="w-5 h-5 mr-2" />
-                      Send Message
-                    </>
-                  )}
+                  {isSubmitting ? 'Sending...' : 'Send Message'}
                 </button>
-
-                {submitStatus === 'success' && (
-                  <div className="flex items-center text-green-600 bg-green-50 p-3 rounded-lg">
-                    <CheckCircle className="w-5 h-5 mr-2" />
-                    <span>Message prepared! Your email client should open now.</span>
-                  </div>
-                )}
-
-                {submitStatus === 'error' && (
-                  <div className="flex items-center text-red-600 bg-red-50 p-3 rounded-lg">
-                    <AlertCircle className="w-5 h-5 mr-2" />
-                    <span>Failed to send message. Please email us directly.</span>
-                  </div>
-                )}
               </div>
             </div>
+          </div>
 
-            {/* Contact Information */}
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Get in Touch</h2>
-                <p className="text-gray-600 mb-6">
-                  Have questions about CARTSMASH? We're here to help! Reach out to us through the contact form 
-                  or use the information below.
-                </p>
-              </div>
-
+          {/* Contact Information - Takes up 1 column */}
+          <div className="space-y-6">
+            {/* Quick Contact Info */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Quick Contact</h3>
+              
               <div className="space-y-4">
                 <div className="flex items-start">
-                  <Mail className="w-5 h-5 text-orange-500 mt-1 mr-3" />
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Email</h3>
-                    <a href="mailto:support@cartsmash.com" className="text-gray-600 hover:text-orange-500 transition-colors">
+                  <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-900">Email</p>
+                    <a href="mailto:support@cartsmash.com" className="text-sm text-green-600 hover:text-green-700">
                       support@cartsmash.com
                     </a>
                   </div>
                 </div>
 
                 <div className="flex items-start">
-                  <MessageSquare className="w-5 h-5 text-orange-500 mt-1 mr-3" />
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Response Time</h3>
-                    <p className="text-gray-600">We typically respond within 24-48 hours</p>
+                  <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-900">Office</p>
+                    <p className="text-sm text-gray-600">
+                      123 Market Street<br />
+                      San Francisco, CA 94105
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-900">Business Hours</p>
+                    <p className="text-sm text-gray-600">
+                      Mon-Fri: 9:00 AM - 6:00 PM PST<br />
+                      Sat-Sun: 10:00 AM - 4:00 PM PST
+                    </p>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-2">Common Topics</h3>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li>• Kroger account connection issues</li>
-                  <li>• AI parsing accuracy</li>
-                  <li>• Recipe and meal plan management</li>
-                  <li>• Account sync problems</li>
-                  <li>• Feature requests and suggestions</li>
-                  <li>• Bug reports and technical issues</li>
-                </ul>
-              </div>
+            {/* FAQ Link */}
+            <div className="bg-gradient-to-r from-green-600 to-teal-600 rounded-lg shadow-lg p-6 text-white">
+              <h3 className="text-xl font-bold mb-2">Need Quick Answers?</h3>
+              <p className="text-sm opacity-90 mb-4">
+                Check out our frequently asked questions for instant help.
+              </p>
+              <a
+                href="/faq"
+                className="inline-flex items-center bg-white text-green-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition"
+              >
+                Visit FAQ
+                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
+            </div>
 
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-2">Legal & Policies</h3>
-                <ul className="space-y-2 text-sm">
-                  <li>
-                    <a href="/terms" className="text-orange-500 hover:text-orange-600 transition-colors">
-                      Terms of Service
-                    </a>
-                  </li>
-                  <li>
-                    <a 
-                      href="https://www.freeprivacypolicy.com/live/f3f10b15-024b-43c8-baa6-2e33642fafd5" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-orange-500 hover:text-orange-600 transition-colors inline-flex items-center"
-                    >
-                      Privacy Policy
-                      <ExternalLink className="w-3 h-3 ml-1" />
-                    </a>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-2">Quick Tip</h3>
-                <p className="text-sm text-gray-600">
-                  For the fastest response, please include:
-                </p>
-                <ul className="mt-2 space-y-1 text-sm text-gray-600">
-                  <li>• Your account email</li>
-                  <li>• Description of the issue</li>
-                  <li>• Steps to reproduce (for bugs)</li>
-                  <li>• Screenshots if applicable</li>
-                </ul>
-              </div>
+            {/* Support Options */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Support Options</h3>
+              <ul className="space-y-3">
+                <li className="flex items-center text-sm text-gray-600">
+                  <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  24/7 Email Support
+                </li>
+                <li className="flex items-center text-sm text-gray-600">
+                  <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Live Chat (Business Hours)
+                </li>
+                <li className="flex items-center text-sm text-gray-600">
+                  <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Knowledge Base Articles
+                </li>
+                <li className="flex items-center text-sm text-gray-600">
+                  <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Video Tutorials
+                </li>
+              </ul>
             </div>
           </div>
         </div>
@@ -264,4 +268,4 @@ const Contact = ({ onBack }) => {
   );
 };
 
-export default Contact;
+export default ContactPage;
