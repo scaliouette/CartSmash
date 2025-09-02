@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\server/**)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\server\\routes/**)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\server\\services/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

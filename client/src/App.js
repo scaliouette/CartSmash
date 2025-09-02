@@ -30,22 +30,24 @@ function App() {
   // Get auth context inside the provider
   return (
     <AuthProvider>
-      <AppContent 
-        currentView={currentView}
-        setCurrentView={setCurrentView}
-        currentCart={currentCart}
-        setCurrentCart={setCurrentCart}
-        savedLists={savedLists}
-        setSavedLists={setSavedLists}
-        savedRecipes={savedRecipes}
-        setSavedRecipes={setSavedRecipes}
-        mealPlans={mealPlans}
-        setMealPlans={setMealPlans}
-        isLoading={isLoading}
-        setIsLoading={setIsLoading}
-        syncStatus={syncStatus}
-        setSyncStatus={setSyncStatus}
-      />
+      <SmashCartProvider>
+        <AppContent 
+          currentView={currentView}
+          setCurrentView={setCurrentView}
+          currentCart={currentCart}
+          setCurrentCart={setCurrentCart}
+          savedLists={savedLists}
+          setSavedLists={setSavedLists}
+          savedRecipes={savedRecipes}
+          setSavedRecipes={setSavedRecipes}
+          mealPlans={mealPlans}
+          setMealPlans={setMealPlans}
+          isLoading={isLoading}
+          setIsLoading={setIsLoading}
+          syncStatus={syncStatus}
+          setSyncStatus={setSyncStatus}
+        />
+      </SmashCartProvider>
     </AuthProvider>
   );
 }

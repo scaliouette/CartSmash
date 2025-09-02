@@ -387,7 +387,242 @@ router.post('/validate-all', async (req, res) => {
   }
 });
 
-// Other endpoints remain the same...
-// (Include all the other endpoints from the original file)
+// POST /api/cart/fetch-prices - Fetch real prices from Kroger
+router.post('/fetch-prices', async (req, res) => {
+  try {
+    const { items, userId, storeId = '01400943' } = req.body;
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No items provided for price fetching'
+      });
+    }
+
+    console.log(`💰 Fetching prices for ${items.length} items from Kroger...`);
+    
+    // Import Kroger service
+    const KrogerAPIService = require('../services/KrogerAPIService');
+    const krogerService = new KrogerAPIService();
+    
+    const prices = {};
+    let found = 0;
+    let notFound = 0;
+    
+    // Try to get user's access token for better results
+    const tokenStore = require('../services/TokenStore');
+    let userTokens = null;
+    if (userId) {
+      try {
+        userTokens = await tokenStore.getTokens(userId);
+      } catch (error) {
+        console.log('No user tokens found, using anonymous search');
+      }
+    }
+    
+    for (const item of items) {
+      const itemName = item.name || item.productName || item.itemName;
+      if (!itemName) continue;
+      
+      try {
+        // Search for the product in Kroger
+        const searchResults = await krogerService.searchProducts(itemName, storeId, 3);
+        
+        if (searchResults && searchResults.length > 0) {
+          const product = searchResults[0]; // Get the best match
+          
+          // Extract price information
+          const regularPrice = product.items?.[0]?.price?.regular || 
+                             product.price?.regular ||
+                             null;
+          
+          const promoPrice = product.items?.[0]?.price?.promo || 
+                           product.price?.promo ||
+                           null;
+          
+          if (regularPrice) {
+            prices[item.id] = {
+              price: regularPrice,
+              salePrice: promoPrice && promoPrice < regularPrice ? promoPrice : null,
+              availability: product.items?.[0]?.fulfillment?.inStore || 'AVAILABLE',
+              productId: product.productId,
+              upc: product.upc,
+              brand: product.brand,
+              size: product.items?.[0]?.size,
+              lastUpdated: new Date().toISOString(),
+              storeId: storeId
+            };
+            found++;
+            console.log(`✅ Found price for ${itemName}: $${regularPrice}`);
+          } else {
+            notFound++;
+            console.log(`⚠️ No price found for ${itemName}`);
+          }
+        } else {
+          notFound++;
+          console.log(`❌ No product found for ${itemName}`);
+        }
+        
+        // Rate limiting - small delay between requests
+        if (items.length > 5) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+      } catch (productError) {
+        console.error(`❌ Error fetching price for ${itemName}:`, productError.message);
+        notFound++;
+      }
+    }
+    
+    console.log(`💰 Price fetching complete: ${found} found, ${notFound} not found`);
+    
+    res.json({
+      success: true,
+      prices: prices,
+      summary: {
+        totalItems: items.length,
+        found: found,
+        notFound: notFound,
+        storeId: storeId
+      },
+      message: `Found prices for ${found} out of ${items.length} items`
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching prices:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch prices from Kroger',
+      message: error.message
+    });
+  }
+});
+
+// GET /api/cart/:userId - Get user's cart
+router.get('/:userId', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userCart = cartItems.get(validateUserId(userId)) || [];
+    
+    res.json({
+      success: true,
+      cart: userCart,
+      itemCount: userCart.length,
+      lastUpdated: userCart.length > 0 ? 
+        Math.max(...userCart.map(item => new Date(item.addedAt).getTime())) : null
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: 'Invalid user ID'
+    });
+  }
+});
+
+// POST /api/cart/add - Add items to cart
+router.post('/add', (req, res) => {
+  try {
+    const { items, userId: bodyUserId } = req.body;
+    const userId = bodyUserId || getUserId(req);
+    
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Items must be an array'
+      });
+    }
+    
+    const existingCart = cartItems.get(userId) || [];
+    const newItems = items.map(item => ({
+      ...item,
+      id: item.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      addedAt: new Date().toISOString()
+    }));
+    
+    const updatedCart = [...existingCart, ...newItems];
+    cartItems.set(userId, updatedCart);
+    
+    res.json({
+      success: true,
+      cart: updatedCart,
+      itemsAdded: newItems.length,
+      totalItems: updatedCart.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add items to cart'
+    });
+  }
+});
+
+// DELETE /api/cart/:userId - Clear user's cart
+router.delete('/:userId', (req, res) => {
+  try {
+    const { userId } = req.params;
+    cartItems.delete(validateUserId(userId));
+    
+    res.json({
+      success: true,
+      message: 'Cart cleared successfully'
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: 'Invalid user ID'
+    });
+  }
+});
+
+// PUT /api/cart/items/:itemId - Update individual item
+router.put('/items/:itemId', (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const userId = getUserId(req);
+    const updates = req.body;
+    
+    const userCart = cartItems.get(userId) || [];
+    const itemIndex = userCart.findIndex(item => item.id === itemId);
+    
+    if (itemIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: 'Item not found'
+      });
+    }
+    
+    // Validate updates
+    if (updates.quantity !== undefined) {
+      if (!validateQuantity(updates.quantity)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid quantity'
+        });
+      }
+    }
+    
+    if (updates.productName !== undefined) {
+      updates.productName = sanitizeText(updates.productName);
+    }
+    
+    userCart[itemIndex] = {
+      ...userCart[itemIndex],
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+    
+    cartItems.set(userId, userCart);
+    
+    res.json({
+      success: true,
+      item: userCart[itemIndex]
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update item'
+    });
+  }
+});
 
 module.exports = router;

@@ -36,34 +36,21 @@ async authenticate() {
     
     const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
     
-    // Use URLSearchParams to properly format the body
+    // Use client_credentials grant for product search API access
     const params = new URLSearchParams();
-    params.append('grant_type', 'authorization_code');
-    params.append('code', code);
-    params.append('redirect_uri', process.env.KROGER_REDIRECT_URI);
-
-    const tokenResponse = await axios.post(
-      `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
-      params.toString(),
-      {
-        headers: {
-          'Authorization': `Basic ${credentials}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        timeout: 10000
-      }
-    );
+    params.append('grant_type', 'client_credentials');
+    params.append('scope', 'product.compact');
     
     const response = await axios.post(
       `${this.baseURL}/connect/oauth2/token`,
-      params.toString(), // Convert to proper form data
+      params.toString(),
       {
         headers: {
           'Authorization': `Basic ${credentials}`,
           'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json'
         },
-        timeout: 10000 // 10 second timeout
+        timeout: 10000
       }
     );
     

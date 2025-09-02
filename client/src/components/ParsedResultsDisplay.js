@@ -53,11 +53,13 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
 
   // Fetch real-time prices for items - Use useCallback to fix dependency warning
   const fetchRealTimePrices = useCallback(async (itemsToFetch) => {
+    console.log(`💰 [FETCH DEBUG] Starting to fetch prices for ${itemsToFetch.length} items`);
     const itemIds = itemsToFetch.map(item => item.id);
     setFetchingPrices(prev => new Set([...prev, ...itemIds]));
 
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      console.log(`💰 [FETCH DEBUG] Making request to: ${API_URL}/api/cart/fetch-prices`);
       const response = await fetch(`${API_URL}/api/cart/fetch-prices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -71,6 +73,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
 
       if (response.ok) {
         const data = await response.json();
+        console.log(`💰 [FETCH DEBUG] Received response:`, data);
 
         // Update items with fetched prices and save price history
         const updatedItems = items.map(item => {
@@ -101,9 +104,14 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
 
         onItemsChange(updatedItems);
         localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+        console.log(`💰 [FETCH DEBUG] Updated ${updatedItems.length} items with price data`);
+      } else {
+        console.error(`💰 [FETCH DEBUG] Request failed with status: ${response.status}`);
+        const errorText = await response.text();
+        console.error(`💰 [FETCH DEBUG] Error response:`, errorText);
       }
     } catch (error) {
-      console.error('Failed to fetch prices:', error);
+      console.error('💰 [FETCH DEBUG] Failed to fetch prices:', error);
     } finally {
       setFetchingPrices(prev => {
         const newSet = new Set(prev);
@@ -115,9 +123,13 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
 
   // Fetch real-time prices on mount - Fixed dependencies
   useEffect(() => {
-    const itemsNeedingPrices = items.filter(item => !item.realPrice && item.productName);
+    const itemsNeedingPrices = items.filter(item => !item.realPrice && (item.productName || item.itemName || item.name));
+    console.log(`💰 [PRICE DEBUG] ${itemsNeedingPrices.length} items need prices out of ${items.length} total items`);
     if (itemsNeedingPrices.length > 0) {
+      console.log(`💰 [PRICE DEBUG] Fetching prices for items:`, itemsNeedingPrices.map(item => item.productName || item.itemName || item.name));
       fetchRealTimePrices(itemsNeedingPrices);
+    } else if (items.length > 0) {
+      console.log(`💰 [PRICE DEBUG] All items already have prices or no valid product names found`);
     }
   }, [items, fetchRealTimePrices]);
 
