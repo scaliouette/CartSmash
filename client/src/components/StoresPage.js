@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSmashCart } from '../contexts/SmashCartContext';
+import { STORE_CHAINS, STORE_GROUPS, getActiveStores, getPlannedStores, STORE_STATUS } from '../config/storeConfig';
 import KrogerAuth from './KrogerAuth';
 import NearbyStores from './NearbyStores';
 
@@ -60,6 +61,20 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
     );
   }
 
+  const activeStores = getActiveStores();
+  const plannedStores = getPlannedStores();
+  const allStores = [...activeStores, ...plannedStores];
+
+  const handleStoreCardClick = (store) => {
+    if (store.status === 'active' && store.id === 'kroger') {
+      // For Kroger, proceed with auth flow
+      // Do nothing here, let them start the Kroger auth process
+    } else {
+      // For planned stores, show coming soon message
+      console.log(`${store.name} coming soon!`);
+    }
+  };
+
   return (
     <div className="stores-page">
       {/* Header */}
@@ -68,106 +83,149 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
           ← Back to Home
         </button>
         <div className="page-title">
-          <h1>Find Your Store</h1>
-          <p>Connect to Kroger and select your preferred store location</p>
+          <h1>Choose Your Store</h1>
+          <p>Select from our supported grocery stores</p>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="stores-page-content">
-        {!krogerAuthComplete ? (
-          // Step 1: Kroger Authentication
-          <div className="auth-step">
-            <div className="step-indicator">
-              <div className="step active">1</div>
-              <div className="step-line"></div>
-              <div className="step">2</div>
-              <div className="step-line"></div>
-              <div className="step">3</div>
-            </div>
-            <div className="step-title">
-              <h3>Connect to Kroger</h3>
-              <p>Authenticate with your Kroger account</p>
-            </div>
-            <KrogerAuth onAuthSuccess={handleKrogerAuthSuccess} />
-          </div>
-        ) : !selectedStore ? (
-          // Step 2: Store Selection
-          <div className="stores-step">
-            <div className="step-indicator">
-              <div className="step completed">✓</div>
-              <div className="step-line completed"></div>
-              <div className="step active">2</div>
-              <div className="step-line"></div>
-              <div className="step">3</div>
-            </div>
-            <div className="step-title">
-              <h3>Choose Your Store</h3>
-              <p>Select your preferred Kroger location</p>
-            </div>
-            <NearbyStores onStoreSelect={handleStoreSelect} />
-          </div>
-        ) : (
-          // Step 3: Ready to Shop
-          <div className="ready-step">
-            <div className="step-indicator">
-              <div className="step completed">✓</div>
-              <div className="step-line completed"></div>
-              <div className="step completed">✓</div>
-              <div className="step-line completed"></div>
-              <div className="step active">3</div>
-            </div>
-            <div className="step-title">
-              <h3>🛒 SmashCart Ready!</h3>
-              <p>SmashCart is now connected to {selectedStore.name}</p>
-            </div>
-            
-            <div className="ready-content">
-              <div className="selected-store-summary">
-                <div className="store-icon">🏪</div>
-                <div className="store-details">
-                  <h4>{selectedStore.name}</h4>
-                  <p>{selectedStore.address?.addressLine1}</p>
-                  <p>{selectedStore.address?.city}, {selectedStore.address?.state} {selectedStore.address?.zipCode}</p>
-                  {selectedStore.phone && <p>📞 {selectedStore.phone}</p>}
+        {/* Store Selection Grid */}
+        <div className="stores-grid">
+          {allStores.map((store) => {
+            const status = STORE_STATUS[store.status];
+            return (
+              <div 
+                key={store.id} 
+                className={`store-card ${store.status}`}
+                onClick={() => handleStoreCardClick(store)}
+              >
+                <div className="store-header" style={{ backgroundColor: store.branding.primaryColor }}>
+                  <div className="store-icon">{store.branding.icon}</div>
+                  <div className="store-name">{store.displayName}</div>
+                </div>
+                
+                <div className="store-info">
+                  <div className="store-status" style={{ color: status.color }}>
+                    <span className="status-badge" style={{ backgroundColor: status.color }}>
+                      {status.label}
+                    </span>
+                  </div>
+                  
+                  <div className="store-features">
+                    {store.features.delivery && <span className="feature">🚚 Delivery</span>}
+                    {store.features.curbsidePickup && <span className="feature">🚗 Pickup</span>}
+                    {store.features.loyaltyProgram && <span className="feature">⭐ Rewards</span>}
+                    {store.features.organicFocus && <span className="feature">🌱 Organic</span>}
+                  </div>
+                  
+                  <div className="store-regions">
+                    <small>{store.regions.join(', ')}</small>
+                  </div>
                 </div>
               </div>
+            );
+          })}
+        </div>
 
-              <div className="ready-actions">
-                <button 
-                  className="start-shopping-btn"
-                  onClick={() => onBackToHome && onBackToHome()}
-                >
-                  🛒 Start Shopping
-                </button>
+        {/* Kroger Integration Section - Only show if user clicked on Kroger */}
+        {selectedStore?.id === 'kroger' || (!selectedStore && krogerAuthComplete) ? (
+          <div className="kroger-integration">
+            {!krogerAuthComplete ? (
+              // Step 1: Kroger Authentication
+              <div className="auth-step">
+                <div className="step-indicator">
+                  <div className="step active">1</div>
+                  <div className="step-line"></div>
+                  <div className="step">2</div>
+                  <div className="step-line"></div>
+                  <div className="step">3</div>
+                </div>
+                <div className="step-title">
+                  <h3>Connect to Kroger</h3>
+                  <p>Authenticate with your Kroger account</p>
+                </div>
+                <KrogerAuth onAuthSuccess={handleKrogerAuthSuccess} />
+              </div>
+            ) : !selectedStore ? (
+              // Step 2: Store Selection
+              <div className="stores-step">
+                <div className="step-indicator">
+                  <div className="step completed">✓</div>
+                  <div className="step-line completed"></div>
+                  <div className="step active">2</div>
+                  <div className="step-line"></div>
+                  <div className="step">3</div>
+                </div>
+                <div className="step-title">
+                  <h3>Choose Your Kroger Store</h3>
+                  <p>Select your preferred Kroger location</p>
+                </div>
+                <NearbyStores onStoreSelect={handleStoreSelect} />
+              </div>
+            ) : (
+              // Step 3: Ready to Shop
+              <div className="ready-step">
+                <div className="step-indicator">
+                  <div className="step completed">✓</div>
+                  <div className="step-line completed"></div>
+                  <div className="step completed">✓</div>
+                  <div className="step-line completed"></div>
+                  <div className="step active">3</div>
+                </div>
+                <div className="step-title">
+                  <h3>🛒 SmashCart Ready!</h3>
+                  <p>SmashCart is now connected to {selectedStore.name}</p>
+                </div>
                 
-                <button 
-                  className="change-store-btn"
-                  onClick={() => {
-                    setSelectedStore(null);
-                    localStorage.removeItem('selectedStore');
-                  }}
-                >
-                  Change Store
-                </button>
-              </div>
+                <div className="ready-content">
+                  <div className="selected-store-summary">
+                    <div className="store-icon">🏪</div>
+                    <div className="store-details">
+                      <h4>{selectedStore.name}</h4>
+                      <p>{selectedStore.address?.addressLine1}</p>
+                      <p>{selectedStore.address?.city}, {selectedStore.address?.state} {selectedStore.address?.zipCode}</p>
+                      {selectedStore.phone && <p>📞 {selectedStore.phone}</p>}
+                    </div>
+                  </div>
 
-              <div className="next-steps">
-                <h5>SmashCart Features Active:</h5>
-                <ul>
-                  <li>✅ Full cart management (GET/POST/PUT/DELETE)</li>
-                  <li>🏪 Store location and service information</li>
-                  <li>🛒 Enhanced product details and pricing</li>
-                  <li>📊 Cart analytics and summaries</li>
-                  <li>🔍 Smart product search integration</li>
-                  <li>⚡ Quick-add functionality</li>
-                  <li>🚚 Pickup and delivery coordination</li>
-                  <li>📱 Real-time cart synchronization</li>
-                </ul>
+                  <div className="ready-actions">
+                    <button 
+                      className="start-shopping-btn"
+                      onClick={() => onBackToHome && onBackToHome()}
+                    >
+                      🛒 Start Shopping
+                    </button>
+                    
+                    <button 
+                      className="change-store-btn"
+                      onClick={() => {
+                        setSelectedStore(null);
+                        localStorage.removeItem('selectedStore');
+                      }}
+                    >
+                      Change Store
+                    </button>
+                  </div>
+
+                  <div className="next-steps">
+                    <h5>SmashCart Features Active:</h5>
+                    <ul>
+                      <li>✅ Full cart management (GET/POST/PUT/DELETE)</li>
+                      <li>🏪 Store location and service information</li>
+                      <li>🛒 Enhanced product details and pricing</li>
+                      <li>📊 Cart analytics and summaries</li>
+                      <li>🔍 Smart product search integration</li>
+                      <li>⚡ Quick-add functionality</li>
+                      <li>🚚 Pickup and delivery coordination</li>
+                      <li>📱 Real-time cart synchronization</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
+        ) : null}
       </div>
 
       <style jsx>{`
@@ -175,6 +233,119 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
           min-height: 100vh;
           background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
           padding-bottom: 2rem;
+        }
+
+        .stores-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 3rem;
+          max-width: 1200px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+
+        .store-card {
+          background: white;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          cursor: pointer;
+          transition: all 0.3s ease;
+          border: 2px solid transparent;
+        }
+
+        .store-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .store-card.active {
+          border-color: #10b981;
+          box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+        }
+
+        .store-card.active:hover {
+          box-shadow: 0 8px 25px rgba(16,185,129,0.4);
+        }
+
+        .store-card.planned {
+          opacity: 0.8;
+        }
+
+        .store-header {
+          padding: 1.5rem;
+          color: white;
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          position: relative;
+        }
+
+        .store-header::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: rgba(255,255,255,0.3);
+        }
+
+        .store-icon {
+          font-size: 2rem;
+        }
+
+        .store-name {
+          font-size: 1.25rem;
+          font-weight: 600;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .store-info {
+          padding: 1.5rem;
+        }
+
+        .store-status {
+          margin-bottom: 1rem;
+        }
+
+        .status-badge {
+          display: inline-block;
+          color: white;
+          padding: 0.25rem 0.75rem;
+          border-radius: 12px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .store-features {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          margin-bottom: 1rem;
+        }
+
+        .feature {
+          background: #f3f4f6;
+          color: #4b5563;
+          padding: 0.25rem 0.5rem;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 500;
+        }
+
+        .store-regions {
+          color: #6b7280;
+          font-size: 0.75rem;
+        }
+
+        .kroger-integration {
+          margin-top: 2rem;
+          padding-top: 2rem;
+          border-top: 1px solid #e5e7eb;
         }
 
         .stores-page-header {
@@ -423,6 +594,11 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
             flex-direction: column;
             gap: 1rem;
             text-align: center;
+          }
+
+          .stores-grid {
+            grid-template-columns: 1fr;
+            padding: 0 1rem;
           }
 
           .step-indicator {

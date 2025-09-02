@@ -565,7 +565,7 @@ async addItemsToCart(userId, items) {
       // Add new items via POST
       if (newItems.length > 0) {
         console.log(`➕ Adding ${newItems.length} new items to cart...`);
-        const addPromises = newItems.map(async (item) => {
+        const addPromises = newItems.map(async (item, index) => {
           try {
             // Send only the fields Kroger expects
             const krogerItem = {
@@ -573,23 +573,51 @@ async addItemsToCart(userId, items) {
               quantity: item.quantity,
               modality: item.modality || 'PICKUP'
             };
-            console.log(`📦 Adding item to cart: ${JSON.stringify(krogerItem)}`);
+            console.log(`📦 [${index + 1}/${newItems.length}] Adding item to cart: ${JSON.stringify(krogerItem)}`);
             
-            return await this.makeUserRequest(
+            const result = await this.makeUserRequest(
               userId,
               'POST',
               `/carts/${existingCartId}/items`,
               krogerItem
             );
+            
+            console.log(`✅ [${index + 1}/${newItems.length}] Item ${item.upc} added successfully`);
+            console.log(`   Response: ${JSON.stringify(result, null, 2)}`);
+            return result;
           } catch (error) {
-            console.error(`❌ Failed to add item ${item.upc}:`, error.message);
+            console.error(`❌ [${index + 1}/${newItems.length}] Failed to add item ${item.upc}:`);
+            console.error(`   Error message: ${error.message}`);
             console.error(`   Item data sent: ${JSON.stringify(item)}`);
             console.error(`   Response status: ${error.response?.status}`);
-            console.error(`   Response data: ${JSON.stringify(error.response?.data)}`);
+            console.error(`   Response status text: ${error.response?.statusText}`);
+            console.error(`   Response headers: ${JSON.stringify(error.response?.headers, null, 2)}`);
+            console.error(`   Response data: ${JSON.stringify(error.response?.data, null, 2)}`);
+            console.error(`   Full error object: ${JSON.stringify({
+              code: error.code,
+              errno: error.errno,
+              syscall: error.syscall,
+              address: error.address,
+              port: error.port
+            }, null, 2)}`);
             return null;
           }
         });
-        await Promise.all(addPromises);
+        
+        console.log(`⏳ Waiting for all ${newItems.length} item additions to complete...`);
+        const addResults = await Promise.all(addPromises);
+        
+        const successCount = addResults.filter(result => result !== null).length;
+        const failureCount = addResults.filter(result => result === null).length;
+        
+        console.log(`📊 Item addition summary:`);
+        console.log(`   ├─ Successful: ${successCount}/${newItems.length}`);
+        console.log(`   ├─ Failed: ${failureCount}/${newItems.length}`);
+        console.log(`   └─ Success rate: ${Math.round((successCount/newItems.length)*100) || 0}%`);
+        
+        if (failureCount > 0) {
+          console.warn(`⚠️ ${failureCount} items failed to add - this may explain missing items in cart`);
+        }
       }
       
       // Update existing items via PUT
@@ -647,13 +675,26 @@ async addItemsToCart(userId, items) {
       }
       
       try {
+        console.log(`📦 Making cart creation request...`);
         result = await this.makeUserRequest(
           userId, 
           'POST',
           '/carts',  // Create new cart endpoint
           { items: uniqueItems }
         );
-        console.log(`✅ Successfully created new cart with ${uniqueItems.length} items`);
+        
+        console.log(`✅ Cart creation request completed successfully`);
+        console.log(`   Response data: ${JSON.stringify(result, null, 2)}`);
+        console.log(`   Created cart with ${uniqueItems.length} requested items`);
+        
+        // Check if result contains cart information
+        const cartId = result.data?.id || result.id;
+        if (cartId) {
+          console.log(`   New cart ID: ${cartId}`);
+        } else {
+          console.warn(`   ⚠️ No cart ID in response - this may indicate an issue`);
+        }
+        
       } catch (createError) {
         console.error('❌ Cart creation failed - Enhanced debugging info:');
         console.error(`   Status: ${createError.response?.status || 'NO_STATUS'}`);
@@ -798,18 +839,55 @@ async addItemsToCart(userId, items) {
     console.log(`✅ Successfully processed ${uniqueItems.length} items for user ${userId}`);
     
     // Verify the cart was actually updated
-    console.log('🔍 Verifying cart contents...');
+    console.log('🔍 ENHANCED CART VERIFICATION - Checking if items were actually added...');
     try {
+      console.log('   Step 1: Getting list of all carts...');
       const cartsVerification = await this.makeUserRequest(userId, 'GET', '/carts');
+      console.log(`   Cart list response: ${JSON.stringify(cartsVerification, null, 2)}`);
+      
       if (cartsVerification.data && cartsVerification.data.length > 0) {
         const cartId = existingCartId || cartsVerification.data[0].id;
+        console.log(`   Step 2: Getting details for cart ID: ${cartId}`);
+        
         const cartDetails = await this.makeUserRequest(userId, 'GET', `/carts/${cartId}`);
-        console.log(`✅ Cart verified: ${cartDetails.data?.items?.length || 0} items in cart`);
+        console.log(`   Cart details response: ${JSON.stringify(cartDetails, null, 2)}`);
+        
+        const itemCount = cartDetails.data?.items?.length || 0;
+        const cartTotal = cartDetails.data?.total?.amount || 0;
+        
+        console.log(`✅ CART VERIFICATION COMPLETE:`);
+        console.log(`   ├─ Cart ID: ${cartId}`);
+        console.log(`   ├─ Items in cart: ${itemCount}`);
+        console.log(`   ├─ Cart total: $${cartTotal}`);
+        console.log(`   ├─ Items sent: ${uniqueItems.length}`);
+        console.log(`   └─ Success rate: ${itemCount}/${uniqueItems.length} (${Math.round((itemCount/uniqueItems.length)*100) || 0}%)`);
+        
+        if (itemCount === 0 && uniqueItems.length > 0) {
+          console.error('❌ CRITICAL ISSUE: Items were sent but cart is empty!');
+          console.error('   Possible reasons:');
+          console.error('   1. Items rejected by Kroger (invalid UPCs, out of stock)');
+          console.error('   2. Store-specific availability issues');
+          console.error('   3. API processing delay');
+          console.error('   4. Cart synchronization issues');
+          
+          // Log the exact items that were sent
+          console.error('   Items that were sent to Kroger:');
+          uniqueItems.forEach((item, idx) => {
+            console.error(`     ${idx + 1}. UPC: ${item.upc}, Qty: ${item.quantity}, Mode: ${item.modality}`);
+          });
+        }
+        
         this.lastCartResponse = cartDetails;
         return cartDetails;
+      } else {
+        console.error('❌ No carts found in verification step');
+        console.error(`   Carts response: ${JSON.stringify(cartsVerification, null, 2)}`);
       }
     } catch (verifyError) {
-      console.log('⚠️ Could not verify cart contents:', verifyError.message);
+      console.error('❌ Cart verification failed with error:');
+      console.error(`   Error message: ${verifyError.message}`);
+      console.error(`   Error status: ${verifyError.response?.status}`);
+      console.error(`   Error data: ${JSON.stringify(verifyError.response?.data, null, 2)}`);
     }
     
     return result;
