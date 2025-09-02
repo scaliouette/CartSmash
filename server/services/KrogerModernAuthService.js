@@ -25,8 +25,8 @@ class KrogerModernAuthService {
       'offline_access'
     ];
     
-    // Legacy OAuth fallback - use cart.basic:rw for cart API compatibility
-    this.legacyScopes = ['cart.basic:rw', 'profile.compact', 'product.compact'];
+    // Legacy OAuth fallback - use cart.basic:write for cart API compatibility
+    this.legacyScopes = ['cart.basic:write', 'profile.compact', 'product.compact'];
     
     // State management
     this.pendingStates = new Map();

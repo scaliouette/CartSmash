@@ -24,8 +24,8 @@ class KrogerAzureB2CService {
       'offline_access'
     ];
     
-    // Updated scopes - use cart.basic:rw for cart API compatibility
-    this.legacyScopes = ['cart.basic:rw', 'profile.compact', 'product.compact'];
+    // Updated scopes - use cart.basic:write for cart API compatibility
+    this.legacyScopes = ['cart.basic:write', 'profile.compact', 'product.compact'];
     
     // State management
     this.pendingStates = new Map();

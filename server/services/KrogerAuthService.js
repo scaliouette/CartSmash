@@ -52,8 +52,8 @@ class KrogerAuthService {
       this.redirectUri = process.env.KROGER_REDIRECT_URI;
     }
     
-    // Default scopes - Updated to cart.basic:rw for cart API compatibility
-    this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:rw profile.compact product.compact').split(' ');
+    // Default scopes - Updated to cart.basic:write for cart API compatibility
+    this.defaultScopes = (process.env.KROGER_OAUTH_SCOPES || 'cart.basic:write profile.compact product.compact').split(' ');
     
     // Encryption key for state tokens
     this.encryptionKey = process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET;

@@ -12,7 +12,7 @@ class KrogerOrderService {
     
     this.scopes = {
       products: 'product.compact',
-      cart: 'cart.basic:rw',
+      cart: 'cart.basic:write',
       profile: 'profile.compact'
     };
     
@@ -351,11 +351,11 @@ async ensureUserAuth(userId) {
   // ENHANCED TOKEN ANALYSIS WITH SCOPE UPGRADE
   console.log(`🔍 [RENDER DEBUG] DETAILED TOKEN ANALYSIS:`);
   const hasWriteScope = authCheck.tokenInfo.scope?.includes('cart.basic:write');
-  const hasRWScope = authCheck.tokenInfo.scope?.includes('cart.basic:rw');
+  const hasRWScope = authCheck.tokenInfo.scope?.includes('cart.basic:write');
   
-  console.log(`   Required API scope: cart.basic:rw`);
+  console.log(`   Required API scope: cart.basic:write`);
   console.log(`   Token has cart.basic:write: ${hasWriteScope || false}`);
-  console.log(`   Token has cart.basic:rw: ${hasRWScope || false}`);
+  console.log(`   Token has cart.basic:write: ${hasRWScope || false}`);
   console.log(`   All token scopes: ${authCheck.tokenInfo.scope?.split(' ') || []}`);
   console.log(`   Token type: ${authCheck.tokenInfo.tokenType || 'Bearer'}`);
   console.log(`   Token expires at: ${new Date(authCheck.tokenInfo.expiresAt).toISOString()}`);
@@ -373,7 +373,7 @@ async ensureUserAuth(userId) {
   // Create scope-upgraded token for cart API
   let effectiveToken = authCheck.tokenInfo.accessToken;
   if (hasWriteScope && !hasRWScope && endpoint.includes('/cart')) {
-    console.log(`🔄 [SCOPE UPGRADE] Attempting cart.basic:write → cart.basic:rw for cart API`);
+    console.log(`✅ [SCOPE VALID] Using cart.basic:write for cart API operations`);
     // The token payload will be used as-is, but we'll try the API call
     // Kroger's API should accept cart.basic:write tokens for cart operations
   }
@@ -467,13 +467,13 @@ async addItemsToCart(userId, items) {
       throw new Error(`AUTHENTICATION_REQUIRED: User must complete Kroger OAuth before cart operations. ${authCheck.reason}`);
     }
     
-    // Verify user has cart.basic:rw scope for cart operations
-    if (!authCheck.tokenInfo.scope?.includes('cart.basic:rw')) {
-      console.error(`❌ User ${userId} missing cart.basic:rw scope: ${authCheck.tokenInfo.scope}`);
-      throw new Error('INSUFFICIENT_SCOPE: User token missing cart.basic:rw scope. Please re-authenticate with Kroger.');
+    // Verify user has cart.basic:write scope for cart operations
+    if (!authCheck.tokenInfo.scope?.includes('cart.basic:write')) {
+      console.error(`❌ User ${userId} missing cart.basic:write scope: ${authCheck.tokenInfo.scope}`);
+      throw new Error('INSUFFICIENT_SCOPE: User token missing cart.basic:write scope. Please re-authenticate with Kroger.');
     }
     
-    console.log(`✅ User ${userId} authenticated with cart.basic:rw scope for cart operations`);
+    console.log(`✅ User ${userId} authenticated with cart.basic:write scope for cart operations`);
     
     // Remove duplicates first
     const uniqueItems = [];
