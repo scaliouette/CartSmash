@@ -132,16 +132,6 @@ const Privacy = ({ onBack }) => {
   return (
     <div style={containerStyle}>
       <div style={contentStyle}>
-        <button 
-          onClick={handleBack}
-          style={backButtonStyle}
-          onMouseOver={e => e.target.style.color = '#1f2937'}
-          onMouseOut={e => e.target.style.color = '#6b7280'}
-        >
-          <ArrowLeft style={{ width: '20px', height: '20px', marginRight: '8px' }} />
-          Back to CARTSMASH
-        </button>
-
         <div style={cardStyle}>
           <div style={headerStyle}>
             <Shield style={iconStyle} />
