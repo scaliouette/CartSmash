@@ -77,10 +77,29 @@ const KrogerAuth = ({ onAuthSuccess }) => {
         const data = await response.json();
         console.log('🔍 Kroger auth response:', data);
         
-        if (data.success && data.primary && data.primary.url && data.primary.url.authURL) {
-          console.log('🚀 Redirecting to Kroger OAuth:', data.primary.url.authURL);
-          // Redirect to Kroger OAuth
-          window.location.href = data.primary.url.authURL;
+        if (data.success) {
+          let authURL = null;
+          
+          // Try to find Legacy OAuth option first (should work with your client ID)
+          if (data.alternatives) {
+            const legacyOption = data.alternatives.find(alt => alt.url?.authType === 'legacy_oauth');
+            if (legacyOption && legacyOption.url?.authURL) {
+              authURL = legacyOption.url.authURL;
+              console.log('🚀 Using Legacy OAuth:', authURL);
+            }
+          }
+          
+          // Fallback to primary if no legacy option
+          if (!authURL && data.primary && data.primary.url && data.primary.url.authURL) {
+            authURL = data.primary.url.authURL;
+            console.log('🚀 Using Primary OAuth:', authURL);
+          }
+          
+          if (authURL) {
+            window.location.href = authURL;
+          } else {
+            throw new Error('No valid OAuth URL found in response');
+          }
         } else {
           console.error('❌ Invalid auth response structure:', data);
           throw new Error('Invalid authentication response');
