@@ -2,13 +2,13 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSmashCart } from '../contexts/SmashCartContext';
-import { STORE_CHAINS, STORE_GROUPS, getActiveStores, getPlannedStores, STORE_STATUS } from '../config/storeConfig';
+import { getActiveStores, getPlannedStores, STORE_STATUS } from '../config/storeConfig';
 import KrogerAuth from './KrogerAuth';
 import NearbyStores from './NearbyStores';
 
 const StoresPage = ({ onStoreSelect, onBackToHome }) => {
   const { currentUser } = useAuth();
-  const { initializeWithStore, isInitialized } = useSmashCart();
+  const { initializeWithStore } = useSmashCart();
   const [krogerAuthComplete, setKrogerAuthComplete] = useState(false);
   const [selectedStore, setSelectedStore] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);

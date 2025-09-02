@@ -1,9 +1,8 @@
-﻿// client/src/App.js - COMPLETE FIXED VERSION
+// client/src/App.js - COMPLETE FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SmashCartProvider } from './contexts/SmashCartContext';
 import userDataService from './services/userDataService';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 // Import styles
 import './styles/cartsmash.css';
@@ -12,7 +11,6 @@ import './styles/cartsmash.css';
 import Header from './components/Header';
 import GroceryListForm from './components/GroceryListForm';
 import MyAccount from './components/MyAccount';
-import RecipeManager from './components/RecipeManager';
 import StoresPage from './components/StoresPage';
 import Contact from './components/Contact';
 import Terms from './components/Terms';
@@ -137,11 +135,10 @@ function AppContent({
       await userDataService.init();
       
       // Load all data from Firebase
-      const [firebaseLists, firebaseRecipes, firebaseMealPlans, userPrefs] = await Promise.all([
+      const [firebaseLists, firebaseRecipes, firebaseMealPlans] = await Promise.all([
         userDataService.getShoppingLists().catch(() => []),
         userDataService.getRecipes().catch(() => []),
-        userDataService.getMealPlans().catch(() => []),
-        userDataService.getUserPreferences().catch(() => ({}))
+        userDataService.getMealPlans().catch(() => [])
       ]);
       
       // Load current cart from the most recent list if exists
@@ -390,39 +387,39 @@ function AppContent({
     }
   };
   
-  const saveMealPlan = async (mealPlan) => {
-    try {
-      // Save to Firebase if user is authenticated
-      if (currentUser) {
-        await userDataService.saveMealPlan(mealPlan);
-        console.log('✅ Meal plan saved to Firebase');
-      }
-      
-      // Update local state
-      const existingIndex = mealPlans.findIndex(p => p.id === mealPlan.id);
-      let updatedPlans;
-      
-      if (existingIndex >= 0) {
-        // Update existing
-        updatedPlans = [...mealPlans];
-        updatedPlans[existingIndex] = mealPlan;
-      } else {
-        // Add new
-        updatedPlans = [...mealPlans, mealPlan];
-      }
-      
-      setMealPlans(updatedPlans);
-      localStorage.setItem('cartsmash-mealplans', JSON.stringify(updatedPlans));
-      
-      console.log('📅 Meal plan saved:', mealPlan.name);
-      return mealPlan;
-      
-    } catch (error) {
-      console.error('Error saving meal plan:', error);
-      alert('Failed to save meal plan to cloud, but saved locally');
-      return mealPlan;
-    }
-  };
+  // const saveMealPlan = async (mealPlan) => {
+  //   try {
+  //     // Save to Firebase if user is authenticated
+  //     if (currentUser) {
+  //       await userDataService.saveMealPlan(mealPlan);
+  //       console.log('✅ Meal plan saved to Firebase');
+  //     }
+  //     
+  //     // Update local state
+  //     const existingIndex = mealPlans.findIndex(p => p.id === mealPlan.id);
+  //     let updatedPlans;
+  //     
+  //     if (existingIndex >= 0) {
+  //       // Update existing
+  //       updatedPlans = [...mealPlans];
+  //       updatedPlans[existingIndex] = mealPlan;
+  //     } else {
+  //       // Add new
+  //       updatedPlans = [...mealPlans, mealPlan];
+  //     }
+  //     
+  //     setMealPlans(updatedPlans);
+  //     localStorage.setItem('cartsmash-mealplans', JSON.stringify(updatedPlans));
+  //     
+  //     console.log('📅 Meal plan saved:', mealPlan.name);
+  //     return mealPlan;
+  //     
+  //   } catch (error) {
+  //     console.error('Error saving meal plan:', error);
+  //     alert('Failed to save meal plan to cloud, but saved locally');
+  //     return mealPlan;
+  //   }
+  // };
   
   if (isLoading) {
     return (

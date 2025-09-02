@@ -1012,7 +1012,7 @@ const styles = {
     overflow: 'hidden'
   },
 
-  header: {
+  'header::after': {
     content: '""',
     position: 'absolute',
     top: '-50%',
