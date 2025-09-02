@@ -1,5 +1,11 @@
 import React, { useEffect } from 'react';
-import { ArrowLeft } from 'lucide-react';
+
+// Arrow Left Icon (since lucide-react is imported in your original)
+const ArrowLeft = ({ className, style }) => (
+  <svg className={className} style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+  </svg>
+);
 
 const Terms = ({ onBack }) => {
   useEffect(() => {
@@ -14,202 +20,254 @@ const Terms = ({ onBack }) => {
     }
   };
 
+  // Custom gradient style
+  const primaryGradient = {
+    background: 'linear-gradient(45deg, #FF6B35, #F7931E)'
+  };
+
+  const sectionStyle = {
+    marginBottom: '40px'
+  };
+
+  const headingStyle = {
+    color: '#1f2937', 
+    borderBottom: '2px solid #FF6B35',
+    fontSize: '24px',
+    fontWeight: 'bold',
+    marginBottom: '16px',
+    paddingBottom: '8px',
+    margin: '0 0 16px 0'
+  };
+
+  const textStyle = {
+    color: '#6b7280',
+    lineHeight: '1.6',
+    margin: '0 0 12px 0'
+  };
+
+  const listStyle = {
+    listStyleType: 'disc',
+    paddingLeft: '24px',
+    marginTop: '12px',
+    color: '#6b7280'
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <button 
-          onClick={handleBack}
-          className="mb-6 flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Back to CARTSMASH
-        </button>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+      {/* Hero Section with Gradient */}
+      <div style={{ ...primaryGradient, color: 'white' }}>
+        <div style={{ maxWidth: '1024px', margin: '0 auto', padding: '64px 16px' }}>
+          <h1 style={{ fontSize: '48px', fontWeight: 'bold', marginBottom: '16px', margin: 0 }}>Terms and Conditions</h1>
+          <p style={{ fontSize: '20px', opacity: 0.9, margin: 0 }}>Please read these terms carefully</p>
+          <p style={{ fontSize: '14px', opacity: 0.75, marginTop: '16px', margin: '16px 0 0 0' }}>Last updated: August 27, 2025</p>
+        </div>
+      </div>
 
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Terms and Conditions</h1>
-          <p className="text-gray-600 mb-8">Last updated: August 27, 2025</p>
+      {/* Content Section */}
+      <div style={{ maxWidth: '1024px', margin: '0 auto', padding: '48px 16px' }}>
+        <div style={{ 
+          backgroundColor: '#ffffff', 
+          borderRadius: '8px', 
+          boxShadow: '0 10px 25px rgba(0,0,0,0.1)', 
+          padding: '48px' 
+        }}>
+          
+          {/* Agreement Notice */}
+          <section style={{ marginBottom: '40px' }}>
+            <div style={{ 
+              backgroundColor: '#dbeafe', 
+              borderLeft: '4px solid #3b82f6',
+              padding: '16px',
+              borderRadius: '8px'
+            }}>
+              <p style={{ color: '#1f2937', fontWeight: '500', margin: 0 }}>
+                By using CARTSMASH, you agree to these Terms and Conditions and our Privacy Policy. 
+                If you don't agree, please don't use our service.
+              </p>
+            </div>
+          </section>
 
-          <div className="space-y-6 text-gray-700">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">1. Agreement to Terms</h2>
-              <p>
-                These Terms and Conditions ("Terms") govern your use of CARTSMASH ("we," "our," or "us") 
-                and our website located at cart-smash.vercel.app (the "Service") operated by CARTSMASH.
-              </p>
-              <p className="mt-2">
-                By accessing or using our Service, you agree to be bound by these Terms. If you disagree 
-                with any part of these terms, then you may not access the Service.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">2. Description of Service</h2>
-              <p>
-                CARTSMASH provides an AI-powered grocery list parsing and management service that includes:
-              </p>
-              <ul className="list-disc pl-6 mt-2 space-y-1">
-                <li>Intelligent parsing of grocery lists using AI</li>
-                <li>Shopping list organization and storage</li>
-                <li>Recipe management and ingredient extraction</li>
-                <li>Integration with Kroger for cart management</li>
-                <li>Cloud synchronization across devices</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">3. User Accounts</h2>
-              <p>
-                When you create an account with us, you must provide information that is accurate, complete, 
-                and current at all times. You are responsible for safeguarding the password and for all 
-                activities that occur under your account.
-              </p>
-              <p className="mt-2">
-                You agree to notify us immediately of any unauthorized access to or use of your account.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">4. Kroger Integration</h2>
-              <p>
-                Our Service integrates with Kroger's API to enable cart management features. By connecting 
-                your Kroger account:
-              </p>
-              <ul className="list-disc pl-6 mt-2 space-y-1">
-                <li>You authorize us to access your Kroger account on your behalf</li>
-                <li>You agree to Kroger's terms of service and privacy policy</li>
-                <li>You understand that we do not store your Kroger login credentials</li>
-                <li>You may disconnect your Kroger account at any time</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">5. Acceptable Use</h2>
-              <p>You agree not to use the Service to:</p>
-              <ul className="list-disc pl-6 mt-2 space-y-1">
-                <li>Violate any applicable laws or regulations</li>
-                <li>Infringe upon the rights of others</li>
-                <li>Transmit any harmful or malicious content</li>
-                <li>Attempt to gain unauthorized access to our systems</li>
-                <li>Use the Service for any commercial purposes without our permission</li>
-                <li>Reverse engineer or attempt to extract the source code of our Service</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">6. Intellectual Property</h2>
-              <p>
-                The Service and its original content, features, and functionality are owned by CARTSMASH 
-                and are protected by international copyright, trademark, and other intellectual property laws.
-              </p>
-              <p className="mt-2">
-                You retain ownership of any shopping lists, recipes, or other content you create using our Service. 
-                By using our Service, you grant us a license to use, store, and display your content solely for 
-                the purpose of providing the Service to you.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">7. Privacy</h2>
-              <p>
-                Your use of our Service is also governed by our Privacy Policy. Please review our Privacy Policy, 
-                which also governs the Site and informs users of our data collection practices.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">8. Disclaimer of Warranties</h2>
-              <p>
-                The Service is provided on an "AS IS" and "AS AVAILABLE" basis, without any warranties of any kind, 
-                either express or implied. We do not warrant that:
-              </p>
-              <ul className="list-disc pl-6 mt-2 space-y-1">
-                <li>The Service will be uninterrupted or error-free</li>
-                <li>The results obtained from the Service will be accurate or reliable</li>
-                <li>Any errors in the Service will be corrected</li>
-              </ul>
-              <p className="mt-2">
-                Grocery prices and product availability shown through our Service are estimates and may not 
-                reflect actual store prices or availability.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">9. Limitation of Liability</h2>
-              <p>
-                In no event shall CARTSMASH, its directors, employees, or agents be liable for any indirect, 
-                incidental, special, consequential, or punitive damages arising out of or relating to your use 
-                of the Service.
-              </p>
-              <p className="mt-2">
-                Our total liability to you for any damages shall not exceed the amount of fifty dollars ($50.00) 
-                or the amounts paid by you to us in the last six months, whichever is greater.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">10. Indemnification</h2>
-              <p>
-                You agree to defend, indemnify, and hold harmless CARTSMASH from any claims, damages, obligations, 
-                losses, liabilities, costs, or expenses arising from:
-              </p>
-              <ul className="list-disc pl-6 mt-2 space-y-1">
-                <li>Your use of and access to the Service</li>
-                <li>Your violation of these Terms</li>
-                <li>Your violation of any third party right</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">11. Termination</h2>
-              <p>
-                We may terminate or suspend your account immediately, without prior notice or liability, 
-                for any reason whatsoever, including without limitation if you breach the Terms.
-              </p>
-              <p className="mt-2">
-                Upon termination, your right to use the Service will cease immediately. You may delete your 
-                account at any time through the account settings.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">12. Changes to Terms</h2>
-              <p>
-                We reserve the right to modify or replace these Terms at any time. If a revision is material, 
-                we will try to provide at least 30 days notice prior to any new terms taking effect.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">13. Governing Law</h2>
-              <p>
-                These Terms shall be governed and construed in accordance with the laws of California, 
-                United States, without regard to its conflict of law provisions.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">14. Contact Information</h2>
-              <p>If you have any questions about these Terms, please contact us at:</p>
-              <div className="mt-2 pl-6">
-                <p>CARTSMASH</p>
-                <p>Email: support@cartsmash.com</p>
-                <p>Website: cart-smash.vercel.app</p>
+              <h2 style={headingStyle}>
+                1. Agreement to Terms
+              </h2>
+              <div>
+                <p style={textStyle}>
+                  These Terms and Conditions ("Terms") govern your use of CARTSMASH ("we," "our," or "us") 
+                  and our website located at cart-smash.vercel.app (the "Service") operated by CARTSMASH.
+                </p>
+                <p style={textStyle}>
+                  By accessing or using our Service, you agree to be bound by these Terms. If you disagree 
+                  with any part of these terms, then you may not access the Service.
+                </p>
               </div>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">15. Entire Agreement</h2>
-              <p>
-                These Terms constitute the entire agreement between us regarding our Service and supersede 
-                and replace any prior agreements we might have between us regarding the Service.
-              </p>
+              <h2 style={headingStyle}>
+                2. Description of Service
+              </h2>
+              <div>
+                <p style={textStyle}>
+                  CARTSMASH provides an AI-powered grocery list parsing and management service that includes:
+                </p>
+                <ul style={listStyle}>
+                  <li>Intelligent parsing of grocery lists using AI</li>
+                  <li>Shopping list organization and storage</li>
+                  <li>Recipe management and ingredient extraction</li>
+                  <li>Integration with Kroger for cart management</li>
+                  <li>Cloud synchronization across devices</li>
+                </ul>
+              </div>
+            </section>
+
+            <section>
+              <h2 style={headingStyle}>
+                3. User Accounts
+              </h2>
+              <div>
+                <p style={textStyle}>
+                  When you create an account with us, you must provide information that is accurate, complete, 
+                  and current at all times. You are responsible for safeguarding the password and for all activities 
+                  that occur under your account.
+                </p>
+                <p style={textStyle}>
+                  We reserve the right to refuse service, terminate accounts, or cancel orders in our sole discretion.
+                </p>
+              </div>
+            </section>
+
+            <section>
+              <h2 style={headingStyle}>
+                4. Privacy Policy
+              </h2>
+              <div>
+                <p style={textStyle}>
+                  Your privacy is important to us. Our Privacy Policy explains how we collect, use, and protect your 
+                  information when you use our Service. By using our Service, you agree to the collection and use 
+                  of information in accordance with our Privacy Policy.
+                </p>
+              </div>
+            </section>
+
+            <section>
+              <h2 style={headingStyle}>
+                5. Prohibited Uses
+              </h2>
+              <div>
+                <p style={textStyle}>You may not use our Service:</p>
+                <ul style={listStyle}>
+                  <li>For any unlawful purpose or to solicit others to perform unlawful acts</li>
+                  <li>To violate any international, federal, provincial, or state regulations, rules, laws, or local ordinances</li>
+                  <li>To infringe upon or violate our intellectual property rights or the intellectual property rights of others</li>
+                  <li>To harass, abuse, insult, harm, defame, slander, disparage, intimidate, or discriminate</li>
+                  <li>To submit false or misleading information</li>
+                  <li>To upload or transmit viruses or any other type of malicious code</li>
+                </ul>
+              </div>
+            </section>
+
+            <section>
+              <h2 style={headingStyle}>
+                6. Content
+              </h2>
+              <div>
+                <p style={textStyle}>
+                  Our Service allows you to post, link, store, share and otherwise make available certain information, 
+                  text, graphics, videos, or other material ("Content"). You are responsible for the Content that you 
+                  post to the Service.
+                </p>
+                <p style={textStyle}>
+                  By posting Content to the Service, you grant us the right and license to use, modify, publicly perform, 
+                  publicly display, reproduce, and distribute such Content on and through the Service.
+                </p>
+              </div>
+            </section>
+
+            <section>
+              <h2 style={headingStyle}>
+                7. Termination
+              </h2>
+              <div>
+                <p style={textStyle}>
+                  We may terminate or suspend your account immediately, without prior notice or liability, for any reason 
+                  whatsoever, including without limitation if you breach the Terms.
+                </p>
+                <p style={textStyle}>
+                  Upon termination, your right to use the Service will cease immediately. If you wish to terminate your 
+                  account, you may simply discontinue using the Service.
+                </p>
+              </div>
+            </section>
+
+            <section>
+              <h2 style={headingStyle}>
+                8. Disclaimer
+              </h2>
+              <div>
+                <p style={textStyle}>
+                  The information on this website is provided on an "as is" basis. To the fullest extent permitted by law, 
+                  this Company excludes all warranties, express or implied, including, without limitation, warranties of 
+                  merchantability, fitness for a particular purpose, and non-infringement of intellectual property.
+                </p>
+              </div>
+            </section>
+
+            <section>
+              <h2 style={headingStyle}>
+                9. Limitation of Liability
+              </h2>
+              <div>
+                <p style={textStyle}>
+                  In no event shall CARTSMASH, nor its directors, employees, partners, agents, suppliers, or affiliates, 
+                  be liable for any indirect, incidental, special, consequential, or punitive damages, including without 
+                  limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your use 
+                  of the Service.
+                </p>
+              </div>
+            </section>
+
+            <section>
+              <h2 style={headingStyle}>
+                10. Changes to Terms
+              </h2>
+              <div>
+                <p style={textStyle}>
+                  We reserve the right, at our sole discretion, to modify or replace these Terms at any time. If a revision 
+                  is material, we will try to provide at least 30 days notice prior to any new terms taking effect.
+                </p>
+                <p style={textStyle}>
+                  By continuing to access or use our Service after those revisions become effective, you agree to be bound 
+                  by the revised terms.
+                </p>
+              </div>
+            </section>
+
+            <section>
+              <h2 style={headingStyle}>
+                11. Contact Information
+              </h2>
+              <div>
+                <p style={textStyle}>
+                  If you have any questions about these Terms and Conditions, please contact us at:
+                </p>
+                <p style={{ ...textStyle, fontWeight: '500' }}>
+                  Email: legal@cartsmash.com
+                </p>
+              </div>
             </section>
           </div>
 
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <p className="text-sm text-gray-500 text-center">
-              By using CARTSMASH, you acknowledge that you have read and understood these Terms and Conditions 
-              and agree to be bound by them.
+          {/* Footer Section */}
+          <div style={{ 
+            marginTop: '60px', 
+            paddingTop: '20px', 
+            borderTop: '1px solid #e5e7eb',
+            textAlign: 'center'
+          }}>
+            <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0 }}>
+              © 2025 CARTSMASH. All rights reserved.
             </p>
           </div>
         </div>
