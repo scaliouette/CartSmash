@@ -669,24 +669,15 @@ app.get('/api/auth/kroger/login', async (req, res) => {
   console.log(`🔗 Azure B2C OAuth login requested for user: ${userId}`);
   
   try {
-    // Try Azure B2C first (primary method)
-    console.log('🔄 Attempting Azure B2C authentication...');
-    const azureResult = azureB2CService.generateAzureB2CAuthURL(userId, { useYourScopes: true });
-    
-    if (azureResult && azureResult.authURL) {
-      console.log('🚀 Redirecting to Kroger Azure B2C:', azureResult.authURL);
-      return res.redirect(azureResult.authURL);
-    }
-    
-    // Fallback to legacy OAuth if Azure B2C fails
-    console.log('⚠️ Azure B2C failed, falling back to legacy OAuth...');
+    // Skip Azure B2C for now - use legacy OAuth directly
+    console.log('🔄 Using Legacy OAuth (Azure B2C disabled for testing)...');
     
     const state = Buffer.from(`${userId}:${Date.now()}:${Math.random()}`).toString('base64');
     const legacyAuthUrl = `${process.env.KROGER_BASE_URL || 'https://api.kroger.com/v1'}/connect/oauth2/authorize?` +
       `response_type=code&` +
       `client_id=${process.env.KROGER_CLIENT_ID}&` +
       `redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}&` +
-      `scope=${encodeURIComponent('cart.basic:write profile.compact product.compact')}&` +
+      `scope=${encodeURIComponent('cart.basic:rw profile.compact product.compact')}&` +
       `state=${state}`;
     
     console.log('🚀 Redirecting to Kroger Legacy OAuth:', legacyAuthUrl);
@@ -696,10 +687,7 @@ app.get('/api/auth/kroger/login', async (req, res) => {
     console.error('❌ OAuth login failed:', error);
     res.status(500).json({ 
       error: 'Authentication setup failed',
-      alternatives: {
-        azure_b2c: 'Primary authentication method failed',
-        legacy_oauth: 'Available as fallback'
-      }
+      message: error.message
     });
   }
 });
