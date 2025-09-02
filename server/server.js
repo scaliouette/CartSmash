@@ -654,9 +654,9 @@ app.get('/api/auth/kroger/status-and-stores', async (req, res) => {
   }
 });
 
-// FIXED Kroger OAuth Login - Direct Redirect (No JSON Response) 
+// Azure B2C OAuth Login - Primary authentication method with legacy fallback
 // This MUST come before any other /api/auth/kroger/login routes
-app.get('/api/auth/kroger/login', (req, res) => {
+app.get('/api/auth/kroger/login', async (req, res) => {
   const { userId } = req.query;
   
   if (!userId) {
@@ -666,23 +666,42 @@ app.get('/api/auth/kroger/login', (req, res) => {
     });
   }
   
-  console.log(`🔗 Kroger OAuth login requested for user: ${userId}`);
+  console.log(`🔗 Azure B2C OAuth login requested for user: ${userId}`);
   
-  // Generate state token for security
-  const state = Buffer.from(`${userId}:${Date.now()}:${Math.random()}`).toString('base64');
-  
-  // Build the authorization URL using standard Kroger OAuth
-  const authUrl = `${process.env.KROGER_BASE_URL || 'https://api.kroger.com/v1'}/connect/oauth2/authorize?` +
-    `response_type=code&` +
-    `client_id=${process.env.KROGER_CLIENT_ID}&` +
-    `redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}&` +
-    `scope=${encodeURIComponent('cart.basic:write profile.compact product.compact')}&` +
-    `state=${state}`;
-  
-  console.log(`🚀 Redirecting to Kroger OAuth: ${authUrl}`);
-  
-  // CRITICAL: Use res.redirect() NOT res.json()
-  res.redirect(authUrl);
+  try {
+    // Try Azure B2C first (primary method)
+    console.log('🔄 Attempting Azure B2C authentication...');
+    const azureResult = azureB2CService.generateModernAuthURL(userId, true);
+    
+    if (azureResult && azureResult.authURL) {
+      console.log('🚀 Redirecting to Kroger Azure B2C:', azureResult.authURL);
+      return res.redirect(azureResult.authURL);
+    }
+    
+    // Fallback to legacy OAuth if Azure B2C fails
+    console.log('⚠️ Azure B2C failed, falling back to legacy OAuth...');
+    
+    const state = Buffer.from(`${userId}:${Date.now()}:${Math.random()}`).toString('base64');
+    const legacyAuthUrl = `${process.env.KROGER_BASE_URL || 'https://api.kroger.com/v1'}/connect/oauth2/authorize?` +
+      `response_type=code&` +
+      `client_id=${process.env.KROGER_CLIENT_ID}&` +
+      `redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}&` +
+      `scope=${encodeURIComponent('cart.basic:rw profile.compact product.compact')}&` +
+      `state=${state}`;
+    
+    console.log('🚀 Redirecting to Kroger Legacy OAuth:', legacyAuthUrl);
+    res.redirect(legacyAuthUrl);
+    
+  } catch (error) {
+    console.error('❌ OAuth login failed:', error);
+    res.status(500).json({ 
+      error: 'Authentication setup failed',
+      alternatives: {
+        azure_b2c: 'Primary authentication method failed',
+        legacy_oauth: 'Available as fallback'
+      }
+    });
+  }
 });
 
 app.get('/api/debug/kroger-auth', (req, res) => {

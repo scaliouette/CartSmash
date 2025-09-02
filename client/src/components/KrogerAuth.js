@@ -65,9 +65,9 @@ const KrogerAuth = ({ onAuthSuccess }) => {
       setAuthError(null);
       setAuthStatus('authenticating');
 
-      // Try direct redirect first, fallback to JSON parsing
+      // Azure B2C OAuth with fallback handling
       const authURL = `${API_BASE_URL}/api/auth/kroger/login?userId=${currentUser.uid}`;
-      console.log('🔗 Attempting Kroger OAuth:', authURL);
+      console.log('🔗 Attempting Azure B2C OAuth:', authURL);
       
       try {
         // Fetch the endpoint to check if it redirects or returns JSON
@@ -76,43 +76,47 @@ const KrogerAuth = ({ onAuthSuccess }) => {
           redirect: 'manual' // Don't follow redirects automatically
         });
         
-        // If it's a redirect response, follow it
+        // If it's a redirect response, follow it (Azure B2C or legacy OAuth)
         if (response.status >= 300 && response.status < 400) {
           const location = response.headers.get('Location');
           if (location) {
-            console.log('🚀 Following backend redirect to:', location);
+            // Check if it's Azure B2C redirect
+            if (location.includes('login.kroger.com') || location.includes('b2c_1a__ciam_signin_signup')) {
+              console.log('🚀 Following Azure B2C redirect:', location);
+            } else {
+              console.log('🚀 Following legacy OAuth redirect:', location);
+            }
             window.location.href = location;
             return;
           }
         }
         
-        // If it returns JSON, parse and use Legacy OAuth
+        // If it returns JSON, handle error response with alternatives
         if (response.headers.get('content-type')?.includes('application/json')) {
           const data = await response.json();
-          console.log('📋 Got JSON response, using Legacy OAuth');
+          console.log('📋 Got JSON response with alternatives:', data);
           
-          // Find Legacy OAuth option
-          const legacyOption = data.alternatives?.find(alt => alt.url?.authType === 'legacy_oauth');
-          if (legacyOption && legacyOption.url?.authURL) {
-            console.log('🚀 Using Legacy OAuth:', legacyOption.url.authURL);
-            window.location.href = legacyOption.url.authURL;
+          if (data.error) {
+            setAuthError(`Authentication failed: ${data.error}`);
             return;
           }
           
-          // Fallback to primary
-          if (data.primary?.url?.authURL) {
-            console.log('🚀 Using Primary OAuth:', data.primary.url.authURL);
-            window.location.href = data.primary.url.authURL;
+          // Handle legacy fallback if provided
+          if (data.alternatives?.legacy_oauth === 'Available as fallback') {
+            console.log('⚠️ Azure B2C failed, attempting direct navigation to legacy OAuth');
+            window.location.href = authURL;
             return;
           }
         }
         
         // If all else fails, try direct navigation
+        console.log('🔄 Attempting direct navigation to OAuth endpoint');
         window.location.href = authURL;
         
       } catch (error) {
         console.error('Error with OAuth redirect:', error);
-        // Fallback to direct navigation
+        setAuthError(`OAuth setup failed: ${error.message}`);
+        // Last resort: direct navigation
         window.location.href = authURL;
       }
     } catch (error) {
@@ -124,23 +128,51 @@ const KrogerAuth = ({ onAuthSuccess }) => {
     }
   };
 
-  // Handle URL parameters after OAuth callback
+  // Handle OAuth callback - supports both Azure B2C fragment and legacy query params
   useEffect(() => {
+    // Check URL query parameters (legacy OAuth)
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const state = urlParams.get('state');
     const error = urlParams.get('error');
 
-    if (error) {
-      setAuthError(`Authentication failed: ${error}`);
+    // Check URL fragment (Azure B2C)
+    const fragment = window.location.hash.substring(1);
+    const fragmentParams = new URLSearchParams(fragment);
+    const fragmentCode = fragmentParams.get('code');
+    const fragmentState = fragmentParams.get('state');
+    const fragmentError = fragmentParams.get('error');
+    const accessToken = fragmentParams.get('access_token');
+
+    // Handle errors from either source
+    const authError = error || fragmentError;
+    if (authError) {
+      console.error('OAuth callback error:', authError);
+      setAuthError(`Authentication failed: ${authError}`);
       setAuthStatus('error');
-      // Clear URL parameters
+      // Clear URL parameters and fragment
       window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (code && state && currentUser) {
+      return;
+    }
+
+    // Handle Azure B2C callback with access token in fragment
+    if (accessToken && currentUser) {
+      console.log('✅ Azure B2C callback with access token detected');
+      // For Azure B2C, tokens come in fragment - check auth status
+      setTimeout(checkKrogerAuthStatus, 1000);
+      // Clear fragment
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
+    // Handle legacy OAuth callback with code in query params
+    if ((code || fragmentCode) && (state || fragmentState) && currentUser) {
+      console.log('✅ OAuth callback detected - checking status');
       // OAuth callback - check status again
       setTimeout(checkKrogerAuthStatus, 1000);
-      // Clear URL parameters
+      // Clear URL parameters and fragment
       window.history.replaceState({}, document.title, window.location.pathname);
+      return;
     }
   }, [currentUser]);
 
@@ -234,7 +266,7 @@ const KrogerAuth = ({ onAuthSuccess }) => {
 
           <div className="auth-note">
             <p>
-              <strong>Secure:</strong> We use Kroger's official OAuth system.
+              <strong>Secure:</strong> We use Kroger's official Azure B2C authentication system with legacy OAuth fallback.
               We never see your password or personal information.
             </p>
           </div>
