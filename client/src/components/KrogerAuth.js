@@ -60,6 +60,7 @@ const KrogerAuth = ({ onAuthSuccess }) => {
     }
 
     try {
+      console.log('🔗 Starting Kroger authentication for user:', currentUser.uid);
       setIsAuthenticating(true);
       setAuthError(null);
       setAuthStatus('authenticating');
@@ -74,11 +75,14 @@ const KrogerAuth = ({ onAuthSuccess }) => {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 Kroger auth response:', data);
         
         if (data.success && data.primary && data.primary.url && data.primary.url.authURL) {
+          console.log('🚀 Redirecting to Kroger OAuth:', data.primary.url.authURL);
           // Redirect to Kroger OAuth
           window.location.href = data.primary.url.authURL;
         } else {
+          console.error('❌ Invalid auth response structure:', data);
           throw new Error('Invalid authentication response');
         }
       } else {
