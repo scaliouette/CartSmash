@@ -1396,6 +1396,174 @@ async sendCartToKroger(userId, smartCartItems, options = {}) {
     await tokenStore.deleteTokens(userId);
     console.log(`🚪 Cleared tokens for user ${userId}`);
   }
+
+  /**
+   * STORE LOCATION METHODS
+   */
+
+  // Find nearby Kroger stores
+  async findNearbyStores({ userId, lat, lng, zipCode, radius = 25, limit = 20 }) {
+    console.log(`🏪 Finding stores for user ${userId}:`, { lat, lng, zipCode, radius, limit });
+
+    // Build query parameters
+    const params = new URLSearchParams();
+    
+    if (lat && lng) {
+      params.append('filter.latLong.near', `${lat},${lng}`);
+      params.append('filter.radiusInMiles', radius.toString());
+    } else if (zipCode) {
+      params.append('filter.zipCode.near', zipCode);
+      params.append('filter.radiusInMiles', radius.toString());
+    }
+    
+    params.append('filter.limit', Math.min(limit, 50).toString());
+    params.append('filter.chain', 'kroger'); // Only Kroger stores
+    
+    try {
+      const response = await this.makeUserRequest(userId, 'GET', `/locations?${params.toString()}`);
+      
+      if (response && response.data && response.data.data) {
+        const stores = response.data.data.map(store => this.formatStoreData(store, lat, lng));
+        
+        // Sort by distance if coordinates provided
+        if (lat && lng) {
+          stores.sort((a, b) => (a.distance || 999) - (b.distance || 999));
+        }
+        
+        console.log(`✅ Found ${stores.length} stores`);
+        return stores;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('❌ Error finding stores:', error);
+      throw new Error(`Failed to find nearby stores: ${error.message}`);
+    }
+  }
+
+  // Get specific store details
+  async getStoreDetails(userId, storeId) {
+    console.log(`🏪 Getting store details for ${storeId}`);
+    
+    try {
+      const response = await this.makeUserRequest(userId, 'GET', `/locations/${storeId}`);
+      
+      if (response && response.data && response.data.data) {
+        return this.formatStoreData(response.data.data);
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`❌ Error getting store ${storeId}:`, error);
+      throw new Error(`Failed to get store details: ${error.message}`);
+    }
+  }
+
+  // Get store departments
+  async getStoreDepartments(userId, storeId) {
+    console.log(`🏪 Getting departments for store ${storeId}`);
+    
+    try {
+      const response = await this.makeUserRequest(userId, 'GET', `/locations/${storeId}/departments`);
+      
+      if (response && response.data && response.data.data) {
+        return response.data.data.map(dept => ({
+          id: dept.id,
+          name: dept.name,
+          code: dept.code || dept.id
+        }));
+      }
+      
+      return [];
+    } catch (error) {
+      console.error(`❌ Error getting departments for store ${storeId}:`, error);
+      throw new Error(`Failed to get store departments: ${error.message}`);
+    }
+  }
+
+  // Format store data for consistent response
+  formatStoreData(store, userLat = null, userLng = null) {
+    const formatted = {
+      locationId: store.locationId || store.id,
+      name: store.name || 'Kroger',
+      address: {
+        addressLine1: store.address?.addressLine1 || '',
+        city: store.address?.city || '',
+        state: store.address?.state || '',
+        zipCode: store.address?.zipCode || ''
+      },
+      phone: store.phone || null,
+      hours: this.formatStoreHours(store.hours),
+      services: this.extractStoreServices(store),
+      coordinates: {
+        latitude: store.geolocation?.latitude || store.coordinates?.latitude,
+        longitude: store.geolocation?.longitude || store.coordinates?.longitude
+      }
+    };
+
+    // Calculate distance if user coordinates provided
+    if (userLat && userLng && formatted.coordinates.latitude && formatted.coordinates.longitude) {
+      formatted.distance = this.calculateDistance(
+        userLat, userLng,
+        formatted.coordinates.latitude, formatted.coordinates.longitude
+      );
+    }
+
+    return formatted;
+  }
+
+  // Format store hours
+  formatStoreHours(hours) {
+    if (!hours || !Array.isArray(hours)) return null;
+    
+    return hours.map(hour => ({
+      day: hour.day,
+      open: hour.open || hour.openTime,
+      close: hour.close || hour.closeTime,
+      is24Hour: hour.is24Hour || false
+    }));
+  }
+
+  // Extract store services
+  extractStoreServices(store) {
+    const services = [];
+    
+    if (store.pickup) services.push('Pickup');
+    if (store.delivery) services.push('Delivery');
+    if (store.pharmacy) services.push('Pharmacy');
+    if (store.fuel) services.push('Fuel Station');
+    if (store.departments && store.departments.includes('deli')) services.push('Deli');
+    if (store.departments && store.departments.includes('bakery')) services.push('Bakery');
+    
+    // Add from services array if available
+    if (store.services && Array.isArray(store.services)) {
+      services.push(...store.services);
+    }
+    
+    // Remove duplicates and return
+    return [...new Set(services)];
+  }
+
+  // Calculate distance between two coordinates (Haversine formula)
+  calculateDistance(lat1, lng1, lat2, lng2) {
+    const R = 3959; // Earth's radius in miles
+    const dLat = this.toRadians(lat2 - lat1);
+    const dLng = this.toRadians(lng2 - lng1);
+    
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    
+    return Math.round(distance * 10) / 10; // Round to 1 decimal place
+  }
+
+  // Convert degrees to radians
+  toRadians(degrees) {
+    return degrees * (Math.PI / 180);
+  }
 }
 
 module.exports = KrogerOrderService;

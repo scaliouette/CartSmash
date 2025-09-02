@@ -1017,7 +1017,8 @@ const routes = [
   { path: '/api/kroger', module: './routes/kroger' },  // Add this
   { path: '/api/kroger-orders', module: './routes/kroger-orders' },
   { path: '/api/grocery', module: './routes/grocery' },
-  { path: '/api/account', module: './routes/account' }
+  { path: '/api/account', module: './routes/account' },
+  { path: '/api/stores', module: './routes/stores' }
 ];
 
 routes.forEach(route => {

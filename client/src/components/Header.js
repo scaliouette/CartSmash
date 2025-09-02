@@ -28,6 +28,12 @@ function Header({ currentView, onViewChange }) {
                 🏠 Home
               </button>
               <button
+                onClick={() => onViewChange('stores')}
+                className={`nav-button ${currentView === 'stores' ? 'nav-button-active' : ''}`}
+              >
+                🏪 Stores
+              </button>
+              <button
                 onClick={() => onViewChange('account')}
                 className={`nav-button ${currentView === 'account' ? 'nav-button-active' : ''}`}
               >

@@ -5,7 +5,17 @@
       "Bash(npm test)",
       "Bash(node:*)",
       "WebSearch",
-      "WebFetch(domain:documenter.getpostman.com)"
+      "WebFetch(domain:documenter.getpostman.com)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client/**)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src/**)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src/**)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\contexts/**)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src/**)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src/**)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src/**)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src/**)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src/**)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client/**)"
     ],
     "deny": [],
     "ask": []

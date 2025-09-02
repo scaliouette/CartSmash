@@ -12,6 +12,7 @@ import Header from './components/Header';
 import GroceryListForm from './components/GroceryListForm';
 import MyAccount from './components/MyAccount';
 import RecipeManager from './components/RecipeManager';
+import StoresPage from './components/StoresPage';
 
 // Main App Component
 function App() {
@@ -467,6 +468,15 @@ function AppContent({
             deleteRecipe={deleteRecipe}
             onListUpdate={updateList}
             onMealPlanUpdate={setMealPlans}
+          />
+        ) : currentView === 'stores' ? (
+          <StoresPage 
+            onStoreSelect={(store) => {
+              console.log('🏪 Store selected in app:', store);
+              // Store selection is handled in StoresPage component
+              // After selection, user can return to home to start shopping
+            }}
+            onBackToHome={() => setCurrentView('home')}
           />
         ) : null}
       </main>
