@@ -10,7 +10,11 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
   // Debug log to verify currentUser is being received
   useEffect(() => {
     console.log('🔍 ParsedResultsDisplay received currentUser:', currentUser?.email || 'No user');
-  }, [currentUser]);
+    console.log('🔍 ParsedResultsDisplay received items:', items?.length || 0, 'items');
+    if (items && items.length > 0) {
+      console.log('🔍 First few items:', items.slice(0, 3));
+    }
+  }, [currentUser, items]);
   
   const [sortBy, setSortBy] = useState('confidence');
   const [filterBy, setFilterBy] = useState('all');
@@ -96,7 +100,15 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
               ...item,
               realPrice: priceData.price,
               salePrice: priceData.salePrice,
-              availability: priceData.availability
+              availability: priceData.availability,
+              // Add Kroger product data needed for cart adding
+              upc: priceData.upc,
+              productId: priceData.productId,
+              krogerProduct: priceData.krogerProduct,
+              matchedName: priceData.matchedName,
+              brand: priceData.brand,
+              size: priceData.size,
+              storeId: priceData.storeId
             };
           }
           return item;
@@ -104,7 +116,10 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
 
         onItemsChange(updatedItems);
         localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+        
+        const itemsWithPrices = updatedItems.filter(item => item.realPrice).length;
         console.log(`💰 [FETCH DEBUG] Updated ${updatedItems.length} items with price data`);
+        console.log(`💰 [FETCH DEBUG] ${itemsWithPrices} items now have Kroger pricing and can be added to cart`);
       } else {
         console.error(`💰 [FETCH DEBUG] Request failed with status: ${response.status}`);
         const errorText = await response.text();

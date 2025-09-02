@@ -425,10 +425,39 @@ router.post('/fetch-prices', async (req, res) => {
       if (!itemName) continue;
       
       try {
-        // Search for the product in Kroger
-        const searchResults = await krogerService.searchProducts(itemName, storeId, 3);
+        // Clean up the item name for better Kroger matching
+        let cleanItemName = itemName.toLowerCase()
+          .replace(/organic/gi, '') // Remove "organic" as it might limit results
+          .replace(/fresh/gi, '')   // Remove "fresh"
+          .replace(/\b(lb|lbs|oz|pound|pounds|ounce|ounces)\b/gi, '') // Remove units
+          .replace(/\s+/g, ' ')     // Normalize spaces
+          .trim();
+        
+        console.log(`🔍 Searching Kroger for: "${itemName}" -> cleaned: "${cleanItemName}"`);
+        
+        // Try multiple search strategies
+        let searchResults = [];
+        
+        // Strategy 1: Search with cleaned name
+        searchResults = await krogerService.searchProducts(cleanItemName, storeId, 5);
+        
+        // Strategy 2: If no results, try with original name
+        if (!searchResults || searchResults.length === 0) {
+          console.log(`⚠️ No results for cleaned name, trying original: "${itemName}"`);
+          searchResults = await krogerService.searchProducts(itemName, storeId, 5);
+        }
+        
+        // Strategy 3: If still no results, try just the main word(s)
+        if (!searchResults || searchResults.length === 0) {
+          const mainWords = cleanItemName.split(' ').slice(0, 2).join(' '); // Take first 1-2 words
+          if (mainWords !== cleanItemName) {
+            console.log(`⚠️ Trying with main words: "${mainWords}"`);
+            searchResults = await krogerService.searchProducts(mainWords, storeId, 5);
+          }
+        }
         
         if (searchResults && searchResults.length > 0) {
+          console.log(`✅ Found ${searchResults.length} results for "${itemName}"`);
           const product = searchResults[0]; // Get the best match
           
           // Extract price information
@@ -450,13 +479,16 @@ router.post('/fetch-prices', async (req, res) => {
               brand: product.brand,
               size: product.items?.[0]?.size,
               lastUpdated: new Date().toISOString(),
-              storeId: storeId
+              storeId: storeId,
+              krogerProduct: product, // Store full product details for cart adding
+              matchedName: product.description || product.productName,
+              searchTerm: cleanItemName
             };
             found++;
-            console.log(`✅ Found price for ${itemName}: $${regularPrice}`);
+            console.log(`✅ Found price for ${itemName}: $${regularPrice} (Product ID: ${product.productId})`);
           } else {
             notFound++;
-            console.log(`⚠️ No price found for ${itemName}`);
+            console.log(`⚠️ No price found for ${itemName} - product found but no pricing`);
           }
         } else {
           notFound++;
