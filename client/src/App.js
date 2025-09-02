@@ -1,4 +1,4 @@
-// client/src/App.js - COMPLETE FIXED VERSION
+// client/src/App.js - COMPLETE FIXED VERSION - Cache Bust
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SmashCartProvider } from './contexts/SmashCartContext';
