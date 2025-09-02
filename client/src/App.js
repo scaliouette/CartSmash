@@ -1,4 +1,4 @@
-// client/src/App.js - COMPLETE FIXED VERSION - Cache Bust
+// client/src/App.js - COMPLETE FIXED VERSION - Cache Bust - Debug v1.0.1
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SmashCartProvider } from './contexts/SmashCartContext';
@@ -18,6 +18,10 @@ import Privacy from './components/privacy';
 
 // Main App Component
 function App() {
+  // Debug logging
+  console.log('🚀 App component initialized - Debug v1.0.1');
+  console.log('🕐 App load time:', new Date().toISOString());
+  
   const [currentView, setCurrentView] = useState('home');
   
   // CENTRALIZED STATE MANAGEMENT
