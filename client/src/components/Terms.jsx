@@ -1,24 +1,9 @@
 import React, { useEffect } from 'react';
 
-// Arrow Left Icon (since lucide-react is imported in your original)
-const ArrowLeft = ({ className, style }) => (
-  <svg className={className} style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-  </svg>
-);
-
-const Terms = ({ onBack }) => {
+const Terms = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      window.history.back();
-    }
-  };
 
   // Custom gradient style
   const primaryGradient = {
