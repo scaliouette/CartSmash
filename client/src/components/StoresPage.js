@@ -11,6 +11,7 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
   const { initializeWithStore, isInitialized } = useSmashCart();
   const [krogerAuthComplete, setKrogerAuthComplete] = useState(false);
   const [selectedStore, setSelectedStore] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Handle successful Kroger authentication
   const handleKrogerAuthSuccess = (authData) => {
@@ -75,6 +76,50 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
     }
   };
 
+  // Handle logout from current store
+  const handleStoreLogout = async () => {
+    try {
+      console.log('🔓 Logging out from store...');
+      
+      // Clear Kroger authentication state
+      setKrogerAuthComplete(false);
+      setSelectedStore(null);
+      
+      // Clear stored data
+      localStorage.removeItem('selectedStore');
+      localStorage.removeItem('kroger_auth_status');
+      
+      // Call API to clear server-side authentication
+      if (currentUser) {
+        const response = await fetch('/api/auth/kroger/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-ID': currentUser.uid
+          }
+        });
+        
+        if (response.ok) {
+          console.log('✅ Server-side logout successful');
+        } else {
+          console.warn('⚠️ Server-side logout failed, but local state cleared');
+        }
+      }
+      
+      setShowLogoutConfirm(false);
+      console.log('✅ Store logout complete');
+      
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      // Clear local state even if API call fails
+      setKrogerAuthComplete(false);
+      setSelectedStore(null);
+      localStorage.removeItem('selectedStore');
+      localStorage.removeItem('kroger_auth_status');
+      setShowLogoutConfirm(false);
+    }
+  };
+
   return (
     <div className="stores-page">
       {/* Header */}
@@ -86,6 +131,15 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
           <h1>Choose Your Store</h1>
           <p>Select from our supported grocery stores</p>
         </div>
+        {(krogerAuthComplete || selectedStore) && (
+          <button 
+            className="logout-btn"
+            onClick={() => setShowLogoutConfirm(true)}
+            title="Logout from store"
+          >
+            🔓 Logout
+          </button>
+        )}
       </div>
 
       {/* Main Content */}
@@ -228,6 +282,41 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
         ) : null}
       </div>
 
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="logout-modal-overlay" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="logout-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="logout-modal-header">
+              <h3>🔓 Logout from Store</h3>
+            </div>
+            <div className="logout-modal-body">
+              <p>Are you sure you want to logout from your current store?</p>
+              <p className="logout-warning">This will:</p>
+              <ul>
+                <li>Clear your Kroger authentication</li>
+                <li>Remove store selection</li>
+                <li>Reset your cart connection</li>
+                <li>Require re-authentication to use store features</li>
+              </ul>
+            </div>
+            <div className="logout-modal-actions">
+              <button 
+                className="logout-cancel-btn"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="logout-confirm-btn"
+                onClick={handleStoreLogout}
+              >
+                🔓 Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         .stores-page {
           min-height: 100vh;
@@ -348,6 +437,111 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
           border-top: 1px solid #e5e7eb;
         }
 
+        .logout-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .logout-modal {
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+          max-width: 450px;
+          width: 90%;
+          max-height: 80vh;
+          overflow-y: auto;
+        }
+
+        .logout-modal-header {
+          padding: 1.5rem;
+          border-bottom: 1px solid #e5e7eb;
+          text-align: center;
+        }
+
+        .logout-modal-header h3 {
+          margin: 0;
+          color: #1f2937;
+          font-size: 1.25rem;
+          font-weight: 600;
+        }
+
+        .logout-modal-body {
+          padding: 1.5rem;
+        }
+
+        .logout-modal-body p {
+          margin: 0 0 1rem 0;
+          color: #4b5563;
+          line-height: 1.5;
+        }
+
+        .logout-warning {
+          font-weight: 600;
+          color: #dc2626 !important;
+          margin-bottom: 0.5rem !important;
+        }
+
+        .logout-modal-body ul {
+          margin: 0 0 1rem 0;
+          padding-left: 1.5rem;
+          color: #6b7280;
+        }
+
+        .logout-modal-body li {
+          margin: 0.5rem 0;
+          font-size: 0.875rem;
+        }
+
+        .logout-modal-actions {
+          padding: 1rem 1.5rem 1.5rem;
+          display: flex;
+          gap: 1rem;
+          justify-content: flex-end;
+        }
+
+        .logout-cancel-btn {
+          background: #f3f4f6;
+          color: #4b5563;
+          border: 1px solid #d1d5db;
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 0.875rem;
+          font-weight: 500;
+          transition: all 0.2s ease;
+        }
+
+        .logout-cancel-btn:hover {
+          background: #e5e7eb;
+          color: #1f2937;
+        }
+
+        .logout-confirm-btn {
+          background: #dc2626;
+          color: white;
+          border: none;
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 0.875rem;
+          font-weight: 600;
+          transition: all 0.2s ease;
+        }
+
+        .logout-confirm-btn:hover {
+          background: #b91c1c;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+
         .stores-page-header {
           background: white;
           padding: 1rem 2rem;
@@ -374,6 +568,27 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
         .back-btn:hover {
           background: #e5e7eb;
           color: #1f2937;
+        }
+
+        .logout-btn {
+          background: #dc2626;
+          color: white;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 0.875rem;
+          font-weight: 500;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .logout-btn:hover {
+          background: #b91c1c;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
         }
 
         .page-title h1 {
