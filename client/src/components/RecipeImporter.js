@@ -430,7 +430,7 @@ const styles = {
 
   header: {
     padding: '20px',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
     color: 'white',
     display: 'flex',
     justifyContent: 'space-between',
@@ -477,8 +477,8 @@ const styles = {
 
   tabActive: {
     backgroundColor: 'white',
-    color: '#667eea',
-    borderBottom: '2px solid #667eea',
+    color: '#FF6B35',
+    borderBottom: '2px solid #FF6B35',
     marginBottom: '-2px'
   },
 
@@ -513,7 +513,7 @@ const styles = {
     outline: 'none',
     transition: 'border-color 0.2s',
     ':focus': {
-      borderColor: '#667eea'
+      borderColor: '#FF6B35'
     }
   },
 
@@ -527,7 +527,7 @@ const styles = {
     outline: 'none',
     transition: 'border-color 0.2s',
     ':focus': {
-      borderColor: '#667eea'
+      borderColor: '#FF6B35'
     }
   },
 
@@ -608,7 +608,7 @@ const styles = {
     outline: 'none',
     transition: 'border-color 0.2s',
     ':focus': {
-      borderColor: '#667eea'
+      borderColor: '#FF6B35'
     }
   },
 

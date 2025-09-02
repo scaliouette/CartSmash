@@ -368,7 +368,7 @@
 }
 
 .btn-recipes {
-  background-color: #8b5cf6;
+  background: var(--primary-gradient);
   color: white;
 }
 
@@ -955,8 +955,8 @@
 /* Fix Recipe Tab Active State */
 .recipe-tab.active {
   background: white !important;
-  color: #3b82f6 !important;
-  border-bottom: 3px solid #3b82f6 !important;
+  color: var(--primary-color) !important;
+  border-bottom: 3px solid var(--primary-color) !important;
   margin-bottom: -2px !important;
   position: relative;
   z-index: 2;
@@ -969,7 +969,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: #3b82f6;
+  background: var(--primary-color);
 }
 
 /* Fix Recipe Card Hover Effects */
@@ -986,7 +986,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #3b82f6, #10b981);
+  background: var(--primary-gradient);
   transform: scaleX(0);
   transition: transform 0.3s;
 }
@@ -2674,7 +2674,7 @@
   justify-content: space-between !important;
   align-items: center !important;
   padding: 20px 24px !important;
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+  background: var(--primary-gradient) !important;
   border-bottom: none !important;
 }
 
@@ -2736,14 +2736,14 @@
 }
 
 .recipe-tab:hover {
-  background: #ede9fe !important;
-  color: #7c3aed !important;
+  background: #fff5f0 !important;
+  color: var(--primary-color) !important;
 }
 
 .recipe-tab.active {
   background: white !important;
-  color: #7c3aed !important;
-  border-bottom: 3px solid #7c3aed !important;
+  color: var(--primary-color) !important;
+  border-bottom: 3px solid var(--primary-color) !important;
 }
 
 .recipe-tab.active::after {
@@ -2753,7 +2753,7 @@
   left: 0 !important;
   right: 0 !important;
   height: 3px !important;
-  background: #7c3aed !important;
+  background: var(--primary-color) !important;
 }
 
 /* Recipe Modal Content */
@@ -3321,7 +3321,7 @@ button[onclick*="Instacart"],
 
 /* Add to cartsmash.css */
 .coming-soon-badge {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--primary-gradient);
   color: white;
   padding: 4px 12px;
   border-radius: 20px;

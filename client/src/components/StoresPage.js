@@ -252,7 +252,7 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
         }
 
         .step.active {
-          background: #0070f3;
+          background: #FF6B35;
           color: white;
         }
 

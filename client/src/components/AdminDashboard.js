@@ -242,21 +242,21 @@ function AdminDashboard({ onClose, currentUser }) {
         <div style={styles.actionsGrid}>
           <button
             onClick={() => setShowAnalytics(true)}
-            style={{...styles.actionButton, backgroundColor: '#17a2b8'}}
+            style={{...styles.actionButton, backgroundColor: '#FF6B35'}}
           >
             📊 View Full Analytics
           </button>
 
           <button
             onClick={() => setShowSettings(true)}
-            style={{...styles.actionButton, backgroundColor: '#6c5ce7'}}
+            style={{...styles.actionButton, backgroundColor: '#F7931E'}}
           >
             ⚙️ System Settings
           </button>
 
           <button
             onClick={() => setShowDemo(true)}
-            style={{...styles.actionButton, backgroundColor: '#fd79a8'}}
+            style={{...styles.actionButton, backgroundColor: '#3b82f6'}}
           >
             🎯 Test Parsing Demo
           </button>

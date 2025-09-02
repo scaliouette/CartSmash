@@ -447,7 +447,7 @@ const styles = {
     alignItems: 'center',
     padding: '20px 30px',
     borderBottom: '2px solid #f0f0f0',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
     color: 'white'
   },
 
