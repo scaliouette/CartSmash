@@ -62,9 +62,10 @@ const NearbyStores = ({ onStoreSelect }) => {
 
   // Search for nearby Kroger stores
   const searchStores = async (location, zipCode = null) => {
-    if (!currentUser) {
+    if (!currentUser || typeof currentUser.getIdToken !== 'function') {
       setError('Please sign in to search for stores');
       setIsLoading(false);
+      console.error('Invalid currentUser object:', currentUser);
       return;
     }
 
@@ -91,7 +92,7 @@ const NearbyStores = ({ onStoreSelect }) => {
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${await currentUser.getIdToken()}`,
+            'Authorization': `Bearer ${await currentUser?.getIdToken?.()}`,
             'Content-Type': 'application/json'
           }
         }

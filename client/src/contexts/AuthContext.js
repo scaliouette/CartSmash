@@ -30,7 +30,14 @@ export const useAuth = () => {
 // inside AuthProvider in AuthContext.js
 const makeAuthenticatedRequest = async (url, options = {}) => {
   // Grab a fresh Firebase ID token
-  const idToken = await auth?.currentUser?.getIdToken?.();
+  let idToken = null;
+  if (auth.currentUser && typeof auth.currentUser.getIdToken === 'function') {
+    try {
+      idToken = await auth.currentUser.getIdToken();
+    } catch (error) {
+      console.error('Error getting Firebase ID token:', error);
+    }
+  }
 
   const res = await fetch(url, {
     credentials: 'include',
@@ -281,29 +288,23 @@ export function AuthProvider({ children }) {
             const userDoc = await getDoc(userRef);
             
             if (userDoc.exists()) {
-              setCurrentUser({
-                ...user,
-                ...userDoc.data(),
-                isAdmin: adminStatus
-              });
+              // Preserve Firebase User methods by adding properties directly
+              const userData = userDoc.data();
+              Object.assign(user, userData, { isAdmin: adminStatus });
+              setCurrentUser(user);
             } else {
-              setCurrentUser({
-                ...user,
-                isAdmin: adminStatus
-              });
+              // Add isAdmin property to the Firebase User object
+              user.isAdmin = adminStatus;
+              setCurrentUser(user);
             }
           } catch (error) {
             console.error('Error fetching user data:', error);
-            setCurrentUser({
-              ...user,
-              isAdmin: adminStatus
-            });
+            user.isAdmin = adminStatus;
+            setCurrentUser(user);
           }
         } else {
-          setCurrentUser({
-            ...user,
-            isAdmin: adminStatus
-          });
+          user.isAdmin = adminStatus;
+          setCurrentUser(user);
         }
         
         if (adminStatus) {

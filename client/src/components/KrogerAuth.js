@@ -18,7 +18,8 @@ const KrogerAuth = ({ onAuthSuccess }) => {
 
   // Check if user already has Kroger authentication
   const checkKrogerAuthStatus = async () => {
-    if (!currentUser) {
+    if (!currentUser || typeof currentUser.getIdToken !== 'function') {
+      console.error('Invalid currentUser object:', currentUser);
       setAuthStatus('needed');
       return;
     }
@@ -28,7 +29,7 @@ const KrogerAuth = ({ onAuthSuccess }) => {
       const response = await fetch(`${API_BASE_URL}/api/auth/kroger/status`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${await currentUser.getIdToken()}`,
+          'Authorization': `Bearer ${await currentUser?.getIdToken?.()}`,
           'Content-Type': 'application/json'
         }
       });
@@ -52,8 +53,9 @@ const KrogerAuth = ({ onAuthSuccess }) => {
 
   // Start Kroger OAuth flow
   const initiateKrogerAuth = async () => {
-    if (!currentUser) {
+    if (!currentUser || typeof currentUser.getIdToken !== 'function') {
       setAuthError('Please sign in to your account first');
+      console.error('Invalid currentUser object:', currentUser);
       return;
     }
 
@@ -65,7 +67,7 @@ const KrogerAuth = ({ onAuthSuccess }) => {
       const response = await fetch(`${API_BASE_URL}/api/auth/kroger/login?userId=${currentUser.uid}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${await currentUser.getIdToken()}`,
+          'Authorization': `Bearer ${await currentUser?.getIdToken?.()}`,
           'Content-Type': 'application/json'
         }
       });
