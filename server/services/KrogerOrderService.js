@@ -12,7 +12,7 @@ class KrogerOrderService {
     
     this.scopes = {
       products: 'product.compact',
-      cart: 'cart.basic:rw',
+      cart: 'cart.basic:write',
       profile: 'profile.compact'
     };
     
