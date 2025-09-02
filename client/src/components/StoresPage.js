@@ -5,6 +5,7 @@ import { useSmashCart } from '../contexts/SmashCartContext';
 import { getActiveStores, getPlannedStores, STORE_STATUS } from '../config/storeConfig';
 import KrogerAuth from './KrogerAuth';
 import NearbyStores from './NearbyStores';
+import instacartService from '../services/instacartService';
 
 const StoresPage = ({ onStoreSelect, onBackToHome }) => {
   const { currentUser } = useAuth();
@@ -12,6 +13,12 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
   const [krogerAuthComplete, setKrogerAuthComplete] = useState(false);
   const [selectedStore, setSelectedStore] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
+  // Instacart-specific state
+  const [instacartRetailers, setInstacartRetailers] = useState([]);
+  const [selectedRetailer, setSelectedRetailer] = useState(null);
+  const [isLoadingRetailers, setIsLoadingRetailers] = useState(false);
+  const [instacartActive, setInstacartActive] = useState(false);
 
   // Handle successful Kroger authentication
   const handleKrogerAuthSuccess = (authData) => {
@@ -69,10 +76,64 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
   const handleStoreCardClick = (store) => {
     if (store.status === 'active' && store.id === 'kroger') {
       // For Kroger, proceed with auth flow
+      setInstacartActive(false);
       // Do nothing here, let them start the Kroger auth process
+    } else if (store.status === 'active' && store.id === 'instacart') {
+      // For Instacart, load nearby retailers
+      setInstacartActive(true);
+      setKrogerAuthComplete(false); // Clear Kroger state
+      loadInstacartRetailers();
     } else {
       // For planned stores, show coming soon message
       console.log(`${store.name} coming soon!`);
+    }
+  };
+
+  // Load Instacart retailers when user selects Instacart
+  const loadInstacartRetailers = async () => {
+    setIsLoadingRetailers(true);
+    
+    try {
+      const userZipCode = localStorage.getItem('userZipCode') || '95670';
+      const response = await instacartService.getNearbyRetailers(userZipCode);
+      
+      if (response.success) {
+        setInstacartRetailers(response.retailers);
+        console.log('✅ Loaded', response.retailers.length, 'Instacart retailers');
+      }
+    } catch (error) {
+      console.error('❌ Error loading Instacart retailers:', error);
+    } finally {
+      setIsLoadingRetailers(false);
+    }
+  };
+
+  // Handle Instacart retailer selection
+  const handleRetailerSelect = (retailer) => {
+    console.log('🏪 Instacart retailer selected:', retailer);
+    setSelectedRetailer(retailer);
+    
+    // Save selected retailer to localStorage for persistence
+    localStorage.setItem('selectedRetailer', JSON.stringify({
+      id: retailer.id,
+      name: retailer.name,
+      address: retailer.address,
+      selectedAt: new Date().toISOString()
+    }));
+    
+    // Initialize SmashCart with Instacart retailer
+    const storeData = {
+      locationId: retailer.id,
+      name: `${retailer.name} (via Instacart)`,
+      address: retailer.address,
+      platform: 'instacart'
+    };
+    
+    initializeWithStore(storeData);
+    
+    // Notify parent component
+    if (onStoreSelect) {
+      onStoreSelect(storeData);
     }
   };
 
@@ -85,8 +146,14 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
       setKrogerAuthComplete(false);
       setSelectedStore(null);
       
+      // Clear Instacart state
+      setInstacartActive(false);
+      setSelectedRetailer(null);
+      setInstacartRetailers([]);
+      
       // Clear stored data
       localStorage.removeItem('selectedStore');
+      localStorage.removeItem('selectedRetailer');
       localStorage.removeItem('kroger_auth_status');
       
       // Call API to clear server-side authentication
@@ -114,7 +181,11 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
       // Clear local state even if API call fails
       setKrogerAuthComplete(false);
       setSelectedStore(null);
+      setInstacartActive(false);
+      setSelectedRetailer(null);
+      setInstacartRetailers([]);
       localStorage.removeItem('selectedStore');
+      localStorage.removeItem('selectedRetailer');
       localStorage.removeItem('kroger_auth_status');
       setShowLogoutConfirm(false);
     }
@@ -131,7 +202,7 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
           <h1>Choose Your Store</h1>
           <p>Select from our supported grocery stores</p>
         </div>
-        {(krogerAuthComplete || selectedStore) && (
+        {(krogerAuthComplete || selectedStore || selectedRetailer) && (
           <button 
             className="logout-btn"
             onClick={() => setShowLogoutConfirm(true)}
@@ -280,6 +351,70 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
             )}
           </div>
         ) : null}
+
+        {/* Instacart Integration Section */}
+        {instacartActive && (
+          <div className="instacart-integration-section">
+            <div className="integration-header">
+              <h3>🛒 Instacart Retailer Selection</h3>
+              <p>Choose from available retailers in your area through Instacart</p>
+            </div>
+            
+            {isLoadingRetailers ? (
+              <div className="loading-retailers">
+                <div className="loading-spinner"></div>
+                <p>Finding retailers near you...</p>
+              </div>
+            ) : instacartRetailers.length > 0 ? (
+              <div className="retailers-grid">
+                {instacartRetailers.map((retailer) => (
+                  <div 
+                    key={retailer.id} 
+                    className={`retailer-card ${selectedRetailer?.id === retailer.id ? 'selected' : ''}`}
+                    onClick={() => handleRetailerSelect(retailer)}
+                  >
+                    <div className="retailer-info">
+                      <div className="retailer-name">{retailer.name}</div>
+                      <div className="retailer-address">{retailer.address}</div>
+                      <div className="retailer-details">
+                        <span className="delivery-time">🚚 {retailer.estimated_delivery}</span>
+                        <span className="delivery-fee">💰 ${retailer.delivery_fee}</span>
+                        <span className="distance">📍 {retailer.distance} mi</span>
+                      </div>
+                    </div>
+                    {selectedRetailer?.id === retailer.id && (
+                      <div className="selected-indicator">✓</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="no-retailers">
+                <p>No Instacart retailers found in your area.</p>
+                <button onClick={loadInstacartRetailers} className="retry-btn">
+                  🔄 Try Again
+                </button>
+              </div>
+            )}
+            
+            {selectedRetailer && (
+              <div className="instacart-ready">
+                <div className="ready-header">
+                  <h4>🎉 Ready to Shop with Instacart!</h4>
+                  <p>Selected: {selectedRetailer.name}</p>
+                </div>
+                <div className="ready-actions">
+                  <button 
+                    className="start-shopping-btn"
+                    onClick={() => setCurrentView('home')}
+                  >
+                    🛒 Start Shopping
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Logout Confirmation Modal */}
@@ -837,6 +972,180 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
 
           .store-details {
             text-align: center;
+          }
+        }
+
+        /* Instacart Integration Styles */
+        .instacart-integration-section {
+          background: white;
+          border-radius: 12px;
+          padding: 2rem;
+          margin: 2rem 0;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        .integration-header {
+          text-align: center;
+          margin-bottom: 2rem;
+        }
+
+        .integration-header h3 {
+          color: #00B14F;
+          margin: 0 0 0.5rem 0;
+          font-size: 1.5rem;
+        }
+
+        .integration-header p {
+          color: #6b7280;
+          margin: 0;
+        }
+
+        .loading-retailers {
+          text-align: center;
+          padding: 2rem;
+        }
+
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid #f3f4f6;
+          border-top: 3px solid #00B14F;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 1rem auto;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .retailers-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          gap: 1rem;
+          margin: 1.5rem 0;
+        }
+
+        .retailer-card {
+          background: white;
+          border: 2px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 1rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          position: relative;
+        }
+
+        .retailer-card:hover {
+          border-color: #00B14F;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,177,79,0.1);
+        }
+
+        .retailer-card.selected {
+          border-color: #00B14F;
+          background: #f0fdf4;
+        }
+
+        .retailer-info {
+          text-align: left;
+        }
+
+        .retailer-name {
+          font-weight: 600;
+          color: #1f2937;
+          margin-bottom: 0.5rem;
+          font-size: 1.1rem;
+        }
+
+        .retailer-address {
+          color: #6b7280;
+          font-size: 0.875rem;
+          margin-bottom: 0.75rem;
+        }
+
+        .retailer-details {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 1rem;
+          font-size: 0.875rem;
+        }
+
+        .retailer-details span {
+          color: #4b5563;
+        }
+
+        .selected-indicator {
+          position: absolute;
+          top: 0.5rem;
+          right: 0.5rem;
+          background: #00B14F;
+          color: white;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.875rem;
+          font-weight: 600;
+        }
+
+        .no-retailers {
+          text-align: center;
+          padding: 2rem;
+          color: #6b7280;
+        }
+
+        .retry-btn {
+          background: #00B14F;
+          color: white;
+          border: none;
+          padding: 0.75rem 1.5rem;
+          border-radius: 6px;
+          cursor: pointer;
+          margin-top: 1rem;
+          transition: all 0.2s ease;
+        }
+
+        .retry-btn:hover {
+          background: #059142;
+        }
+
+        .instacart-ready {
+          background: #f0fdf4;
+          border: 2px solid #00B14F;
+          border-radius: 8px;
+          padding: 1.5rem;
+          margin-top: 2rem;
+          text-align: center;
+        }
+
+        .ready-header h4 {
+          color: #00B14F;
+          margin: 0 0 0.5rem 0;
+          font-size: 1.3rem;
+        }
+
+        .ready-header p {
+          color: #4b5563;
+          margin: 0 0 1.5rem 0;
+        }
+
+        @media (max-width: 768px) {
+          .instacart-integration-section {
+            padding: 1rem;
+            margin: 1rem 0;
+          }
+
+          .retailers-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .retailer-details {
+            flex-direction: column;
+            gap: 0.5rem;
           }
         }
       `}</style>

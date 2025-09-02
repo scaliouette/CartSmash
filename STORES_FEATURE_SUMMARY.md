@@ -133,3 +133,24 @@ Users can now:
 - Navigate to Stores → Connect to Kroger → Find Nearby Stores → Select Store → Start Shopping
 
 All with the corrected `cart.basic:rw` scope fix working in production! 🎯
+
+CartSmash is an AI-powered grocery list parser that transforms any grocery list into organized, ready-to-order
+  products. We want to integrate with Instacart's Developer Platform API to create a seamless shopping experience:
+
+  Specific API Integration Plans:
+  1. Retailers API: Find nearby Instacart partner stores based on user location
+  2. Shopping List APIs: Convert our parsed grocery lists into Instacart shopping lists
+  3. Connect APIs: Enable users to link their Instacart accounts for direct cart population
+  4. Shopping Widgets: Embed Instacart purchasing widgets within our application
+
+  Implementation Approach:
+  - Start with development API keys for testing in sandbox environment
+  - Build integration with nearby retailer discovery and shopping list creation
+  - Apply for production API keys once development is complete
+  - Implement secure API key management following Instacart's security guidelines
+
+  User Flow: User pastes/types grocery list → AI parses items → Match products via Instacart API → Create shopping
+  list → User completes purchase through Instacart
+
+  Expected Usage: 100-500 API calls daily initially, scaling with user adoption. Focus on product matching and
+  shopping list creation APIs.

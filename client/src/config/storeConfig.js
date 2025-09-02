@@ -59,6 +59,36 @@ export const STORE_CHAINS = {
     regions: ['California', 'Nevada', 'Washington']
   },
 
+  // Instacart Platform
+  INSTACART: {
+    id: 'instacart',
+    name: 'Instacart',
+    displayName: 'Instacart',
+    parent: 'Maplebear Inc.',
+    type: 'delivery-platform',
+    status: 'active',
+    features: {
+      multiStore: true,
+      delivery: true,
+      curbsidePickup: true,
+      mobileApp: true,
+      rapidDelivery: true,
+      personalShopper: true
+    },
+    integration: {
+      apiAvailable: true,
+      authMethod: 'api-key',
+      capabilities: ['retailers', 'products', 'shopping-lists', 'cart', 'pricing']
+    },
+    branding: {
+      primaryColor: '#00B14F',
+      logo: '/assets/logos/instacart.png',
+      icon: '🛒'
+    },
+    regions: ['Nationwide'],
+    description: 'Shop from multiple stores with same-day delivery'
+  },
+
   // Kroger Family Stores
   KROGER: {
     id: 'kroger',
