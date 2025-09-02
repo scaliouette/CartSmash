@@ -8,7 +8,6 @@ import {
   getDocs, 
   deleteDoc, 
   query, 
-  where, 
   orderBy, 
   limit 
 } from 'firebase/firestore';
@@ -415,4 +414,5 @@ class UserDataService {
   }
 }
 
-export default new UserDataService();
+const userDataService = new UserDataService();
+export default userDataService;

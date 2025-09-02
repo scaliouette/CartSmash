@@ -1,5 +1,5 @@
 // client/src/App.js - COMPLETE FIXED VERSION
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SmashCartProvider } from './contexts/SmashCartContext';
 import userDataService from './services/userDataService';
@@ -70,12 +70,12 @@ function AppContent({
     return () => {
       delete window.refreshAccountData;
     };
-  }, [currentUser]);
+  }, [currentUser, loadAllData]);
   
   // Load all data on mount and when user changes
   useEffect(() => {
     loadAllData();
-  }, [currentUser]);
+  }, [currentUser, loadAllData]);
   
   // Auto-save cart to Firebase when it changes (debounced)
   useEffect(() => {
@@ -86,10 +86,10 @@ function AppContent({
     }, 2000); // 2 second debounce
     
     return () => clearTimeout(saveTimer);
-  }, [currentCart, currentUser]);
+  }, [currentCart, currentUser, saveCartToFirebase]);
   
   // Load all data from localStorage first, then Firebase
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     setIsLoading(true);
     
     try {
@@ -106,7 +106,7 @@ function AppContent({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentUser, setIsLoading, setSyncStatus]);
   
   const loadLocalData = () => {
     try {
@@ -179,7 +179,7 @@ function AppContent({
     }
   };
   
-  const saveCartToFirebase = async () => {
+  const saveCartToFirebase = useCallback(async () => {
     if (!currentUser || currentCart.length === 0) return;
     
     try {
@@ -208,7 +208,7 @@ function AppContent({
         console.error('Local save also failed:', localError);
       }
     }
-  };
+  }, [currentUser, currentCart]);
   
   // CONNECTED FUNCTIONS
   const loadRecipeToCart = async (recipe, merge = false) => {
