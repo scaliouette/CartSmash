@@ -443,16 +443,19 @@ function AppContent({
 
       <main className="main">
         {currentView === 'home' ? (
-          <GroceryListForm 
-            currentCart={currentCart}
-            setCurrentCart={setCurrentCart}
-            savedRecipes={savedRecipes}
-            setSavedRecipes={setSavedRecipes}
-            saveCartAsList={saveCartAsList}
-            saveRecipe={saveRecipe}
-            loadRecipeToCart={loadRecipeToCart}
-            // NOTE: currentUser removed - GroceryListForm gets it from useAuth()
-          />
+          <>
+            <GroceryListForm 
+              currentCart={currentCart}
+              setCurrentCart={setCurrentCart}
+              savedRecipes={savedRecipes}
+              setSavedRecipes={setSavedRecipes}
+              saveCartAsList={saveCartAsList}
+              saveRecipe={saveRecipe}
+              loadRecipeToCart={loadRecipeToCart}
+              // NOTE: currentUser removed - GroceryListForm gets it from useAuth()
+            />
+            <FeaturesSection />
+          </>
         ) : currentView === 'account' ? (
           <MyAccount 
             savedLists={savedLists}
@@ -493,7 +496,7 @@ function AppContent({
         ) : null}
       </main>
       
-      {currentView === 'home' && <FeaturesSection />}
+      {/* Footer - appears on home page only */}
       {currentView === 'home' && <Footer onViewChange={setCurrentView} />}
       
       {/* Sync Status Indicator */}

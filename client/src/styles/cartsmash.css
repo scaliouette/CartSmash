@@ -3346,6 +3346,9 @@ button[onclick*="Instacart"],
   background: linear-gradient(135deg, #1f2937, #374151);
   color: white;
   margin-top: 60px;
+  width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .footer-content {
