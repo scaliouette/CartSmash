@@ -1,13 +1,19 @@
 // client/src/App.js - COMPLETE FIXED VERSION - Emergency Fix 2025-09-02
+console.log('📦 App.js module loading...');
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SmashCartProvider } from './contexts/SmashCartContext';
 import userDataService from './services/userDataService';
 
+console.log('✅ Core imports loaded successfully');
+
 // Import styles
+console.log('🎨 Loading CSS styles...');
 import './styles/cartsmash.css';
 
 // Import components
+console.log('🧩 Loading components...');
 import Header from './components/Header';
 import GroceryListForm from './components/GroceryListForm';
 import MyAccount from './components/MyAccount';
@@ -15,9 +21,27 @@ import StoresPage from './components/StoresPage';
 import Contact from './components/Contact';
 import Terms from './components/Terms';
 import Privacy from './components/privacy';
+import DebugInfo from './DebugInfo';
+
+console.log('✅ All components loaded successfully');
+
+// Environment debugging
+console.group('🌍 Environment Information');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+console.log('Location:', window.location.href);
+console.log('User Agent:', navigator.userAgent);
+console.log('Platform:', navigator.platform);
+console.log('Build timestamp:', new Date().toISOString());
+console.groupEnd();
 
 // Main App Component
 function App() {
+  console.log('🚀 App component initializing...');
+  
+  // Add error handling for the component
+  try {
+  
   const [currentView, setCurrentView] = useState('home');
   
   // CENTRALIZED STATE MANAGEMENT
@@ -32,6 +56,7 @@ function App() {
   return (
     <AuthProvider>
       <SmashCartProvider>
+        <DebugInfo />
         <AppContent 
           currentView={currentView}
           setCurrentView={setCurrentView}
@@ -51,6 +76,19 @@ function App() {
       </SmashCartProvider>
     </AuthProvider>
   );
+  
+  } catch (error) {
+    console.error('❌ Error in App component:', error);
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <h2>🚨 App Initialization Error</h2>
+        <p>Error: {error.message}</p>
+        <button onClick={() => window.location.reload()}>
+          🔄 Refresh Page
+        </button>
+      </div>
+    );
+  }
 }
 
 function AppContent({
@@ -62,7 +100,10 @@ function AppContent({
   isLoading, setIsLoading,
   syncStatus, setSyncStatus
 }) {
+  console.log('🔧 AppContent component rendering, currentView:', currentView);
+  
   const { currentUser } = useAuth();
+  console.log('👤 Current user state:', currentUser ? 'authenticated' : 'not authenticated');
 
   const loadLocalData = useCallback(() => {
     try {
