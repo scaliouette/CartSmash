@@ -10,6 +10,7 @@ class KrogerOrderService {
     this.clientSecret = process.env.KROGER_CLIENT_SECRET;
     this.redirectUri = process.env.KROGER_REDIRECT_URI;
     
+    // OAuth scopes - support both legacy and current cart scopes during migration
     this.scopes = {
       products: 'product.compact',
       cart: process.env.KROGER_OAUTH_SCOPES?.includes('cart.basic:rw') ? 'cart.basic:rw' : 'cart.basic:write',
@@ -357,7 +358,7 @@ async ensureUserAuth(userId) {
   console.log(`   Required API scope: ${this.scopes.cart}`);
   console.log(`   Token has cart.basic:write: ${hasWriteScope || false}`);
   console.log(`   Token has cart.basic:rw: ${hasRWScope || false}`);
-  console.log(`   Token has required scope: ${hasRequiredCartScope || false}`);
+  console.log(`   Token has valid cart scope: ${hasWriteScope || hasRWScope || false}`);
   console.log(`   All token scopes: ${authCheck.tokenInfo.scope?.split(' ') || []}`);
   console.log(`   Token type: ${authCheck.tokenInfo.tokenType || 'Bearer'}`);
   console.log(`   Token expires at: ${new Date(authCheck.tokenInfo.expiresAt).toISOString()}`);
@@ -469,13 +470,21 @@ async addItemsToCart(userId, items) {
       throw new Error(`AUTHENTICATION_REQUIRED: User must complete Kroger OAuth before cart operations. ${authCheck.reason}`);
     }
     
-    // Verify user has required cart scope for cart operations
-    if (!authCheck.tokenInfo.scope?.includes(this.scopes.cart)) {
-      console.error(`❌ User ${userId} missing ${this.scopes.cart} scope: ${authCheck.tokenInfo.scope}`);
-      throw new Error(`INSUFFICIENT_SCOPE: User token missing ${this.scopes.cart} scope. Please re-authenticate with Kroger.`);
+    // SCOPE MIGRATION SUPPORT:
+    // - Legacy tokens have 'cart.basic:write' scope (still functional)  
+    // - New tokens have 'cart.basic:rw' scope (required by Kroger API)
+    // - Accept both during migration period to avoid breaking existing users
+    const hasLegacyScope = authCheck.tokenInfo.scope?.includes('cart.basic:write');
+    const hasCurrentScope = authCheck.tokenInfo.scope?.includes('cart.basic:rw');
+    const hasValidCartScope = hasLegacyScope || hasCurrentScope;
+    
+    if (!hasValidCartScope) {
+      console.error(`❌ User ${userId} missing cart scope: ${authCheck.tokenInfo.scope}`);
+      throw new Error(`INSUFFICIENT_SCOPE: User token missing cart scope. Please re-authenticate with Kroger.`);
     }
     
-    console.log(`✅ User ${userId} authenticated with ${this.scopes.cart} scope for cart operations`);
+    const scopeType = hasCurrentScope ? 'cart.basic:rw' : 'cart.basic:write (legacy)';
+    console.log(`✅ User ${userId} authenticated with ${scopeType} scope for cart operations`);
     
     // Remove duplicates first
     const uniqueItems = [];
@@ -619,7 +628,9 @@ async addItemsToCart(userId, items) {
         console.log(`   Token type: ${preReqTokenInfo.tokenType}`);
         console.log(`   Current time: ${new Date().toISOString()}`);
         console.log(`   Token valid: ${preReqTokenInfo.expiresAt > Date.now()}`);
-        console.log(`   Has ${this.scopes.cart} scope: ${preReqTokenInfo.scope?.includes(this.scopes.cart) || false}`);
+        const hasWrite = preReqTokenInfo.scope?.includes('cart.basic:write');
+        const hasRW = preReqTokenInfo.scope?.includes('cart.basic:rw');
+        console.log(`   Has valid cart scope: ${hasWrite || hasRW || false} (write: ${hasWrite}, rw: ${hasRW})`);
       } else {
         console.log(`   ❌ NO TOKEN FOUND for user ${userId}`);
       }
@@ -679,17 +690,23 @@ async addItemsToCart(userId, items) {
             createError.response?.data?.errors?.reason?.includes('scope')) {
           console.log('🔄 Scope issue detected - checking if user needs re-authentication...');
           
-          // Check if user has the required scopes
+          // Check if user has the required scopes (support both legacy and current)
           const tokenInfo = await tokenStore.getTokens(userId);
-          if (tokenInfo && tokenInfo.scope && !tokenInfo.scope.includes(this.scopes.cart)) {
-            console.log(`🔒 User token missing required scope "${this.scopes.cart}"`);
-            console.log(`   Current scopes: ${tokenInfo.scope}`);
-            console.log('🚪 User needs to re-authenticate to get updated scopes');
+          if (tokenInfo && tokenInfo.scope) {
+            const hasLegacyScope = tokenInfo.scope.includes('cart.basic:write');
+            const hasCurrentScope = tokenInfo.scope.includes('cart.basic:rw');
+            const hasValidCartScope = hasLegacyScope || hasCurrentScope;
             
-            // Clear the existing token to force re-authentication
-            await tokenStore.deleteTokens(userId);
+            if (!hasValidCartScope) {
+              console.log(`🔒 User token missing cart scope`);
+              console.log(`   Current scopes: ${tokenInfo.scope}`);
+              console.log('🚪 User needs to re-authenticate to get cart access');
             
-            throw new Error('REAUTHENTICATION_REQUIRED: Your current login session does not have permission to manage carts. Please log in again to get updated permissions.');
+              // Clear the existing token to force re-authentication
+              await tokenStore.deleteTokens(userId);
+              
+              throw new Error('REAUTHENTICATION_REQUIRED: Your current login session does not have permission to manage carts. Please log in again to get updated permissions.');
+            }
           }
           
           console.log('🔄 Trying alternative cart creation methods...');
