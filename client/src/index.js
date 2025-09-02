@@ -41,6 +41,11 @@ if (!rootElement) {
       </ErrorBoundary>
     );
     console.log('✅ App rendered successfully');
+    
+    // Mark React as loaded for the loading screen
+    if (window.markReactLoaded) {
+      window.markReactLoaded();
+    }
   } catch (error) {
     console.error('❌ Failed to render app:', error);
     rootElement.innerHTML = `<h1>Error loading app: ${error.message}</h1>`;

@@ -145,18 +145,64 @@
     <div id="root"></div>
     
     <script>
-      // Remove loading screen when React app loads
+      // Enhanced debugging for deployment issues
+      console.log('🔍 CARTSMASH: Page loading started');
+      console.log('🔍 Location:', window.location.href);
+      console.log('🔍 User agent:', navigator.userAgent);
+      
+      // Global error handler for script loading failures
+      window.addEventListener('error', function(e) {
+        console.error('🚨 Script loading error:', e);
+        if (e.filename && e.filename.includes('.js')) {
+          console.error('🚨 JavaScript file failed to load:', e.filename);
+          document.getElementById('loading-screen').innerHTML = 
+            '<div class="loading-logo"><span class="loading-icon">⚠️</span><span>LOADING ERROR</span></div>' +
+            '<div class="loading-text">JavaScript bundle failed to load</div>' +
+            '<div style="margin-top: 20px; font-size: 14px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">' +
+            '<strong>Error:</strong> ' + e.message + '<br/>' +
+            '<strong>File:</strong> ' + e.filename + '<br/>' +
+            '<strong>Time:</strong> ' + new Date().toISOString() + '<br/><br/>' +
+            '<button onclick="window.location.reload()" style="background: white; color: #FF6B35; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Retry</button>' +
+            '</div>';
+        }
+      });
+      
+      // Track when React starts loading
+      let reactLoaded = false;
       window.addEventListener('DOMContentLoaded', function() {
+        console.log('🔍 DOM Content loaded');
+        
+        // Check if React loaded after 5 seconds
         setTimeout(function() {
-          const loadingScreen = document.getElementById('loading-screen');
-          if (loadingScreen) {
-            loadingScreen.classList.add('fade-out');
-            setTimeout(function() {
-              loadingScreen.style.display = 'none';
-            }, 500);
+          if (!reactLoaded) {
+            console.error('🚨 React app did not load within 5 seconds');
+            document.getElementById('loading-screen').innerHTML = 
+              '<div class="loading-logo"><span class="loading-icon">⚠️</span><span>TIMEOUT</span></div>' +
+              '<div class="loading-text">App failed to initialize</div>' +
+              '<div style="margin-top: 20px; font-size: 14px;">Please refresh the page or check your internet connection.</div>' +
+              '<div style="margin-top: 15px;"><button onclick="window.location.reload()" style="background: white; color: #FF6B35; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Refresh Page</button></div>';
+          }
+        }, 5000);
+        
+        // Normal loading screen removal (only if React loads successfully)
+        setTimeout(function() {
+          if (reactLoaded) {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) {
+              loadingScreen.classList.add('fade-out');
+              setTimeout(function() {
+                loadingScreen.style.display = 'none';
+              }, 500);
+            }
           }
         }, 1000);
       });
+      
+      // Function to call when React successfully loads
+      window.markReactLoaded = function() {
+        console.log('✅ React app loaded successfully');
+        reactLoaded = true;
+      };
       
       // Console branding
       console.log(
