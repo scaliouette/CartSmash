@@ -21,7 +21,12 @@
       "Bash(git push:*)",
       "WebFetch(domain:cartsmash-api.onrender.com)",
       "Bash(git config:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd /c:*)",
+      "Bash(set PORT=3002)",
+      "Bash(npm start)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
