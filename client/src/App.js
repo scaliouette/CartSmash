@@ -1,4 +1,4 @@
-// client/src/App.js - COMPLETE FIXED VERSION - Cache Bust - Debug v1.0.1
+// client/src/App.js - COMPLETE FIXED VERSION
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SmashCartProvider } from './contexts/SmashCartContext';
@@ -18,10 +18,6 @@ import Privacy from './components/privacy';
 
 // Main App Component
 function App() {
-  // Debug logging
-  console.log('🚀 App component initialized - Debug v1.0.1');
-  console.log('🕐 App load time:', new Date().toISOString());
-  
   const [currentView, setCurrentView] = useState('home');
   
   // CENTRALIZED STATE MANAGEMENT
@@ -404,96 +400,37 @@ function AppContent({
   // };
   
   if (isLoading) {
-    console.log('🔄 App is in loading state, isLoading:', isLoading);
-    console.log('👤 Current user:', currentUser?.uid || 'not logged in');
     return (
-      <div className="app-loading" style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'white',
-        fontFamily: 'Inter, sans-serif',
-        zIndex: 9999
-      }}>
-        <div style={{
-          fontSize: '48px',
-          fontWeight: 'bold',
-          marginBottom: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '15px'
-        }}>
-          <span>💥</span>
-          <span>CARTSMASH</span>
-        </div>
-        <div className="spinner" style={{
-          width: '40px',
-          height: '40px',
-          border: '4px solid rgba(255, 255, 255, 0.3)',
-          borderTop: '4px solid white',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-          marginBottom: '20px'
-        }}></div>
-        <p style={{ fontSize: '18px', opacity: 0.9 }}>Loading your CARTSMASH data...</p>
-        <p style={{ fontSize: '14px', opacity: 0.7, marginTop: '10px' }}>Debug v1.0.1</p>
+      <div className="app-loading">
+        <div className="spinner"></div>
+        <p>Loading your CARTSMASH data...</p>
       </div>
     );
   }
   
-  console.log('✅ App loading complete, rendering main app');
-  console.log('🎯 Current view:', currentView);
-  
   return (
-    <div className="app" style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+    <div className="app">
       <Header 
         currentView={currentView} 
         onViewChange={setCurrentView}
         syncStatus={syncStatus}
       />
 
-      <main className="main" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <main className="main">
         {currentView === 'home' ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <div style={{ 
-              background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              fontSize: '3rem',
-              fontWeight: 'bold',
-              marginBottom: '20px'
-            }}>
-              💥 CARTSMASH
-            </div>
-            <h1 style={{ fontSize: '2rem', color: '#333', marginBottom: '20px' }}>
-              AI-Powered Grocery List Parser
-            </h1>
-            <p style={{ fontSize: '1.2rem', color: '#666', marginBottom: '30px' }}>
-              Transform any list into organized, ready-to-order products instantly!
-            </p>
-            <div style={{
-              background: '#f8f9fa',
-              border: '2px dashed #dee2e6',
-              borderRadius: '12px',
-              padding: '40px 20px',
-              margin: '20px 0'
-            }}>
-              <p style={{ color: '#6c757d', fontSize: '1.1rem' }}>
-                🚧 Loading main components... (Debug Mode Active)
-              </p>
-              <p style={{ color: '#6c757d', fontSize: '0.9rem', marginTop: '10px' }}>
-                If you see this, the React app is working but components may have loading issues.
-              </p>
-            </div>
+          <>
+            <GroceryListForm 
+              currentCart={currentCart}
+              setCurrentCart={setCurrentCart}
+              savedRecipes={savedRecipes}
+              setSavedRecipes={setSavedRecipes}
+              saveCartAsList={saveCartAsList}
+              saveRecipe={saveRecipe}
+              loadRecipeToCart={loadRecipeToCart}
+              // NOTE: currentUser removed - GroceryListForm gets it from useAuth()
+            />
             <FeaturesSection />
-          </div>
+          </>
         ) : currentView === 'account' ? (
           <MyAccount 
             savedLists={savedLists}
@@ -535,7 +472,6 @@ function AppContent({
       </main>
       
       {/* Footer - appears on home page only */}
-      {console.log('Current view for footer:', currentView)}
       <Footer onViewChange={setCurrentView} currentView={currentView} />
       
       {/* Sync Status Indicator */}
@@ -593,7 +529,6 @@ function FeaturesSection() {
 
 // Footer Component
 function Footer({ onViewChange }) {
-  console.log('Footer component rendering');
   return (
     <footer className="footer-section">
       <div className="footer-content">

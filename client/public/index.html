@@ -26,7 +26,7 @@
     <meta property="twitter:description" content="Transform any grocery list into organized, ready-to-order products instantly with AI-powered parsing.">
     <meta property="twitter:image" content="%PUBLIC_URL%/twitter-image.png">
 
-    <title>CARTSMASH - AI-Powered Grocery List Parser (Debug v1.0.1)</title>
+    <title>CARTSMASH - AI-Powered Grocery List Parser</title>
 
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-VG9TG33V5J"></script>
@@ -164,23 +164,6 @@
         'color: #FF6B35; font-size: 24px; font-weight: bold;',
         'color: #666; font-size: 14px;'
       );
-      
-      // Debug information
-      console.log('%c🐛 DEBUG INFO', 'color: #ff0000; font-weight: bold;');
-      console.log('📅 Build Time:', new Date().toISOString());
-      console.log('🔢 Version:', '1.0.1-debug');
-      console.log('🌐 Location:', window.location.href);
-      console.log('📱 User Agent:', navigator.userAgent);
-      console.log('⚡ Deployment Status: NEW BUILD ACTIVE');
-      
-      // Check if old cached files are loading
-      const scripts = document.querySelectorAll('script[src*="main"]');
-      scripts.forEach(script => {
-        console.log('📜 Script loaded:', script.src);
-        if (script.src.includes('main.5dcc7eb1.js')) {
-          console.error('🚨 OLD CACHED FILE DETECTED! Expected new hash, got old hash.');
-        }
-      });
     </script>
   </body>
 </html>
