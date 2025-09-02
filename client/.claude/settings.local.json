@@ -22,6 +22,7 @@
       "Bash(git commit:*)",
       "Bash(taskkill:*)",
       "Bash(git push:*)",
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash/**)",
       "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash/**)"
     ],
     "deny": [],
