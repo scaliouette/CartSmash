@@ -12,7 +12,6 @@ import Contact from './components/Contact';
 import Terms from './components/Terms';
 import Privacy from './components/privacy';
 import Footer from './components/Footer';
-import DebugInfo from './DebugInfo';
 
 console.log('📦 App.js module loading...');
 console.log('✅ Core imports loaded successfully');
@@ -48,7 +47,6 @@ function App() {
   return (
     <AuthProvider>
       <SmashCartProvider>
-        <DebugInfo />
         <AppContent 
           currentView={currentView}
           setCurrentView={setCurrentView}
