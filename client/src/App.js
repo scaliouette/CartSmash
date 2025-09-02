@@ -554,8 +554,9 @@ function FeaturesSection() {
 
 // Footer Component
 function Footer({ onViewChange }) {
+  console.log('Footer component rendering');
   return (
-    <footer className="footer-section">
+    <footer className="footer-section" style={{backgroundColor: 'red', minHeight: '200px', padding: '20px'}}>
       <div className="footer-content">
         <div className="footer-brand">
           <h3 className="footer-title">CARTSMASH</h3>
