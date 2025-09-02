@@ -65,12 +65,56 @@ const KrogerAuth = ({ onAuthSuccess }) => {
       setAuthError(null);
       setAuthStatus('authenticating');
 
-      // Backend now redirects directly - just navigate to the endpoint
+      // Try direct redirect first, fallback to JSON parsing
       const authURL = `${API_BASE_URL}/api/auth/kroger/login?userId=${currentUser.uid}`;
-      console.log('🚀 Redirecting to Kroger OAuth via backend:', authURL);
+      console.log('🔗 Attempting Kroger OAuth:', authURL);
       
-      // Direct redirect - backend handles the OAuth URL generation and redirect
-      window.location.href = authURL;
+      try {
+        // Fetch the endpoint to check if it redirects or returns JSON
+        const response = await fetch(authURL, { 
+          method: 'GET',
+          redirect: 'manual' // Don't follow redirects automatically
+        });
+        
+        // If it's a redirect response, follow it
+        if (response.status >= 300 && response.status < 400) {
+          const location = response.headers.get('Location');
+          if (location) {
+            console.log('🚀 Following backend redirect to:', location);
+            window.location.href = location;
+            return;
+          }
+        }
+        
+        // If it returns JSON, parse and use Legacy OAuth
+        if (response.headers.get('content-type')?.includes('application/json')) {
+          const data = await response.json();
+          console.log('📋 Got JSON response, using Legacy OAuth');
+          
+          // Find Legacy OAuth option
+          const legacyOption = data.alternatives?.find(alt => alt.url?.authType === 'legacy_oauth');
+          if (legacyOption && legacyOption.url?.authURL) {
+            console.log('🚀 Using Legacy OAuth:', legacyOption.url.authURL);
+            window.location.href = legacyOption.url.authURL;
+            return;
+          }
+          
+          // Fallback to primary
+          if (data.primary?.url?.authURL) {
+            console.log('🚀 Using Primary OAuth:', data.primary.url.authURL);
+            window.location.href = data.primary.url.authURL;
+            return;
+          }
+        }
+        
+        // If all else fails, try direct navigation
+        window.location.href = authURL;
+        
+      } catch (error) {
+        console.error('Error with OAuth redirect:', error);
+        // Fallback to direct navigation
+        window.location.href = authURL;
+      }
     } catch (error) {
       console.error('Error initiating Kroger auth:', error);
       setAuthError(error.message || 'Failed to start authentication');
