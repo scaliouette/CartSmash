@@ -31,7 +31,7 @@ function AdminDashboard({ onClose, currentUser }) {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [loadRealtimeMetrics]);
+  }, []);
 
   const loadSystemHealth = async () => {
     try {

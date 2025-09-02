@@ -17,7 +17,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
 
   useEffect(() => {
     loadRecipes();
-  }, [savedRecipes, loadRecipes]);
+  }, [savedRecipes]);
 
   const loadRecipes = async () => {
     setLoading(true);
