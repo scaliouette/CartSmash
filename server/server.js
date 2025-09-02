@@ -500,7 +500,7 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
       // Fallback to legacy OAuth processing
       try {
         const decoded = Buffer.from(state, 'base64').toString();
-        const [userId, timestamp] = decoded.split('-');
+        const [userId, timestamp] = decoded.split(/[-:]/); // Handle both : and - separators
         
         if (Date.now() - parseInt(timestamp) > 300000) {
           throw new Error('State expired');
@@ -707,6 +707,36 @@ app.get('/api/auth/kroger/status-and-stores', async (req, res) => {
       message: error.message
     });
   }
+});
+
+// FIXED Kroger OAuth Login - Direct Redirect (No JSON Response)
+app.get('/api/auth/kroger/login', (req, res) => {
+  const { userId } = req.query;
+  
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      error: 'userId parameter is required'
+    });
+  }
+  
+  console.log(`🔗 Kroger OAuth login requested for user: ${userId}`);
+  
+  // Generate state token for security
+  const state = Buffer.from(`${userId}:${Date.now()}:${Math.random()}`).toString('base64');
+  
+  // Build the authorization URL using standard Kroger OAuth
+  const authUrl = `${process.env.KROGER_BASE_URL || 'https://api.kroger.com/v1'}/connect/oauth2/authorize?` +
+    `response_type=code&` +
+    `client_id=${process.env.KROGER_CLIENT_ID}&` +
+    `redirect_uri=${encodeURIComponent(process.env.KROGER_REDIRECT_URI)}&` +
+    `scope=${encodeURIComponent('cart.basic:rw profile.compact product.compact')}&` +
+    `state=${state}`;
+  
+  console.log(`🚀 Redirecting to Kroger OAuth: ${authUrl}`);
+  
+  // CRITICAL: Use res.redirect() NOT res.json()
+  res.redirect(authUrl);
 });
 
 app.get('/api/debug/kroger-auth', (req, res) => {
