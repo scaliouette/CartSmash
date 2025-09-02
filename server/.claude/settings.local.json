@@ -19,7 +19,8 @@
       "Bash(npm run build:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "WebFetch(domain:cartsmash-api.onrender.com)"
+      "WebFetch(domain:cartsmash-api.onrender.com)",
+      "Bash(git config:*)"
     ],
     "deny": [],
     "ask": []
