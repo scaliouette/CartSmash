@@ -63,30 +63,55 @@ function AppContent({
   syncStatus, setSyncStatus
 }) {
   const { currentUser } = useAuth();
-  
-  // Expose refresh function globally for components
-  useEffect(() => {
-    window.refreshAccountData = loadAllData;
-    return () => {
-      delete window.refreshAccountData;
-    };
-  }, [currentUser, loadAllData]);
-  
-  // Load all data on mount and when user changes
-  useEffect(() => {
-    loadAllData();
-  }, [currentUser, loadAllData]);
-  
-  // Auto-save cart to Firebase when it changes (debounced)
-  useEffect(() => {
-    if (currentCart.length === 0) return;
-    
-    const saveTimer = setTimeout(() => {
-      saveCartToFirebase();
-    }, 2000); // 2 second debounce
-    
-    return () => clearTimeout(saveTimer);
-  }, [currentCart, currentUser, saveCartToFirebase]);
+
+  const loadLocalData = () => {
+    try {
+      const loadedCart = JSON.parse(localStorage.getItem('cartsmash-current-cart') || '[]');
+      const loadedLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
+      const loadedRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
+      const loadedMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
+      
+      setCurrentCart(loadedCart);
+      setSavedLists(loadedLists);
+      setSavedRecipes(loadedRecipes);
+      setMealPlans(loadedMealPlans);
+      
+      console.log('✅ Loaded data from localStorage');
+    } catch (error) {
+      console.error('Error loading from localStorage:', error);
+    }
+  };
+
+  const loadFirebaseData = async () => {
+    try {
+      setSyncStatus('syncing');
+      
+      await userDataService.init();
+      
+      // Load all data from Firebase
+      const [firebaseLists, firebaseRecipes, firebaseMealPlans] = await Promise.all([
+        userDataService.getShoppingLists().catch(() => []),
+        userDataService.getRecipes().catch(() => []),
+        userDataService.getMealPlans().catch(() => [])
+      ]);
+      
+      // Load current cart from the most recent list if exists
+      if (firebaseLists.length > 0 && firebaseLists[0].items) {
+        setCurrentCart(firebaseLists[0].items);
+        console.log('📱 Loaded current cart from Firebase:', firebaseLists[0].items.length, 'items');
+      }
+      
+      setSavedLists(firebaseLists);
+      setSavedRecipes(firebaseRecipes);
+      setMealPlans(firebaseMealPlans);
+      
+      setSyncStatus('synced');
+      console.log('✅ Successfully synced with Firebase');
+    } catch (error) {
+      console.error('Firebase sync error:', error);
+      setSyncStatus('error');
+    }
+  };
   
   // Load all data from localStorage first, then Firebase
   const loadAllData = useCallback(async () => {
@@ -106,7 +131,7 @@ function AppContent({
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, setIsLoading, setSyncStatus]);
+  }, [currentUser, setIsLoading, setSyncStatus, loadLocalData, loadFirebaseData]);
   
   const loadLocalData = () => {
     try {
@@ -209,6 +234,30 @@ function AppContent({
       }
     }
   }, [currentUser, currentCart]);
+  
+  // Expose refresh function globally for components
+  useEffect(() => {
+    window.refreshAccountData = loadAllData;
+    return () => {
+      delete window.refreshAccountData;
+    };
+  }, [loadAllData]);
+  
+  // Load all data on mount and when user changes
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
+  
+  // Auto-save cart to Firebase when it changes (debounced)
+  useEffect(() => {
+    if (currentCart.length === 0) return;
+    
+    const saveTimer = setTimeout(() => {
+      saveCartToFirebase();
+    }, 2000); // 2 second debounce
+    
+    return () => clearTimeout(saveTimer);
+  }, [currentCart, currentUser, saveCartToFirebase]);
   
   // CONNECTED FUNCTIONS
   const loadRecipeToCart = async (recipe, merge = false) => {
