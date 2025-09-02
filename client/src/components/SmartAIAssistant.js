@@ -1,6 +1,6 @@
 // client/src/components/SmartAIAssistant.js - ENHANCED VERSION with Loading States
 import React, { useState, useRef, useEffect } from 'react';
-import LoadingSpinner, { InlineSpinner, ButtonSpinner } from './LoadingSpinner';
+import LoadingSpinner, { ButtonSpinner } from './LoadingSpinner';
 
 function SmartAIAssistant({ onGroceryListGenerated, onRecipeGenerated }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -124,10 +124,6 @@ Provide recipes with instructions and list each grocery item on a separate line.
   // ✅ ENHANCED: Better quantity parsing for fractions
   const parseQuantity = (text) => {
     // Handle fractions like "1 /4", "1/4", "2 1/2", etc.
-    const fractionPatterns = [
-      /(\d+)\s*\/\s*(\d+)/g,           // "1/4" or "1 / 4"
-      /(\d+)\s+(\d+)\s*\/\s*(\d+)/g    // "2 1/4" or "2 1 / 4"
-    ];
 
     let cleanedText = text;
     
@@ -186,7 +182,7 @@ Provide recipes with instructions and list each grocery item on a separate line.
       }
       
       // Look for bullet points, numbers, or dashes (grocery list items)
-      const bulletMatch = line.match(/^[•\-\*\d+\.\)\s]*(.+)$/);
+      const bulletMatch = line.match(/^[•\-*\d+.)\s]*(.+)$/);
       if (bulletMatch) {
         let cleanedItem = bulletMatch[1].trim();
         
@@ -257,7 +253,7 @@ Provide recipes with instructions and list each grocery item on a separate line.
       
       // Detect sections
       if (line.match(/^\*\*.*\*\*$/) || line.match(/^#{1,6}\s/)) {
-        const cleanLine = line.replace(/[\*#]/g, '').trim();
+        const cleanLine = line.replace(/[*#]/g, '').trim();
         if (cleanLine.toLowerCase().includes('ingredient')) {
           currentSection = 'ingredients';
         } else if (cleanLine.toLowerCase().includes('instruction') || 
@@ -280,7 +276,7 @@ Provide recipes with instructions and list each grocery item on a separate line.
       }
       
       // Extract ingredients and instructions
-      const bulletMatch = line.match(/^[•\-\*\d+\.\)\s]*(.+)$/);
+      const bulletMatch = line.match(/^[•\-*\d+.)\s]*(.+)$/);
       if (bulletMatch && currentSection) {
         const content = bulletMatch[1].trim();
         if (currentSection === 'ingredients') {

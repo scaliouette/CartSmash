@@ -50,7 +50,7 @@ function AIParsingSettings({ onClose, onSettingsChange }) {
     exportFormat: 'json'
   });
 
-  const [presets, setPresets] = useState({
+  const [presets] = useState({
     conservative: {
       strictMode: true,
       confidenceThreshold: 0.8,

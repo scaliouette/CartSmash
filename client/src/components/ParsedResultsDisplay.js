@@ -35,15 +35,15 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
   const [viewMealGroups, setViewMealGroups] = useState(false);
   const [validatingAll, setValidatingAll] = useState(false);
 
-  const trackEvent = (action, category, label, value) => {
-  if (window.gtag) {
-    window.gtag('event', action, {
-      event_category: category,
-      event_label: label,
-      value: value
-    });
-  }
-};
+  // const trackEvent = (action, category, label, value) => {
+  //   if (window.gtag) {
+  //     window.gtag('event', action, {
+  //       event_category: category,
+  //       event_label: label,
+  //       value: value
+  //     });
+  //   }
+  // };
 
   // Mobile detection
   useEffect(() => {

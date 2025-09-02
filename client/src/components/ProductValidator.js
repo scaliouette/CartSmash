@@ -1,6 +1,6 @@
 // client/src/components/ProductValidator.js - FIXED VERSION
 import React, { useState, useEffect } from 'react';
-import { ButtonSpinner, InlineSpinner } from './LoadingSpinner';
+import { InlineSpinner } from './LoadingSpinner';
 
 function ProductValidator({ items, onItemsUpdated, onClose }) {
   const [validatingItems, setValidatingItems] = useState(new Set());
