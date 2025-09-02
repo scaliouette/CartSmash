@@ -1,0 +1,17 @@
+VERCEL ENVIRONMENT VARIABLES - Copy these to Vercel Dashboard:
+
+REACT_APP_FIREBASE_API_KEY=AIzaSyCbuju5k6KuOM9DTvZLpsRgkyyA4z_iVOk
+REACT_APP_FIREBASE_AUTH_DOMAIN=cartsmash-pooda.firebaseapp.com
+REACT_APP_FIREBASE_DATABASE_URL=https://cartsmash-pooda-default-rtdb.firebaseio.com
+REACT_APP_FIREBASE_PROJECT_ID=cartsmash-pooda
+REACT_APP_FIREBASE_STORAGE_BUCKET=cartsmash-pooda.appspot.com
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=230149206692
+REACT_APP_FIREBASE_APP_ID=1:230149206692:web:bd8255ffc399f24e13ac31
+REACT_APP_FIREBASE_MEASUREMENT_ID=G-VG9TG33V5J
+REACT_APP_API_URL=https://cartsmash-api.onrender.com
+
+Instructions:
+1. In Vercel Dashboard → Your Project → Settings → Environment Variables
+2. Add each variable above (Name = Value)
+3. Set Environment to: Production, Preview, and Development
+4. Click Save
