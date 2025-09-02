@@ -14,7 +14,8 @@
       "Bash(node:*)",
       "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\Backup\\CartSmash\\client\\src\\components/**)",
       "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\Backup\\CartSmash\\client\\src\\components/**)",
-      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\Backup\\CartSmash\\client\\src\\components/**)"
+      "Read(C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\Backup\\CartSmash\\client\\src\\components/**)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

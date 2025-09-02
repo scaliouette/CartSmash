@@ -567,14 +567,25 @@ async addItemsToCart(userId, items) {
         console.log(`➕ Adding ${newItems.length} new items to cart...`);
         const addPromises = newItems.map(async (item) => {
           try {
+            // Send only the fields Kroger expects
+            const krogerItem = {
+              upc: item.upc,
+              quantity: item.quantity,
+              modality: item.modality || 'PICKUP'
+            };
+            console.log(`📦 Adding item to cart: ${JSON.stringify(krogerItem)}`);
+            
             return await this.makeUserRequest(
               userId,
               'POST',
               `/carts/${existingCartId}/items`,
-              item
+              krogerItem
             );
           } catch (error) {
-            console.warn(`⚠️ Failed to add item ${item.upc}:`, error.message);
+            console.error(`❌ Failed to add item ${item.upc}:`, error.message);
+            console.error(`   Item data sent: ${JSON.stringify(item)}`);
+            console.error(`   Response status: ${error.response?.status}`);
+            console.error(`   Response data: ${JSON.stringify(error.response?.data)}`);
             return null;
           }
         });

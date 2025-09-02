@@ -497,7 +497,8 @@ function AppContent({
       </main>
       
       {/* Footer - appears on home page only */}
-      {currentView === 'home' && <Footer onViewChange={setCurrentView} />}
+      {console.log('Current view for footer:', currentView)}
+      <Footer onViewChange={setCurrentView} currentView={currentView} />
       
       {/* Sync Status Indicator */}
       {currentUser && (
