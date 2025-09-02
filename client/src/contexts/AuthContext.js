@@ -254,7 +254,14 @@ export function AuthProvider({ children }) {
         await setDoc(userRef, updates, { merge: true });
       }
       
-      setCurrentUser(prev => ({ ...prev, ...updates }));
+      // Update the current user object without breaking Firebase methods
+      setCurrentUser(prev => {
+        if (prev) {
+          Object.assign(prev, updates);
+          return prev;
+        }
+        return prev;
+      });
       
       console.log('✅ Profile updated');
     } catch (error) {
