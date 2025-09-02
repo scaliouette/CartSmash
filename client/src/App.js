@@ -1,6 +1,7 @@
 ﻿// client/src/App.js - COMPLETE FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SmashCartProvider } from './contexts/SmashCartContext';
 import userDataService from './services/userDataService';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 

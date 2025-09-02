@@ -999,6 +999,7 @@ const routes = [
   { path: '/api/ai', module: './routes/ai' },
   { path: '/api/kroger', module: './routes/kroger' },  // Add this
   { path: '/api/kroger-orders', module: './routes/kroger-orders' },
+  { path: '/api/smash-cart', module: './routes/smash-cart' },  // New comprehensive cart service
   { path: '/api/grocery', module: './routes/grocery' },
   { path: '/api/account', module: './routes/account' },
   { path: '/api/stores', module: './routes/stores' }

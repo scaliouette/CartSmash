@@ -42,7 +42,7 @@
 
 ### Cart Operation Errors
 - **No Items Prepared**: Authentication likely expired - retry OAuth
-- **Scope Mismatch**: Ensure cart.basic:rw scope in token
+- **Scope Mismatch**: Ensure cart.basic:write scope in token
 - **Network Errors**: Implement retry logic with exponential backoff
 
 ## Security Rules
@@ -66,7 +66,7 @@
 KROGER_CLIENT_ID=cartsmashproduction-bbc7zd3f
 KROGER_CLIENT_SECRET=6QDheqLBciMEda8oI6J5MGs163IsGy05jFRfcqTU
 KROGER_REDIRECT_URI=https://cartsmash-api.onrender.com/api/auth/kroger/callback
-KROGER_OAUTH_SCOPES=cart.basic:rw profile.compact product.compact
+KROGER_OAUTH_SCOPES=cart.basic:write profile.compact product.compact
 
 # API Endpoints
 KROGER_BASE_URL=https://api.kroger.com/v1
@@ -106,7 +106,7 @@ MONGODB_URI=mongodb+srv://cartsmash-admin:BGFq1pKDHDIVmWFz@cartsmash-cluster.z7a
 ## Testing Rules
 
 ### Authentication Testing
-1. **OAuth URL Generation**: Must include cart.basic:rw scope
+1. **OAuth URL Generation**: Must include cart.basic:write scope
 2. **Callback Processing**: Must handle both valid and invalid codes
 3. **Token Storage**: Must encrypt and store tokens correctly
 4. **Token Retrieval**: Must decrypt and validate tokens
@@ -114,7 +114,7 @@ MONGODB_URI=mongodb+srv://cartsmash-admin:BGFq1pKDHDIVmWFz@cartsmash-cluster.z7a
 ### Cart Operation Testing
 1. **Unauthenticated Requests**: Must return proper error messages
 2. **Authenticated Requests**: Must use valid OAuth tokens
-3. **Scope Validation**: Must verify cart.basic:rw scope
+3. **Scope Validation**: Must verify cart.basic:write scope
 4. **Error Handling**: Must provide actionable error messages
 
 ### API Endpoint Testing
@@ -144,7 +144,7 @@ MONGODB_URI=mongodb+srv://cartsmash-admin:BGFq1pKDHDIVmWFz@cartsmash-cluster.z7a
 - **Authentication**: Never bypass authentication in production
 - **Tokens**: Never log full tokens - only prefixes/suffixes
 - **Secrets**: Never commit secrets to repository
-- **Scope**: Always use cart.basic:rw for cart operations
+- **Scope**: Always use cart.basic:write for cart operations
 
 ### Testing Standards
 - **Unit Tests**: All authentication flows

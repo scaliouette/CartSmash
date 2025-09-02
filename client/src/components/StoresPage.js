@@ -1,11 +1,13 @@
 // client/src/components/StoresPage.js
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useSmashCart } from '../contexts/SmashCartContext';
 import KrogerAuth from './KrogerAuth';
 import NearbyStores from './NearbyStores';
 
 const StoresPage = ({ onStoreSelect, onBackToHome }) => {
   const { currentUser } = useAuth();
+  const { initializeWithStore, isInitialized } = useSmashCart();
   const [krogerAuthComplete, setKrogerAuthComplete] = useState(false);
   const [selectedStore, setSelectedStore] = useState(null);
 
@@ -28,6 +30,9 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
       phone: store.phone,
       selectedAt: new Date().toISOString()
     }));
+    
+    // Initialize SmashCart using context
+    initializeWithStore(store);
     
     // Notify parent component
     if (onStoreSelect) {
@@ -113,8 +118,8 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
               <div className="step active">3</div>
             </div>
             <div className="step-title">
-              <h3>Ready to Shop!</h3>
-              <p>You're all set up with {selectedStore.name}</p>
+              <h3>🛒 SmashCart Ready!</h3>
+              <p>SmashCart is now connected to {selectedStore.name}</p>
             </div>
             
             <div className="ready-content">
@@ -148,13 +153,16 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
               </div>
 
               <div className="next-steps">
-                <h5>What you can do now:</h5>
+                <h5>SmashCart Features Active:</h5>
                 <ul>
-                  <li>✅ Create grocery lists with AI assistance</li>
-                  <li>🛒 Add items to your Kroger cart</li>
-                  <li>💰 See real-time prices and deals</li>
-                  <li>🚚 Schedule pickup or delivery</li>
-                  <li>📱 Sync across all your devices</li>
+                  <li>✅ Full cart management (GET/POST/PUT/DELETE)</li>
+                  <li>🏪 Store location and service information</li>
+                  <li>🛒 Enhanced product details and pricing</li>
+                  <li>📊 Cart analytics and summaries</li>
+                  <li>🔍 Smart product search integration</li>
+                  <li>⚡ Quick-add functionality</li>
+                  <li>🚚 Pickup and delivery coordination</li>
+                  <li>📱 Real-time cart synchronization</li>
                 </ul>
               </div>
             </div>
