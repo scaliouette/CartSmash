@@ -1,4 +1,4 @@
-// client/src/App.js - COMPLETE FIXED VERSION
+// client/src/App.js - COMPLETE FIXED VERSION - Emergency Fix 2025-09-02
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SmashCartProvider } from './contexts/SmashCartContext';
