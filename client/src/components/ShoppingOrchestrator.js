@@ -152,16 +152,27 @@ function ShoppingOrchestrator({ items, recipe }) {
       })
     });
     
-    const data = await response.json();
-    
-    if (data.success) {
-      // Open vendor with pre-filled cart
-      if (vendorId === 'instacart') {
-        window.open(data.cartUrl, '_blank');
+    try {
+      const data = await response.json();
+      
+      if (data && data.success) {
+        // Open vendor with pre-filled cart
+        if (vendorId === 'instacart' && data?.cartUrl) {
+          window.open(data.cartUrl, '_blank');
+        } else if (data?.checkoutUrl) {
+          // Handle other vendors
+          window.open(data.checkoutUrl, '_blank');
+        } else {
+          console.error('Missing checkout/cart URL in response:', data);
+          alert('Unable to open vendor checkout - missing URL in response');
+        }
       } else {
-        // Handle other vendors
-        window.open(data.checkoutUrl, '_blank');
+        console.error('API request failed:', data);
+        alert('Unable to create cart: ' + (data?.error || 'Unknown error'));
       }
+    } catch (parseError) {
+      console.error('Error parsing API response:', parseError);
+      alert('Error processing checkout response');
     }
   };
 
