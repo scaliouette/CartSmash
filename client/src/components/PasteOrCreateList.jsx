@@ -162,6 +162,33 @@ const GroceryListForm = ({
       alert('Please sign in to send items to Kroger');
       return;
     }
+
+    // Check for selected store from StoresPage
+    let storeId = '01400943'; // Default fallback store
+    try {
+      const savedStore = localStorage.getItem('selectedStore');
+      if (savedStore) {
+        const storeData = JSON.parse(savedStore);
+        storeId = storeData.locationId;
+        console.log('🏪 Using selected store:', storeData.name, storeId);
+      }
+    } catch (error) {
+      console.log('Using default store due to error:', error);
+    }
+
+    // Suggest selecting a store if using default
+    if (storeId === '01400943') {
+      const shouldSelectStore = window.confirm(
+        'No store selected. Would you like to choose your Kroger store first for better accuracy?\n\nClick OK to select store, or Cancel to use default store.'
+      );
+      if (shouldSelectStore) {
+        // Navigate to stores page
+        if (window.location.hash) {
+          window.location.hash = '#stores';
+        }
+        return;
+      }
+    }
     
     setIsProcessing(true);
     try {
@@ -173,7 +200,7 @@ const GroceryListForm = ({
         },
         body: JSON.stringify({
           cartItems: currentCart,
-          storeId: '01400943',
+          storeId: storeId,
           modality: 'PICKUP'
         })
       });

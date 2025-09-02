@@ -14,6 +14,25 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
   const [loadingStores, setLoadingStores] = useState(false);
   const [modality] = useState('PICKUP');
 
+  // Check for pre-selected store from StoresPage
+  useEffect(() => {
+    const savedStore = localStorage.getItem('selectedStore');
+    if (savedStore) {
+      try {
+        const storeData = JSON.parse(savedStore);
+        console.log('🏪 Found pre-selected store:', storeData);
+        setSelectedStore({
+          id: storeData.locationId,
+          name: storeData.name,
+          address: storeData.address,
+          phone: storeData.phone
+        });
+      } catch (error) {
+        console.error('Error loading selected store:', error);
+      }
+    }
+  }, []);
+
   // 🔧 FIX: Make getUserId a useCallback to avoid dependency issues
   const getUserId = useCallback(() => {
     if (!currentUser) {
@@ -114,9 +133,16 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
         console.log('📊 Auth status response:', data);
         
         if (data.authenticated) {
-          console.log('✅ User is authenticated, moving to store selection');
-          setStep('store-select');
-          loadNearbyStores();
+          console.log('✅ User is authenticated');
+          // If store already selected, skip to review
+          if (selectedStore) {
+            console.log('🏪 Store already selected, going to review');
+            setStep('review');
+          } else {
+            console.log('🏪 No store selected, going to store selection');
+            setStep('store-select');
+            loadNearbyStores();
+          }
         } else {
           console.log('❌ User not authenticated, showing auth step');
           setStep('auth');
@@ -201,8 +227,15 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
           console.log('✅ Kroger auth successful for user:', event.data.userId);
           popup.close();
           setIsLoading(false);
-          setStep('store-select');
-          loadNearbyStores();
+          
+          // If store already selected from StoresPage, skip to review
+          if (selectedStore) {
+            console.log('🏪 Store already selected, skipping to review:', selectedStore);
+            setStep('review');
+          } else {
+            setStep('store-select');
+            loadNearbyStores();
+          }
           window.removeEventListener('message', handleMessage);
         } else if (event.data.type === 'KROGER_AUTH_ERROR') {
           console.error('❌ Kroger auth failed:', event.data.error);
@@ -392,8 +425,18 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
                 <h4 style={styles.sectionTitle}>📍 Selected Store</h4>
                 <p style={styles.sectionContent}>
                   {selectedStore.name}<br />
-                  {selectedStore.address}
+                  {selectedStore.address?.addressLine1 || selectedStore.address}
+                  {selectedStore.address?.city && (
+                    <><br />{selectedStore.address.city}, {selectedStore.address.state} {selectedStore.address.zipCode}</>
+                  )}
+                  {selectedStore.phone && <><br />📞 {selectedStore.phone}</>}
                 </p>
+                <div style={styles.storeSource}>
+                  {selectedStore.address?.addressLine1 ? 
+                    '✅ Selected from Stores page' : 
+                    '📍 Selected from nearby stores'
+                  }
+                </div>
               </div>
               
               <div style={styles.summarySection}>
@@ -1026,6 +1069,13 @@ const styles = {
     border: '1px solid #fecaca',
     fontSize: '14px',
     marginBottom: '16px'
+  },
+
+  storeSource: {
+    fontSize: '12px',
+    color: '#10b981',
+    fontWeight: '500',
+    marginTop: '8px'
   }
 };
 
