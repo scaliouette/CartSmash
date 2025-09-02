@@ -12,7 +12,7 @@ class KrogerOrderService {
     
     this.scopes = {
       products: 'product.compact',
-      cart: 'cart.basic:rw',
+      cart: 'cart.basic:write',
       profile: 'profile.compact'
     };
     
@@ -54,7 +54,7 @@ class KrogerOrderService {
   /**
    * Get authorization URL for user to authenticate with Kroger
    */
-  getAuthURL(userId, requiredScopes = ['cart.basic:rw', 'profile.compact']) {
+  getAuthURL(userId, requiredScopes = ['cart.basic:write', 'profile.compact']) {
   // REMOVED 'order.basic:write' from default scopes
   const state = this.generateState(userId);
   const scope = requiredScopes.join(' ')
@@ -238,7 +238,7 @@ async ensureUserAuth(userId) {
 }
 
   /**
-   * Get client credentials token (NOTE: Cannot be used for cart operations - cart.basic:rw requires user OAuth)
+   * Get client credentials token (NOTE: Cannot be used for cart operations - cart.basic:write requires user OAuth)
    * Only valid for product search and non-cart endpoints
    */
   async getClientCredentialsToken() {
@@ -249,7 +249,7 @@ async ensureUserAuth(userId) {
       
       const params = new URLSearchParams();
       params.append('grant_type', 'client_credentials');
-      params.append('scope', 'product.compact'); // Only product scope - cart.basic:rw requires user OAuth
+      params.append('scope', 'product.compact'); // Only product scope - cart.basic:write requires user OAuth
       
       const response = await axios.post(
         `${this.baseURL}/connect/oauth2/token`,
@@ -350,8 +350,8 @@ async ensureUserAuth(userId) {
   
   // ENHANCED TOKEN ANALYSIS
   console.log(`🔍 [RENDER DEBUG] DETAILED TOKEN ANALYSIS:`);
-  console.log(`   Required cart scope: cart.basic:rw (OAuth and API)`);
-  console.log(`   Token has cart.basic:rw: ${authCheck.tokenInfo.scope?.includes('cart.basic:rw') || false}`);
+  console.log(`   Required cart scope: cart.basic:write (OAuth and API)`);
+  console.log(`   Token has cart.basic:write: ${authCheck.tokenInfo.scope?.includes('cart.basic:write') || false}`);
   console.log(`   All token scopes: ${authCheck.tokenInfo.scope?.split(' ') || []}`);
   console.log(`   Token type: ${authCheck.tokenInfo.tokenType || 'Bearer'}`);
   console.log(`   Token expires at: ${new Date(authCheck.tokenInfo.expiresAt).toISOString()}`);
@@ -454,13 +454,13 @@ async addItemsToCart(userId, items) {
       throw new Error(`AUTHENTICATION_REQUIRED: User must complete Kroger OAuth before cart operations. ${authCheck.reason}`);
     }
     
-    // Verify user has cart.basic:rw scope
-    if (!authCheck.tokenInfo.scope?.includes('cart.basic:rw')) {
-      console.error(`❌ User ${userId} missing cart.basic:rw scope: ${authCheck.tokenInfo.scope}`);
-      throw new Error('INSUFFICIENT_SCOPE: User token missing cart.basic:rw scope. Please re-authenticate with Kroger.');
+    // Verify user has cart.basic:write scope
+    if (!authCheck.tokenInfo.scope?.includes('cart.basic:write')) {
+      console.error(`❌ User ${userId} missing cart.basic:write scope: ${authCheck.tokenInfo.scope}`);
+      throw new Error('INSUFFICIENT_SCOPE: User token missing cart.basic:write scope. Please re-authenticate with Kroger.');
     }
     
-    console.log(`✅ User ${userId} authenticated with cart.basic:rw scope`);
+    console.log(`✅ User ${userId} authenticated with cart.basic:write scope`);
     
     // Remove duplicates first
     const uniqueItems = [];
@@ -604,7 +604,7 @@ async addItemsToCart(userId, items) {
         console.log(`   Token type: ${preReqTokenInfo.tokenType}`);
         console.log(`   Current time: ${new Date().toISOString()}`);
         console.log(`   Token valid: ${preReqTokenInfo.expiresAt > Date.now()}`);
-        console.log(`   Has cart.basic:rw scope: ${preReqTokenInfo.scope?.includes('cart.basic:rw') || false}`);
+        console.log(`   Has cart.basic:write scope: ${preReqTokenInfo.scope?.includes('cart.basic:write') || false}`);
       } else {
         console.log(`   ❌ NO TOKEN FOUND for user ${userId}`);
       }
@@ -656,7 +656,7 @@ async addItemsToCart(userId, items) {
           console.error(`   Error mentions scope: TRUE`);
           console.error(`   Expected scope in error: ${errorReason.match(/expected \[(.*?)\]/) ? errorReason.match(/expected \[(.*?)\]/)[1] : 'NOT_FOUND'}`);
           console.error(`   Current token scope: ${tokenInfo?.scope || 'NO_TOKEN'}`);
-          console.error(`   Scope mismatch detected: ${!tokenInfo?.scope?.includes('cart.basic:rw') && errorReason.includes('cart')}`);
+          console.error(`   Scope mismatch detected: ${!tokenInfo?.scope?.includes('cart.basic:write') && errorReason.includes('cart')}`);
         }
         
         // If cart creation fails due to scope issues, try alternative approaches
@@ -666,8 +666,8 @@ async addItemsToCart(userId, items) {
           
           // Check if user has the required scopes
           const tokenInfo = await tokenStore.getTokens(userId);
-          if (tokenInfo && tokenInfo.scope && !tokenInfo.scope.includes('cart.basic:rw')) {
-            console.log('🔒 User token missing required scope "cart.basic:rw"');
+          if (tokenInfo && tokenInfo.scope && !tokenInfo.scope.includes('cart.basic:write')) {
+            console.log('🔒 User token missing required scope "cart.basic:write"');
             console.log(`   Current scopes: ${tokenInfo.scope}`);
             console.log('🚪 User needs to re-authenticate to get updated scopes');
             
@@ -703,8 +703,8 @@ async addItemsToCart(userId, items) {
           } catch (altError) {
             console.error('❌ Alternative method 1 failed:', altError.message);
             
-            // Client credentials cannot be used for cart operations (cart.basic:rw requires user OAuth)
-            console.log('⚠️ Skipping client credentials fallback - cart.basic:rw requires user OAuth');
+            // Client credentials cannot be used for cart operations (cart.basic:write requires user OAuth)
+            console.log('⚠️ Skipping client credentials fallback - cart.basic:write requires user OAuth');
             
             // Method 2: Try using PUT instead of POST
             try {
@@ -736,7 +736,7 @@ async addItemsToCart(userId, items) {
                   console.error('❌ Alternative method 4 failed:', bulkError.message);
                   
                   // Method 5: Cannot use client credentials for cart operations
-                  console.log('⚠️ Method 5 skipped: Client credentials invalid for cart.basic:rw scope');
+                  console.log('⚠️ Method 5 skipped: Client credentials invalid for cart.basic:write scope');
                   throw createError; // Throw original error
                 }
               }

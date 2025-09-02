@@ -26,7 +26,7 @@ class KrogerModernAuthService {
     ];
     
     // Legacy OAuth fallback
-    this.legacyScopes = ['cart.basic:rw', 'profile.compact', 'product.compact'];
+    this.legacyScopes = ['cart.basic:write', 'profile.compact', 'product.compact'];
     
     // State management
     this.pendingStates = new Map();
