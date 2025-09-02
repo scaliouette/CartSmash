@@ -1,19 +1,9 @@
 // client/src/App.js - COMPLETE FIXED VERSION - Emergency Fix 2025-09-02
-console.log('📦 App.js module loading...');
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SmashCartProvider } from './contexts/SmashCartContext';
 import userDataService from './services/userDataService';
-
-console.log('✅ Core imports loaded successfully');
-
-// Import styles
-console.log('🎨 Loading CSS styles...');
 import './styles/cartsmash.css';
-
-// Import components
-console.log('🧩 Loading components...');
 import Header from './components/Header';
 import GroceryListForm from './components/GroceryListForm';
 import MyAccount from './components/MyAccount';
@@ -23,6 +13,10 @@ import Terms from './components/Terms';
 import Privacy from './components/privacy';
 import DebugInfo from './DebugInfo';
 
+console.log('📦 App.js module loading...');
+console.log('✅ Core imports loaded successfully');
+console.log('🎨 Loading CSS styles...');
+console.log('🧩 Loading components...');
 console.log('✅ All components loaded successfully');
 
 // Environment debugging
@@ -38,9 +32,6 @@ console.groupEnd();
 // Main App Component
 function App() {
   console.log('🚀 App component initializing...');
-  
-  // Add error handling for the component
-  try {
   
   const [currentView, setCurrentView] = useState('home');
   
@@ -76,19 +67,6 @@ function App() {
       </SmashCartProvider>
     </AuthProvider>
   );
-  
-  } catch (error) {
-    console.error('❌ Error in App component:', error);
-    return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>🚨 App Initialization Error</h2>
-        <p>Error: {error.message}</p>
-        <button onClick={() => window.location.reload()}>
-          🔄 Refresh Page
-        </button>
-      </div>
-    );
-  }
 }
 
 function AppContent({
