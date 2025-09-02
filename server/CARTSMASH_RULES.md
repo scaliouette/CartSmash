@@ -3,14 +3,14 @@
 ## Core Authentication Rules
 
 ### OAuth Scope Requirements
-- **REQUIRED SCOPE**: `cart.basic:write profile.compact product.compact`
-- **INVALID SCOPE**: `cart.basic:rw` (rejected by Kroger OAuth server)
-- **Scope Validation**: All cart operations require `cart.basic:write` scope
+- **REQUIRED SCOPE**: `cart.basic:rw profile.compact product.compact`
+- **PREVIOUS SCOPE**: `cart.basic:write` (insufficient for cart operations)
+- **Scope Validation**: All cart operations require `cart.basic:rw` scope
 - **Client Credentials**: Cannot access cart endpoints - only user OAuth tokens work
 
 ### Authentication Flow
 1. **Primary**: Azure B2C OAuth with cart.basic:write scope
-2. **Fallback**: Legacy Kroger OAuth with cart.basic:write scope
+2. **Fallback**: Legacy Kroger OAuth with cart.basic:rw scope
 3. **Token Storage**: MongoDB via TokenStore service
 4. **Token Refresh**: Automatic refresh 5 minutes before expiry
 5. **Security**: Encrypted token storage with rotation
@@ -42,7 +42,7 @@
 
 ### Cart Operation Errors
 - **No Items Prepared**: Authentication likely expired - retry OAuth
-- **Scope Mismatch**: Ensure cart.basic:write scope in token
+- **Scope Mismatch**: Ensure cart.basic:rw scope in token
 - **Network Errors**: Implement retry logic with exponential backoff
 
 ## Security Rules

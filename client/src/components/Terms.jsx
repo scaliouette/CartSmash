@@ -1,13 +1,17 @@
 import React, { useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 
-const Terms = () => {
+const Terms = ({ onBack }) => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
   const handleBack = () => {
-    window.history.back();
+    if (onBack) {
+      onBack();
+    } else {
+      window.history.back();
+    }
   };
 
   return (

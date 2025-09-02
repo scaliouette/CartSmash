@@ -3338,4 +3338,118 @@ button[onclick*="Instacart"],
   font-weight: 500;
 }
 
+/* ============================================
+   FOOTER STYLES
+   ============================================ */
+
+.footer-section {
+  background: linear-gradient(135deg, #1f2937, #374151);
+  color: white;
+  margin-top: 60px;
+}
+
+.footer-content {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 40px 24px 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+.footer-brand {
+  max-width: 300px;
+}
+
+.footer-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: var(--primary-color);
+}
+
+.footer-description {
+  color: #d1d5db;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.footer-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.footer-link-group {
+  min-width: 0;
+}
+
+.footer-link-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: white;
+}
+
+.footer-link-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-link-list li {
+  margin-bottom: 8px;
+}
+
+.footer-link {
+  color: #d1d5db;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: inline-block;
+}
+
+.footer-link:hover {
+  color: var(--primary-color);
+  transform: translateX(2px);
+}
+
+.footer-bottom {
+  border-top: 1px solid #374151;
+  padding: 20px 24px;
+  text-align: center;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.footer-copyright {
+  color: #9ca3af;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .footer-content {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    text-align: center;
+  }
+  
+  .footer-links {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  .footer-brand {
+    max-width: none;
+  }
+}
+
 }

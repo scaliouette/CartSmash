@@ -14,6 +14,9 @@ import GroceryListForm from './components/GroceryListForm';
 import MyAccount from './components/MyAccount';
 import RecipeManager from './components/RecipeManager';
 import StoresPage from './components/StoresPage';
+import Contact from './components/Contact';
+import Terms from './components/Terms';
+import Privacy from './components/privacy';
 
 // Main App Component
 function App() {
@@ -481,10 +484,17 @@ function AppContent({
             }}
             onBackToHome={() => setCurrentView('home')}
           />
+        ) : currentView === 'contact' ? (
+          <Contact onBack={() => setCurrentView('home')} />
+        ) : currentView === 'terms' ? (
+          <Terms onBack={() => setCurrentView('home')} />
+        ) : currentView === 'privacy' ? (
+          <Privacy onBack={() => setCurrentView('home')} />
         ) : null}
       </main>
       
       {currentView === 'home' && <FeaturesSection />}
+      {currentView === 'home' && <Footer onViewChange={setCurrentView} />}
       
       {/* Sync Status Indicator */}
       {currentUser && (
@@ -536,6 +546,82 @@ function FeaturesSection() {
         </div>
       </div>
     </section>
+  );
+}
+
+// Footer Component
+function Footer({ onViewChange }) {
+  return (
+    <footer className="footer-section">
+      <div className="footer-content">
+        <div className="footer-brand">
+          <h3 className="footer-title">CARTSMASH</h3>
+          <p className="footer-description">
+            Smart grocery list management with AI-powered parsing
+          </p>
+        </div>
+        
+        <div className="footer-links">
+          <div className="footer-link-group">
+            <h4 className="footer-link-title">Legal</h4>
+            <ul className="footer-link-list">
+              <li>
+                <button 
+                  onClick={() => onViewChange('contact')} 
+                  className="footer-link"
+                >
+                  Contact Us
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => onViewChange('terms')} 
+                  className="footer-link"
+                >
+                  Terms & Conditions
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => onViewChange('privacy')} 
+                  className="footer-link"
+                >
+                  Privacy Policy
+                </button>
+              </li>
+            </ul>
+          </div>
+          
+          <div className="footer-link-group">
+            <h4 className="footer-link-title">Support</h4>
+            <ul className="footer-link-list">
+              <li>
+                <a 
+                  href="mailto:support@cartsmash.com" 
+                  className="footer-link"
+                >
+                  support@cartsmash.com
+                </a>
+              </li>
+              <li>
+                <button 
+                  onClick={() => onViewChange('contact')} 
+                  className="footer-link"
+                >
+                  Help Center
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <div className="footer-bottom">
+        <p className="footer-copyright">
+          © 2025 CARTSMASH. All rights reserved.
+        </p>
+      </div>
+    </footer>
   );
 }
 

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { ArrowLeft, ExternalLink, Shield, Lock, Eye, Database } from 'lucide-react';
 
-const Privacy = () => {
+const Privacy = ({ onBack }) => {
   useEffect(() => {
     // Option 1: Auto-redirect to external privacy policy
     // Uncomment this if you want automatic redirect
@@ -11,7 +11,11 @@ const Privacy = () => {
   }, []);
 
   const handleBack = () => {
-    window.history.back();
+    if (onBack) {
+      onBack();
+    } else {
+      window.history.back();
+    }
   };
 
   const handleViewPrivacyPolicy = () => {

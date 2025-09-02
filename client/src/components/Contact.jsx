@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Mail, MessageSquare, Send, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 
-const Contact = () => {
+const Contact = ({ onBack }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -16,7 +16,11 @@ const Contact = () => {
   }, []);
 
   const handleBack = () => {
-    window.history.back();
+    if (onBack) {
+      onBack();
+    } else {
+      window.history.back();
+    }
   };
 
   const handleChange = (e) => {
