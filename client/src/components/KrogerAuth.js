@@ -1,5 +1,5 @@
 // client/src/components/KrogerAuth.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
@@ -14,10 +14,10 @@ const KrogerAuth = ({ onAuthSuccess }) => {
     if (currentUser) {
       checkKrogerAuthStatus();
     }
-  }, [currentUser]);
+  }, [currentUser, checkKrogerAuthStatus]);
 
   // Check if user already has Kroger authentication
-  const checkKrogerAuthStatus = async () => {
+  const checkKrogerAuthStatus = useCallback(async () => {
     if (!currentUser || typeof currentUser.getIdToken !== 'function') {
       console.error('Invalid currentUser object:', currentUser);
       setAuthStatus('needed');
@@ -49,7 +49,7 @@ const KrogerAuth = ({ onAuthSuccess }) => {
       console.error('Error checking Kroger auth status:', error);
       setAuthStatus('needed');
     }
-  };
+  }, [currentUser]);
 
   // Start Kroger OAuth flow
   const initiateKrogerAuth = async () => {
@@ -174,7 +174,7 @@ const KrogerAuth = ({ onAuthSuccess }) => {
       window.history.replaceState({}, document.title, window.location.pathname);
       return;
     }
-  }, [currentUser]);
+  }, [currentUser, checkKrogerAuthStatus]);
 
   if (authStatus === 'checking') {
     return (

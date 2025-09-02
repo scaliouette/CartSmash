@@ -1,5 +1,5 @@
 // client/src/components/ParsingAnalyticsDashboard.js - Fixed with proper null checking
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 function ParsingAnalyticsDashboard({ onClose }) {
   const [analytics, setAnalytics] = useState(null);
@@ -9,9 +9,9 @@ function ParsingAnalyticsDashboard({ onClose }) {
 
   useEffect(() => {
     loadAnalytics();
-  }, [timeRange]);
+  }, [timeRange, loadAnalytics]);
 
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -31,7 +31,7 @@ function ParsingAnalyticsDashboard({ onClose }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
 
   const generateMockAnalytics = () => ({
     overview: {

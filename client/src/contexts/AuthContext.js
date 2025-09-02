@@ -329,7 +329,7 @@ export function AuthProvider({ children }) {
       console.log('🔥 Cleaning up auth listener');
       unsubscribe();
     };
-  }, []);
+  }, [checkAdminStatus]);
 
   // Log current context state
   useEffect(() => {

@@ -1,5 +1,5 @@
 // client/src/components/NearbyStores.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
@@ -15,10 +15,10 @@ const NearbyStores = ({ onStoreSelect }) => {
 
   useEffect(() => {
     getCurrentLocation();
-  }, []);
+  }, [getCurrentLocation]);
 
   // Get user's current location
-  const getCurrentLocation = () => {
+  const getCurrentLocation = useCallback(() => {
     setGettingLocation(true);
     
     if (!navigator.geolocation) {
@@ -58,7 +58,7 @@ const NearbyStores = ({ onStoreSelect }) => {
         maximumAge: 300000 // 5 minutes
       }
     );
-  };
+  }, []);
 
   // Search for nearby Kroger stores
   const searchStores = async (location, zipCode = null) => {

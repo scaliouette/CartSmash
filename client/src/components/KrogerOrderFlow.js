@@ -154,7 +154,7 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
     } finally {
       setIsLoading(false);
     }
-  }, [getUserId, loadNearbyStores]);
+  }, [getUserId, loadNearbyStores, selectedStore]);
 
   // 🔧 FIX: Add debug logging for currentUser
   useEffect(() => {
