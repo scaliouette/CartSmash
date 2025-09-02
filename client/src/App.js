@@ -64,7 +64,7 @@ function AppContent({
 }) {
   const { currentUser } = useAuth();
 
-  const loadLocalData = () => {
+  const loadLocalData = useCallback(() => {
     try {
       const loadedCart = JSON.parse(localStorage.getItem('cartsmash-current-cart') || '[]');
       const loadedLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
@@ -80,9 +80,9 @@ function AppContent({
     } catch (error) {
       console.error('Error loading from localStorage:', error);
     }
-  };
+  }, [setCurrentCart, setSavedLists, setSavedRecipes, setMealPlans]);
 
-  const loadFirebaseData = async () => {
+  const loadFirebaseData = useCallback(async () => {
     try {
       setSyncStatus('syncing');
       
@@ -111,7 +111,7 @@ function AppContent({
       console.error('Firebase sync error:', error);
       setSyncStatus('error');
     }
-  };
+  }, [setSyncStatus, setCurrentCart, setSavedLists, setSavedRecipes, setMealPlans]);
   
   // Load all data from localStorage first, then Firebase
   const loadAllData = useCallback(async () => {
