@@ -417,14 +417,6 @@ function AppContent({
   //   }
   // };
   
-  if (isLoading) {
-    return (
-      <div className="app-loading">
-        <div className="spinner"></div>
-        <p>Loading your CARTSMASH data...</p>
-      </div>
-    );
-  }
   
   return (
     <div className="app">

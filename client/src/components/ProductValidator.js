@@ -5,12 +5,14 @@ import { InlineSpinner } from './LoadingSpinner';
 function ProductValidator({ items, onItemsUpdated, onClose }) {
   const [validatingItems, setValidatingItems] = useState(new Set());
   const [localItems, setLocalItems] = useState([]);
-  const [filter, setFilter] = useState('needs-review');
+  const [filter, setFilter] = useState('all');
   const [validatingAll, setValidatingAll] = useState(false);
   const [editedItems, setEditedItems] = useState(new Map());
 
   // Initialize local items with proper structure
   useEffect(() => {
+    console.log(`🔍 ProductValidator received ${items.length} items:`, items);
+    
     // Ensure all items have required fields
     const normalizedItems = items.map(item => ({
       ...item,
@@ -24,8 +26,8 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
       original: item.original || ''
     }));
     
+    console.log(`📝 ProductValidator normalized ${normalizedItems.length} items:`, normalizedItems);
     setLocalItems(normalizedItems);
-    console.log(`📝 ProductValidator loaded with ${normalizedItems.length} items`);
   }, [items]);
 
   // Get items that need review
@@ -40,6 +42,8 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
     if (filter === 'validated') return !item.needsReview && (item.confidence || 0) >= 0.6;
     return true;
   });
+
+  console.log(`🔽 Filtering with '${filter}': ${localItems.length} -> ${filteredItems.length} items`);
 
   // Common units for dropdown
       const commonUnits = [
@@ -112,14 +116,12 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
 
   // Remove item
   const handleRemoveItem = (itemId) => {
-    if (window.confirm('Remove this item from your cart?')) {
-      setLocalItems(prev => prev.filter(item => item.id !== itemId));
-      setEditedItems(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(itemId);
-        return newMap;
-      });
-    }
+    setLocalItems(prev => prev.filter(item => item.id !== itemId));
+    setEditedItems(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(itemId);
+      return newMap;
+    });
   };
 
   // Accept item as-is
@@ -274,9 +276,9 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
 
   // Get confidence color
   const getConfidenceColor = (confidence) => {
-    if (confidence >= 0.8) return '#10b981';
-    if (confidence >= 0.6) return '#f59e0b';
-    return '#ef4444';
+    if (confidence >= 0.8) return '#FB4F14'; // CartSmash orange for high confidence
+    if (confidence >= 0.6) return '#002244'; // CartSmash navy for medium confidence  
+    return '#ef4444'; // Keep red for low confidence
   };
 
   // Check if item has been edited
@@ -293,78 +295,81 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
           <button onClick={onClose} style={styles.closeButton}>×</button>
         </div>
 
-        {/* Stats Bar */}
-        <div style={styles.statsBar}>
-          <div style={styles.stat}>
-            <span style={styles.statNumber}>{localItems.length}</span>
-            <span style={styles.statLabel}>Total Items</span>
+        {/* Stats Bar with Filter Tabs */}
+        <div style={styles.statsBarWithTabs}>
+          <div style={styles.statsSection}>
+            <div style={styles.stat}>
+              <span style={styles.statNumber}>{localItems.length}</span>
+              <span style={styles.statLabel}>Total Items</span>
+            </div>
+            <div style={styles.stat}>
+              <span style={{ ...styles.statNumber, color: '#ef4444' }}>
+                {itemsNeedingReview.length}
+              </span>
+              <span style={styles.statLabel}>Need Review</span>
+            </div>
+            <div style={styles.stat}>
+              <span style={{ ...styles.statNumber, color: '#f59e0b' }}>
+                {editedItems.size}
+              </span>
+              <span style={styles.statLabel}>Edited</span>
+            </div>
+            <div style={styles.stat}>
+              <span style={{ ...styles.statNumber, color: '#10b981' }}>
+                {localItems.filter(item => !item.needsReview && item.confidence >= 0.6).length}
+              </span>
+              <span style={styles.statLabel}>Validated</span>
+            </div>
           </div>
-          <div style={styles.stat}>
-            <span style={{ ...styles.statNumber, color: '#ef4444' }}>
-              {itemsNeedingReview.length}
-            </span>
-            <span style={styles.statLabel}>Need Review</span>
-          </div>
-          <div style={styles.stat}>
-            <span style={{ ...styles.statNumber, color: '#f59e0b' }}>
-              {editedItems.size}
-            </span>
-            <span style={styles.statLabel}>Edited</span>
-          </div>
-          <div style={styles.stat}>
-            <span style={{ ...styles.statNumber, color: '#10b981' }}>
-              {localItems.filter(item => !item.needsReview && item.confidence >= 0.6).length}
-            </span>
-            <span style={styles.statLabel}>Validated</span>
-          </div>
-        </div>
 
-        {/* Filter Tabs */}
-        <div style={styles.filterTabs}>
-          <button
-            onClick={() => setFilter('needs-review')}
-            style={{
-              ...styles.filterTab,
-              ...(filter === 'needs-review' ? styles.filterTabActive : {})
-            }}
-          >
-            ⚠️ Needs Review ({itemsNeedingReview.length})
-          </button>
-          <button
-            onClick={() => setFilter('validated')}
-            style={{
-              ...styles.filterTab,
-              ...(filter === 'validated' ? styles.filterTabActive : {})
-            }}
-          >
-            ✅ Validated
-          </button>
-          <button
-            onClick={() => setFilter('all')}
-            style={{
-              ...styles.filterTab,
-              ...(filter === 'all' ? styles.filterTabActive : {})
-            }}
-          >
-            📦 All Items
-          </button>
+          <div style={styles.filterTabsInline}>
+            <button
+              onClick={() => setFilter('all')}
+              style={{
+                ...styles.filterTabInline,
+                ...(filter === 'all' ? styles.filterTabInlineActive : {})
+              }}
+            >
+              📦 All Items
+            </button>
+            <button
+              onClick={() => setFilter('needs-review')}
+              style={{
+                ...styles.filterTabInline,
+                ...(filter === 'needs-review' ? styles.filterTabInlineActive : {})
+              }}
+            >
+              ⚠️ Needs Review ({itemsNeedingReview.length})
+            </button>
+            <button
+              onClick={() => setFilter('validated')}
+              style={{
+                ...styles.filterTabInline,
+                ...(filter === 'validated' ? styles.filterTabInlineActive : {})
+              }}
+            >
+              ✅ Validated
+            </button>
+          </div>
         </div>
 
         {/* Action Buttons */}
         <div style={styles.actionBar}>
-          <button
-            onClick={handleValidateAll}
-            disabled={itemsNeedingReview.length === 0 || validatingAll}
-            style={styles.validateAllButton}
-          >
-            {validatingAll ? (
-              <>
-                <InlineSpinner color="white" /> Validating All...
-              </>
-            ) : (
-              <>🚀 Validate All ({itemsNeedingReview.length})</>
-            )}
-          </button>
+          {itemsNeedingReview.length > 0 && (
+            <button
+              onClick={handleValidateAll}
+              disabled={validatingAll}
+              style={styles.validateAllButton}
+            >
+              {validatingAll ? (
+                <>
+                  <InlineSpinner color="white" /> Validating...
+                </>
+              ) : (
+                <>🚀 Validate ({itemsNeedingReview.length} items)</>
+              )}
+            </button>
+          )}
           
           {editedItems.size > 0 && (
             <span style={styles.editIndicator}>
@@ -394,14 +399,62 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                     ...(isEdited ? styles.itemCardEdited : {})
                   }}
                 >
-                  {/* Status Badge */}
-                  <div 
-                    style={{
-                      ...styles.statusBadge,
-                      backgroundColor: getConfidenceColor(item.confidence || 0)
-                    }}
-                  >
-                    {isValidated ? '✅ Validated' : isEdited ? '✏️ Edited' : '⚠️ Review'}
+                  {/* Status Badge Row with Confidence and Actions */}
+                  <div style={styles.statusRow}>
+                    <div 
+                      style={{
+                        ...styles.statusBadge,
+                        backgroundColor: getConfidenceColor(item.confidence || 0)
+                      }}
+                    >
+                      {isValidated ? '✅ Validated' : isEdited ? '✏️ Edited' : '⚠️ Review'}
+                    </div>
+                    
+                    <div style={styles.topRowActions}>
+                      <div style={styles.confidenceBarTop}>
+                        <span style={styles.confidenceValueTop}>
+                          {((item.confidence || 0) * 100).toFixed(0)}%
+                        </span>
+                        <div style={styles.confidenceTrackTop}>
+                          <div 
+                            style={{
+                              ...styles.confidenceFill,
+                              width: `${(item.confidence || 0) * 100}%`,
+                              backgroundColor: getConfidenceColor(item.confidence || 0)
+                            }}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div style={styles.topActions}>
+                        {!isValidated && (
+                          <>
+                            <button
+                              onClick={() => handleAcceptItem(item.id)}
+                              style={styles.acceptButtonTop}
+                              title="Accept as-is"
+                            >
+                              ✅
+                            </button>
+                            <button
+                              onClick={() => handleValidateItem(item.id)}
+                              disabled={isValidating}
+                              style={styles.validateButtonTop}
+                              title="Validate with AI"
+                            >
+                              {isValidating ? <InlineSpinner /> : '🤖'}
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => handleRemoveItem(item.id)}
+                          style={styles.removeButtonTop}
+                          title="Remove item"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Item Content */}
@@ -438,7 +491,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                           style={styles.select}
                         >
                           {commonUnits.map(unit => (
-                            <option key={unit} value={unit}>{unit}</option>
+                            <option key={unit.value} value={unit.value}>{unit.label}</option>
                           ))}
                         </select>
                       </div>
@@ -457,58 +510,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                       </div>
                     </div>
 
-                    {/* Original Text */}
-                    {item.original && (
-                      <div style={styles.originalText}>
-                        Original: "{item.original}"
-                      </div>
-                    )}
 
-                    {/* Confidence Bar */}
-                    <div style={styles.confidenceBar}>
-                      <span style={styles.confidenceLabel}>Confidence:</span>
-                      <div style={styles.confidenceTrack}>
-                        <div 
-                          style={{
-                            ...styles.confidenceFill,
-                            width: `${(item.confidence || 0) * 100}%`,
-                            backgroundColor: getConfidenceColor(item.confidence || 0)
-                          }}
-                        />
-                      </div>
-                      <span style={styles.confidenceValue}>
-                        {((item.confidence || 0) * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div style={styles.itemActions}>
-                    {!isValidated && (
-                      <>
-                        <button
-                          onClick={() => handleAcceptItem(item.id)}
-                          style={styles.acceptButton}
-                          title="Accept as-is"
-                        >
-                          ✅ Accept
-                        </button>
-                        <button
-                          onClick={() => handleValidateItem(item.id)}
-                          disabled={isValidating}
-                          style={styles.validateButton}
-                          title="Validate with AI"
-                        >
-                          {isValidating ? <InlineSpinner /> : '🤖'} Validate
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => handleRemoveItem(item.id)}
-                      style={styles.removeButton}
-                    >
-                      🗑️ Remove
-                    </button>
                   </div>
                 </div>
               );
@@ -566,7 +568,7 @@ const styles = {
 
   title: {
     margin: 0,
-    fontSize: '24px',
+    fontSize: '28px',
     fontWeight: 'bold',
     color: '#1f2937'
   },
@@ -580,6 +582,44 @@ const styles = {
     padding: '4px 8px'
   },
 
+  statsBarWithTabs: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px 24px',
+    backgroundColor: '#f9fafb',
+    borderBottom: '1px solid #e5e7eb'
+  },
+
+  statsSection: {
+    display: 'flex',
+    gap: '24px'
+  },
+
+  filterTabsInline: {
+    display: 'flex',
+    gap: '8px'
+  },
+
+  filterTabInline: {
+    padding: '6px 12px',
+    border: '2px solid #e5e7eb',
+    backgroundColor: 'white',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#6b7280',
+    transition: 'all 0.2s'
+  },
+
+  filterTabInlineActive: {
+    backgroundColor: '#002244',
+    borderColor: '#002244',
+    color: 'white'
+  },
+
+  // Legacy style kept for compatibility
   statsBar: {
     display: 'flex',
     gap: '24px',
@@ -595,13 +635,13 @@ const styles = {
   },
 
   statNumber: {
-    fontSize: '24px',
+    fontSize: '28px',
     fontWeight: 'bold',
     color: '#1f2937'
   },
 
   statLabel: {
-    fontSize: '12px',
+    fontSize: '14px',
     color: '#6b7280',
     marginTop: '4px'
   },
@@ -614,20 +654,20 @@ const styles = {
   },
 
   filterTab: {
-    padding: '8px 16px',
+    padding: '10px 18px',
     border: '2px solid #e5e7eb',
     backgroundColor: 'white',
     borderRadius: '8px',
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: '16px',
     fontWeight: '500',
     color: '#6b7280',
     transition: 'all 0.2s'
   },
 
   filterTabActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
+    backgroundColor: '#002244',
+    borderColor: '#002244',
     color: 'white'
   },
 
@@ -640,12 +680,12 @@ const styles = {
   },
 
   validateAllButton: {
-    padding: '10px 20px',
-    backgroundColor: '#10b981',
+    padding: '12px 24px',
+    backgroundColor: '#FB4F14',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: '16px',
     fontWeight: 'bold',
     cursor: 'pointer',
     display: 'flex',
@@ -654,7 +694,7 @@ const styles = {
   },
 
   editIndicator: {
-    fontSize: '14px',
+    fontSize: '16px',
     color: '#f59e0b',
     fontWeight: '500'
   },
@@ -674,23 +714,107 @@ const styles = {
   },
 
   itemCardValidated: {
-    borderColor: '#10b981',
-    backgroundColor: '#f0fdf4'
+    borderColor: '#FB4F14',
+    backgroundColor: '#fff7f0'
   },
 
   itemCardEdited: {
-    borderColor: '#fbbf24',
-    backgroundColor: '#fef3c7'
+    borderColor: '#002244',
+    backgroundColor: '#f0f4ff'
+  },
+
+  statusRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px'
   },
 
   statusBadge: {
     display: 'inline-block',
-    padding: '4px 12px',
+    padding: '6px 14px',
     borderRadius: '16px',
-    fontSize: '12px',
+    fontSize: '14px',
     fontWeight: 'bold',
+    color: 'white'
+  },
+
+  topRowActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+
+  confidenceBarTop: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
+
+  confidenceValueTop: {
+    fontSize: '13px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    minWidth: '35px'
+  },
+
+  confidenceTrackTop: {
+    width: '60px',
+    height: '4px',
+    backgroundColor: '#e5e7eb',
+    borderRadius: '2px',
+    overflow: 'hidden'
+  },
+
+  topActions: {
+    display: 'flex',
+    gap: '4px',
+    alignItems: 'center'
+  },
+
+  acceptButtonTop: {
+    padding: '2px',
+    backgroundColor: '#FB4F14',
     color: 'white',
-    marginBottom: '12px'
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer',
+    width: '28px',
+    height: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  validateButtonTop: {
+    padding: '2px',
+    backgroundColor: '#002244',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer',
+    width: '28px',
+    height: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  removeButtonTop: {
+    padding: '2px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer',
+    width: '28px',
+    height: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
 
   itemContent: {
@@ -715,7 +839,7 @@ const styles = {
 
   fieldLabel: {
     display: 'block',
-    fontSize: '12px',
+    fontSize: '14px',
     fontWeight: '600',
     color: '#6b7280',
     marginBottom: '4px'
@@ -723,18 +847,18 @@ const styles = {
 
   input: {
     width: '100%',
-    padding: '8px',
+    padding: '10px',
     border: '1px solid #d1d5db',
     borderRadius: '6px',
-    fontSize: '14px'
+    fontSize: '16px'
   },
 
   select: {
     width: '100%',
-    padding: '8px',
+    padding: '10px',
     border: '1px solid #d1d5db',
     borderRadius: '6px',
-    fontSize: '14px',
+    fontSize: '16px',
     backgroundColor: 'white'
   },
 
@@ -747,6 +871,99 @@ const styles = {
     borderRadius: '6px'
   },
 
+  confidenceAndActions: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '16px'
+  },
+
+  confidenceBarCompact: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flex: 1
+  },
+
+  confidenceLabelCompact: {
+    fontSize: '11px',
+    fontWeight: '600',
+    color: '#6b7280',
+    minWidth: '70px'
+  },
+
+  confidenceTrackCompact: {
+    flex: 1,
+    height: '6px',
+    backgroundColor: '#e5e7eb',
+    borderRadius: '3px',
+    overflow: 'hidden'
+  },
+
+  confidenceFill: {
+    height: '100%',
+    transition: 'width 0.3s'
+  },
+
+  confidenceValueCompact: {
+    fontSize: '11px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    minWidth: '35px'
+  },
+
+  itemActionsCompact: {
+    display: 'flex',
+    gap: '6px',
+    alignItems: 'center'
+  },
+
+  acceptButtonCompact: {
+    padding: '4px 6px',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer',
+    minWidth: '28px',
+    height: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  validateButtonCompact: {
+    padding: '4px 6px',
+    backgroundColor: '#002244',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer',
+    minWidth: '28px',
+    height: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  removeButtonCompact: {
+    padding: '4px 6px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer',
+    minWidth: '28px',
+    height: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  // Legacy styles kept for backward compatibility
   confidenceBar: {
     display: 'flex',
     alignItems: 'center',
@@ -767,11 +984,6 @@ const styles = {
     overflow: 'hidden'
   },
 
-  confidenceFill: {
-    height: '100%',
-    transition: 'width 0.3s'
-  },
-
   confidenceValue: {
     fontSize: '12px',
     fontWeight: 'bold',
@@ -786,7 +998,7 @@ const styles = {
 
   acceptButton: {
     padding: '6px 12px',
-    backgroundColor: '#10b981',
+    backgroundColor: '#FB4F14',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -797,7 +1009,7 @@ const styles = {
 
   validateButton: {
     padding: '6px 12px',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -829,23 +1041,23 @@ const styles = {
   },
 
   cancelButton: {
-    padding: '10px 24px',
+    padding: '12px 28px',
     backgroundColor: '#6b7280',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: '16px',
     fontWeight: 'bold',
     cursor: 'pointer'
   },
 
   saveAllButton: {
-    padding: '10px 24px',
-    backgroundColor: '#3b82f6',
+    padding: '12px 28px',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: '16px',
     fontWeight: 'bold',
     cursor: 'pointer'
   },

@@ -33,7 +33,7 @@ function GroceryListForm({
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [mergeCart, setMergeCart] = useState(true);
+  const [mergeCart, setMergeCart] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
@@ -466,25 +466,17 @@ function GroceryListForm({
         </div>
       )}
 
-      <div className="hero-section" style={styles.heroSection}>
-        <div style={styles.heroContent}>
-          <h1 className="hero-title" style={styles.heroTitle}>
-            CARTSMASH
-          </h1>
-          <h2 className="hero-subtitle-main" style={styles.heroSubtitleMain}>
-            Shop Smarter, Save Faster
-          </h2>
-          <p className="hero-description" style={styles.heroDescription}>
-            AI-powered grocery parsing that understands what you actually want to buy.
-          </p>
-        </div>
+      <div className="hero-section" style={styles.heroSectionMinimal}>
+        <h1 style={styles.heroTitleMinimal}>CARTSMASH</h1>
+        <h2 style={styles.heroSubtitleMinimal}>Shop Smarter, Save Faster</h2>
+        <p style={styles.heroDescriptionMinimal}>AI-powered grocery parsing that understands what you actually want to buy.</p>
       </div>
 
       {/* Unified AI Assistant Container */}
       <div style={styles.unifiedAssistantContainer}>
         {/* Templates Section */}
         <div style={styles.templatesSection}>
-          <h3 style={styles.templatesTitle}>Quick Templates</h3>
+         
           <div style={styles.templatesGrid}>
             {templates.map(template => (
               <div
@@ -734,52 +726,38 @@ Or paste any grocery list directly!"
 
 // Styles
 const styles = {
-  heroSection: {
+  heroSectionMinimal: {
     background: 'linear-gradient(135deg, #002244 0%, #003366 100%)',
     color: 'white',
-    padding: '64px 16px',
-    borderRadius: '16px',
-    marginBottom: '30px',
-    boxShadow: '0 10px 30px rgba(0, 2, 68, 0.3)'
-  },
-
-  heroContent: {
-    maxWidth: '896px',
-    margin: '0 auto',
+    padding: '20px 16px',
+    borderRadius: '12px',
+    marginBottom: '20px',
     textAlign: 'center'
   },
 
-  heroTitle: {
-    fontSize: '48px',
+  heroTitleMinimal: {
+    fontSize: '42px',
     fontWeight: 'bold',
     color: 'white',
-    margin: '0 0 16px 0',
-    textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-    '@media (min-width: 768px)': {
-      fontSize: '64px'
-    }
+    margin: '0 0 2px 0',
+    textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
+    lineHeight: '1'
   },
 
-  heroSubtitleMain: {
-    fontSize: '32px',
+  heroSubtitleMinimal: {
+    fontSize: '20px',
     fontWeight: '600',
     color: '#FB4F14',
-    margin: '0 0 24px 0',
-    textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-    '@media (min-width: 768px)': {
-      fontSize: '36px'
-    }
+    margin: '0 0 2px 0',
+    textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
+    lineHeight: '1'
   },
 
-  heroDescription: {
-    fontSize: '18px',
+  heroDescriptionMinimal: {
+    fontSize: '16px',
     color: 'rgba(255, 255, 255, 0.9)',
-    maxWidth: '512px',
-    margin: '0 auto',
-    lineHeight: '1.6',
-    '@media (min-width: 768px)': {
-      fontSize: '20px'
-    }
+    margin: '0',
+    lineHeight: '1.2'
   },
 
   unifiedAssistantContainer: {

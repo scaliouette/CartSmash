@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { InlineSpinner } from './LoadingSpinner';
 import KrogerOrderFlow from './KrogerOrderFlow';
+import ProductValidator from './ProductValidator';
 
 
 
@@ -29,10 +30,9 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [priceHistory, setPriceHistory] = useState({});
   const [showPriceHistory, setShowPriceHistory] = useState(null);
-  const [mealGroups, setMealGroups] = useState({});
-  const [showMealPlanner, setShowMealPlanner] = useState(false);
-  const [newMealName, setNewMealName] = useState('');
-  const [viewMealGroups, setViewMealGroups] = useState(false);
+  const [showListCreator, setShowListCreator] = useState(false);
+  const [newListName, setNewListName] = useState('');
+  const [showValidationPage, setShowValidationPage] = useState(false);
   const [validatingAll, setValidatingAll] = useState(false);
 
   // const trackEvent = (action, category, label, value) => {
@@ -187,17 +187,6 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
     }
   }, []); // Empty dependency array - only run once on mount
 
-  // Load meal groups from localStorage
-  useEffect(() => {
-    const savedMealGroups = localStorage.getItem('cartsmash-meal-groups');
-    if (savedMealGroups) {
-      try {
-        setMealGroups(JSON.parse(savedMealGroups));
-      } catch (e) {
-        console.error('Failed to load meal groups:', e);
-      }
-    }
-  }, []);
 
   // Auto-save to localStorage whenever items change
   useEffect(() => {
@@ -296,54 +285,63 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
     }
   };
 
-  // Add items to meal group
-  const addToMealGroup = async (mealName) => {
-    if (!mealName || selectedItems.size === 0) return;
+  // Add items to new list
+  const addToNewList = async (listName) => {
+    if (!listName || selectedItems.size === 0) return;
 
     const selectedItemsList = items
       .filter(item => selectedItems.has(item.id))
       .map(item => ({
         id: item.id,
-        name: item.productName || item.itemName,
+        productName: item.productName || item.itemName,
+        itemName: item.productName || item.itemName,
         quantity: item.quantity,
         unit: item.unit,
-        category: item.category
+        category: item.category,
+        confidence: item.confidence,
+        realPrice: item.realPrice,
+        salePrice: item.salePrice
       }));
 
-    const existingMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
-    
-    let mealPlan = existingMealPlans.find(p => p.name === mealName);
-    
-    if (!mealPlan) {
-      mealPlan = {
-        id: `mealplan_${Date.now()}`,
-        name: mealName,
+    try {
+      // Create new list object
+      const newList = {
+        id: `list_${Date.now()}`,
+        name: listName,
         items: selectedItemsList,
         itemCount: selectedItemsList.length,
         createdAt: new Date().toISOString(),
-        type: 'meal'
+        userId: currentUser?.uid || 'guest'
       };
-      existingMealPlans.push(mealPlan);
-    } else {
-      mealPlan.items = [...(mealPlan.items || []), ...selectedItemsList];
-      mealPlan.itemCount = mealPlan.items.length;
-      mealPlan.updatedAt = new Date().toISOString();
-    }
-
-    localStorage.setItem('cartsmash-mealplans', JSON.stringify(existingMealPlans));
-    
-    const updatedMealGroups = {
-      ...mealGroups,
-      [mealName]: [...(mealGroups[mealName] || []), ...selectedItemsList]
-    };
-    setMealGroups(updatedMealGroups);
-    
-    setSelectedItems(new Set());
-    setNewMealName('');
-    alert(`Added ${selectedItemsList.length} items to "${mealName}" meal plan`);
-    
-    if (window.refreshAccountData) {
-      window.refreshAccountData();
+      
+      // Save to localStorage
+      const existingLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
+      const updatedLists = [...existingLists, newList];
+      localStorage.setItem('cartsmash-lists', JSON.stringify(updatedLists));
+      
+      // Try to save to server if user is logged in
+      if (currentUser?.uid) {
+        const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+        fetch(`${API_URL}/api/cart/save-list`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'user-id': currentUser.uid 
+          },
+          body: JSON.stringify(newList)
+        }).catch(err => console.error('Failed to save to server, but saved locally:', err));
+      }
+      
+      setSelectedItems(new Set());
+      setNewListName('');
+      alert(`✅ Created new list "${listName}" with ${selectedItemsList.length} items!`);
+      
+      if (window.refreshAccountData) {
+        window.refreshAccountData();
+      }
+    } catch (error) {
+      console.error('Error creating list:', error);
+      alert('Failed to create list. Please try again.');
     }
   };
 
@@ -518,14 +516,10 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
   const exportToCSV = async () => {
     setExportingCSV(true);
     try {
-      const headers = ['Product Name', 'Quantity', 'Unit', 'Category', 'Confidence', 'Price', 'Meal Group'];
+      const headers = ['Product Name', 'Quantity', 'Unit', 'Category', 'Confidence', 'Price'];
       const csvContent = [
         headers.join(','),
         ...items.map(item => {
-          const mealGroup = Object.entries(mealGroups).find(([meal, mealItems]) =>
-            mealItems.some(i => i.id === item.id)
-          );
-
           const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
           return [
@@ -534,8 +528,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
             esc(item.unit || 'each'),
             esc(item.category || 'other'),
             esc(((item.confidence || 0) * 100).toFixed(0) + '%'),
-            item.realPrice ? esc(`$${item.realPrice.toFixed(2)}`) : 'N/A',
-            mealGroup ? esc(mealGroup[0]) : ''
+            item.realPrice ? esc(`$${item.realPrice.toFixed(2)}`) : 'N/A'
           ].join(',');
         })
       ].join('\n');
@@ -801,28 +794,12 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
         <h3 style={styles.title}>
           🛒 Shopping List Results ({items.length} items)
         </h3>
-        <div style={styles.headerActions}>
-          <button
-            onClick={() => setShowStats(!showStats)}
-            style={styles.toggleButton}
-          >
-            {showStats ? '📊 Hide Stats' : '📊 Show Stats'}
-          </button>
-          <button
-            onClick={handleRefreshPrices}
-            style={styles.refreshButton}
-            disabled={fetchingPrices.size > 0}
-          >
-            {fetchingPrices.size > 0 ? <InlineSpinner text="Fetching..." /> : '💰 Get Prices'}
-          </button>
-          <button
-            onClick={exportToCSV}
-            style={styles.exportButton}
-            disabled={exportingCSV}
-          >
-            {exportingCSV ? <InlineSpinner text="Exporting..." /> : '📄 Export CSV'}
-          </button>
-        </div>
+        {stats.totalEstimatedPrice > 0 && (
+          <div style={styles.headerTotal}>
+            <div style={styles.totalLabel}>💰 Estimated Total:</div>
+            <div style={styles.totalPrice}>${stats.totalEstimatedPrice.toFixed(2)}</div>
+          </div>
+        )}
       </div>
 
       {/* Batch Operations Bar */}
@@ -841,16 +818,10 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
                   🗑️ Delete Selected
                 </button>
                 <button
-                  onClick={() => setShowMealPlanner(true)}
+                  onClick={() => setShowListCreator(true)}
                   style={styles.batchButton}
                 >
-                  🍽️ Add to Meal
-                </button>
-                <button
-                  onClick={() => setViewMealGroups(!viewMealGroups)}
-                  style={styles.batchButton}
-                >
-                  👁️ View Meals
+                  📋 Add to List
                 </button>
               </>
             )}
@@ -914,42 +885,59 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
 
       {/* Controls */}
       <div style={styles.controls}>
-        <div style={styles.controlGroup}>
-          <label style={styles.controlLabel}>Sort by:</label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            style={styles.select}
-          >
-            <option value="confidence">Confidence (High to Low)</option>
-            <option value="category">Category (A to Z)</option>
-            <option value="name">Name (A to Z)</option>
-            <option value="price">Price (High to Low)</option>
-          </select>
+        <div style={styles.controlsLeft}>
+          <div style={styles.controlGroup}>
+            <label style={styles.controlLabel}>Sort by:</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              style={styles.select}
+            >
+              <option value="confidence">Confidence (High to Low)</option>
+              <option value="category">Category (A to Z)</option>
+              <option value="name">Name (A to Z)</option>
+              <option value="price">Price (High to Low)</option>
+            </select>
+          </div>
+
+          <div style={styles.controlGroup}>
+            <label style={styles.controlLabel}>Filter:</label>
+            <select
+              value={filterBy}
+              onChange={(e) => setFilterBy(e.target.value)}
+              style={styles.select}
+            >
+              <option value="all">All Items</option>
+              <option value="high-confidence">High Confidence Only</option>
+              <option value="needs-review">Needs Review Only</option>
+              <optgroup label="By Category">
+                <option value="produce">🥬 Produce</option>
+                <option value="dairy">🥛 Dairy</option>
+                <option value="meat">🥩 Meat</option>
+                <option value="pantry">🥫 Pantry</option>
+                <option value="beverages">🥤 Beverages</option>
+                <option value="frozen">🧊 Frozen</option>
+                <option value="bakery">🍞 Bakery</option>
+                <option value="snacks">🍿 Snacks</option>
+                <option value="other">📦 Other</option>
+              </optgroup>
+            </select>
+          </div>
         </div>
 
-        <div style={styles.controlGroup}>
-          <label style={styles.controlLabel}>Filter:</label>
-          <select
-            value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
-            style={styles.select}
+        <div style={styles.controlsRight}>
+          <button
+            onClick={() => setShowStats(!showStats)}
+            style={styles.statsButton}
           >
-            <option value="all">All Items</option>
-            <option value="high-confidence">High Confidence Only</option>
-            <option value="needs-review">Needs Review Only</option>
-            <optgroup label="By Category">
-              <option value="produce">🥬 Produce</option>
-              <option value="dairy">🥛 Dairy</option>
-              <option value="meat">🥩 Meat</option>
-              <option value="pantry">🥫 Pantry</option>
-              <option value="beverages">🥤 Beverages</option>
-              <option value="frozen">🧊 Frozen</option>
-              <option value="bakery">🍞 Bakery</option>
-              <option value="snacks">🍿 Snacks</option>
-              <option value="other">📦 Other</option>
-            </optgroup>
-          </select>
+            {showStats ? '📊 Hide Stats' : '📊 Show Stats'}
+          </button>
+          <button
+            onClick={() => setShowValidationPage(true)}
+            style={styles.validateButton}
+          >
+            🔍 Validate Items
+          </button>
         </div>
       </div>
 
@@ -980,15 +968,8 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
         {sortBy === 'category' ? renderGroupedItems() : filteredAndSortedItems.map((item, index) => renderItem(item, index))}
       </div>
 
-      {/* Actions */}
+      {/* Secondary Actions */}
       <div style={styles.actions}>
-        <button
-          onClick={() => setShowInstacart(true)}
-          style={styles.primaryBtn}
-        >
-          🛍️ Continue to Check Out
-        </button>
-        
         <button
           onClick={handleSaveList}
           style={styles.secondaryBtn}
@@ -1002,17 +983,34 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
         >
           📋 Copy List
         </button>
+        
+        <button
+          onClick={handleRefreshPrices}
+          style={styles.secondaryBtn}
+          disabled={fetchingPrices.size > 0}
+        >
+          {fetchingPrices.size > 0 ? <InlineSpinner text="Fetching..." /> : '💰 Get Prices'}
+        </button>
+        
+        <button
+          onClick={exportToCSV}
+          style={styles.secondaryBtn}
+          disabled={exportingCSV}
+        >
+          {exportingCSV ? <InlineSpinner text="Exporting..." /> : '📄 Export CSV'}
+        </button>
       </div>
 
-      {/* Total Summary */}
-      {stats.totalEstimatedPrice > 0 && (
-        <div style={styles.totalSummary}>
-          <h4 style={styles.totalTitle}>💰 Estimated Total: ${stats.totalEstimatedPrice.toFixed(2)}</h4>
-          <p style={styles.totalNote}>
-            *Prices are estimates and may vary by location and availability
-          </p>
-        </div>
-      )}
+      {/* Primary Checkout Action */}
+      <div style={styles.checkoutSection}>
+        <button
+          onClick={() => setShowInstacart(true)}
+          style={styles.checkoutBtn}
+        >
+          🛍️ Continue to Check Out
+        </button>
+      </div>
+
 
       {/* Instacart Modal */}
       {showInstacart && (
@@ -1036,55 +1034,37 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
         />
       )}
 
-      {/* Meal Planner Modal */}
-      {showMealPlanner && (
-        <div style={styles.mealPlannerModal}>
-          <div style={styles.mealPlannerContent}>
-            <h4 style={styles.mealPlannerTitle}>🍽️ Add to Meal Plan</h4>
-            <p>Adding {selectedItems.size} items to meal:</p>
+      {/* List Creator Modal */}
+      {showListCreator && (
+        <div style={styles.listCreatorModal}>
+          <div style={styles.listCreatorContent}>
+            <h4 style={styles.listCreatorTitle}>📋 Create New List</h4>
+            <p>Creating a new list with {selectedItems.size} selected items:</p>
 
             <input
               type="text"
-              placeholder="Enter meal name (e.g., Monday Dinner)"
-              value={newMealName}
-              onChange={(e) => setNewMealName(e.target.value)}
-              style={styles.mealNameInput}
+              placeholder="Enter list name (e.g., Weekly Groceries)"
+              value={newListName}
+              onChange={(e) => setNewListName(e.target.value)}
+              style={styles.listNameInput}
             />
 
-            {Object.keys(mealGroups).length > 0 && (
-              <div style={styles.existingMeals}>
-                <p>Or add to existing meal:</p>
-                {Object.keys(mealGroups).map(meal => (
-                  <button
-                    key={meal}
-                    onClick={() => {
-                      addToMealGroup(meal);
-                      setShowMealPlanner(false);
-                    }}
-                    style={styles.existingMealButton}
-                  >
-                    {meal} ({mealGroups[meal].length} items)
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div style={styles.mealPlannerActions}>
+            <div style={styles.listCreatorActions}>
               <button
                 onClick={() => {
-                  if (newMealName) {
-                    addToMealGroup(newMealName);
-                    setShowMealPlanner(false);
+                  if (newListName) {
+                    addToNewList(newListName);
+                    setShowListCreator(false);
                   }
                 }}
-                style={styles.mealPlannerSave}
-                disabled={!newMealName}
+                style={styles.listCreatorSave}
+                disabled={!newListName}
               >
-                Save to Meal
+                Create List
               </button>
               <button
-                onClick={() => setShowMealPlanner(false)}
-                style={styles.mealPlannerCancel}
+                onClick={() => setShowListCreator(false)}
+                style={styles.listCreatorCancel}
               >
                 Cancel
               </button>
@@ -1093,50 +1073,18 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
         </div>
       )}
 
-      {/* View Meal Groups Modal */}
-      {viewMealGroups && Object.keys(mealGroups).length > 0 && (
-        <div style={styles.mealGroupsModal}>
-          <div style={styles.mealGroupsContent}>
-            <h4 style={styles.mealGroupsTitle}>🍽️ Meal Groups</h4>
-            <button
-              onClick={() => setViewMealGroups(false)}
-              style={styles.mealGroupsClose}
-            >
-              ×
-            </button>
-
-            {Object.entries(mealGroups).map(([meal, mealItems]) => (
-              <div key={meal} style={styles.mealGroupSection}>
-                <div style={styles.mealGroupHeader}>
-                  <h5 style={styles.mealGroupName}>{meal}</h5>
-                  <button
-                    onClick={() => {
-                      if (window.confirm(`Remove meal group "${meal}"?`)) {
-                        const updated = { ...mealGroups };
-                        delete updated[meal];
-                        setMealGroups(updated);
-                        localStorage.setItem('cartsmash-meal-groups', JSON.stringify(updated));
-                      }
-                    }}
-                    style={styles.mealGroupDeleteButton}
-                  >
-                    Delete Meal
-                  </button>
-                </div>
-                <div style={styles.mealItemsList}>
-                  {mealItems.map((item, idx) => (
-                    <div key={idx} style={styles.mealItem}>
-                      <span>{getCategoryIcon(item.category)}</span>
-                      <span>{item.quantity} {item.unit}</span>
-                      <span>{item.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Product Validator */}
+      {showValidationPage && (
+        <ProductValidator
+          items={items}
+          onItemsUpdated={(updatedItems) => {
+            onItemsChange(updatedItems);
+            localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+          }}
+          onClose={() => setShowValidationPage(false)}
+        />
       )}
+
     </div>
   );
 }
@@ -1370,6 +1318,28 @@ const styles = {
     fontWeight: 'bold'
   },
 
+  headerTotal: {
+    backgroundColor: '#FFF5F2',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    border: '2px solid #FB4F14',
+    textAlign: 'center'
+  },
+
+  totalLabel: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#002244',
+    margin: '0 0 2px 0'
+  },
+
+  totalPrice: {
+    fontSize: '20px',
+    fontWeight: 'bold',
+    color: '#0066CC',
+    margin: '0'
+  },
+
   headerActions: {
     display: 'flex',
     gap: '10px',
@@ -1526,9 +1496,22 @@ const styles = {
 
   controls: {
     display: 'flex',
-    gap: '20px',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: '20px',
     flexWrap: 'wrap'
+  },
+
+  controlsLeft: {
+    display: 'flex',
+    gap: '20px',
+    flexWrap: 'wrap'
+  },
+
+  controlsRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
   },
 
   controlGroup: {
@@ -1549,6 +1532,28 @@ const styles = {
     borderRadius: '6px',
     fontSize: '14px',
     backgroundColor: 'white'
+  },
+
+  validateButton: {
+    padding: '8px 16px',
+    backgroundColor: '#002244',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  statsButton: {
+    padding: '8px 16px',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500'
   },
 
   listHeader: {
@@ -1888,6 +1893,26 @@ const styles = {
     cursor: 'pointer'
   },
 
+  checkoutSection: {
+    marginTop: '20px',
+    padding: '0',
+    textAlign: 'center'
+  },
+
+  checkoutBtn: {
+    width: '100%',
+    padding: '16px 24px',
+    background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(251,79,20,0.25)',
+    transition: 'all 0.2s'
+  },
+
   // Modal styles
   modalOverlay: {
     position: 'fixed',
@@ -2037,8 +2062,8 @@ const styles = {
     marginTop: '12px'
   },
 
-  // Meal planner modal styles
-  mealPlannerModal: {
+  // List creator modal styles
+  listCreatorModal: {
     position: 'fixed',
     top: 0,
     left: 0,
@@ -2051,7 +2076,7 @@ const styles = {
     zIndex: 3000
   },
 
-  mealPlannerContent: {
+  listCreatorContent: {
     backgroundColor: 'white',
     padding: '24px',
     borderRadius: '12px',
@@ -2061,13 +2086,13 @@ const styles = {
     border: '2px solid #002244'
   },
 
-  mealPlannerTitle: {
+  listCreatorTitle: {
     margin: '0 0 16px 0',
     fontSize: '20px',
     color: '#002244'
   },
 
-  mealNameInput: {
+  listNameInput: {
     width: '100%',
     padding: '10px',
     border: '2px solid #002244',
@@ -2076,31 +2101,13 @@ const styles = {
     marginTop: '8px'
   },
 
-  existingMeals: {
-    marginTop: '16px',
-    paddingTop: '16px',
-    borderTop: '1px solid #e5e7eb'
-  },
-
-  existingMealButton: {
-    display: 'block',
-    width: '100%',
-    padding: '8px',
-    marginTop: '8px',
-    backgroundColor: '#FFF5F2',
-    border: '1px solid #FB4F14',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    textAlign: 'left'
-  },
-
-  mealPlannerActions: {
+  listCreatorActions: {
     display: 'flex',
     gap: '10px',
     marginTop: '20px'
   },
 
-  mealPlannerSave: {
+  listCreatorSave: {
     flex: 1,
     padding: '10px',
     backgroundColor: '#FB4F14',
@@ -2111,7 +2118,7 @@ const styles = {
     fontWeight: '500'
   },
 
-  mealPlannerCancel: {
+  listCreatorCancel: {
     flex: 1,
     padding: '10px',
     backgroundColor: '#002244',
@@ -2122,101 +2129,7 @@ const styles = {
     fontWeight: '500'
   },
 
-  // Meal groups modal
-  mealGroupsModal: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 2, 68, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 3000
-  },
 
-  mealGroupsContent: {
-    backgroundColor: 'white',
-    padding: '24px',
-    borderRadius: '12px',
-    width: '90%',
-    maxWidth: '600px',
-    maxHeight: '80vh',
-    overflowY: 'auto',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-    position: 'relative',
-    border: '2px solid #002244'
-  },
-
-  mealGroupsTitle: {
-    margin: '0 0 20px 0',
-    fontSize: '24px',
-    color: '#002244'
-  },
-
-  mealGroupsClose: {
-    position: 'absolute',
-    top: '20px',
-    right: '20px',
-    background: '#002244',
-    color: 'white',
-    border: 'none',
-    fontSize: '24px',
-    cursor: 'pointer',
-    width: '32px',
-    height: '32px',
-    borderRadius: '6px'
-  },
-
-  mealGroupSection: {
-    marginBottom: '20px',
-    padding: '16px',
-    backgroundColor: '#FFF5F2',
-    borderRadius: '8px',
-    border: '1px solid #FB4F14'
-  },
-
-  mealGroupHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '12px'
-  },
-
-  mealGroupName: {
-    margin: 0,
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#002244'
-  },
-
-  mealGroupDeleteButton: {
-    padding: '6px 12px',
-    backgroundColor: '#8B0000',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '12px',
-    fontWeight: '500'
-  },
-
-  mealItemsList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  },
-
-  mealItem: {
-    display: 'flex',
-    gap: '12px',
-    padding: '8px',
-    backgroundColor: 'white',
-    borderRadius: '6px',
-    fontSize: '14px',
-    alignItems: 'center'
-  }
 };
 
 export default ParsedResultsDisplay;
