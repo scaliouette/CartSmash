@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const AIProductParser = require('../utils/aiProductParser');
+const { parseIngredientLine, buildSearchQuery } = require('../utils/ingredientParser');
 const { validateUserId, validateQuantity, sanitizeText } = require('../utils/validation');
 
 // Initialize AI parser
@@ -217,20 +218,36 @@ router.post('/parse', async (req, res) => {
           strictMode: options.strictMode !== false
         });
         
-        // Convert AI parser results to cart items format
-        parsedItems = parsingResults.products.map(product => ({
-          id: product.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          productName: product.productName,
-          quantity: product.quantity || 1,
-          unit: product.unit || 'each',
-          category: product.category || 'other',
-          confidence: product.confidence || 0.8,
-          needsReview: product.confidence < 0.6,
-          original: product.original,
-          addedAt: new Date().toISOString(),
-          aiParsed: true,
-          parsingFactors: product.factors
-        }));
+        // Convert AI parser results to cart items format with enhanced ingredient parsing
+        parsedItems = parsingResults.products.map(product => {
+          // Apply professional ingredient parsing to get structured data
+          const ingredientData = parseIngredientLine(product.productName);
+          const searchQuery = buildSearchQuery(ingredientData);
+          
+          return {
+            id: product.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            productName: product.productName,
+            quantity: product.quantity || ingredientData.qty || 1,
+            unit: product.unit || ingredientData.unit || 'each',
+            category: product.category || 'other',
+            confidence: product.confidence || 0.8,
+            needsReview: product.confidence < 0.6,
+            original: product.original,
+            addedAt: new Date().toISOString(),
+            aiParsed: true,
+            parsingFactors: product.factors,
+            // Enhanced ingredient data from professional parser
+            ingredientData: {
+              parsedName: ingredientData.name,
+              parsedQuantity: ingredientData.qty,
+              parsedUnit: ingredientData.unit,
+              sizeQuantity: ingredientData.sizeQty,
+              sizeUnit: ingredientData.sizeUnit,
+              searchQuery: searchQuery,
+              originalLine: ingredientData.original
+            }
+          };
+        });
         
         console.log(`✅ AI parsed ${parsedItems.length} validated products from ${parsingResults.totalCandidates} candidates`);
         console.log(`📊 Average confidence: ${(parsingResults.averageConfidence * 100).toFixed(1)}%`);
@@ -330,38 +347,13 @@ function basicParse(listText) {
       continue;
     }
     
-    const quantityMatch = cleaned.match(/^(\d+(?:\/\d+)?|\d+\.\d+)\s*([a-zA-Z]*)\s*(.+)$/);
+    // Use professional ingredient parser for better accuracy
+    const ingredientData = parseIngredientLine(cleaned);
+    const searchQuery = buildSearchQuery(ingredientData);
     
-    let quantity = 1;
-    let unit = 'each';
-    let productName = cleaned;
-    
-    if (quantityMatch) {
-      const quantityStr = quantityMatch[1];
-      if (quantityStr.includes('/')) {
-        const [numerator, denominator] = quantityStr.split('/');
-        quantity = parseFloat(numerator) / parseFloat(denominator);
-      } else {
-        quantity = parseFloat(quantityStr);
-      }
-      
-      const possibleUnit = quantityMatch[2];
-      const validUnits = ['lb', 'lbs', 'oz', 'cup', 'cups', 'tbsp', 'tsp', 'can', 'bottle', 'jar', 'bag', 'box', 'package', 'dozen', 'bunch', 'head', 'kg', 'g', 'ml', 'l'];
-      
-      if (possibleUnit && validUnits.some(u => possibleUnit.toLowerCase().includes(u))) {
-        unit = possibleUnit.toLowerCase();
-        productName = quantityMatch[3];
-      } else {
-        productName = (possibleUnit + ' ' + quantityMatch[3]).trim();
-      }
-    }
-    
-    // Detect container words
-    const containerMatch = productName.match(/^(can|bottle|jar|bag|box|package)\s+(?:of\s+)?(.+)$/i);
-    if (containerMatch) {
-      unit = containerMatch[1].toLowerCase();
-      productName = containerMatch[2];
-    }
+    let quantity = ingredientData.qty || 1;
+    let unit = ingredientData.unit || 'each';
+    let productName = ingredientData.name || cleaned;
     
     const category = detectCategory(productName);
     
@@ -375,7 +367,17 @@ function basicParse(listText) {
       needsReview: true, // Mark for review since not AI validated
       category: category,
       addedAt: new Date().toISOString(),
-      aiParsed: false
+      aiParsed: false,
+      // Enhanced ingredient data from professional parser
+      ingredientData: {
+        parsedName: ingredientData.name,
+        parsedQuantity: ingredientData.qty,
+        parsedUnit: ingredientData.unit,
+        sizeQuantity: ingredientData.sizeQty,
+        sizeUnit: ingredientData.sizeUnit,
+        searchQuery: searchQuery,
+        originalLine: ingredientData.original
+      }
     });
   }
   

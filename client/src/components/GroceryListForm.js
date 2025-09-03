@@ -282,12 +282,59 @@ function GroceryListForm({
         colors: ['#FB4F14', '#002244', '#FFFFFF']
       });
       
+      // Extract ingredients from recipe text if it's a full recipe
+      const extractIngredientsFromRecipe = (text) => {
+        const lines = text.split('\n');
+        const ingredients = [];
+        let inIngredientsSection = false;
+        let inInstructionsSection = false;
+        
+        for (const line of lines) {
+          const trimmed = line.trim();
+          
+          // Check for ingredients section headers
+          if (trimmed.match(/^(ingredients?:?\s*$|##?\s*ingredients?|Ingredients?:?\s*$)/i)) {
+            inIngredientsSection = true;
+            inInstructionsSection = false;
+            continue;
+          }
+          
+          // Check for instructions/directions section (stop ingredients)
+          if (trimmed.match(/^(instructions?:?\s*$|directions?:?\s*$|method:?\s*$|steps?:?\s*$|##?\s*(instructions?|directions?|method|steps?))/i)) {
+            inIngredientsSection = false;
+            inInstructionsSection = true;
+            continue;
+          }
+          
+          // If we're in ingredients section, collect ingredient lines
+          if (inIngredientsSection && trimmed.length > 0) {
+            // Skip obvious non-ingredient lines
+            if (!trimmed.match(/^(recipe|serves?|prep time|cook time|total time|yield)/i)) {
+              ingredients.push(trimmed);
+            }
+          }
+        }
+        
+        return ingredients.length > 0 ? ingredients.join('\n') : text;
+      };
+      
+      // Check if this looks like a full recipe and extract ingredients
+      const isFullRecipe = listText.toLowerCase().includes('ingredients') && 
+                          (listText.toLowerCase().includes('instructions') || listText.toLowerCase().includes('directions'));
+      
+      const textToParse = isFullRecipe ? extractIngredientsFromRecipe(listText) : listText;
+      
+      console.log('Parsing type:', isFullRecipe ? 'Full Recipe (extracting ingredients)' : 'Regular List');
+      if (isFullRecipe) {
+        console.log('Extracted ingredients:', textToParse.substring(0, 200) + '...');
+      }
+
       // Parse the list
       const response = await fetch(`${API_URL}/api/cart/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          listText: listText,
+          listText: textToParse,
           action: mergeCart ? 'merge' : 'replace',
           userId: currentUser?.uid || null,
           options: {
