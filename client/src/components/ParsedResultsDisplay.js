@@ -57,13 +57,27 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
 
   // Fetch real-time prices for items - Use useCallback to fix dependency warning
   const fetchRealTimePrices = useCallback(async (itemsToFetch) => {
-    console.log(`💰 [FETCH DEBUG] Starting to fetch prices for ${itemsToFetch.length} items`);
+    // Prevent duplicate fetches and check for valid items
+    if (!itemsToFetch || itemsToFetch.length === 0) {
+      console.log(`💰 [FETCH DEBUG] No items to fetch prices for`);
+      return;
+    }
+    
     const itemIds = itemsToFetch.map(item => item.id);
+    const alreadyFetching = itemIds.some(id => fetchingPrices.has(id));
+    
+    if (alreadyFetching) {
+      console.log(`💰 [FETCH DEBUG] Some items are already being fetched, skipping duplicate request`);
+      return;
+    }
+    
+    console.log(`💰 [FETCH DEBUG] Starting to fetch prices for ${itemsToFetch.length} items`);
     setFetchingPrices(prev => new Set([...prev, ...itemIds]));
 
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       console.log(`💰 [FETCH DEBUG] Making request to: ${API_URL}/api/cart/fetch-prices`);
+      
       const response = await fetch(`${API_URL}/api/cart/fetch-prices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,10 +93,11 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
         const data = await response.json();
         console.log(`💰 [FETCH DEBUG] Received response:`, data);
 
-        // Update items with fetched prices and save price history
+        // Only update if items still exist in current state (avoid race conditions)
+        const currentItemIds = new Set(items.map(item => item.id));
         const updatedItems = items.map(item => {
           const priceData = data.prices?.[item.id];
-          if (priceData) {
+          if (priceData && currentItemIds.has(item.id)) {
             // Save to price history
             setPriceHistory(prev => ({
               ...prev,
@@ -114,12 +129,19 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
           return item;
         });
 
-        onItemsChange(updatedItems);
-        localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+        // Only call onItemsChange if we actually have updates to avoid unnecessary re-renders
+        const hasUpdates = updatedItems.some((item, index) => 
+          item.realPrice !== items[index]?.realPrice
+        );
         
-        const itemsWithPrices = updatedItems.filter(item => item.realPrice).length;
-        console.log(`💰 [FETCH DEBUG] Updated ${updatedItems.length} items with price data`);
-        console.log(`💰 [FETCH DEBUG] ${itemsWithPrices} items now have Kroger pricing and can be added to cart`);
+        if (hasUpdates) {
+          onItemsChange(updatedItems);
+          localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+          
+          const itemsWithPrices = updatedItems.filter(item => item.realPrice).length;
+          console.log(`💰 [FETCH DEBUG] Updated ${updatedItems.length} items with price data`);
+          console.log(`💰 [FETCH DEBUG] ${itemsWithPrices} items now have Kroger pricing and can be added to cart`);
+        }
       } else {
         console.error(`💰 [FETCH DEBUG] Request failed with status: ${response.status}`);
         const errorText = await response.text();
@@ -128,25 +150,42 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
     } catch (error) {
       console.error('💰 [FETCH DEBUG] Failed to fetch prices:', error);
     } finally {
+      // Always clean up fetching state
       setFetchingPrices(prev => {
         const newSet = new Set(prev);
         itemIds.forEach(id => newSet.delete(id));
         return newSet;
       });
     }
-  }, [items, onItemsChange]);
+  }, [items, onItemsChange, fetchingPrices]);
 
   // Fetch real-time prices on mount - Fixed dependencies
+  // Auto-fetch prices on mount only - removed constant polling to prevent interference
   useEffect(() => {
-    const itemsNeedingPrices = items.filter(item => !item.realPrice && (item.productName || item.itemName || item.name));
-    console.log(`💰 [PRICE DEBUG] ${itemsNeedingPrices.length} items need prices out of ${items.length} total items`);
-    if (itemsNeedingPrices.length > 0) {
-      console.log(`💰 [PRICE DEBUG] Fetching prices for items:`, itemsNeedingPrices.map(item => item.productName || item.itemName || item.name));
-      fetchRealTimePrices(itemsNeedingPrices);
-    } else if (items.length > 0) {
-      console.log(`💰 [PRICE DEBUG] All items already have prices or no valid product names found`);
+    // Only run once when component mounts and has items
+    if (items.length === 0) return;
+    
+    // Check if we need to fetch prices (only on first load)
+    const itemsNeedingPrices = items.filter(item => 
+      !item.realPrice && 
+      (item.productName || item.itemName || item.name) &&
+      !fetchingPrices.has(item.id)
+    );
+    
+    console.log(`💰 [PRICE DEBUG] Initial check: ${itemsNeedingPrices.length} items need prices out of ${items.length} total items`);
+    
+    // Only auto-fetch on initial load and if reasonable number of items
+    if (itemsNeedingPrices.length > 0 && itemsNeedingPrices.length <= 3) {
+      const timeoutId = setTimeout(() => {
+        console.log(`💰 [PRICE DEBUG] Auto-fetching prices for initial items:`, itemsNeedingPrices.map(item => item.productName || item.itemName || item.name));
+        fetchRealTimePrices(itemsNeedingPrices);
+      }, 1000); // Reduced to 1 second delay
+
+      return () => clearTimeout(timeoutId);
+    } else if (itemsNeedingPrices.length > 3) {
+      console.log(`💰 [PRICE DEBUG] Too many items (${itemsNeedingPrices.length}) - use manual refresh for pricing`);
     }
-  }, [items, fetchRealTimePrices]);
+  }, []); // Empty dependency array - only run once on mount
 
   // Load meal groups from localStorage
   useEffect(() => {
@@ -447,10 +486,25 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
   const handleRemoveItem = async (itemId) => {
     if (window.confirm('Are you sure you want to remove this item?')) {
       setUpdatingItems(prev => new Set([...prev, itemId]));
+      
       try {
+        // Remove from local state immediately
         const updatedItems = items.filter(item => item.id !== itemId);
         onItemsChange(updatedItems);
+        
+        // Clear any ongoing price fetch for this item
+        setFetchingPrices(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(itemId);
+          return newSet;
+        });
+        
+        // Update localStorage
         localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+        
+        console.log(`✅ Removed item ${itemId} from shopping list display`);
+      } catch (error) {
+        console.error('Error removing item from display:', error);
       } finally {
         setUpdatingItems(prev => {
           const newSet = new Set(prev);

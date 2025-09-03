@@ -6,7 +6,6 @@ import ParsedResultsDisplay from './ParsedResultsDisplay';
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
 import RecipeManager from './RecipeManager';
-import RecipeImporter from './RecipeImporter';
 import { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
 import userDataService from '../services/userDataService';
@@ -40,7 +39,6 @@ function GroceryListForm({
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [showRecipeManager, setShowRecipeManager] = useState(false);
-  const [showRecipeImporter, setShowRecipeImporter] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const [validatingAll, setValidatingAll] = useState(false);
   const [parsingProgress, setParsingProgress] = useState(0);
@@ -203,7 +201,9 @@ function GroceryListForm({
               ingredientChoice: ingredientStyle,
               options: {
                 includeRecipes: true,
-                formatAsList: true
+                formatAsList: true,
+                structuredFormat: true,
+                formatInstruction: "Please format your response with clear sections:\n\nRecipe Name:\n[Recipe name here]\n\nIngredients:\n[List ingredients here, one per line]\n\nInstructions:\n[Cooking instructions here]\n\nThis allows users to save the recipe to their collection before parsing ingredients for shopping."
               }
             })
           });
@@ -360,6 +360,93 @@ function GroceryListForm({
     clearDraft();
   };
 
+  const handleSaveRecipeFromAI = () => {
+    const aiResponseText = inputText;
+    
+    if (!aiResponseText) {
+      alert('No recipe content to save');
+      return;
+    }
+
+    // Parse the structured AI response
+    const recipe = parseStructuredRecipe(aiResponseText);
+    
+    if (!recipe.name || !recipe.ingredients) {
+      alert('Could not parse recipe format. Please ensure it has Recipe Name and Ingredients sections.');
+      return;
+    }
+
+    // Generate unique ID for the recipe
+    const savedRecipe = {
+      id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      ...recipe,
+      createdAt: new Date().toISOString(),
+      userId: currentUser?.uid || 'guest',
+      source: 'ai_generated'
+    };
+
+    // Save to localStorage
+    const existingRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
+    const updatedRecipes = [...existingRecipes, savedRecipe];
+    localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
+
+    // Try to save to server if user is logged in
+    if (currentUser?.uid) {
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      fetch(`${API_URL}/api/recipes`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'user-id': currentUser.uid
+        },
+        body: JSON.stringify(savedRecipe)
+      }).catch(err => console.error('Failed to save to server, but saved locally:', err));
+    }
+
+    alert(`✅ Recipe "${recipe.name}" saved to My Recipes!`);
+  };
+
+  const parseStructuredRecipe = (text) => {
+    const lines = text.split('\n');
+    let name = '';
+    let ingredients = '';
+    let instructions = '';
+    let currentSection = '';
+
+    for (const line of lines) {
+      const cleanLine = line.trim();
+      
+      if (cleanLine.toLowerCase().startsWith('recipe name:')) {
+        currentSection = 'name';
+        name = cleanLine.replace(/recipe name:/i, '').trim();
+        continue;
+      } else if (cleanLine.toLowerCase().startsWith('ingredients:')) {
+        currentSection = 'ingredients';
+        continue;
+      } else if (cleanLine.toLowerCase().startsWith('instructions:')) {
+        currentSection = 'instructions';
+        continue;
+      }
+
+      if (cleanLine && currentSection) {
+        if (currentSection === 'name' && !name) {
+          name = cleanLine;
+        } else if (currentSection === 'ingredients') {
+          ingredients += (ingredients ? '\n' : '') + cleanLine;
+        } else if (currentSection === 'instructions') {
+          instructions += (instructions ? '\n' : '') + cleanLine;
+        }
+      }
+    }
+
+    // Fallback: if no structured format found, try to guess
+    if (!name && lines.length > 0) {
+      name = lines[0].trim() || 'AI Generated Recipe';
+    }
+
+    return { name, ingredients, instructions };
+  };
+
   const handleSaveList = () => {
     const listName = prompt('Enter a name for this list:', `Shopping List ${new Date().toLocaleDateString()}`);
     if (!listName) return;
@@ -405,32 +492,31 @@ function GroceryListForm({
 
       {/* Unified AI Assistant Container */}
       <div style={styles.unifiedAssistantContainer}>
-        {/* Unified Header */}
-        <div style={styles.unifiedHeader}>
-          <div style={styles.headerContent}>
-            <div style={styles.titleSection}>
-              <span style={styles.mainIcon}>🛒</span>
-              <div>
-                <h2 style={styles.mainTitle}>CARTSMASH AI Assistant</h2>
-                <p style={styles.subtitle}>Smart grocery parsing powered by AI</p>
+        {/* Templates Section */}
+        <div style={styles.templatesSection}>
+          <h3 style={styles.templatesTitle}>Quick Templates</h3>
+          <div style={styles.templatesGrid}>
+            {templates.map(template => (
+              <div
+                key={template.id}
+                onClick={() => handleTemplateClick(template)}
+                style={styles.templateCard}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#FB4F14';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(251,79,20,0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#002244';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,2,68,0.08)';
+                }}
+              >
+                <div style={styles.templateIcon}>{template.icon}</div>
+                <h4 style={styles.templateTitle}>{template.title}</h4>
+                <p style={styles.templateDescription}>{template.description}</p>
               </div>
-            </div>
-            
-            {/* Feature badges */}
-            <div style={styles.featureBadges}>
-              <span style={styles.badge}>🎯 Recipe Integration</span>
-              <span style={styles.badge}>🔄 Auto-Save & Sync</span>
-              <span style={styles.badge}>📊 Smart Quantities</span>
-              <span style={styles.badge}>🔀 Duplicate Detection</span>
-            </div>
-          </div>
-
-          {/* Cart Status */}
-          <div style={styles.cartStatus}>
-            <div style={styles.cartIndicator}>
-              <span style={styles.cartCount}>{currentCart.length}</span>
-              <span style={styles.cartLabel}>items in cart</span>
-            </div>
+            ))}
           </div>
         </div>
 
@@ -439,7 +525,7 @@ function GroceryListForm({
           {/* Action Buttons */}
           <div style={styles.actionButtons}>
             <button onClick={handleNewList} style={styles.actionBtn}>
-              📝 New List
+              📝 Clear List
             </button>
             <button 
               onClick={handleSaveList} 
@@ -449,10 +535,7 @@ function GroceryListForm({
               💾 Save List
             </button>
             <button onClick={() => setShowRecipeManager(true)} style={styles.actionBtn}>
-              📖 Recipes
-            </button>
-            <button onClick={() => setShowRecipeImporter(true)} style={styles.actionBtn}>
-              🔗 Import
+              📖 Recipe Manager
             </button>
           </div>
 
@@ -511,6 +594,7 @@ function GroceryListForm({
             </div>
             
             {/* AI Model */}
+            {/*
             <div style={styles.settingGroup}>
               <label style={styles.settingLabel}>AI:</label>
               <div style={styles.toggleButtons}>
@@ -534,6 +618,7 @@ function GroceryListForm({
                 </button>
               </div>
             </div>
+            /}
           </div>
         </div>
 
@@ -569,6 +654,13 @@ Or paste any grocery list directly!"
           {waitingForAIResponse && (
             <div style={styles.aiStatusMessage}>
               💡 AI response loaded! Review it above and hit CARTSMASH to add items to your cart.
+              <button 
+                onClick={handleSaveRecipeFromAI}
+                style={styles.saveRecipeButton}
+                title="Save this recipe to My Recipes collection"
+              >
+                📖 Save to My Recipes
+              </button>
             </div>
           )}
           
@@ -591,33 +683,6 @@ Or paste any grocery list directly!"
           </div>
         </div>
 
-        {/* Templates */}
-        <div style={styles.templatesSection}>
-          <h3 style={styles.templatesTitle}>Quick Templates</h3>
-          <div style={styles.templatesGrid}>
-            {templates.map(template => (
-              <div
-                key={template.id}
-                onClick={() => handleTemplateClick(template)}
-                style={styles.templateCard}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#FB4F14';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(251,79,20,0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#002244';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,2,68,0.08)';
-                }}
-              >
-                <div style={styles.templateIcon}>{template.icon}</div>
-                <h4 style={styles.templateTitle}>{template.title}</h4>
-                <p style={styles.templateDescription}>{template.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* Messages/Response Area */}
         {messages.length > 0 && (
@@ -680,63 +745,6 @@ Or paste any grocery list directly!"
         />
       )}
 
-      {showRecipeImporter && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 2, 68, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <RecipeImporter
-            onClose={() => setShowRecipeImporter(false)}
-            onRecipeImported={async (recipe) => {
-              try {
-                if (currentUser) {
-                  await userDataService.init();
-                  await userDataService.saveRecipe({
-                    ...recipe,
-                    userId: currentUser.uid,
-                    userEmail: currentUser.email
-                  });
-                  console.log('✅ Recipe saved to Firebase');
-                }
-                
-                saveRecipe(recipe);
-                
-                if (recipe.items && recipe.items.length > 0) {
-                  const newCart = mergeCart 
-                    ? [...currentCart, ...recipe.items]
-                    : recipe.items;
-                  setCurrentCart(newCart);
-                  
-                  if (currentUser) {
-                    await userDataService.saveShoppingList({
-                      id: 'current-cart',
-                      name: 'Current Cart',
-                      items: newCart,
-                      itemCount: newCart.length,
-                      updatedAt: new Date().toISOString()
-                    });
-                  }
-                  
-                  alert(`✅ Imported "${recipe.name}" with ${recipe.items.length} ingredients`);
-                }
-                
-                setShowRecipeImporter(false);
-              } catch (error) {
-                console.error('Error saving to Firebase:', error);
-                alert('Recipe saved locally but failed to sync to cloud');
-              }
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -1009,15 +1017,15 @@ const styles = {
   
   templatesSection: {
     padding: '30px',
-    backgroundColor: '#FFF5F2',
-    borderTop: '2px solid #FB4F14'
+    background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
+    color: 'white'
   },
   
   templatesTitle: {
     margin: '0 0 20px 0',
     fontSize: '20px',
     fontWeight: 'bold',
-    color: '#002244'
+    color: 'white'
   },
   
   templatesGrid: {
@@ -1125,6 +1133,22 @@ const styles = {
     marginTop: '16px',
     marginBottom: '16px',
     fontWeight: '500'
+  },
+
+  saveRecipeButton: {
+    padding: '8px 16px',
+    backgroundColor: '#FF6B35',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginTop: '8px'
   }
 };
 

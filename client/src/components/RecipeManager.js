@@ -12,6 +12,13 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
     ingredients: '',
     instructions: ''
   });
+  
+  // Import functionality
+  const [recipeUrl, setRecipeUrl] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [previewData, setPreviewData] = useState(null);
+  
   const { currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
 
@@ -178,12 +185,186 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
     }
   };
 
-  const handleUseRecipe = (recipe) => {
-    if (onRecipeSelect) {
-      onRecipeSelect(recipe);
+  const handleUseRecipe = async (recipe) => {
+    try {
+      let finalRecipe = { ...recipe };
+
+      // If the recipe doesn't have parsed ingredients, try to parse them now
+      if (!recipe.parsedIngredients || recipe.parsedIngredients.length === 0) {
+        console.log('🔄 Parsing ingredients for recipe:', recipe.name);
+        
+        try {
+          const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+          const parseResponse = await fetch(`${API_URL}/api/cart/parse`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              listText: recipe.ingredients,
+              userId: currentUser?.uid,
+              useAI: true,
+              options: {
+                context: 'recipe',
+                recipeInfo: {
+                  name: recipe.name,
+                  servings: recipe.servings || 4
+                }
+              }
+            })
+          });
+
+          if (parseResponse.ok) {
+            const parseData = await parseResponse.json();
+            if (parseData.success && parseData.cart) {
+              finalRecipe.parsedIngredients = parseData.cart;
+              finalRecipe.items = parseData.cart;
+              console.log(`✅ Parsed ${parseData.cart.length} ingredients for recipe`);
+              
+              // Update the saved recipe with parsed ingredients
+              const updatedRecipes = recipes.map(r => 
+                r.id === recipe.id ? finalRecipe : r
+              );
+              setRecipes(updatedRecipes);
+              localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
+            } else {
+              console.warn('AI parsing returned no results');
+            }
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse ingredients:', parseError.message);
+          // Continue with the original recipe
+        }
+      }
+
+      if (onRecipeSelect) {
+        onRecipeSelect(finalRecipe);
+      }
+      if (onClose) {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error using recipe:', error);
+      // Fallback: use original recipe
+      if (onRecipeSelect) {
+        onRecipeSelect(recipe);
+      }
+      if (onClose) {
+        onClose();
+      }
     }
-    if (onClose) {
-      onClose();
+  };
+
+  // Import functionality
+  const supportedSites = [
+    'allrecipes.com', 'foodnetwork.com', 'seriouseats.com', 'bonappetit.com',
+    'epicurious.com', 'simplyrecipes.com', 'budgetbytes.com', 'tasty.co'
+  ];
+
+  const handleUrlImport = async () => {
+    if (!recipeUrl.trim()) {
+      setImportError('Please enter a recipe URL');
+      return;
+    }
+
+    setIsImporting(true);
+    setImportError('');
+
+    try {
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const response = await fetch(`${API_URL}/api/recipes/import-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: recipeUrl,
+          userId: currentUser?.uid
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setPreviewData(data.recipe);
+        setActiveTab('preview');
+      } else {
+        setImportError('Could not automatically import. Please try the Paste Text method instead.');
+      }
+    } catch (err) {
+      console.error('Import failed:', err);
+      setImportError('Failed to import recipe. Please try the Paste Text method instead.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+
+  const handleSaveImportedRecipe = async () => {
+    if (!previewData) return;
+
+    try {
+      let parsedIngredients = [];
+
+      // Try to parse ingredients to cart items using AI
+      try {
+        const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+        const parseResponse = await fetch(`${API_URL}/api/cart/parse`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            listText: previewData.ingredients,
+            userId: currentUser?.uid,
+            useAI: true,
+            options: {
+              context: 'recipe',
+              recipeInfo: {
+                name: previewData.name,
+                servings: previewData.servings || 4
+              }
+            }
+          })
+        });
+
+        if (parseResponse.ok) {
+          const parseData = await parseResponse.json();
+          if (parseData.success && parseData.cart) {
+            parsedIngredients = parseData.cart;
+            console.log(`✅ Successfully parsed ${parsedIngredients.length} ingredients with AI`);
+          } else {
+            console.warn('AI parsing returned no results, saving recipe without parsed ingredients');
+          }
+        } else {
+          console.warn('AI parsing endpoint failed, saving recipe without parsed ingredients');
+        }
+      } catch (parseError) {
+        console.warn('AI parsing failed, saving recipe without parsed ingredients:', parseError.message);
+        // Continue with saving the recipe even if parsing fails
+      }
+
+      const finalRecipe = {
+        ...previewData,
+        id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: new Date().toISOString(),
+        userId: currentUser?.uid || 'guest',
+        items: parsedIngredients,
+        parsedIngredients: parsedIngredients,
+        savedWithAI: parsedIngredients.length > 0
+      };
+
+      handleSaveRecipe(finalRecipe);
+      
+      // If we have parsed ingredients, show success message with count
+      if (parsedIngredients.length > 0) {
+        alert(`✅ Recipe saved with ${parsedIngredients.length} ingredients ready for your cart!`);
+      } else {
+        alert(`✅ Recipe saved! Use "Add to Cart" to parse ingredients.`);
+      }
+      
+      // Reset import state
+      setRecipeUrl('');
+      setPreviewData(null);
+      setImportError('');
+      setActiveTab('browse');
+    } catch (error) {
+      console.error('Failed to save imported recipe:', error);
+      setImportError('Failed to save recipe: ' + error.message);
     }
   };
 
@@ -213,6 +394,15 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
             }}
           >
             ➕ Add Recipe
+          </button>
+          <button
+            onClick={() => setActiveTab('import')}
+            style={{
+              ...styles.recipeTab,
+              ...(activeTab === 'import' ? styles.recipeTabActive : {})
+            }}
+          >
+            🔗 Import Recipe
           </button>
           <button
             onClick={() => setActiveTab('quick')}
@@ -294,6 +484,11 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
                             </div>
                           )}
                         </div>
+                        {recipe.parsedIngredients && recipe.parsedIngredients.length > 0 && (
+                          <div style={styles.aiParsedBadge}>
+                            🤖 AI-Ready ({recipe.parsedIngredients.length} items)
+                          </div>
+                        )}
                       </div>
                       
                       <button 
@@ -356,6 +551,103 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
                 >
                   Cancel
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Import Recipe Tab */}
+          {activeTab === 'import' && (
+            <div style={styles.importForm}>
+              <h3 style={styles.formTitle}>🔗 Import Recipe</h3>
+              
+              <div style={styles.urlImportSection}>
+                <p style={styles.methodDescription}>
+                  Import recipes automatically from popular recipe websites
+                </p>
+                
+                <input
+                  type="url"
+                  placeholder="https://www.allrecipes.com/recipe/..."
+                  value={recipeUrl}
+                  onChange={(e) => setRecipeUrl(e.target.value)}
+                  style={styles.formInput}
+                />
+                
+                <div style={styles.supportedSites}>
+                  <p style={styles.supportedTitle}>✓ Supported sites:</p>
+                  <div style={styles.sitesList}>
+                    {supportedSites.map(site => (
+                      <span key={site} style={styles.site}>• {site}</span>
+                    ))}
+                  </div>
+                </div>
+                
+                <button
+                  onClick={handleUrlImport}
+                  disabled={isImporting || !recipeUrl.trim()}
+                  style={{
+                    ...styles.btnPrimary,
+                    ...(isImporting || !recipeUrl.trim() ? styles.btnDisabled : {})
+                  }}
+                >
+                  {isImporting ? '⏳ Importing...' : '🔍 Import from URL'}
+                </button>
+              </div>
+              
+              {importError && (
+                <div style={styles.errorMessage}>
+                  ⚠️ {importError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Import Preview Tab */}
+          {activeTab === 'preview' && previewData && (
+            <div style={styles.previewContainer}>
+              <h3 style={styles.formTitle}>📋 Recipe Preview</h3>
+              
+              <div style={styles.previewCard}>
+                <h4 style={styles.previewRecipeName}>{previewData.name}</h4>
+                
+                {previewData.source && (
+                  <p style={styles.previewSource}>
+                    Source: {previewData.source.replace('_', ' ')}
+                  </p>
+                )}
+
+                <div style={styles.previewSection}>
+                  <h5 style={styles.previewSectionTitle}>
+                    Ingredients ({(previewData.ingredients || '').split('\n').filter(l => l.trim()).length} items)
+                  </h5>
+                  <div style={styles.ingredientsList}>
+                    {(previewData.ingredients || '').split('\n').filter(l => l.trim()).map((ing, idx) => (
+                      <div key={idx} style={styles.ingredientItem}>• {ing}</div>
+                    ))}
+                  </div>
+                </div>
+
+                {previewData.instructions && (
+                  <div style={styles.previewSection}>
+                    <h5 style={styles.previewSectionTitle}>Instructions</h5>
+                    <p style={styles.instructionsText}>{previewData.instructions}</p>
+                  </div>
+                )}
+
+                <div style={styles.previewActions}>
+                  <button onClick={handleSaveImportedRecipe} style={styles.btnSave}>
+                    💾 Save Recipe & Add to Cart
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setActiveTab('import');
+                      setPreviewData(null);
+                    }} 
+                    style={styles.btnCancel}
+                  >
+                    ✏️ Edit
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -604,6 +896,18 @@ const styles = {
     fontSize: '13px'
   },
   
+  aiParsedBadge: {
+    marginTop: '8px',
+    padding: '4px 8px',
+    backgroundColor: '#dcfdf7',
+    color: '#059669',
+    fontSize: '12px',
+    borderRadius: '12px',
+    display: 'inline-block',
+    border: '1px solid #a7f3d0',
+    fontWeight: '500'
+  },
+  
   btnPrimary: {
     padding: '12px 24px',
     backgroundColor: '#FF6B35',
@@ -702,6 +1006,142 @@ const styles = {
     fontWeight: 'bold',
     cursor: 'pointer',
     transition: 'all 0.2s ease'
+  },
+  
+  btnDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed'
+  },
+  
+  importForm: {
+    padding: '24px'
+  },
+  
+  urlImportSection: {
+    padding: '24px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '12px',
+    border: '2px solid #e5e7eb',
+    marginTop: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px'
+  },
+  
+  methodTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#002244'
+  },
+  
+  methodDescription: {
+    margin: '0 0 16px 0',
+    fontSize: '14px',
+    color: '#6b7280'
+  },
+  
+  supportedSites: {
+    padding: '16px',
+    backgroundColor: '#e8f4fd',
+    borderRadius: '8px',
+    border: '1px solid #3b82f6',
+    margin: '16px 0'
+  },
+  
+  supportedTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#1e40af'
+  },
+  
+  sitesList: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '4px',
+    fontSize: '12px'
+  },
+  
+  site: {
+    color: '#3b82f6'
+  },
+  
+  errorMessage: {
+    padding: '12px 16px',
+    backgroundColor: '#fef2f2',
+    border: '1px solid #fecaca',
+    borderRadius: '8px',
+    color: '#dc2626',
+    fontSize: '14px',
+    marginTop: '16px'
+  },
+  
+  previewContainer: {
+    padding: '24px'
+  },
+  
+  previewCard: {
+    backgroundColor: 'white',
+    border: '2px solid #e5e7eb',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+  },
+  
+  previewRecipeName: {
+    margin: '0 0 8px 0',
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#002244'
+  },
+  
+  previewSource: {
+    margin: '0 0 20px 0',
+    fontSize: '14px',
+    color: '#6b7280',
+    fontStyle: 'italic'
+  },
+  
+  previewSection: {
+    marginBottom: '24px'
+  },
+  
+  previewSectionTitle: {
+    margin: '0 0 12px 0',
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#374151'
+  },
+  
+  ingredientsList: {
+    backgroundColor: '#f9fafb',
+    padding: '16px',
+    borderRadius: '8px',
+    border: '1px solid #e5e7eb'
+  },
+  
+  ingredientItem: {
+    padding: '4px 0',
+    fontSize: '14px',
+    color: '#4b5563'
+  },
+  
+  instructionsText: {
+    fontSize: '14px',
+    lineHeight: '1.6',
+    color: '#4b5563',
+    backgroundColor: '#f9fafb',
+    padding: '16px',
+    borderRadius: '8px',
+    border: '1px solid #e5e7eb'
+  },
+  
+  previewActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'center',
+    marginTop: '24px'
   }
 };
 

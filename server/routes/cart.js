@@ -657,4 +657,42 @@ router.put('/items/:itemId', (req, res) => {
   }
 });
 
+// DELETE /api/cart/items/:itemId - Delete individual item
+router.delete('/items/:itemId', (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const userId = getUserId(req);
+    
+    const userCart = cartItems.get(userId) || [];
+    const itemIndex = userCart.findIndex(item => item.id === itemId);
+    
+    if (itemIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: 'Item not found'
+      });
+    }
+    
+    const deletedItem = userCart[itemIndex];
+    userCart.splice(itemIndex, 1);
+    
+    cartItems.set(userId, userCart);
+    
+    console.log(`🗑️ Deleted item ${itemId} from cart for user ${userId}`);
+    
+    res.json({
+      success: true,
+      message: 'Item deleted successfully',
+      deletedItem: deletedItem,
+      remainingItems: userCart.length
+    });
+  } catch (error) {
+    console.error('❌ Error deleting cart item:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete item'
+    });
+  }
+});
+
 module.exports = router;

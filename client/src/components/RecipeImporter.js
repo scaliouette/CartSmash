@@ -135,34 +135,54 @@ function RecipeImporter({ onRecipeImported, onClose }) {
   const handleSaveRecipe = async () => {
     if (!previewData) return;
 
-    try {
-      // Parse ingredients to cart items
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const parseResponse = await fetch(`${API_URL}/api/cart/parse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          listText: previewData.ingredients,
-          userId: currentUser?.uid,
-          useAI: true,
-          options: {
-            context: 'recipe',
-            recipeInfo: {
-              name: previewData.name,
-              servings: previewData.servings || 4
-            }
-          }
-        })
-      });
+    setError(''); // Clear any previous errors
 
-      const parseData = await parseResponse.json();
+    try {
+      let parsedIngredients = [];
+
+      // Try to parse ingredients to cart items
+      try {
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+        const parseResponse = await fetch(`${API_URL}/api/cart/parse`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            listText: previewData.ingredients,
+            userId: currentUser?.uid,
+            useAI: true,
+            options: {
+              context: 'recipe',
+              recipeInfo: {
+                name: previewData.name,
+                servings: previewData.servings || 4
+              }
+            }
+          })
+        });
+
+        if (parseResponse.ok) {
+          const parseData = await parseResponse.json();
+          if (parseData.success && parseData.cart) {
+            parsedIngredients = parseData.cart;
+            console.log(`✅ Successfully parsed ${parsedIngredients.length} ingredients with AI`);
+          } else {
+            console.warn('AI parsing returned no results, saving recipe without parsed ingredients');
+          }
+        } else {
+          console.warn('AI parsing endpoint failed, saving recipe without parsed ingredients');
+        }
+      } catch (parseError) {
+        console.warn('AI parsing failed, saving recipe without parsed ingredients:', parseError.message);
+        // Continue with saving the recipe even if parsing fails
+      }
 
       const finalRecipe = {
         ...previewData,
         id: `recipe_${Date.now()}`,
-        items: parseData.cart || [],
-        parsedIngredients: parseData.cart || [],
-        createdAt: new Date().toISOString()
+        items: parsedIngredients,
+        parsedIngredients: parsedIngredients,
+        createdAt: new Date().toISOString(),
+        savedWithAI: parsedIngredients.length > 0
       };
 
       if (onRecipeImported) {
@@ -180,7 +200,7 @@ function RecipeImporter({ onRecipeImported, onClose }) {
       }
     } catch (err) {
       console.error('Failed to save recipe:', err);
-      setError('Failed to save recipe');
+      setError('Failed to save recipe: ' + err.message);
     }
   };
 

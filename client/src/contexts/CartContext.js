@@ -158,8 +158,31 @@ export const CartProvider = ({ children }) => {
   };
 
   // Remove from cart
-  const removeFromCart = (itemId) => {
+  const removeFromCart = async (itemId) => {
+    // Remove from local state immediately for better UX
     setCurrentCart(prev => prev.filter(item => item.id !== itemId));
+    
+    // Also remove from server if user is authenticated
+    try {
+      if (currentUser?.uid) {
+        const response = await fetch(`${API_URL}/api/cart/items/${itemId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'user-id': currentUser.uid
+          }
+        });
+        
+        if (!response.ok) {
+          console.warn('Failed to delete item from server, but removed locally');
+        } else {
+          console.log(`✅ Successfully deleted item ${itemId} from server`);
+        }
+      }
+    } catch (error) {
+      console.warn('Error deleting item from server:', error.message);
+      // Don't re-add item to cart, keep the optimistic removal
+    }
   };
 
   // Clear entire cart
