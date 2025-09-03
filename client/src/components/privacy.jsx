@@ -1,12 +1,6 @@
 import React, { useEffect } from 'react';
 
 // Icon components (replacing lucide-react)
-const ArrowLeft = ({ style }) => (
-  <svg style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-  </svg>
-);
-
 const ExternalLink = ({ style }) => (
   <svg style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -38,7 +32,7 @@ const Database = ({ style }) => (
   </svg>
 );
 
-const Privacy = ({ onBack }) => {
+const Privacy = () => {
   useEffect(() => {
     // Option 1: Auto-redirect to external privacy policy
     // Uncomment this if you want automatic redirect
@@ -46,14 +40,6 @@ const Privacy = ({ onBack }) => {
     
     window.scrollTo(0, 0);
   }, []);
-
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      window.history.back();
-    }
-  };
 
   const handleViewPrivacyPolicy = () => {
     window.open('https://www.freeprivacypolicy.com/live/f3f10b15-024b-43c8-baa6-2e33642fafd5', '_blank');
@@ -71,17 +57,6 @@ const Privacy = ({ onBack }) => {
     padding: '32px 16px'
   };
 
-  const backButtonStyle = {
-    marginBottom: '24px',
-    display: 'flex',
-    alignItems: 'center',
-    color: '#6b7280',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '16px',
-    transition: 'color 0.2s'
-  };
 
   const cardStyle = {
     backgroundColor: '#ffffff',

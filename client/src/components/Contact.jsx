@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
 // Icon components
-const ArrowLeft = ({ style }) => (
-  <svg style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-  </svg>
-);
-
 const Mail = ({ style }) => (
   <svg style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -43,7 +37,7 @@ const ExternalLink = ({ style }) => (
   </svg>
 );
 
-const Contact = ({ onBack }) => {
+const Contact = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -58,13 +52,6 @@ const Contact = ({ onBack }) => {
     window.scrollTo(0, 0);
   }, []);
 
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      window.history.back();
-    }
-  };
 
   const handleChange = (e) => {
     setFormData(prev => ({
@@ -121,17 +108,6 @@ const Contact = ({ onBack }) => {
     padding: '64px 16px'
   };
 
-  const backButtonStyle = {
-    marginBottom: '24px',
-    display: 'flex',
-    alignItems: 'center',
-    color: 'rgba(255,255,255,0.9)',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '16px',
-    transition: 'color 0.2s'
-  };
 
   const mainContentStyle = {
     maxWidth: '1024px',

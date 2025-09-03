@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
-function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, onRecipeDelete }) {
+function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, onRecipeDelete, editingRecipe: initialEditingRecipe, initialTab = 'browse' }) {
   const [recipes, setRecipes] = useState([]);
-  const [activeTab, setActiveTab] = useState('browse');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [editingRecipe, setEditingRecipe] = useState(null);
   const [quickAddText, setQuickAddText] = useState('');
   const [newRecipe, setNewRecipe] = useState({
@@ -18,6 +18,19 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
   useEffect(() => {
     loadRecipes();
   }, [savedRecipes]);
+
+  // Handle initial editing recipe from props
+  useEffect(() => {
+    if (initialEditingRecipe) {
+      setEditingRecipe(initialEditingRecipe);
+      setNewRecipe({
+        name: initialEditingRecipe.name || '',
+        ingredients: initialEditingRecipe.ingredients || '',
+        instructions: initialEditingRecipe.instructions || ''
+      });
+      setActiveTab('edit');
+    }
+  }, [initialEditingRecipe]);
 
   const loadRecipes = async () => {
     setLoading(true);
@@ -175,81 +188,93 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal recipe-manager-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2 className="modal-title">📖 Recipe Manager</h2>
-          <button onClick={onClose} className="modal-close">×</button>
+    <div style={styles.modalOverlay} onClick={onClose}>
+      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div style={styles.modalHeader}>
+          <h2 style={styles.modalTitle}>📖 Recipe Manager</h2>
+          <button onClick={onClose} style={styles.modalClose}>×</button>
         </div>
 
-        <div className="recipe-tabs">
+        <div style={styles.recipeTabs}>
           <button
             onClick={() => setActiveTab('browse')}
-            className={`recipe-tab ${activeTab === 'browse' ? 'active' : ''}`}
+            style={{
+              ...styles.recipeTab,
+              ...(activeTab === 'browse' ? styles.recipeTabActive : {})
+            }}
           >
             📚 My Recipes ({recipes.length})
           </button>
           <button
             onClick={() => setActiveTab('add')}
-            className={`recipe-tab ${activeTab === 'add' ? 'active' : ''}`}
+            style={{
+              ...styles.recipeTab,
+              ...(activeTab === 'add' ? styles.recipeTabActive : {})
+            }}
           >
             ➕ Add Recipe
           </button>
           <button
             onClick={() => setActiveTab('quick')}
-            className={`recipe-tab ${activeTab === 'quick' ? 'active' : ''}`}
+            style={{
+              ...styles.recipeTab,
+              ...(activeTab === 'quick' ? styles.recipeTabActive : {})
+            }}
           >
             ⚡ Quick Add
           </button>
           {editingRecipe && (
             <button
               onClick={() => setActiveTab('edit')}
-              className={`recipe-tab ${activeTab === 'edit' ? 'active' : ''}`}
+              style={{
+                ...styles.recipeTab,
+                ...(activeTab === 'edit' ? styles.recipeTabActive : {})
+              }}
             >
               ✏️ Edit Recipe
             </button>
           )}
         </div>
 
-        <div className="modal-content recipe-modal-content">
+        <div style={styles.modalContent}>
           {loading && (
-            <div className="loading-state">
-              <div className="spinner"></div>
+            <div style={styles.loadingState}>
+              <div style={styles.spinner}></div>
               <p>Loading recipes...</p>
             </div>
           )}
 
           {/* Browse Tab */}
           {!loading && activeTab === 'browse' && (
-            <div className="recipe-browser">
+            <div style={styles.recipeBrowser}>
               {recipes.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">📖</div>
+                <div style={styles.emptyState}>
+                  <div style={styles.emptyIcon}>📖</div>
                   <p>No recipes saved yet</p>
                   <button 
                     onClick={() => setActiveTab('quick')}
-                    className="btn btn-validate"
+                    style={styles.btnPrimary}
                   >
                     Add Your First Recipe
                   </button>
                 </div>
               ) : (
-                <div className="recipe-grid">
+                <div style={styles.recipeGrid}>
                   {recipes.map(recipe => (
-                    <div key={recipe.id} className="recipe-card-enhanced">
-                      <div className="recipe-card-header">
-                        <h3 className="recipe-name">{recipe.name}</h3>
-                        <div className="recipe-actions-inline">
+                    <div key={recipe.id} style={styles.recipeCard}>
+                      <div style={styles.recipeCardHeader}>
+                        <h3 style={styles.recipeName}>{recipe.name}</h3>
+                        <div style={styles.recipeActionsInline}>
                           <button 
                             onClick={() => handleEditRecipe(recipe)}
-                            className="btn-icon"
+                            style={styles.btnIcon}
                             title="Edit"
                           >
                             ✏️
                           </button>
                           <button 
                             onClick={() => handleDeleteRecipe(recipe.id)}
-                            className="btn-icon"
+                            style={styles.btnIconDelete}
                             title="Delete"
                           >
                             🗑️
@@ -257,14 +282,14 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
                         </div>
                       </div>
                       
-                      <div className="recipe-preview">
+                      <div style={styles.recipePreview}>
                         <strong>Ingredients:</strong>
-                        <div className="ingredients-preview">
+                        <div style={styles.ingredientsPreview}>
                           {(recipe.ingredients || '').split('\n').filter(i => i.trim()).slice(0, 3).map((ing, idx) => (
                             <div key={idx}>• {ing}</div>
                           ))}
                           {(recipe.ingredients || '').split('\n').filter(i => i.trim()).length > 3 && (
-                            <div className="more-text">
+                            <div style={styles.moreText}>
                               ...and {(recipe.ingredients || '').split('\n').filter(i => i.trim()).length - 3} more
                             </div>
                           )}
@@ -273,7 +298,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
                       
                       <button 
                         onClick={() => handleUseRecipe(recipe)}
-                        className="btn btn-primary full-width"
+                        style={styles.btnPrimaryFullWidth}
                       >
                         🛒 Add to Cart
                       </button>
@@ -286,15 +311,15 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
 
           {/* Add/Edit Tab */}
           {(activeTab === 'add' || activeTab === 'edit') && (
-            <div className="recipe-form">
-              <h3>{editingRecipe ? 'Edit Recipe' : 'Add New Recipe'}</h3>
+            <div style={styles.recipeForm}>
+              <h3 style={styles.formTitle}>{editingRecipe ? 'Edit Recipe' : 'Add New Recipe'}</h3>
               
               <input
                 type="text"
                 placeholder="Recipe Name"
                 value={newRecipe.name}
                 onChange={(e) => setNewRecipe({...newRecipe, name: e.target.value})}
-                className="input"
+                style={styles.formInput}
                 autoFocus
               />
               
@@ -302,7 +327,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
                 placeholder="Ingredients (one per line)"
                 value={newRecipe.ingredients}
                 onChange={(e) => setNewRecipe({...newRecipe, ingredients: e.target.value})}
-                className="textarea"
+                style={styles.formTextarea}
                 rows="10"
               />
               
@@ -310,14 +335,14 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
                 placeholder="Instructions (optional)"
                 value={newRecipe.instructions}
                 onChange={(e) => setNewRecipe({...newRecipe, instructions: e.target.value})}
-                className="textarea"
+                style={styles.formTextarea}
                 rows="5"
               />
               
-              <div className="form-actions">
+              <div style={styles.formActions}>
                 <button 
                   onClick={() => handleSaveRecipe()}
-                  className="btn btn-primary"
+                  style={styles.btnSave}
                 >
                   💾 {editingRecipe ? 'Update' : 'Save'} Recipe
                 </button>
@@ -327,7 +352,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
                     setNewRecipe({ name: '', ingredients: '', instructions: '' });
                     setEditingRecipe(null);
                   }}
-                  className="btn btn-secondary"
+                  style={styles.btnCancel}
                 >
                   Cancel
                 </button>
@@ -372,5 +397,312 @@ Chicken Stir Fry
     </div>
   );
 }
+
+const styles = {
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 2, 68, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+    backdropFilter: 'blur(4px)'
+  },
+  
+  modal: {
+    background: 'white',
+    borderRadius: '20px',
+    width: '90%',
+    maxWidth: '900px',
+    maxHeight: '90vh',
+    overflow: 'hidden',
+    position: 'relative',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+    border: '3px solid #002244'
+  },
+  
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '24px 32px',
+    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
+    color: 'white',
+    position: 'relative'
+  },
+  
+  modalTitle: {
+    color: 'white',
+    fontSize: '28px',
+    fontWeight: 'bold',
+    margin: 0,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  
+  modalClose: {
+    width: '36px',
+    height: '36px',
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: '2px solid rgba(255, 255, 255, 0.3)',
+    borderRadius: '8px',
+    color: 'white',
+    fontSize: '24px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.3s ease',
+    fontWeight: 'bold',
+    lineHeight: 1
+  },
+  
+  recipeTabs: {
+    display: 'flex',
+    backgroundColor: '#f8f9fa',
+    borderBottom: '3px solid #FF6B35'
+  },
+  
+  recipeTab: {
+    flex: 1,
+    padding: '16px 20px',
+    border: 'none',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
+    fontSize: '15px',
+    fontWeight: '600',
+    color: '#6b7280',
+    transition: 'all 0.3s ease',
+    borderBottom: '3px solid transparent'
+  },
+  
+  recipeTabActive: {
+    backgroundColor: 'white',
+    color: '#FF6B35',
+    borderBottom: '3px solid #FF6B35',
+    marginBottom: '-3px'
+  },
+  
+  modalContent: {
+    padding: '32px',
+    maxHeight: 'calc(90vh - 200px)',
+    overflowY: 'auto'
+  },
+  
+  loadingState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '40px',
+    gap: '16px'
+  },
+  
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f3f4f6',
+    borderTop: '4px solid #FF6B35',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  },
+  
+  recipeBrowser: {
+    minHeight: '300px'
+  },
+  
+  emptyState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '60px 20px',
+    textAlign: 'center',
+    gap: '20px'
+  },
+  
+  emptyIcon: {
+    fontSize: '64px',
+    opacity: 0.6
+  },
+  
+  recipeGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+    gap: '24px'
+  },
+  
+  recipeCard: {
+    background: 'white',
+    border: '2px solid #e5e7eb',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    transition: 'all 0.3s ease'
+  },
+  
+  recipeCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '16px'
+  },
+  
+  recipeName: {
+    margin: 0,
+    fontSize: '20px',
+    fontWeight: 'bold',
+    color: '#002244',
+    flex: 1
+  },
+  
+  recipeActionsInline: {
+    display: 'flex',
+    gap: '8px',
+    marginLeft: '12px'
+  },
+  
+  btnIcon: {
+    padding: '8px',
+    backgroundColor: '#FF6B35',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    transition: 'all 0.2s ease'
+  },
+  
+  btnIconDelete: {
+    padding: '8px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    transition: 'all 0.2s ease'
+  },
+  
+  recipePreview: {
+    marginBottom: '20px'
+  },
+  
+  ingredientsPreview: {
+    marginTop: '8px',
+    fontSize: '14px',
+    lineHeight: '1.6',
+    color: '#4b5563'
+  },
+  
+  moreText: {
+    fontStyle: 'italic',
+    color: '#9ca3af',
+    fontSize: '13px'
+  },
+  
+  btnPrimary: {
+    padding: '12px 24px',
+    backgroundColor: '#FF6B35',
+    color: 'white',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  
+  btnPrimaryFullWidth: {
+    width: '100%',
+    padding: '14px 24px',
+    backgroundColor: '#FF6B35',
+    color: 'white',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px'
+  },
+  
+  recipeForm: {
+    padding: '24px',
+    backgroundColor: '#fafafa',
+    borderRadius: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px'
+  },
+  
+  formTitle: {
+    margin: 0,
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#002244',
+    textAlign: 'center'
+  },
+  
+  formInput: {
+    padding: '12px 16px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    fontSize: '16px',
+    outline: 'none',
+    transition: 'border-color 0.2s ease'
+  },
+  
+  formTextarea: {
+    padding: '12px 16px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontFamily: 'inherit',
+    resize: 'vertical',
+    outline: 'none',
+    transition: 'border-color 0.2s ease',
+    minHeight: '100px'
+  },
+  
+  formActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'center'
+  },
+  
+  btnSave: {
+    padding: '12px 24px',
+    backgroundColor: '#FF6B35',
+    color: 'white',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  
+  btnCancel: {
+    padding: '12px 24px',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  }
+};
 
 export default RecipeManager;

@@ -390,14 +390,17 @@ function GroceryListForm({
       )}
 
       <div className="hero-section" style={styles.heroSection}>
-        <h1 className="hero-title" style={styles.heroTitle}>
-          CARTSMASH
-          <br />
-          <span className="hero-accent" style={styles.heroAccent}>Shop Smarter, Save Faster</span>
-        </h1>
-        <p className="hero-subtitle" style={styles.heroSubtitle}>
-          AI-powered grocery parsing that understands what you actually want to buy.
-        </p>
+        <div style={styles.heroContent}>
+          <h1 className="hero-title" style={styles.heroTitle}>
+            CARTSMASH
+          </h1>
+          <h2 className="hero-subtitle-main" style={styles.heroSubtitleMain}>
+            Shop Smarter, Save Faster
+          </h2>
+          <p className="hero-description" style={styles.heroDescription}>
+            AI-powered grocery parsing that understands what you actually want to buy.
+          </p>
+        </div>
       </div>
 
       {/* Unified AI Assistant Container */}
@@ -582,7 +585,7 @@ Or paste any grocery list directly!"
                   <span>PROCESSING...</span>
                 </div>
               ) : (
-                '🏈 CARTSMASH IT! 🏈'
+                'CARTSMASH IT!'
               )}
             </button>
           </div>
@@ -742,30 +745,50 @@ Or paste any grocery list directly!"
 const styles = {
   heroSection: {
     background: 'linear-gradient(135deg, #002244 0%, #003366 100%)',
-    padding: '60px 20px',
+    color: 'white',
+    padding: '64px 16px',
     borderRadius: '16px',
     marginBottom: '30px',
-    textAlign: 'center',
     boxShadow: '0 10px 30px rgba(0, 2, 68, 0.3)'
+  },
+
+  heroContent: {
+    maxWidth: '896px',
+    margin: '0 auto',
+    textAlign: 'center'
   },
 
   heroTitle: {
     fontSize: '48px',
     fontWeight: 'bold',
     color: 'white',
-    margin: '0 0 10px 0',
-    textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+    margin: '0 0 16px 0',
+    textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+    '@media (min-width: 768px)': {
+      fontSize: '64px'
+    }
   },
 
-  heroAccent: {
+  heroSubtitleMain: {
+    fontSize: '32px',
+    fontWeight: '600',
     color: '#FB4F14',
-    textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+    margin: '0 0 24px 0',
+    textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+    '@media (min-width: 768px)': {
+      fontSize: '36px'
+    }
   },
 
-  heroSubtitle: {
+  heroDescription: {
     fontSize: '18px',
     color: 'rgba(255, 255, 255, 0.9)',
-    margin: 0
+    maxWidth: '512px',
+    margin: '0 auto',
+    lineHeight: '1.6',
+    '@media (min-width: 768px)': {
+      fontSize: '20px'
+    }
   },
 
   unifiedAssistantContainer: {

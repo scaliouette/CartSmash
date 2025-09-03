@@ -18,6 +18,7 @@ function MyAccount({
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [showRecipeManager, setShowRecipeManager] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState(null);
   const [showMealPlanModal, setShowMealPlanModal] = useState(false);
   const [editingMealPlan, setEditingMealPlan] = useState(null);
   const [localMealPlans, setLocalMealPlans] = useState([]);
@@ -71,6 +72,11 @@ function MyAccount({
     if (window.confirm(`Delete recipe "${recipeName}"?`)) {
       deleteRecipe(recipeId);
     }
+  };
+
+  const handleEditRecipe = (recipe) => {
+    setEditingRecipe(recipe);
+    setShowRecipeManager(true);
   };
 
   const handleDeleteMealPlan = async (planId, planName) => {
@@ -404,6 +410,12 @@ function MyAccount({
                   🛒 Add to Cart
                 </button>
                 <button 
+                  onClick={() => handleEditRecipe(recipe)}
+                  style={styles.editRecipeButton}
+                >
+                  ✏️
+                </button>
+                <button 
                   onClick={() => handleDeleteRecipe(recipe.id, recipe.name)}
                   style={styles.deleteRecipeButton}
                 >
@@ -472,9 +484,15 @@ function MyAccount({
 
       {showRecipeManager && (
         <RecipeManager 
-          onClose={() => setShowRecipeManager(false)}
+          onClose={() => {
+            setShowRecipeManager(false);
+            setEditingRecipe(null);
+          }}
+          editingRecipe={editingRecipe}
+          initialTab={editingRecipe ? 'edit' : 'add'}
           onRecipeSelect={(recipe) => {
             setShowRecipeManager(false);
+            setEditingRecipe(null);
             if (onRecipeSelect) {
               onRecipeSelect(recipe);
             }
@@ -1440,6 +1458,18 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
     fontWeight: 'bold'
+  },
+
+  editRecipeButton: {
+    padding: '10px',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '16px',
+    transition: 'all 0.2s'
   },
 
   deleteRecipeButton: {
