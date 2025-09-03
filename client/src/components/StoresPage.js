@@ -406,7 +406,7 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
                 <div className="ready-actions">
                   <button 
                     className="start-shopping-btn"
-                    onClick={() => setCurrentView('home')}
+                    onClick={onBackToHome}
                   >
                     🛒 Start Shopping
                   </button>

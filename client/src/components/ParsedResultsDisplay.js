@@ -589,6 +589,46 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
     alert('List copied to clipboard!');
   };
 
+  const handleSaveList = () => {
+    const listName = prompt('Enter a name for this list:', `Shopping List ${new Date().toLocaleDateString()}`);
+    if (!listName) return;
+    
+    try {
+      // Create list object
+      const newList = {
+        id: `list_${Date.now()}`,
+        name: listName,
+        items: [...items],
+        itemCount: items.length,
+        createdAt: new Date().toISOString(),
+        userId: currentUser?.uid || 'guest'
+      };
+      
+      // Save to localStorage
+      const existingLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
+      const updatedLists = [...existingLists, newList];
+      localStorage.setItem('cartsmash-lists', JSON.stringify(updatedLists));
+      
+      // Try to save to server if user is logged in
+      if (currentUser?.uid) {
+        const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+        fetch(`${API_URL}/api/cart/save-list`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'user-id': currentUser.uid 
+          },
+          body: JSON.stringify(newList)
+        }).catch(err => console.error('Failed to save to server, but saved locally:', err));
+      }
+      
+      alert(`✅ List "${listName}" saved successfully!`);
+    } catch (error) {
+      console.error('Error saving list:', error);
+      alert('Failed to save list. Please try again.');
+    }
+  };
+
   const renderItem = (item, index) => {
     const isUpdating = updatingItems.has(item.id);
     const isFetchingPrice = fetchingPrices.has(item.id);
@@ -947,6 +987,13 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
           style={styles.primaryBtn}
         >
           🛍️ Continue to Check Out
+        </button>
+        
+        <button
+          onClick={handleSaveList}
+          style={styles.secondaryBtn}
+        >
+          💾 Save List
         </button>
         
         <button

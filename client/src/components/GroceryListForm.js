@@ -27,7 +27,6 @@ function GroceryListForm({
   setCurrentCart, 
   savedRecipes, 
   setSavedRecipes,
-  saveCartAsList,
   saveRecipe,
   loadRecipeToCart
 }) {
@@ -447,15 +446,6 @@ function GroceryListForm({
     return { name, ingredients, instructions };
   };
 
-  const handleSaveList = () => {
-    const listName = prompt('Enter a name for this list:', `Shopping List ${new Date().toLocaleDateString()}`);
-    if (!listName) return;
-    
-    const list = saveCartAsList(listName);
-    if (list) {
-      alert(`✅ List "${listName}" saved successfully!`);
-    }
-  };
 
   const handleItemsChange = (updatedItems) => {
     setCurrentCart(updatedItems);
@@ -526,13 +516,6 @@ function GroceryListForm({
           <div style={styles.actionButtons}>
             <button onClick={handleNewList} style={styles.actionBtn}>
               📝 Clear List
-            </button>
-            <button 
-              onClick={handleSaveList} 
-              style={{...styles.actionBtn, ...(currentCart.length === 0 ? styles.disabledBtn : {})}}
-              disabled={currentCart.length === 0}
-            >
-              💾 Save List
             </button>
             <button onClick={() => setShowRecipeManager(true)} style={styles.actionBtn}>
               📖 Recipe Manager
