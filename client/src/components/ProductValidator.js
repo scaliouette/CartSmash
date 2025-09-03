@@ -149,8 +149,12 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
       const item = localItems.find(i => i.id === itemId);
       const editedFields = editedItems.get(itemId) || {};
       
-      // Call backend to re-validate with AI
+      // Call backend to re-validate with AI with timeout
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(`${API_URL}/api/ai/validate-products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -159,8 +163,11 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
             ...item,
             ...editedFields
           }]
-        })
+        }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       
       if (response.ok) {
         const data = await response.json();
@@ -190,7 +197,11 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
       
     } catch (error) {
       console.error('Validation failed:', error);
-      alert('Validation failed. Please try again.');
+      if (error.name === 'AbortError') {
+        alert('Validation timed out. Please try again with fewer items or check your connection.');
+      } else {
+        alert('Validation failed. Please try again.');
+      }
     } finally {
       setValidatingItems(prev => {
         const newSet = new Set(prev);
@@ -223,15 +234,22 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
         };
       });
       
-      // Call backend to validate all with AI
+      // Call backend to validate all with AI with timeout
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for bulk
+      
       const response = await fetch(`${API_URL}/api/ai/validate-products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           products: productsToValidate
-        })
+        }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       
       if (response.ok) {
         const data = await response.json();
@@ -261,7 +279,11 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
       
     } catch (error) {
       console.error('Bulk validation failed:', error);
-      alert('Failed to validate items. Please try again.');
+      if (error.name === 'AbortError') {
+        alert('Validation timed out. Please try again with fewer items or check your connection.');
+      } else {
+        alert('Failed to validate items. Please try again.');
+      }
     } finally {
       setValidatingAll(false);
     }

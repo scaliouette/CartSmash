@@ -1,10 +1,12 @@
 // client/src/components/KrogerOrderFlow.js - FIXED VERSION
 import React, { useState, useEffect, useCallback } from 'react';
 import LoadingSpinner, { ButtonSpinner } from './LoadingSpinner';
+import { useAuth } from '../contexts/AuthContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
 
 function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
+  const { signInWithGoogle } = useAuth();
   const [step, setStep] = useState('auth');
   const [selectedStore, setSelectedStore] = useState(null);
   const [nearbyStores, setNearbyStores] = useState([]);
@@ -340,7 +342,22 @@ function KrogerOrderFlow({ cartItems, currentUser, onClose }) {
               
               {!currentUser || !currentUser.uid ? (
                 <div style={styles.warningBox}>
-                  ⚠️ Please log in to your account first before connecting to Kroger
+                  <div style={styles.warningMessage}>
+                    ⚠️ Please log in to your account first before connecting to Kroger
+                  </div>
+                  <button
+                    onClick={signInWithGoogle}
+                    style={styles.loginButton}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <ButtonSpinner color="white" /> Signing in...
+                      </>
+                    ) : (
+                      <>🔐 Sign in with Google</>
+                    )}
+                  </button>
                 </div>
               ) : (
                 <>
@@ -777,13 +794,36 @@ const styles = {
   },
 
   warningBox: {
-    fontSize: '14px',
-    color: '#92400e',
     backgroundColor: '#fef3c7',
-    padding: '12px 16px',
+    padding: '16px',
     borderRadius: '8px',
     border: '1px solid #fbbf24',
-    margin: 0
+    margin: 0,
+    textAlign: 'center'
+  },
+
+  warningMessage: {
+    fontSize: '16px',
+    color: '#92400e',
+    marginBottom: '12px',
+    fontWeight: '500'
+  },
+
+  loginButton: {
+    padding: '12px 24px',
+    backgroundColor: '#002244',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    justifyContent: 'center',
+    margin: '0 auto',
+    transition: 'all 0.2s ease'
   },
 
   authDescription: {

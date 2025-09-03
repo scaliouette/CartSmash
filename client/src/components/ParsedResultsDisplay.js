@@ -482,34 +482,32 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
   };
 
   const handleRemoveItem = async (itemId) => {
-    if (window.confirm('Are you sure you want to remove this item?')) {
-      setUpdatingItems(prev => new Set([...prev, itemId]));
+    setUpdatingItems(prev => new Set([...prev, itemId]));
+    
+    try {
+      // Remove from local state immediately
+      const updatedItems = items.filter(item => item.id !== itemId);
+      onItemsChange(updatedItems);
       
-      try {
-        // Remove from local state immediately
-        const updatedItems = items.filter(item => item.id !== itemId);
-        onItemsChange(updatedItems);
-        
-        // Clear any ongoing price fetch for this item
-        setFetchingPrices(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(itemId);
-          return newSet;
-        });
-        
-        // Update localStorage
-        localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
-        
-        console.log(`✅ Removed item ${itemId} from shopping list display`);
-      } catch (error) {
-        console.error('Error removing item from display:', error);
-      } finally {
-        setUpdatingItems(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(itemId);
-          return newSet;
-        });
-      }
+      // Clear any ongoing price fetch for this item
+      setFetchingPrices(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+      
+      // Update localStorage
+      localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+      
+      console.log(`✅ Removed item ${itemId} from shopping list display`);
+    } catch (error) {
+      console.error('Error removing item from display:', error);
+    } finally {
+      setUpdatingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
     }
   };
 
