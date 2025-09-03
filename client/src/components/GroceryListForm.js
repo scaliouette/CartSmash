@@ -618,7 +618,7 @@ function GroceryListForm({
                 </button>
               </div>
             </div>
-            /}
+            */}
           </div>
         </div>
 
