@@ -95,11 +95,16 @@ router.post('/claude', async (req, res) => {
       }
     }
     
-    // Enhanced prompt - show full recipe if URL was scraped, otherwise create grocery list
+    // Enhanced prompt - detect content type and format accordingly
     const wasRecipeScraped = urls && urls.length > 0 && processedPrompt !== prompt;
+    const isMealPlanning = processedPrompt.toLowerCase().match(/meal plan|weekly plan|day plan|menu|dinner recipes|recipe|breakfast.*lunch.*dinner/);
+    const isBudgetPlanning = processedPrompt.toLowerCase().match(/budget|\\$\d+|\d+\s*dollar/);
     
-    const enhancedPrompt = wasRecipeScraped 
-      ? `${processedPrompt}
+    let enhancedPrompt;
+    
+    if (wasRecipeScraped) {
+      // Full recipe display for scraped URLs
+      enhancedPrompt = `${processedPrompt}
 
 Please display this recipe in a clear, organized format with:
 1. Recipe title and description
@@ -107,8 +112,23 @@ Please display this recipe in a clear, organized format with:
 3. Step-by-step instructions
 4. Cooking time, prep time, and servings if available
 
-Format it nicely for easy reading and cooking.`
-      : `${processedPrompt}
+Format it nicely for easy reading and cooking.`;
+    } else if (isMealPlanning || isBudgetPlanning) {
+      // Detailed meal planning format
+      enhancedPrompt = `${processedPrompt}
+
+Please provide a comprehensive, well-structured response with:
+
+1. **Complete meal plans** with daily breakdowns (Breakfast/Lunch/Dinner/Snacks)
+2. **Specific recipes** with ingredients and basic instructions
+3. **Organized grocery list** grouped by category (Produce, Proteins & Dairy, Grains & Bakery, etc.)
+4. **Quantities and measurements** for all items
+5. **Budget considerations** and cost-saving tips if applicable
+
+Format with clear headings, numbered days, and organized sections. Make it practical and actionable for shopping and cooking.`;
+    } else {
+      // Regular grocery list format
+      enhancedPrompt = `${processedPrompt}
 
 Please provide a detailed response and then include a clear, specific grocery shopping list with quantities. Format grocery items as bulleted list with specific quantities:
 
@@ -118,6 +138,7 @@ Please provide a detailed response and then include a clear, specific grocery sh
 • 1 bag (16 oz) quinoa
 
 Focus on specific, measurable items that can be purchased at a grocery store. Avoid meal descriptions, cooking instructions, or generic terms.`;
+    }
     
     let responseText, usage, model;
     
@@ -261,10 +282,16 @@ router.post('/chatgpt', async (req, res) => {
       }
     }
     
-    // Enhanced prompt - show full recipe if URL was scraped, otherwise create grocery list
+    // Enhanced prompt - detect content type and format accordingly
     const wasRecipeScraped = urls && urls.length > 0 && processedPrompt !== prompt;
-    const enhancedPrompt = wasRecipeScraped 
-      ? `${processedPrompt}
+    const isMealPlanning = processedPrompt.toLowerCase().match(/meal plan|weekly plan|day plan|menu|dinner recipes|recipe|breakfast.*lunch.*dinner/);
+    const isBudgetPlanning = processedPrompt.toLowerCase().match(/budget|\\$\d+|\d+\s*dollar/);
+    
+    let enhancedPrompt;
+    
+    if (wasRecipeScraped) {
+      // Full recipe display for scraped URLs
+      enhancedPrompt = `${processedPrompt}
 
 Please display this recipe in a clear, organized format with:
 1. Recipe title and description
@@ -272,8 +299,23 @@ Please display this recipe in a clear, organized format with:
 3. Step-by-step instructions
 4. Cooking time, prep time, and servings if available
 
-Format it nicely for easy reading and cooking.`
-      : `${processedPrompt}
+Format it nicely for easy reading and cooking.`;
+    } else if (isMealPlanning || isBudgetPlanning) {
+      // Detailed meal planning format
+      enhancedPrompt = `${processedPrompt}
+
+Please provide a comprehensive, well-structured response with:
+
+1. **Complete meal plans** with daily breakdowns (Breakfast/Lunch/Dinner/Snacks)
+2. **Specific recipes** with ingredients and basic instructions
+3. **Organized grocery list** grouped by category (Produce, Proteins & Dairy, Grains & Bakery, etc.)
+4. **Quantities and measurements** for all items
+5. **Budget considerations** and cost-saving tips if applicable
+
+Format with clear headings, numbered days, and organized sections. Make it practical and actionable for shopping and cooking.`;
+    } else {
+      // Regular grocery list format
+      enhancedPrompt = `${processedPrompt}
 
 Please provide a helpful response and include a specific shopping list with measurable quantities. Format like:
 • 2 lbs ground beef
@@ -282,6 +324,7 @@ Please provide a helpful response and include a specific shopping list with meas
 • 1 bag (16 oz) pasta
 
 Focus on specific, measurable grocery items that can be easily found in a store. Avoid meal descriptions or cooking steps.`;
+    }
     
     let responseText, usage, model;
     
