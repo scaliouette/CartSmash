@@ -16,6 +16,16 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
       console.log('🔍 First few items:', items.slice(0, 3));
     }
   }, [currentUser, items]);
+
+  // Debug logging for parsingStats and recipe display
+  useEffect(() => {
+    console.log('🔍 ParsedResultsDisplay received parsingStats:', {
+      hasParsingStats: !!parsingStats,
+      hasSourceRecipe: !!parsingStats?.sourceRecipe,
+      sourceRecipeLength: parsingStats?.sourceRecipe?.length,
+      firstChars: parsingStats?.sourceRecipe?.substring(0, 50)
+    });
+  }, [parsingStats]);
   
   const [sortBy, setSortBy] = useState('confidence');
   const [filterBy, setFilterBy] = useState('all');
@@ -800,6 +810,44 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
         )}
       </div>
 
+      {/* Recipe Display */}
+      {(() => {
+        // Get recipe from either parsingStats or first item
+        const sourceRecipe = parsingStats?.sourceRecipe || items[0]?._sourceRecipe;
+        console.log('🔍 Recipe display check:', {
+          fromParsingStats: !!parsingStats?.sourceRecipe,
+          fromFirstItem: !!items[0]?._sourceRecipe,
+          finalDecision: !!sourceRecipe
+        });
+        return sourceRecipe;
+      })() && (
+        <div style={styles.recipeDisplay}>
+          <div style={styles.recipeHeader}>
+            <h4 style={styles.recipeTitle}>📝 Original Recipe</h4>
+            <button 
+              style={styles.recipeToggleButton}
+              onClick={() => {
+                const recipeContent = document.getElementById('recipe-content');
+                const isExpanded = recipeContent.style.maxHeight === 'none';
+                recipeContent.style.maxHeight = isExpanded ? '100px' : 'none';
+                recipeContent.style.overflow = isExpanded ? 'hidden' : 'visible';
+                document.querySelector('.recipe-toggle-text').textContent = isExpanded ? 'Show Full Recipe' : 'Show Less';
+              }}
+            >
+              <span className="recipe-toggle-text">Show Full Recipe</span>
+            </button>
+          </div>
+          <div 
+            id="recipe-content"
+            style={styles.recipeContent}
+          >
+            <pre style={styles.recipeText}>
+              {parsingStats?.sourceRecipe || items[0]?._sourceRecipe}
+            </pre>
+          </div>
+        </div>
+      )}
+
       {/* Batch Operations Bar */}
       {(selectedItems.size > 0 || items.some(i => (i.confidence || 0) < 0.6)) && (
         <div style={styles.batchOperationsBar}>
@@ -1353,6 +1401,59 @@ const styles = {
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '500'
+  },
+
+  // Recipe Display Styles
+  recipeDisplay: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    border: '1px solid #e9ecef'
+  },
+
+  recipeHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 16px',
+    borderBottom: '1px solid #e9ecef',
+    backgroundColor: '#e9ecef'
+  },
+
+  recipeTitle: {
+    margin: 0,
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#002244'
+  },
+
+  recipeToggleButton: {
+    padding: '6px 12px',
+    backgroundColor: '#6c757d',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '500',
+    transition: 'background-color 0.2s'
+  },
+
+  recipeContent: {
+    padding: '16px',
+    maxHeight: '100px',
+    overflow: 'hidden',
+    transition: 'max-height 0.3s ease-in-out'
+  },
+
+  recipeText: {
+    margin: 0,
+    fontSize: '14px',
+    fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+    lineHeight: '1.4',
+    color: '#495057',
+    whiteSpace: 'pre-wrap',
+    wordWrap: 'break-word'
   },
 
   refreshButton: {

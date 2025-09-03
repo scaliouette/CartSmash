@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const AIProductParser = require('../utils/aiProductParser');
+const { extractRecipe, toCartSmashFormat } = require('../utils/recipeScraper');
 
 console.log('🤖 Loading Enhanced AI routes with intelligent parsing...');
 
@@ -69,8 +70,45 @@ router.post('/claude', async (req, res) => {
       });
     }
     
-    // Enhanced prompt for better grocery list generation
-    const enhancedPrompt = `${prompt}
+    // Check if prompt contains URL and scrape recipe
+    const urlRegex = /https?:\/\/[^\s]+/gi;
+    const urls = prompt.match(urlRegex);
+    let processedPrompt = prompt;
+    
+    if (urls && urls.length > 0) {
+      console.log(`🌐 Detected ${urls.length} URL(s) in prompt, scraping recipes...`);
+      
+      try {
+        // Process first URL (could be extended for multiple URLs)
+        const url = urls[0];
+        const scrapedRecipe = await extractRecipe(url);
+        
+        // Convert to CartSmash format and replace URL with recipe content
+        const recipeText = toCartSmashFormat(scrapedRecipe);
+        processedPrompt = processedPrompt.replace(url, recipeText);
+        
+        console.log(`✅ Successfully scraped recipe: "${scrapedRecipe.title}" from ${url}`);
+        
+      } catch (scrapeError) {
+        console.log(`⚠️ Recipe scraping failed: ${scrapeError.message}, continuing with original prompt`);
+        // Continue with original prompt if scraping fails
+      }
+    }
+    
+    // Enhanced prompt - show full recipe if URL was scraped, otherwise create grocery list
+    const wasRecipeScraped = urls && urls.length > 0 && processedPrompt !== prompt;
+    
+    const enhancedPrompt = wasRecipeScraped 
+      ? `${processedPrompt}
+
+Please display this recipe in a clear, organized format with:
+1. Recipe title and description
+2. Ingredients list with quantities
+3. Step-by-step instructions
+4. Cooking time, prep time, and servings if available
+
+Format it nicely for easy reading and cooking.`
+      : `${processedPrompt}
 
 Please provide a detailed response and then include a clear, specific grocery shopping list with quantities. Format grocery items as bulleted list with specific quantities:
 
@@ -198,8 +236,44 @@ router.post('/chatgpt', async (req, res) => {
       });
     }
     
-    // Enhanced prompt for better grocery list generation
-    const enhancedPrompt = `${prompt}
+    // Check if prompt contains URL and scrape recipe
+    const urlRegex = /https?:\/\/[^\s]+/gi;
+    const urls = prompt.match(urlRegex);
+    let processedPrompt = prompt;
+    
+    if (urls && urls.length > 0) {
+      console.log(`🌐 Detected ${urls.length} URL(s) in prompt, scraping recipes...`);
+      
+      try {
+        // For now, just process the first URL found
+        const url = urls[0];
+        const scrapedRecipe = await extractRecipe(url);
+        
+        // Convert to CartSmash format and replace URL with recipe content
+        const recipeText = toCartSmashFormat(scrapedRecipe);
+        processedPrompt = processedPrompt.replace(url, recipeText);
+        
+        console.log(`✅ Successfully scraped recipe: "${scrapedRecipe.title}" from ${url}`);
+        
+      } catch (scrapeError) {
+        console.log(`⚠️ Recipe scraping failed: ${scrapeError.message}, continuing with original prompt`);
+        // Continue with original prompt if scraping fails
+      }
+    }
+    
+    // Enhanced prompt - show full recipe if URL was scraped, otherwise create grocery list
+    const wasRecipeScraped = urls && urls.length > 0 && processedPrompt !== prompt;
+    const enhancedPrompt = wasRecipeScraped 
+      ? `${processedPrompt}
+
+Please display this recipe in a clear, organized format with:
+1. Recipe title and description
+2. Ingredients list with quantities
+3. Step-by-step instructions
+4. Cooking time, prep time, and servings if available
+
+Format it nicely for easy reading and cooking.`
+      : `${processedPrompt}
 
 Please provide a helpful response and include a specific shopping list with measurable quantities. Format like:
 • 2 lbs ground beef

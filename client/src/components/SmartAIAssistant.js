@@ -232,6 +232,7 @@ Provide recipes with instructions and list each grocery item on a separate line.
   // ✅ NEW: Extract recipe information
   const extractRecipeInfo = (text) => {
     console.log('📝 Extracting recipe information...');
+    console.log('📝 Text length:', text.length);
     
     const recipeInfo = {
       title: '',
@@ -251,17 +252,25 @@ Provide recipes with instructions and list each grocery item on a separate line.
       
       if (!line) continue;
       
-      // Detect sections
-      if (line.match(/^\*\*.*\*\*$/) || line.match(/^#{1,6}\s/)) {
-        const cleanLine = line.replace(/[*#]/g, '').trim();
-        if (cleanLine.toLowerCase().includes('ingredient')) {
+      // Detect sections - look for headers like "## Ingredients" or "**Ingredients**" or "Ingredients:"
+      if (line.match(/^\*\*.*\*\*$/) || line.match(/^#{1,6}\s/) || line.endsWith(':')) {
+        const cleanLine = line.replace(/[*#:]/g, '').trim().toLowerCase();
+        
+        if (cleanLine.includes('ingredient')) {
           currentSection = 'ingredients';
-        } else if (cleanLine.toLowerCase().includes('instruction') || 
-                   cleanLine.toLowerCase().includes('direction') ||
-                   cleanLine.toLowerCase().includes('step')) {
+          console.log('📍 Found ingredients section at line', i + 1);
+        } else if (cleanLine.includes('instruction') || 
+                   cleanLine.includes('direction') ||
+                   cleanLine.includes('step') ||
+                   cleanLine.includes('method')) {
           currentSection = 'instructions';
-        } else if (cleanLine.toLowerCase().includes('recipe') && !recipeInfo.title) {
-          recipeInfo.title = cleanLine;
+          console.log('📍 Found instructions section at line', i + 1);
+        } else if (cleanLine.includes('recipe') && !recipeInfo.title) {
+          recipeInfo.title = line.replace(/[*#:]/g, '').trim();
+          console.log('📍 Found recipe title:', recipeInfo.title);
+        } else {
+          // Any other header ends the current section
+          currentSection = null;
         }
         continue;
       }
@@ -275,19 +284,30 @@ Provide recipes with instructions and list each grocery item on a separate line.
         recipeInfo.cookTime = line;
       }
       
-      // Extract ingredients and instructions
-      const bulletMatch = line.match(/^[•\-*\d+.)\s]*(.+)$/);
+      // Extract ingredients and instructions from bullet points or numbered lists
+      const bulletMatch = line.match(/^[•\-*]\s*(.+)$/) || line.match(/^\d+[\.)]\s*(.+)$/);
       if (bulletMatch && currentSection) {
         const content = bulletMatch[1].trim();
-        if (currentSection === 'ingredients') {
+        if (currentSection === 'ingredients' && content.length > 2) {
           recipeInfo.ingredients.push(content);
-        } else if (currentSection === 'instructions') {
+          console.log('➕ Added ingredient:', content.substring(0, 30));
+        } else if (currentSection === 'instructions' && content.length > 5) {
           recipeInfo.instructions.push(content);
+          console.log('➕ Added instruction:', content.substring(0, 30));
         }
       }
     }
     
-    console.log('✅ Extracted recipe info:', recipeInfo.title);
+    // If no title found, try to extract from first substantial line
+    if (!recipeInfo.title && text.length > 50) {
+      const firstLine = lines.find(line => line.trim().length > 10 && !line.trim().startsWith('•') && !line.trim().match(/^\d+[\.)]/));
+      if (firstLine) {
+        recipeInfo.title = firstLine.trim().substring(0, 100);
+        console.log('📍 Fallback recipe title:', recipeInfo.title);
+      }
+    }
+    
+    console.log(`✅ Recipe extraction complete: "${recipeInfo.title}" with ${recipeInfo.ingredients.length} ingredients, ${recipeInfo.instructions.length} instructions`);
     return recipeInfo;
   };
 

@@ -117,6 +117,81 @@ const getUserId = (req) => {
 };
 
 // POST /api/cart/parse - Parse grocery list with AI INTEGRATION
+// Recipe extraction function
+function extractRecipes(text) {
+  const recipes = [];
+  const lines = text.split('\n');
+  let currentRecipe = null;
+  let currentSection = null;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    // Detect recipe title/name
+    const titleMatch = line.match(/^(recipe name?|title):\s*(.+)/i) || 
+                      line.match(/^#{1,3}\s*(.+recipe.*)$/i) ||
+                      line.match(/^\*\*(.+recipe.*)\*\*$/i);
+    
+    if (titleMatch) {
+      // Save previous recipe if exists
+      if (currentRecipe && (currentRecipe.ingredients.length > 0 || currentRecipe.instructions.length > 0)) {
+        recipes.push(currentRecipe);
+      }
+      
+      // Start new recipe
+      currentRecipe = {
+        id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        title: titleMatch[2] || titleMatch[1],
+        ingredients: [],
+        instructions: [],
+        fullText: '',
+        extractedAt: new Date().toISOString()
+      };
+      currentSection = 'title';
+      continue;
+    }
+    
+    // Detect sections
+    if (line.match(/^(ingredients?|shopping list):\s*$/i) || 
+        line.match(/^#{1,3}\s*(ingredients?|shopping list)/i) ||
+        line.match(/^\*\*(ingredients?|shopping list)\*\*$/i)) {
+      currentSection = 'ingredients';
+      continue;
+    }
+    
+    if (line.match(/^(instructions?|directions?|method|steps?):\s*$/i) || 
+        line.match(/^#{1,3}\s*(instructions?|directions?|method|steps?)/i) ||
+        line.match(/^\*\*(instructions?|directions?|method|steps?)\*\*$/i)) {
+      currentSection = 'instructions';
+      continue;
+    }
+    
+    // Extract content based on current section
+    if (currentRecipe) {
+      const bulletMatch = line.match(/^[•\-*]\s*(.+)$/) || line.match(/^\d+[\.)]\s*(.+)$/);
+      const content = bulletMatch ? bulletMatch[1].trim() : line;
+      
+      if (currentSection === 'ingredients' && content.length > 2) {
+        currentRecipe.ingredients.push(content);
+      } else if (currentSection === 'instructions' && content.length > 5) {
+        currentRecipe.instructions.push(content);
+      }
+      
+      // Always add to full text
+      currentRecipe.fullText += line + '\n';
+    }
+  }
+  
+  // Save final recipe if exists
+  if (currentRecipe && (currentRecipe.ingredients.length > 0 || currentRecipe.instructions.length > 0)) {
+    recipes.push(currentRecipe);
+  }
+  
+  console.log(`📝 Extracted ${recipes.length} recipes from text`);
+  return recipes;
+}
+
 router.post('/parse', async (req, res) => {
   try {
     const { listText, action = 'merge', userId, options = {}, useAI = true } = req.body;
@@ -203,11 +278,16 @@ router.post('/parse', async (req, res) => {
     const highConfidenceCount = finalCart.filter(item => item.confidence >= 0.8).length;
     const needsReviewCount = finalCart.filter(item => item.needsReview || item.confidence < 0.6).length;
     
+    // Extract recipes from the full text
+    const extractedRecipes = extractRecipes(listText);
+    
     res.json({
       success: true,
       cart: finalCart,
       itemsAdded: finalParsedItems.length,
       totalItems: finalCart.length,
+      fullContent: listText, // Preserve full text
+      recipes: extractedRecipes, // Extract recipe blocks
       parsing: {
         method: useAI ? 'ai_intelligent' : 'basic',
         stats: {

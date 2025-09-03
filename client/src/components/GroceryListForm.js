@@ -48,6 +48,7 @@ function GroceryListForm({
   // eslint-disable-next-line no-unused-vars
   const [recipes, setRecipes] = useState([]);
   const [waitingForAIResponse, setWaitingForAIResponse] = useState(false);
+  const [currentRecipe, setCurrentRecipe] = useState(''); // Store recipe separately
   const { currentUser } = useAuth();
   const textareaRef = useRef(null);
 
@@ -303,13 +304,46 @@ function GroceryListForm({
       const data = await response.json();
       
       if (data.success && data.cart && data.cart.length > 0) {
+        // Attach the recipe to the cart items for persistence
+        const cartWithRecipe = data.cart.map((item, index) => ({
+          ...item,
+          // Store recipe only on first item to avoid duplication
+          ...(index === 0 ? { _sourceRecipe: listText } : {})
+        }));
+        
         if (mergeCart) {
-          setCurrentCart(prev => [...prev, ...data.cart]);
+          setCurrentCart(prev => [...prev, ...cartWithRecipe]);
         } else {
-          setCurrentCart(data.cart);
+          setCurrentCart(cartWithRecipe);
         }
         
-        setParsingStats(data.parsing?.stats || null);
+        // Store parsing stats with original text preserved for recipe display
+        const statsToSet = {
+          ...(data.parsing?.stats || {}),
+          sourceRecipe: listText  // Preserve the original input for display
+        };
+        console.log('📝 Setting parsingStats:', {
+          hasSourceRecipe: !!statsToSet.sourceRecipe,
+          sourceRecipeLength: statsToSet.sourceRecipe?.length,
+          firstChars: statsToSet.sourceRecipe?.substring(0, 50)
+        });
+        
+        setParsingStats(statsToSet);
+        
+        // Auto-save recipes when parsing
+        if (data.recipes && data.recipes.length > 0) {
+          console.log(`📝 Auto-saving ${data.recipes.length} recipes from parsing...`);
+          data.recipes.forEach(recipe => {
+            const savedRecipe = {
+              ...recipe,
+              userId: currentUser?.uid || 'guest',
+              source: 'auto_saved_from_parsing'
+            };
+            saveRecipe(savedRecipe);
+          });
+          console.log(`✅ Auto-saved ${data.recipes.length} recipes to collection`);
+        }
+        
         clearDraft();
         setInputText(''); // Clear input after successful parsing
         setWaitingForAIResponse(false);
