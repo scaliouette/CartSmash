@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const AIProductParser = require('../utils/aiProductParser');
 const { extractRecipe, toCartSmashFormat } = require('../utils/recipeScraper');
+const { generateStructuredMealPlan } = require('../utils/mealPlanner');
 
 console.log('🤖 Loading Enhanced AI routes with intelligent parsing...');
 
@@ -97,8 +98,16 @@ router.post('/claude', async (req, res) => {
     
     // Enhanced prompt - detect content type and format accordingly
     const wasRecipeScraped = urls && urls.length > 0 && processedPrompt !== prompt;
-    const isMealPlanning = processedPrompt.toLowerCase().match(/meal plan|weekly plan|day plan|menu|dinner recipes|recipe|breakfast.*lunch.*dinner/);
-    const isBudgetPlanning = processedPrompt.toLowerCase().match(/budget|\\$\d+|\d+\s*dollar/);
+    const isMealPlanning = /\b(meal\s*plan|weekly\s*plan|7-?day|seven\s*day|menu|dinner\s*recipes)\b/i.test(processedPrompt);
+    const isBudgetPlanning = /\bbudget\b|\$\d+|\d+\s*dollar/i.test(processedPrompt);
+    
+    console.log({
+      wasRecipeScraped,
+      isMealPlanning,
+      isBudgetPlanning,
+      lenPrompt: processedPrompt.length,
+      chosenBranch: wasRecipeScraped ? 'recipe' : (isMealPlanning || isBudgetPlanning) ? 'plan' : 'list'
+    });
     
     let enhancedPrompt;
     
@@ -117,15 +126,29 @@ Format it nicely for easy reading and cooking.`;
       // Detailed meal planning format
       enhancedPrompt = `${processedPrompt}
 
-Please provide a comprehensive, well-structured response with:
+IMPORTANT: Provide a complete, detailed response without asking any questions or requesting clarification. You must deliver a full meal plan immediately.
 
-1. **Complete meal plans** with daily breakdowns (Breakfast/Lunch/Dinner/Snacks)
-2. **Specific recipes** with ingredients and basic instructions
-3. **Organized grocery list** grouped by category (Produce, Proteins & Dairy, Grains & Bakery, etc.)
-4. **Quantities and measurements** for all items
-5. **Budget considerations** and cost-saving tips if applicable
+Create a comprehensive meal plan with:
 
-Format with clear headings, numbered days, and organized sections. Make it practical and actionable for shopping and cooking.`;
+1. **COMPLETE DAILY MEAL PLAN** - List every day requested with specific meals:
+   - Day 1 (Monday): Breakfast: [specific meal], Lunch: [specific meal], Dinner: [specific meal], Snacks: [items]
+   - Day 2 (Tuesday): Breakfast: [specific meal], Lunch: [specific meal], Dinner: [specific meal], Snacks: [items]
+   - Continue for all requested days
+
+2. **DETAILED RECIPES** for each meal with:
+   - Ingredients list with exact quantities
+   - Step-by-step cooking instructions
+   - Prep/cook times and servings
+
+3. **COMPLETE GROCERY SHOPPING LIST** organized by store sections:
+   - Produce: [specific items with quantities]
+   - Proteins & Dairy: [specific items with quantities]
+   - Grains & Bakery: [specific items with quantities]
+   - Pantry Items: [specific items with quantities]
+
+4. **TOTAL ESTIMATED COST** and money-saving tips
+
+DO NOT ask what the user wants to prioritize. DO NOT ask for clarification. Provide the complete meal plan immediately with all details included.`;
     } else {
       // Regular grocery list format
       enhancedPrompt = `${processedPrompt}
@@ -177,11 +200,11 @@ Focus on specific, measurable items that can be purchased at a grocery store. Av
       model = 'claude-3-sonnet (demo)';
     }
     
-    // 🚀 INTELLIGENT PARSING - Extract only real grocery products
+    // 🚀 INTELLIGENT PARSING - For meal plans, use less strict parsing to preserve the full plan
     console.log('🎯 Starting intelligent product parsing...');
     const parsingResults = await productParser.parseGroceryProducts(responseText, {
       context: context,
-      strictMode: options.strictMode || true
+      strictMode: (isMealPlanning || isBudgetPlanning) ? false : (options.strictMode !== false)
     });
     
     // Generate parsing statistics
@@ -284,8 +307,16 @@ router.post('/chatgpt', async (req, res) => {
     
     // Enhanced prompt - detect content type and format accordingly
     const wasRecipeScraped = urls && urls.length > 0 && processedPrompt !== prompt;
-    const isMealPlanning = processedPrompt.toLowerCase().match(/meal plan|weekly plan|day plan|menu|dinner recipes|recipe|breakfast.*lunch.*dinner/);
-    const isBudgetPlanning = processedPrompt.toLowerCase().match(/budget|\\$\d+|\d+\s*dollar/);
+    const isMealPlanning = /\b(meal\s*plan|weekly\s*plan|7-?day|seven\s*day|menu|dinner\s*recipes)\b/i.test(processedPrompt);
+    const isBudgetPlanning = /\bbudget\b|\$\d+|\d+\s*dollar/i.test(processedPrompt);
+    
+    console.log({
+      wasRecipeScraped,
+      isMealPlanning,
+      isBudgetPlanning,
+      lenPrompt: processedPrompt.length,
+      chosenBranch: wasRecipeScraped ? 'recipe' : (isMealPlanning || isBudgetPlanning) ? 'plan' : 'list'
+    });
     
     let enhancedPrompt;
     
@@ -304,15 +335,29 @@ Format it nicely for easy reading and cooking.`;
       // Detailed meal planning format
       enhancedPrompt = `${processedPrompt}
 
-Please provide a comprehensive, well-structured response with:
+IMPORTANT: Provide a complete, detailed response without asking any questions or requesting clarification. You must deliver a full meal plan immediately.
 
-1. **Complete meal plans** with daily breakdowns (Breakfast/Lunch/Dinner/Snacks)
-2. **Specific recipes** with ingredients and basic instructions
-3. **Organized grocery list** grouped by category (Produce, Proteins & Dairy, Grains & Bakery, etc.)
-4. **Quantities and measurements** for all items
-5. **Budget considerations** and cost-saving tips if applicable
+Create a comprehensive meal plan with:
 
-Format with clear headings, numbered days, and organized sections. Make it practical and actionable for shopping and cooking.`;
+1. **COMPLETE DAILY MEAL PLAN** - List every day requested with specific meals:
+   - Day 1 (Monday): Breakfast: [specific meal], Lunch: [specific meal], Dinner: [specific meal], Snacks: [items]
+   - Day 2 (Tuesday): Breakfast: [specific meal], Lunch: [specific meal], Dinner: [specific meal], Snacks: [items]
+   - Continue for all requested days
+
+2. **DETAILED RECIPES** for each meal with:
+   - Ingredients list with exact quantities
+   - Step-by-step cooking instructions
+   - Prep/cook times and servings
+
+3. **COMPLETE GROCERY SHOPPING LIST** organized by store sections:
+   - Produce: [specific items with quantities]
+   - Proteins & Dairy: [specific items with quantities]
+   - Grains & Bakery: [specific items with quantities]
+   - Pantry Items: [specific items with quantities]
+
+4. **TOTAL ESTIMATED COST** and money-saving tips
+
+DO NOT ask what the user wants to prioritize. DO NOT ask for clarification. Provide the complete meal plan immediately with all details included.`;
     } else {
       // Regular grocery list format
       enhancedPrompt = `${processedPrompt}
@@ -363,11 +408,11 @@ Focus on specific, measurable grocery items that can be easily found in a store.
       model = 'gpt-4o-mini (demo)';
     }
     
-    // 🚀 INTELLIGENT PARSING - Extract only real grocery products
+    // 🚀 INTELLIGENT PARSING - For meal plans, use less strict parsing to preserve the full plan
     console.log('🎯 Starting intelligent product parsing...');
     const parsingResults = await productParser.parseGroceryProducts(responseText, {
       context: context,
-      strictMode: options.strictMode || true
+      strictMode: (isMealPlanning || isBudgetPlanning) ? false : (options.strictMode !== false)
     });
     
     // Generate parsing statistics
@@ -586,20 +631,60 @@ router.post('/test-enhanced', async (req, res) => {
 function generateEnhancedClaudeResponse(prompt) {
   const lowerPrompt = prompt.toLowerCase();
   
-  if (lowerPrompt.includes('meal plan') || lowerPrompt.includes('week')) {
-    return `I'd be happy to help you create a comprehensive weekly meal plan! Here's a balanced approach that focuses on nutrition, variety, and practical shopping.
+  if (lowerPrompt.includes('meal plan') || lowerPrompt.includes('week') || lowerPrompt.includes('day')) {
+    // Use structured meal planner for complete responses
+    return generateStructuredMealPlan(prompt);
+  }
+  
+  if (lowerPrompt.includes('budget') || lowerPrompt.includes('cheap') || lowerPrompt.match(/\$\d+/)) {
+    return generateStructuredMealPlan(prompt);
+  }
+  
+  // Legacy fallback for non-meal plan requests
+  if (false) { // disabled old approach
+    return `**COMPLETE 7-DAY MEAL PLAN FOR FAMILY OF 4**
 
-**WEEKLY MEAL PLAN FOR FAMILY OF 4**
+**DAY 1 - MONDAY**
+• Breakfast: Greek yogurt parfait with mixed berries and granola
+• Lunch: Quinoa tabbouleh salad with grilled chicken breast
+• Dinner: Baked salmon with roasted vegetables and wild rice
+• Snacks: Apple slices with peanut butter, string cheese
 
-**Monday - Mediterranean Monday**
-• Breakfast: Greek yogurt parfait with berries
-• Lunch: Quinoa tabbouleh with grilled chicken
-• Dinner: Baked salmon with roasted vegetables
+**DAY 2 - TUESDAY** 
+• Breakfast: Overnight oats with banana and cinnamon
+• Lunch: Turkey and avocado wraps with whole wheat tortillas
+• Dinner: Lean beef stir-fry with brown rice and mixed vegetables
+• Snacks: Greek yogurt, handful of almonds
 
-**Tuesday - Comfort Tuesday** 
-• Breakfast: Overnight oats with banana
-• Lunch: Turkey and avocado wraps
-• Dinner: Lean beef stir-fry with brown rice
+**DAY 3 - WEDNESDAY**
+• Breakfast: Scrambled eggs with whole grain toast and spinach
+• Lunch: Leftover salmon salad with mixed greens
+• Dinner: Chicken and vegetable curry with quinoa
+• Snacks: Carrot sticks with hummus
+
+**DAY 4 - THURSDAY**
+• Breakfast: Smoothie bowl with banana, berries, and granola
+• Lunch: Lentil soup with crusty bread
+• Dinner: Baked chicken thighs with sweet potato and broccoli
+• Snacks: Trail mix, herbal tea
+
+**DAY 5 - FRIDAY**
+• Breakfast: Avocado toast on whole grain bread with tomato
+• Lunch: Leftover curry with naan bread
+• Dinner: Pan-seared cod with quinoa pilaf and asparagus
+• Snacks: Fresh fruit, handful of nuts
+
+**DAY 6 - SATURDAY**
+• Breakfast: Pancakes with fresh berries and maple syrup
+• Lunch: Grilled chicken Caesar salad
+• Dinner: Vegetarian black bean tacos with corn tortillas
+• Snacks: Popcorn, dark chocolate square
+
+**DAY 7 - SUNDAY**
+• Breakfast: French toast with strawberries
+• Lunch: Leftover taco filling in burrito bowls
+• Dinner: Slow-cooked pot roast with potatoes and carrots
+• Snacks: Yogurt parfait, herbal tea
 
 **COMPLETE GROCERY SHOPPING LIST:**
 
@@ -697,49 +782,8 @@ This provides a solid foundation for healthy, versatile meals throughout the wee
 }
 
 function generateEnhancedChatGPTResponse(prompt) {
-  const lowerPrompt = prompt.toLowerCase();
-  
-  if (lowerPrompt.includes('healthy') || lowerPrompt.includes('nutrition')) {
-    return `Here's a nutritionally balanced grocery list focused on whole foods and health:
-
-**HEALTHY GROCERY LIST:**
-
-**Lean Proteins:**
-• 2 lbs wild-caught salmon
-• 2 lbs organic chicken breast
-• 1 dozen free-range eggs
-• 1 container Greek yogurt (32 oz)
-
-**Nutrient-Dense Produce:**
-• 1 bag organic spinach (5 oz)
-• 2 cups blueberries
-• 3 avocados
-• 2 bell peppers
-• 1 bunch broccoli
-
-**Whole Grains & Healthy Fats:**
-• 2 cups quinoa
-• 1 loaf sprouted grain bread
-• 1 bottle extra virgin olive oil (16.9 fl oz)
-• 1 bag raw almonds (1 lb)
-
-Perfect for maintaining energy and supporting overall health goals!`;
-  }
-  
-  return `Here's a practical shopping list for your needs:
-
-**SHOPPING LIST:**
-
-• 2 lbs chicken breast
-• 1 dozen eggs
-• 1 gallon milk
-• 2 cups brown rice
-• 1 bag mixed vegetables (frozen)
-• 3 bananas
-• 1 loaf whole grain bread
-• 1 bottle cooking oil (16.9 fl oz)
-
-This covers the essentials for quick, healthy meals throughout the week!`;
+  // Just use the Claude fallback for now to fix the reference error
+  return generateEnhancedClaudeResponse(prompt);
 }
 
 console.log('✅ Enhanced AI routes loaded with intelligent parsing');

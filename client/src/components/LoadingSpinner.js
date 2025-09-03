@@ -72,12 +72,8 @@ export function OverlaySpinner({ text = 'Loading...' }) {
   );
 }
 
-// Progress spinner with percentage
-export function ProgressSpinner({ progress = 0, text = 'Processing...' }) {
-  const radius = 45;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
-
+// Progress spinner with color cycling
+export function ProgressSpinner({ text = 'Processing...' }) {
   return (
     <div style={{ 
       display: 'flex',
@@ -89,7 +85,7 @@ export function ProgressSpinner({ progress = 0, text = 'Processing...' }) {
         <circle
           cx="50"
           cy="50"
-          r={radius}
+          r="45"
           stroke="#e5e7eb"
           strokeWidth="8"
           fill="none"
@@ -97,20 +93,19 @@ export function ProgressSpinner({ progress = 0, text = 'Processing...' }) {
         <circle
           cx="50"
           cy="50"
-          r={radius}
-          stroke="#3b82f6"
+          r="45"
           strokeWidth="8"
           fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+          strokeDasharray="283"
+          strokeDashoffset="70"
+          style={{ 
+            animation: 'cartsmash-spin 2s linear infinite, cartsmash-colors 6s linear infinite',
+            strokeLinecap: 'round'
+          }}
         />
       </svg>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-          {progress}%
-        </div>
-        <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
+        <div style={{ fontSize: '16px', color: '#374151', fontWeight: '500' }}>
           {text}
         </div>
       </div>
@@ -162,6 +157,21 @@ if (typeof document !== 'undefined' && !document.querySelector('#spinner-keyfram
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes cartsmash-spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes cartsmash-colors {
+      0% { stroke: #FB4F14; }
+      16.66% { stroke: #FF6B35; }
+      33.33% { stroke: #002244; }
+      50% { stroke: #0066CC; }
+      66.66% { stroke: #FB4F14; }
+      83.33% { stroke: #FF6B35; }
+      100% { stroke: #002244; }
     }
   `;
   document.head.appendChild(style);
