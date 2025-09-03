@@ -22,7 +22,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
       unit: item.unit || 'each',
       category: item.category || 'other',
       confidence: item.confidence !== undefined ? item.confidence : 0.5,
-      needsReview: item.needsReview !== undefined ? item.needsReview : (item.confidence || 0) < 0.6,
+      needsReview: item.needsReview !== undefined ? item.needsReview : (item.confidence || 0) < 0.8,
       original: item.original || ''
     }));
     
@@ -30,16 +30,16 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
     setLocalItems(normalizedItems);
   }, [items]);
 
-  // Get items that need review
+  // Get items that need review (only high confidence 0.8+ is considered validated)
   const itemsNeedingReview = localItems.filter(item => 
-    item.needsReview || (item.confidence || 0) < 0.6
+    item.needsReview || (item.confidence || 0) < 0.8
   );
 
   // Filter items based on selected filter
   const filteredItems = localItems.filter(item => {
     if (filter === 'all') return true;
-    if (filter === 'needs-review') return item.needsReview || (item.confidence || 0) < 0.6;
-    if (filter === 'validated') return !item.needsReview && (item.confidence || 0) >= 0.6;
+    if (filter === 'needs-review') return item.needsReview || (item.confidence || 0) < 0.8;
+    if (filter === 'validated') return !item.needsReview && (item.confidence || 0) >= 0.8;
     return true;
   });
 
@@ -338,7 +338,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
             </div>
             <div style={styles.stat}>
               <span style={{ ...styles.statNumber, color: '#10b981' }}>
-                {localItems.filter(item => !item.needsReview && item.confidence >= 0.6).length}
+                {localItems.filter(item => !item.needsReview && item.confidence >= 0.8).length}
               </span>
               <span style={styles.statLabel}>Validated</span>
             </div>
@@ -409,7 +409,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
           ) : (
             filteredItems.map(item => {
               const isValidating = validatingItems.has(item.id);
-              const isValidated = !item.needsReview && (item.confidence || 0) >= 0.6;
+              const isValidated = !item.needsReview && (item.confidence || 0) >= 0.8;
               const isEdited = isItemEdited(item.id);
               
               return (
@@ -456,7 +456,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                               style={styles.acceptButtonTop}
                               title="Accept as-is"
                             >
-                              ✅
+                              ✅ Accept
                             </button>
                             <button
                               onClick={() => handleValidateItem(item.id)}
@@ -464,7 +464,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                               style={styles.validateButtonTop}
                               title="Validate with AI"
                             >
-                              {isValidating ? <InlineSpinner /> : '🤖'}
+                              {isValidating ? <InlineSpinner /> : '🤖 Validate'}
                             </button>
                           </>
                         )}
@@ -473,7 +473,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                           style={styles.removeButtonTop}
                           title="Remove item"
                         >
-                          🗑️
+                          🗑️ Remove
                         </button>
                       </div>
                     </div>
@@ -795,48 +795,57 @@ const styles = {
   },
 
   acceptButtonTop: {
-    padding: '2px',
+    padding: '6px 12px',
     backgroundColor: '#FB4F14',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
-    fontSize: '12px',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
     cursor: 'pointer',
-    width: '28px',
-    height: '28px',
+    minWidth: '80px',
+    height: '32px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    gap: '4px',
+    transition: 'all 0.2s'
   },
 
   validateButtonTop: {
-    padding: '2px',
+    padding: '6px 12px',
     backgroundColor: '#002244',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
-    fontSize: '12px',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
     cursor: 'pointer',
-    width: '28px',
-    height: '28px',
+    minWidth: '90px',
+    height: '32px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    gap: '4px',
+    transition: 'all 0.2s'
   },
 
   removeButtonTop: {
-    padding: '2px',
+    padding: '6px 12px',
     backgroundColor: '#ef4444',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
-    fontSize: '12px',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
     cursor: 'pointer',
-    width: '28px',
-    height: '28px',
+    minWidth: '80px',
+    height: '32px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    gap: '4px',
+    transition: 'all 0.2s'
   },
 
   itemContent: {
