@@ -295,6 +295,203 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
     }
   };
 
+  // Parse recipe content into structured format
+  const parseRecipeContent = (content) => {
+    const lines = content.split('\n');
+    const recipe = {
+      title: '',
+      ingredients: [],
+      instructions: [],
+      metadata: {}
+    };
+    
+    let currentSection = '';
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      
+      // Detect title (first meaningful line or lines starting with recipe name)
+      if (!recipe.title && (trimmed.match(/^[A-Z]/) || trimmed.toLowerCase().includes('recipe'))) {
+        recipe.title = trimmed.replace(/Recipe Name:\s*/i, '').replace(/^#+\s*/, '');
+        continue;
+      }
+      
+      // Detect sections
+      if (trimmed.match(/^(ingredients?:?\s*$|##?\s*ingredients?)/i)) {
+        currentSection = 'ingredients';
+        continue;
+      }
+      if (trimmed.match(/^(instructions?:?\s*$|directions?:?\s*$|method:?\s*$|##?\s*(instructions?|directions?|method))/i)) {
+        currentSection = 'instructions';
+        continue;
+      }
+      
+      // Extract metadata (serves, time, etc.)
+      if (trimmed.match(/^(serves?|yield|prep time|cook time|total time):/i)) {
+        const [key, ...valueParts] = trimmed.split(':');
+        recipe.metadata[key.toLowerCase().trim()] = valueParts.join(':').trim();
+        continue;
+      }
+      
+      // Add to current section
+      if (currentSection === 'ingredients' && trimmed.match(/^[-•*]\s*/) || trimmed.match(/^\d+\.\s*/)) {
+        recipe.ingredients.push(trimmed.replace(/^[-•*]\s*/, '').replace(/^\d+\.\s*/, ''));
+      } else if (currentSection === 'instructions' && trimmed.match(/^\d+\.\s*/)) {
+        recipe.instructions.push(trimmed.replace(/^\d+\.\s*/, ''));
+      }
+    }
+    
+    // If no title found, generate one
+    if (!recipe.title) {
+      recipe.title = 'Imported Recipe';
+    }
+    
+    return recipe;
+  };
+
+  // Extract individual recipes from meal plan
+  const extractMealPlanRecipes = (content) => {
+    const recipes = [];
+    const lines = content.split('\n');
+    let currentDay = '';
+    let currentMeal = '';
+    let currentRecipe = null;
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      
+      // Detect day headers
+      const dayMatch = trimmed.match(/^Day\s+(\d+)|^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
+      if (dayMatch) {
+        currentDay = dayMatch[0];
+        continue;
+      }
+      
+      // Detect meal types
+      const mealMatch = trimmed.match(/^(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i);
+      if (mealMatch) {
+        currentMeal = mealMatch[1];
+        const mealDescription = mealMatch[2];
+        
+        // Create a recipe for this meal
+        currentRecipe = {
+          title: `${currentDay} ${currentMeal}: ${mealDescription}`,
+          day: currentDay,
+          meal: currentMeal.toLowerCase(),
+          description: mealDescription,
+          ingredients: [],
+          instructions: [],
+          metadata: {}
+        };
+        recipes.push(currentRecipe);
+      }
+    }
+    
+    return recipes;
+  };
+
+  // Save individual recipe
+  const handleSaveRecipe = async (content) => {
+    if (!content) return;
+    
+    try {
+      const recipe = parseRecipeContent(content);
+      const savedRecipes = JSON.parse(localStorage.getItem('cartsmash-saved-recipes') || '[]');
+      
+      const newRecipe = {
+        id: `recipe_${Date.now()}`,
+        ...recipe,
+        savedAt: new Date().toISOString(),
+        source: 'ai_generated'
+      };
+      
+      savedRecipes.push(newRecipe);
+      localStorage.setItem('cartsmash-saved-recipes', JSON.stringify(savedRecipes));
+      
+      // Show success message
+      alert('✅ Recipe saved successfully!');
+      
+      // Optional: Save to Firebase if user is logged in
+      if (currentUser) {
+        const userDataService = (await import('../services/userDataService')).default;
+        await userDataService.saveUserRecipe(currentUser.uid, newRecipe);
+        console.log('Recipe saved to Firebase');
+      }
+      
+    } catch (error) {
+      console.error('Error saving recipe:', error);
+      alert('❌ Failed to save recipe. Please try again.');
+    }
+  };
+
+  // Save meal plan (automatically saves individual recipes)
+  const handleSaveMealPlan = async (content) => {
+    if (!content) return;
+    
+    try {
+      // Check if this is a meal plan or single recipe
+      const isMealPlan = content.toLowerCase().includes('day ') && 
+                        (content.toLowerCase().includes('breakfast') || 
+                         content.toLowerCase().includes('lunch') || 
+                         content.toLowerCase().includes('dinner'));
+      
+      const savedMealPlans = JSON.parse(localStorage.getItem('cartsmash-saved-meal-plans') || '[]');
+      const savedRecipes = JSON.parse(localStorage.getItem('cartsmash-saved-recipes') || '[]');
+      
+      if (isMealPlan) {
+        // Extract individual recipes from meal plan
+        const recipes = extractMealPlanRecipes(content);
+        
+        // Save each recipe individually
+        recipes.forEach(recipe => {
+          const newRecipe = {
+            id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            ...recipe,
+            savedAt: new Date().toISOString(),
+            source: 'meal_plan',
+            mealPlanId: `plan_${Date.now()}`
+          };
+          savedRecipes.push(newRecipe);
+        });
+        
+        // Save the meal plan
+        const newMealPlan = {
+          id: `plan_${Date.now()}`,
+          title: 'Weekly Meal Plan',
+          content: content,
+          recipes: recipes.map(r => r.id),
+          savedAt: new Date().toISOString(),
+          source: 'ai_generated'
+        };
+        
+        savedMealPlans.push(newMealPlan);
+        localStorage.setItem('cartsmash-saved-meal-plans', JSON.stringify(savedMealPlans));
+        localStorage.setItem('cartsmash-saved-recipes', JSON.stringify(savedRecipes));
+        
+        alert(`✅ Meal plan saved with ${recipes.length} recipes!`);
+        
+      } else {
+        // Single recipe - just save it
+        await handleSaveRecipe(content);
+        return;
+      }
+      
+      // Optional: Save to Firebase if user is logged in
+      if (currentUser) {
+        const userDataService = (await import('../services/userDataService')).default;
+        const mealPlan = savedMealPlans[savedMealPlans.length - 1];
+        await userDataService.saveMealPlan(currentUser.uid, mealPlan);
+        console.log('Meal plan saved to Firebase');
+      }
+      
+    } catch (error) {
+      console.error('Error saving meal plan:', error);
+      alert('❌ Failed to save meal plan. Please try again.');
+    }
+  };
+
   // Add items to new list
   const addToNewList = async (listName) => {
     if (!listName || selectedItems.size === 0) return;
@@ -844,6 +1041,22 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
             <pre style={styles.recipeText}>
               {parsingStats?.sourceRecipe || items[0]?._sourceRecipe}
             </pre>
+          </div>
+          
+          {/* Save Options */}
+          <div style={styles.saveOptions}>
+            <button
+              onClick={() => handleSaveRecipe(parsingStats?.sourceRecipe || items[0]?._sourceRecipe)}
+              style={{...styles.saveButton, ...styles.saveRecipeButton}}
+            >
+              📝 Save Recipe
+            </button>
+            <button
+              onClick={() => handleSaveMealPlan(parsingStats?.sourceRecipe || items[0]?._sourceRecipe)}
+              style={{...styles.saveButton, ...styles.saveMealPlanButton}}
+            >
+              📅 Save to Meal Plan
+            </button>
           </div>
         </div>
       )}
@@ -2228,6 +2441,43 @@ const styles = {
     fontWeight: '500'
   },
 
+  // Save options styles
+  saveOptions: {
+    display: 'flex',
+    gap: '12px',
+    padding: '12px 16px',
+    borderTop: '1px solid #e9ecef',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    flexWrap: 'wrap'
+  },
+
+  saveButton: {
+    padding: '10px 16px',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    minWidth: '140px',
+    justifyContent: 'center'
+  },
+
+  saveRecipeButton: {
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    boxShadow: '0 2px 8px rgba(251,79,20,0.2)'
+  },
+
+  saveMealPlanButton: {
+    backgroundColor: '#002244',
+    color: 'white',
+    boxShadow: '0 2px 8px rgba(0,34,68,0.2)'
+  }
 
 };
 
