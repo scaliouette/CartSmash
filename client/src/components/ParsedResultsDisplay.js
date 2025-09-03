@@ -1017,7 +1017,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
           finalDecision: !!sourceRecipe
         });
         return sourceRecipe;
-      })() && (
+      })() && parsingStats?.sourceRecipe && !parsingStats.sourceRecipe.includes('MEAL PLAN') && (
         <div style={styles.recipeDisplay}>
           <div style={styles.recipeHeader}>
             <h4 style={styles.recipeTitle}>📝 Original Recipe</h4>

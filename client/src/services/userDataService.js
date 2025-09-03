@@ -181,6 +181,14 @@ class UserDataService {
     }
 
     try {
+      if (!this.userId) {
+        throw new Error('User ID is not available for Firebase operation');
+      }
+      
+      if (!mealPlan.id) {
+        throw new Error('Meal plan ID is required for save operation');
+      }
+      
       const planRef = doc(this.db, 'users', this.userId, 'mealPlans', mealPlan.id);
       await setDoc(planRef, {
         ...mealPlan,
@@ -381,6 +389,11 @@ class UserDataService {
       // Fallback to localStorage
       return JSON.parse(localStorage.getItem('cartsmash-preferences') || '{}');
     }
+  }
+
+  // Alias for saveRecipe to maintain compatibility
+  async saveUserRecipe(recipe) {
+    return this.saveRecipe(recipe);
   }
 
   // Save user preferences

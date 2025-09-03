@@ -51,12 +51,79 @@ class AIProductParser {
   }
 
   /**
+   * Extract grocery list section from structured meal plans
+   */
+  extractGroceryListSection(text) {
+    const lines = text.split('\n');
+    const lowerText = text.toLowerCase();
+    
+    // Look for grocery list indicators
+    const groceryIndicators = [
+      'grocery list', 'shopping list', 'ingredients needed',
+      'produce:', 'proteins & dairy:', 'grains & bakery:', 'pantry:'
+    ];
+    
+    let groceryStartIndex = -1;
+    let groceryEndIndex = -1;
+    
+    // Find the start of grocery list section
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].toLowerCase().trim();
+      
+      // Check if this line indicates start of grocery list
+      if (line.includes('grocery list') || line.includes('shopping list') || 
+          line === 'produce:' || line === 'proteins & dairy:') {
+        groceryStartIndex = i;
+        break;
+      }
+    }
+    
+    if (groceryStartIndex === -1) {
+      // No grocery list section found, return null to use full text
+      return null;
+    }
+    
+    // Find the end of grocery list section
+    for (let i = groceryStartIndex + 1; i < lines.length; i++) {
+      const line = lines[i].toLowerCase().trim();
+      
+      // Stop if we hit recipe instructions, tips, or other non-grocery content
+      if (line.startsWith('estimated total cost:') || 
+          line.startsWith('money-saving tips:') ||
+          line.startsWith('sample recipe') ||
+          line.startsWith('key recipes:') ||
+          line.startsWith('instructions:') ||
+          line.includes('this plan emphasizes') ||
+          line.includes('this meal plan')) {
+        groceryEndIndex = i;
+        break;
+      }
+    }
+    
+    // If no end found, take everything from start to end
+    if (groceryEndIndex === -1) {
+      groceryEndIndex = lines.length;
+    }
+    
+    // Extract just the grocery list section
+    const groceryLines = lines.slice(groceryStartIndex, groceryEndIndex);
+    const grocerySection = groceryLines.join('\n');
+    
+    console.log(`📋 Extracted grocery list section (${groceryLines.length} lines)`);
+    return grocerySection;
+  }
+
+  /**
    * Main parsing function - intelligently extracts only real grocery products
    */
   async parseGroceryProducts(text, options = {}) {
     console.log('🤖 Starting intelligent grocery product parsing...');
     
-    const lines = text.split('\n').filter(line => line.trim());
+    // First, try to extract grocery list section if it's a structured meal plan
+    const grocerySection = this.extractGroceryListSection(text);
+    const textToParse = grocerySection || text;
+    
+    const lines = textToParse.split('\n').filter(line => line.trim());
     const products = [];
     
     for (const line of lines) {

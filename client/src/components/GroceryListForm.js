@@ -21,6 +21,70 @@ function getTimeAgo(date) {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
+// Extract only grocery list items from AI response (not full meal plan)
+function extractGroceryListOnly(text) {
+  const lines = text.split('\n');
+  const groceryItems = [];
+  let inGrocerySection = false;
+  let inItemList = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const lowerLine = line.toLowerCase();
+    
+    // Detect start of grocery list section
+    if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list') || 
+        lowerLine === 'produce:' || lowerLine === 'proteins & dairy:' ||
+        lowerLine === 'grains & bakery:' || lowerLine === 'pantry:') {
+      inGrocerySection = true;
+      if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list')) {
+        continue; // Skip the header line
+      }
+    }
+    
+    // Stop if we hit non-grocery content while in grocery section
+    if (inGrocerySection && (
+      lowerLine.startsWith('estimated total cost:') ||
+      lowerLine.startsWith('money-saving tips:') ||
+      lowerLine.startsWith('sample recipe') ||
+      lowerLine.startsWith('key recipes:') ||
+      lowerLine.startsWith('instructions:') ||
+      lowerLine.includes('this plan emphasizes') ||
+      lowerLine.includes('this meal plan')
+    )) {
+      break;
+    }
+    
+    // If we're in grocery section, collect items
+    if (inGrocerySection) {
+      if (line.startsWith('- ')) {
+        // Extract item, removing quantity info in parentheses for cleaner display
+        const item = line.substring(2).trim();
+        groceryItems.push(item);
+        inItemList = true;
+      } else if (lowerLine.endsWith(':') && (
+        lowerLine.includes('produce') || lowerLine.includes('protein') || 
+        lowerLine.includes('dairy') || lowerLine.includes('grain') ||
+        lowerLine.includes('bakery') || lowerLine.includes('pantry')
+      )) {
+        // Category headers - skip but stay in grocery section
+        continue;
+      } else if (line.length === 0) {
+        // Empty line - continue
+        continue;
+      }
+    }
+  }
+  
+  // If no grocery section found, fall back to original text
+  if (groceryItems.length === 0) {
+    return text;
+  }
+  
+  // Return clean list of items, one per line
+  return groceryItems.join('\n');
+}
+
 // Main Component
 function GroceryListForm({ 
   currentCart, 
@@ -229,12 +293,13 @@ function GroceryListForm({
               { role: 'assistant', content: aiResponseText, model: selectedAI }
             ]);
             
-            // IMPORTANT: Update the textarea with the AI response
-            setInputText(aiResponseText);
+            // IMPORTANT: Extract only grocery list items for the textarea (not the full meal plan)
+            const cleanGroceryList = extractGroceryListOnly(aiResponseText);
+            setInputText(cleanGroceryList);
             
             // Also update via ref as a backup
             if (textareaRef.current) {
-              textareaRef.current.value = aiResponseText;
+              textareaRef.current.value = cleanGroceryList;
             }
             
             // Clear loading states
