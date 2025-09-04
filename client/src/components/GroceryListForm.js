@@ -496,10 +496,7 @@ function GroceryListForm({
 
   const handleNewList = () => {
     setInputText('');
-    setCurrentCart([]);
     setError('');
-    setParsingStats(null);
-    setShowValidator(false);
     setMessages([]);
     setWaitingForAIResponse(false);
     clearDraft();

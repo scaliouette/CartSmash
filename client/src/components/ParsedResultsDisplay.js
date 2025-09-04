@@ -2084,7 +2084,8 @@ const styles = {
 
   checkboxVisualSelected: {
     backgroundColor: '#FB4F14',
-    borderColor: '#FB4F14'
+    borderColor: '#FB4F14',
+    color: 'white'
   },
 
   itemCategory: {
