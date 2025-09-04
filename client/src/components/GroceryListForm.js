@@ -6,6 +6,7 @@ import ParsedResultsDisplay from './ParsedResultsDisplay';
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
 import RecipeManager from './RecipeManager';
+import InstacartCheckoutFlow from './InstacartCheckoutFlow';
 import { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
 import userDataService from '../services/userDataService';
@@ -102,6 +103,7 @@ function GroceryListForm({
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [showRecipeManager, setShowRecipeManager] = useState(false);
+  const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const [validatingAll, setValidatingAll] = useState(false);
   const [parsingProgress, setParsingProgress] = useState(0);
@@ -878,14 +880,32 @@ Or paste any grocery list directly!"
       )}
 
       {showResults && currentCart.length > 0 && (
-        <ParsedResultsDisplay 
-          items={currentCart} 
-          currentUser={currentUser}
-          onItemsChange={handleItemsChange}
-          parsingStats={parsingStats}
-          savedRecipes={savedRecipes}
-          setSavedRecipes={setSavedRecipes}
-        />
+        <>
+          <ParsedResultsDisplay 
+            items={currentCart} 
+            currentUser={currentUser}
+            onItemsChange={handleItemsChange}
+            parsingStats={parsingStats}
+            savedRecipes={savedRecipes}
+            setSavedRecipes={setSavedRecipes}
+          />
+          
+          {/* Instacart Checkout Button */}
+          <div style={styles.checkoutSection}>
+            <button
+              onClick={() => setShowInstacartCheckout(true)}
+              style={styles.instacartButton}
+              disabled={currentCart.length === 0}
+            >
+              <span style={styles.buttonIcon}>🛒</span>
+              <div>
+                <div style={styles.buttonTitle}>Continue to Checkout</div>
+                <div style={styles.buttonSubtitle}>Order from Instacart • {currentCart.length} items</div>
+              </div>
+              <span style={styles.buttonArrow}>→</span>
+            </button>
+          </div>
+        </>
       )}
 
       {showValidator && (
@@ -905,6 +925,13 @@ Or paste any grocery list directly!"
             const itemsLoaded = loadRecipeToCart(recipe, mergeCart);
             alert(`✅ Added ${itemsLoaded} items from "${recipe.name}"`);
           }}
+        />
+      )}
+
+      {showInstacartCheckout && (
+        <InstacartCheckoutFlow
+          currentCart={currentCart}
+          onClose={() => setShowInstacartCheckout(false)}
         />
       )}
 
@@ -1298,6 +1325,59 @@ const styles = {
     alignItems: 'center',
     gap: '6px',
     marginTop: '8px'
+  },
+
+  // Instacart Checkout Styles
+  checkoutSection: {
+    marginTop: '20px',
+    padding: '20px',
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    boxShadow: '0 4px 20px rgba(0,2,68,0.1)',
+    border: '2px solid #002244'
+  },
+
+  instacartButton: {
+    width: '100%',
+    padding: '20px',
+    backgroundColor: 'linear-gradient(135deg, #00D4AA 0%, #00B894 100%)',
+    background: 'linear-gradient(135deg, #00D4AA 0%, #00B894 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    transition: 'all 0.3s ease',
+    fontSize: '16px',
+    fontWeight: '600',
+    boxShadow: '0 4px 16px rgba(0, 212, 170, 0.3)',
+    gap: '16px'
+  },
+
+  buttonIcon: {
+    fontSize: '24px',
+    flexShrink: 0
+  },
+
+  buttonTitle: {
+    fontSize: '18px',
+    fontWeight: '700',
+    margin: '0 0 4px 0'
+  },
+
+  buttonSubtitle: {
+    fontSize: '14px',
+    opacity: 0.9,
+    margin: 0
+  },
+
+  buttonArrow: {
+    fontSize: '20px',
+    fontWeight: 'bold',
+    flexShrink: 0,
+    transition: 'transform 0.2s ease'
   }
 };
 
