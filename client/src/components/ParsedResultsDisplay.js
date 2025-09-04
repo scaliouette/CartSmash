@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { InlineSpinner } from './LoadingSpinner';
 import KrogerOrderFlow from './KrogerOrderFlow';
 import ProductValidator from './ProductValidator';
+import instacartService from '../services/instacartService';
 
 
 
@@ -37,6 +38,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
   const [updatingItems, setUpdatingItems] = useState(new Set());
   const [fetchingPrices, setFetchingPrices] = useState(new Set());
   const [exportingCSV, setExportingCSV] = useState(false);
+  const [exportingInstacart, setExportingInstacart] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [priceHistory, setPriceHistory] = useState({});
   const [showPriceHistory, setShowPriceHistory] = useState(null);
@@ -415,9 +417,14 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
       
       // Optional: Save to Firebase if user is logged in
       if (currentUser) {
-        const userDataService = (await import('../services/userDataService')).default;
-        await userDataService.saveUserRecipe(currentUser.uid, newRecipe);
-        console.log('Recipe saved to Firebase');
+        try {
+          const userDataService = (await import('../services/userDataService')).default;
+          await userDataService.saveUserRecipe(newRecipe);
+          console.log('Recipe saved to Firebase');
+        } catch (firebaseError) {
+          console.error('Failed to save recipe to Firebase:', firebaseError);
+          // Don't fail the whole operation if Firebase save fails
+        }
       }
       
     } catch (error) {
@@ -747,6 +754,75 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
       URL.revokeObjectURL(url);
     } finally {
       setExportingCSV(false);
+    }
+  };
+
+  // 🆕 INSTACART EXPORT FUNCTION
+  const exportToInstacart = async () => {
+    setExportingInstacart(true);
+    try {
+      console.log('🛒 Exporting', items.length, 'items to Instacart');
+      
+      // Create a recipe page with the grocery list
+      const result = await instacartService.exportGroceryListAsRecipe(items, {
+        title: `CartSmash Grocery List - ${new Date().toLocaleDateString()}`,
+        partnerUrl: 'https://cartsmash.com',
+        trackPantryItems: true
+      });
+
+      if (result.success) {
+        console.log('✅ Instacart recipe page created:', result);
+        
+        // Show success message with link to Instacart
+        if (result.instacartUrl) {
+          const userConfirmed = window.confirm(
+            `🎉 Your grocery list has been exported to Instacart!\n\n` +
+            `Recipe ID: ${result.recipeId}\n` +
+            `${result.ingredientsCount} ingredients included\n\n` +
+            `Click OK to open Instacart in a new tab where you can add items to your cart.`
+          );
+          
+          if (userConfirmed) {
+            window.open(result.instacartUrl, '_blank');
+          }
+        } else {
+          alert('✅ Grocery list exported successfully to Instacart!');
+        }
+        
+        // Track success event
+        if (window.gtag) {
+          window.gtag('event', 'instacart_export_success', {
+            'event_category': 'Export',
+            'event_label': 'Instacart Recipe Page',
+            'value': items.length
+          });
+        }
+      } else {
+        throw new Error('Export failed - please try again');
+      }
+    } catch (error) {
+      console.error('❌ Error exporting to Instacart:', error);
+      
+      // Show user-friendly error message
+      alert(
+        '⚠️ Unable to export to Instacart at this time.\n\n' +
+        'This could be due to:\n' +
+        '• Network connectivity issues\n' +
+        '• Instacart API configuration\n' +
+        '• Temporary service unavailability\n\n' +
+        'Please try again later or use the CSV export option.'
+      );
+      
+      // Track error event
+      if (window.gtag) {
+        window.gtag('event', 'instacart_export_error', {
+          'event_category': 'Export',
+          'event_label': 'Instacart Recipe Page',
+          'error_message': error.message
+        });
+      }
+    } finally {
+      setExportingInstacart(false);
     }
   };
 
@@ -1257,6 +1333,19 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
           disabled={exportingCSV}
         >
           {exportingCSV ? <InlineSpinner text="Exporting..." /> : '📄 Export CSV'}
+        </button>
+        
+        <button
+          onClick={exportToInstacart}
+          style={{
+            ...styles.secondaryBtn,
+            background: 'linear-gradient(45deg, #43B02A, #5BC83F)',
+            color: 'white',
+            fontWeight: 'bold'
+          }}
+          disabled={exportingInstacart}
+        >
+          {exportingInstacart ? <InlineSpinner text="Creating..." /> : '🛒 Export to Instacart'}
         </button>
       </div>
 

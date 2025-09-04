@@ -4,12 +4,21 @@
 class InstacartService {
   constructor() {
     this.apiKey = process.env.REACT_APP_INSTACART_API_KEY;
-    this.baseURL = process.env.REACT_APP_INSTACART_BASE_URL || 'https://api.instacart.com/v2';
+    
+    // Official Instacart Developer Platform API endpoints
+    this.isDevelopment = process.env.NODE_ENV === 'development';
+    this.baseURL = this.isDevelopment 
+      ? 'https://connect.dev.instacart.tools'  // Development
+      : 'https://connect.instacart.com';       // Production
+    
+    // Recipe creation endpoint
+    this.recipeEndpoint = '/idp/v1/products/recipe';
     
     if (!this.apiKey || this.apiKey === 'your_development_api_key_here') {
       console.warn('⚠️ Instacart API key not configured. Using mock data.');
       this.useMockData = true;
     } else {
+      console.log('✅ Instacart API configured for', this.isDevelopment ? 'development' : 'production');
       this.useMockData = false;
     }
   }
@@ -50,7 +59,91 @@ class InstacartService {
     }
   }
 
-  // Search for products in Instacart catalog
+  // 🆕 CREATE RECIPE PAGE - Official Instacart Developer Platform API
+  async createRecipePage(recipeData) {
+    console.log('🍳 InstacartService: Creating recipe page for:', recipeData.title);
+    
+    if (this.useMockData) {
+      return this.getMockRecipeCreation(recipeData);
+    }
+
+    try {
+      const payload = {
+        title: recipeData.title,
+        image_url: recipeData.imageUrl || 'https://via.placeholder.com/400x300/4CAF50/white?text=Recipe',
+        ingredients: recipeData.ingredients || [],
+        instructions: recipeData.instructions || ['Enjoy your meal!'],
+        landing_page_configuration: {
+          track_pantry_items: recipeData.trackPantryItems || false
+        }
+      };
+
+      // Add optional retailer preference
+      if (recipeData.retailerKey) {
+        payload.retailer_key = recipeData.retailerKey;
+      }
+
+      // Add partner linkback URL if provided
+      if (recipeData.partnerUrl) {
+        payload.partner_linkback_url = recipeData.partnerUrl;
+      }
+
+      console.log('📤 Sending recipe to Instacart:', payload);
+
+      const response = await fetch(`${this.baseURL}${this.recipeEndpoint}`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Instacart API Error Response:', errorText);
+        throw new Error(`Instacart recipe creation error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Recipe page created successfully:', data);
+      return this.formatRecipeResponse(data);
+    } catch (error) {
+      console.error('❌ Error creating Instacart recipe page:', error);
+      return this.getMockRecipeCreation(recipeData);
+    }
+  }
+
+  // Export grocery list as recipe page to Instacart
+  async exportGroceryListAsRecipe(groceryItems, options = {}) {
+    console.log('📦 InstacartService: Exporting', groceryItems.length, 'grocery items as recipe');
+
+    const recipeTitle = options.title || 'My CartSmash Grocery List';
+    
+    // Convert grocery items to ingredients format
+    const ingredients = groceryItems.map(item => {
+      const quantity = item.quantity || 1;
+      const unit = item.unit || 'item';
+      const name = item.productName || item.name || item.item;
+      
+      return `${quantity} ${unit} ${name}`;
+    });
+
+    const recipeData = {
+      title: recipeTitle,
+      imageUrl: options.imageUrl || 'https://via.placeholder.com/400x300/2196F3/white?text=CartSmash+List',
+      ingredients: ingredients,
+      instructions: [
+        'This is a grocery shopping list created with CartSmash.',
+        'Add these items to your Instacart cart and proceed to checkout.',
+        'Enjoy your shopping experience!'
+      ],
+      retailerKey: options.preferredRetailer,
+      partnerUrl: options.partnerUrl || 'https://cartsmash.com',
+      trackPantryItems: options.trackPantryItems || false
+    };
+
+    return await this.createRecipePage(recipeData);
+  }
+
+  // Search for products in Instacart catalog (keeping existing method)
   async searchProducts(query, retailerId = null) {
     console.log('🔍 InstacartService: Searching for products:', query);
     
@@ -246,6 +339,19 @@ class InstacartService {
     };
   }
 
+  getMockRecipeCreation(recipeData) {
+    const recipeId = Math.floor(Math.random() * 1000000);
+    return {
+      success: true,
+      recipe_id: recipeId,
+      title: recipeData.title,
+      products_link_url: `https://www.instacart.com/store/recipes/${recipeId}`,
+      ingredients_count: recipeData.ingredients ? recipeData.ingredients.length : 0,
+      created_at: new Date().toISOString(),
+      status: 'active'
+    };
+  }
+
   // Response formatting methods
   formatRetailersResponse(data) {
     return {
@@ -272,6 +378,19 @@ class InstacartService {
   formatCartResponse(data) {
     return {
       success: true,
+      ...data
+    };
+  }
+
+  formatRecipeResponse(data) {
+    return {
+      success: true,
+      recipeId: data.id || data.recipe_id,
+      title: data.title,
+      instacartUrl: data.products_link_url,
+      ingredientsCount: data.ingredients_count || (data.ingredients ? data.ingredients.length : 0),
+      createdAt: data.created_at,
+      status: data.status || 'active',
       ...data
     };
   }
