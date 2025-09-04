@@ -439,11 +439,26 @@ function GroceryListForm({
           ...(index === 0 ? { _sourceRecipe: listText } : {})
         }));
         
+        // Debug logging before cart update
+        console.log('🛒 Cart update debug:');
+        console.log('- Current cart length:', currentCart.length);
+        console.log('- New items length:', cartWithRecipe.length);
+        console.log('- Merge mode:', mergeCart);
+        console.log('- First few new items:', cartWithRecipe.slice(0, 3).map(item => ({id: item.id, name: item.productName})));
+        
         if (mergeCart) {
-          setCurrentCart(prev => [...prev, ...cartWithRecipe]);
+          const newCart = [...currentCart, ...cartWithRecipe];
+          console.log('- Merged cart length:', newCart.length);
+          setCurrentCart(newCart);
         } else {
-          setCurrentCart(cartWithRecipe);
+          console.log('- Replacing cart entirely');
+          setCurrentCart([...cartWithRecipe]); // Force new array reference
         }
+        
+        // Verify update after state change
+        setTimeout(() => {
+          console.log('- Cart length after update:', currentCart.length);
+        }, 100);
         
         // Store parsing stats with original text preserved for recipe display
         const statsToSet = {
