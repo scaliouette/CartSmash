@@ -438,8 +438,41 @@ router.get('/meals', authenticateUser, async (req, res) => {
 router.post('/meals', authenticateUser, async (req, res) => {
   try {
     const userId = req.user.uid;
-    const { name, items, servings, prepTime, cookTime, description, tags } = req.body;
+    const { name, items, servings, prepTime, cookTime, description, tags, isImport, importData } = req.body;
     
+    // Handle structured JSON meal plan import
+    if (isImport && importData) {
+      const { importStructuredMealPlan, validateMealPlanStructure, generateImportSummary } = require('../utils/mealPlanImporter');
+      
+      // Validate the import data
+      const validation = validateMealPlanStructure(importData);
+      if (!validation.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid meal plan structure',
+          details: validation.errors
+        });
+      }
+      
+      // Import the structured meal plan
+      const importedPlan = importStructuredMealPlan(importData, userId);
+      const summary = generateImportSummary(importedPlan);
+      
+      // Save to Firestore
+      const docRef = await db.collection('mealPlans').add(importedPlan);
+      
+      return res.json({
+        success: true,
+        meal: {
+          id: docRef.id,
+          ...importedPlan
+        },
+        summary: summary,
+        message: `Meal plan "${importedPlan.name}" imported successfully with ${summary.totalMeals} meals and ${summary.shoppingItems} shopping items`
+      });
+    }
+    
+    // Handle regular meal plan creation
     if (!name || !items || !Array.isArray(items)) {
       return res.status(400).json({
         success: false,
