@@ -24,6 +24,7 @@ function MyAccount({
   const [localMealPlans, setLocalMealPlans] = useState([]);
   const [editingList, setEditingList] = useState(null);
   const [showListEditModal, setShowListEditModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   
   // Load meal plans from props or localStorage
   useEffect(() => {
@@ -165,6 +166,56 @@ function MyAccount({
     }
   };
 
+  const handleImportMealPlan = () => {
+    setShowImportModal(true);
+  };
+
+  const handleImportJSON = async (jsonData) => {
+    try {
+      // Parse JSON if it's a string
+      let parsedData;
+      if (typeof jsonData === 'string') {
+        parsedData = JSON.parse(jsonData);
+      } else {
+        parsedData = jsonData;
+      }
+      
+      // Import via API
+      const response = await fetch('/api/account/meals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await currentUser.getIdToken()}`
+        },
+        body: JSON.stringify({
+          isImport: true,
+          importData: parsedData
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Update local state
+        const updatedPlans = [...localMealPlans, result.meal];
+        setLocalMealPlans(updatedPlans);
+        localStorage.setItem('cartsmash-mealplans', JSON.stringify(updatedPlans));
+        
+        if (onMealPlanUpdate) {
+          onMealPlanUpdate(updatedPlans);
+        }
+        
+        setShowImportModal(false);
+        alert(`✅ ${result.message}`);
+      } else {
+        throw new Error(result.error || 'Import failed');
+      }
+    } catch (error) {
+      console.error('Error importing meal plan:', error);
+      alert(`Failed to import meal plan: ${error.message}`);
+    }
+  };
+
   const renderShoppingLists = () => (
     <div style={styles.listsContainer}>
       <h2 style={styles.pageTitle}>Shopping Lists</h2>
@@ -228,12 +279,20 @@ function MyAccount({
     <div style={styles.mealPlansContainer}>
       <div style={styles.mealPlansHeader}>
         <h2 style={styles.pageTitle}>Meal Plans</h2>
-        <button 
-          onClick={() => setShowMealPlanModal(true)}
-          style={styles.addMealPlanButton}
-        >
-          ➕ Create Meal Plan
-        </button>
+        <div style={styles.mealPlanActions}>
+          <button 
+            onClick={() => setShowMealPlanModal(true)}
+            style={styles.addMealPlanButton}
+          >
+            ➕ Create Meal Plan
+          </button>
+          <button 
+            onClick={() => handleImportMealPlan()}
+            style={styles.importMealPlanButton}
+          >
+            📋 Import JSON Plan
+          </button>
+        </div>
       </div>
       
       {!localMealPlans || localMealPlans.length === 0 ? (
@@ -570,6 +629,14 @@ function MyAccount({
               alert('Failed to update list in cloud');
             }
           }}
+        />
+      )}
+
+      {showImportModal && (
+        <ImportMealPlanModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImport={handleImportJSON}
         />
       )}
     </div>
@@ -1012,6 +1079,167 @@ function MealPlanModal({ isOpen, onClose, editingPlan, savedRecipes, onSave }) {
   );
 }
 
+// Import Meal Plan Modal Component
+function ImportMealPlanModal({ isOpen, onClose, onImport }) {
+  const [jsonText, setJsonText] = useState('');
+  const [isValidJson, setIsValidJson] = useState(true);
+  const [previewData, setPreviewData] = useState(null);
+
+  const validateAndPreview = (text) => {
+    try {
+      if (!text.trim()) {
+        setIsValidJson(true);
+        setPreviewData(null);
+        return;
+      }
+      
+      const parsed = JSON.parse(text);
+      setIsValidJson(true);
+      
+      // Generate preview
+      const mealPlan = parsed.mealPlan;
+      if (mealPlan) {
+        const preview = {
+          title: mealPlan.title || 'Imported Meal Plan',
+          days: mealPlan.days?.length || 0,
+          totalMeals: 0,
+          servings: mealPlan.servings || 4
+        };
+        
+        // Count meals
+        mealPlan.days?.forEach(day => {
+          if (day.meals) {
+            Object.values(day.meals).forEach(meal => {
+              if (meal && meal.name) preview.totalMeals++;
+            });
+          }
+        });
+        
+        setPreviewData(preview);
+      }
+    } catch (error) {
+      setIsValidJson(false);
+      setPreviewData(null);
+    }
+  };
+
+  const handleTextChange = (e) => {
+    const text = e.target.value;
+    setJsonText(text);
+    validateAndPreview(text);
+  };
+
+  const handleImport = () => {
+    if (jsonText.trim() && isValidJson) {
+      onImport(jsonText);
+    }
+  };
+
+  const handlePasteExample = () => {
+    const exampleJson = JSON.stringify({
+      "mealPlan": {
+        "title": "Example 3-Day Plan",
+        "servings": 4,
+        "startDate": "2025-01-06",
+        "days": [
+          {
+            "day": 1,
+            "date": "2025-01-06",
+            "dayName": "Monday",
+            "meals": {
+              "breakfast": {
+                "name": "Oatmeal with Berries",
+                "prepTime": 10,
+                "cookTime": 5,
+                "servings": 4,
+                "ingredients": [
+                  {"item": "rolled oats", "amount": 2, "unit": "cups"},
+                  {"item": "mixed berries", "amount": 1, "unit": "cup"},
+                  {"item": "honey", "amount": 2, "unit": "tbsp"}
+                ],
+                "instructions": ["Cook oats", "Add berries", "Drizzle honey"]
+              }
+            }
+          }
+        ]
+      }
+    }, null, 2);
+    setJsonText(exampleJson);
+    validateAndPreview(exampleJson);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
+        <div style={modalStyles.header}>
+          <h2 style={modalStyles.title}>📋 Import Structured Meal Plan</h2>
+          <button onClick={onClose} style={modalStyles.closeButton}>×</button>
+        </div>
+
+        <div style={modalStyles.content}>
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Paste your JSON meal plan data:</label>
+            <div style={modalStyles.importActions}>
+              <button 
+                onClick={handlePasteExample}
+                style={modalStyles.exampleButton}
+              >
+                📝 Paste Example
+              </button>
+            </div>
+            <textarea
+              value={jsonText}
+              onChange={handleTextChange}
+              placeholder="Paste your structured JSON meal plan here..."
+              style={{
+                ...modalStyles.jsonTextarea,
+                borderColor: isValidJson ? '#002244' : '#8B0000'
+              }}
+            />
+            
+            {!isValidJson && (
+              <div style={modalStyles.errorMessage}>
+                ❌ Invalid JSON format. Please check your data structure.
+              </div>
+            )}
+            
+            {previewData && (
+              <div style={modalStyles.previewSection}>
+                <h4 style={modalStyles.previewTitle}>📋 Preview:</h4>
+                <div style={modalStyles.previewContent}>
+                  <p><strong>Title:</strong> {previewData.title}</p>
+                  <p><strong>Days:</strong> {previewData.days}</p>
+                  <p><strong>Total Meals:</strong> {previewData.totalMeals}</p>
+                  <p><strong>Servings:</strong> {previewData.servings}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={modalStyles.actions}>
+            <button 
+              onClick={handleImport}
+              disabled={!jsonText.trim() || !isValidJson}
+              style={{
+                ...modalStyles.saveButton,
+                opacity: (!jsonText.trim() || !isValidJson) ? 0.5 : 1,
+                cursor: (!jsonText.trim() || !isValidJson) ? 'not-allowed' : 'pointer'
+              }}
+            >
+              🔄 Import Meal Plan
+            </button>
+            <button onClick={onClose} style={modalStyles.cancelButton}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Styles - Broncos Theme
 const styles = {
   container: {
@@ -1246,6 +1474,12 @@ const styles = {
     alignItems: 'center'
   },
 
+  mealPlanActions: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center'
+  },
+
   addMealPlanButton: {
     padding: '10px 20px',
     backgroundColor: '#FB4F14',
@@ -1255,6 +1489,17 @@ const styles = {
     cursor: 'pointer',
     fontWeight: 'bold',
     boxShadow: '0 2px 8px rgba(251,79,20,0.2)'
+  },
+
+  importMealPlanButton: {
+    padding: '10px 20px',
+    backgroundColor: '#002244',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    boxShadow: '0 2px 8px rgba(0,34,68,0.2)'
   },
 
   createFirstPlanButton: {
@@ -1871,6 +2116,64 @@ const modalStyles = {
     borderRadius: '8px',
     cursor: 'pointer',
     fontWeight: 'bold'
+  },
+
+  // Import Modal Styles
+  jsonTextarea: {
+    width: '100%',
+    minHeight: '300px',
+    padding: '12px',
+    border: '2px solid #002244',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontFamily: 'monospace',
+    resize: 'vertical'
+  },
+
+  importActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginBottom: '12px'
+  },
+
+  exampleButton: {
+    padding: '8px 16px',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 'bold'
+  },
+
+  errorMessage: {
+    color: '#8B0000',
+    fontSize: '14px',
+    marginTop: '8px',
+    padding: '8px',
+    backgroundColor: '#FFE5E5',
+    borderRadius: '4px',
+    border: '1px solid #8B0000'
+  },
+
+  previewSection: {
+    marginTop: '16px',
+    padding: '12px',
+    backgroundColor: '#FFF5F2',
+    borderRadius: '8px',
+    border: '2px solid #FB4F14'
+  },
+
+  previewTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '16px',
+    color: '#002244'
+  },
+
+  previewContent: {
+    fontSize: '14px',
+    color: '#002244'
   }
 };
 

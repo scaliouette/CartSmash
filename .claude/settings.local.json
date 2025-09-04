@@ -10,7 +10,14 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\server\\utils/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\server\\routes/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
+      "Bash(dir)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\server/**)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []
