@@ -1,12 +1,9 @@
 // client/src/components/ProductValidator.js - FIXED VERSION
 import React, { useState, useEffect } from 'react';
-import { InlineSpinner } from './LoadingSpinner';
 
 function ProductValidator({ items, onItemsUpdated, onClose }) {
-  const [validatingItems, setValidatingItems] = useState(new Set());
   const [localItems, setLocalItems] = useState([]);
   const [filter, setFilter] = useState('all');
-  const [validatingAll, setValidatingAll] = useState(false);
   const [editedItems, setEditedItems] = useState(new Map());
 
   // Initialize local items with proper structure
@@ -141,153 +138,6 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
     console.log(`✅ Item ${itemId} accepted`);
   };
 
-  // Validate single item with AI
-  const handleValidateItem = async (itemId) => {
-    setValidatingItems(prev => new Set([...prev, itemId]));
-    
-    try {
-      const item = localItems.find(i => i.id === itemId);
-      const editedFields = editedItems.get(itemId) || {};
-      
-      // Call backend to re-validate with AI with timeout
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
-      const response = await fetch(`${API_URL}/api/ai/validate-products`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          products: [{
-            ...item,
-            ...editedFields
-          }]
-        }),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        const data = await response.json();
-        const validatedProduct = data.validatedProducts[0];
-        
-        setLocalItems(prev => prev.map(i => 
-          i.id === itemId 
-            ? { 
-                ...i,
-                ...editedFields,
-                confidence: validatedProduct.confidence || 0.95,
-                needsReview: false,
-                validatedAt: new Date().toISOString(),
-                userValidated: true
-              }
-            : i
-        ));
-        
-        console.log(`✅ Item ${itemId} validated with AI`);
-      }
-      
-      setEditedItems(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(itemId);
-        return newMap;
-      });
-      
-    } catch (error) {
-      console.error('Validation failed:', error);
-      if (error.name === 'AbortError') {
-        alert('Validation timed out. Please try again with fewer items or check your connection.');
-      } else {
-        alert('Validation failed. Please try again.');
-      }
-    } finally {
-      setValidatingItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(itemId);
-        return newSet;
-      });
-    }
-  };
-
-  // Validate all items needing review
-  const handleValidateAll = async () => {
-    const itemsToValidate = localItems.filter(item => 
-      item.needsReview || (item.confidence || 0) < 0.6
-    );
-    
-    if (itemsToValidate.length === 0) {
-      alert('No items need validation!');
-      return;
-    }
-    
-    setValidatingAll(true);
-    
-    try {
-      // Apply edits and prepare for validation
-      const productsToValidate = itemsToValidate.map(item => {
-        const editedFields = editedItems.get(item.id) || {};
-        return {
-          ...item,
-          ...editedFields
-        };
-      });
-      
-      // Call backend to validate all with AI with timeout
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for bulk
-      
-      const response = await fetch(`${API_URL}/api/ai/validate-products`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          products: productsToValidate
-        }),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Update items with validation results
-        const updatedItems = localItems.map(item => {
-          const validated = data.validatedProducts.find(v => v.id === item.id);
-          if (validated) {
-            const editedFields = editedItems.get(item.id) || {};
-            return {
-              ...item,
-              ...editedFields,
-              confidence: validated.confidence || 0.95,
-              needsReview: false,
-              validatedAt: new Date().toISOString(),
-              userValidated: true
-            };
-          }
-          return item;
-        });
-        
-        setLocalItems(updatedItems);
-        setEditedItems(new Map());
-        
-        alert(`✅ Validated ${itemsToValidate.length} items successfully!`);
-      }
-      
-    } catch (error) {
-      console.error('Bulk validation failed:', error);
-      if (error.name === 'AbortError') {
-        alert('Validation timed out. Please try again with fewer items or check your connection.');
-      } else {
-        alert('Failed to validate items. Please try again.');
-      }
-    } finally {
-      setValidatingAll(false);
-    }
-  };
 
   // Save all changes and close
   const handleSaveAll = () => {
@@ -313,7 +163,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
       <div style={styles.modal}>
         {/* Header */}
         <div style={styles.header}>
-          <h2 style={styles.title}>🔍 Review & Validate Items</h2>
+          <h2 style={styles.title}>🔍 Review & Accept Items</h2>
           <button onClick={onClose} style={styles.closeButton}>×</button>
         </div>
 
@@ -340,7 +190,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
               <span style={{ ...styles.statNumber, color: '#10b981' }}>
                 {localItems.filter(item => !item.needsReview && item.confidence >= 0.8).length}
               </span>
-              <span style={styles.statLabel}>Validated</span>
+              <span style={styles.statLabel}>Accepted</span>
             </div>
           </div>
 
@@ -370,29 +220,13 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                 ...(filter === 'validated' ? styles.filterTabInlineActive : {})
               }}
             >
-              ✅ Validated
+              ✅ Accepted
             </button>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div style={styles.actionBar}>
-          {itemsNeedingReview.length > 0 && (
-            <button
-              onClick={handleValidateAll}
-              disabled={validatingAll}
-              style={styles.validateAllButton}
-            >
-              {validatingAll ? (
-                <>
-                  <InlineSpinner color="white" /> Validating...
-                </>
-              ) : (
-                <>🚀 Validate ({itemsNeedingReview.length} items)</>
-              )}
-            </button>
-          )}
-          
           {editedItems.size > 0 && (
             <span style={styles.editIndicator}>
               ⚠️ {editedItems.size} items have unsaved edits
@@ -408,7 +242,6 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
             </div>
           ) : (
             filteredItems.map(item => {
-              const isValidating = validatingItems.has(item.id);
               const isValidated = !item.needsReview && (item.confidence || 0) >= 0.8;
               const isEdited = isItemEdited(item.id);
               
@@ -429,7 +262,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                         backgroundColor: getConfidenceColor(item.confidence || 0)
                       }}
                     >
-                      {isValidated ? '✅ Validated' : isEdited ? '✏️ Edited' : '⚠️ Review'}
+                      {isValidated ? '✅ Accepted' : isEdited ? '✏️ Edited' : '⚠️ Review'}
                     </div>
                     
                     <div style={styles.topRowActions}>
@@ -450,23 +283,13 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                       
                       <div style={styles.topActions}>
                         {!isValidated && (
-                          <>
-                            <button
-                              onClick={() => handleAcceptItem(item.id)}
-                              style={styles.acceptButtonTop}
-                              title="Accept as-is"
-                            >
-                              ✅ Accept
-                            </button>
-                            <button
-                              onClick={() => handleValidateItem(item.id)}
-                              disabled={isValidating}
-                              style={styles.validateButtonTop}
-                              title="Validate with AI"
-                            >
-                              {isValidating ? <InlineSpinner /> : '🤖 Validate'}
-                            </button>
-                          </>
+                          <button
+                            onClick={() => handleAcceptItem(item.id)}
+                            style={styles.acceptButtonTop}
+                            title="Accept as-is"
+                          >
+                            ✅ Accept
+                          </button>
                         )}
                         <button
                           onClick={() => handleRemoveItem(item.id)}

@@ -19,7 +19,8 @@
       "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\services/**)",
       "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\services/**)",
       "Bash(node:*)",
-      "Bash(del quick-test.js)"
+      "Bash(del quick-test.js)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)"
     ],
     "deny": [],
     "ask": []
