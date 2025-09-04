@@ -1,5 +1,5 @@
 // client/src/components/ParsedResultsDisplay.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { InlineSpinner } from './LoadingSpinner';
 import KrogerOrderFlow from './KrogerOrderFlow';
 import ProductValidator from './ProductValidator';
@@ -9,6 +9,15 @@ import instacartService from '../services/instacartService';
 
 
 function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats }) {
+  const isDev = process.env.NODE_ENV !== 'production';
+  const recipeLogOnceRef = useRef(false);
+  const [recipeExpanded, setRecipeExpanded] = useState(false);
+
+  // Memoize recipe source to avoid recomputation and noisy logs on every render
+  const sourceRecipeMemo = useMemo(() => {
+    return parsingStats?.sourceRecipe || items[0]?._sourceRecipe || '';
+  }, [parsingStats?.sourceRecipe, items]);
+
   // Debug log to verify currentUser is being received
   useEffect(() => {
     console.log('🔍 ParsedResultsDisplay received currentUser:', currentUser?.email || 'No user');

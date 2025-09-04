@@ -915,15 +915,33 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
                           </div>
                         )}
                         
-                        <div style={{
-                          whiteSpace: 'pre-wrap',
-                          lineHeight: '1.5',
-                          fontSize: '14px'
-                        }}>
-                          {message.content}
+                        {/* ✅ NEW: AI Conversation as editable text field */}
+                        <div style={{ marginBottom: '15px' }}>
+                          <textarea
+                            value={message.content}
+                            onChange={(e) => {
+                              const updatedMessages = messages.map((msg, idx) => 
+                                idx === index ? { ...msg, content: e.target.value } : msg
+                              );
+                              setMessages(updatedMessages);
+                            }}
+                            style={{
+                              width: '100%',
+                              minHeight: '150px',
+                              padding: '12px',
+                              border: '1px solid #ddd',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              lineHeight: '1.5',
+                              fontFamily: 'inherit',
+                              resize: 'vertical',
+                              backgroundColor: message.role === 'assistant' ? '#f8f9fa' : 'white'
+                            }}
+                            placeholder="AI conversation content..."
+                          />
                         </div>
                         
-                        {/* ✅ ENHANCED: Show both grocery list and recipe info */}
+                        {/* ✅ ENHANCED: Show both grocery list and recipe info with save option */}
                         <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                           {message.recipeInfo && (message.recipeInfo.ingredients.length > 0 || message.recipeInfo.instructions.length > 0) && (
                             <div style={{
@@ -932,12 +950,86 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
                               backgroundColor: '#f0f9ff',
                               padding: '8px 12px',
                               borderRadius: '8px',
-                              border: '1px solid #bfdbfe'
+                              border: '1px solid #bfdbfe',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
                             }}>
-                              ✅ Recipe saved: "{message.recipeInfo.title}"
-                              <br />
-                              📝 {message.recipeInfo.ingredients.length} ingredients, {message.recipeInfo.instructions.length} steps
+                              <div>
+                                ✅ Recipe detected: "{message.recipeInfo.title}"
+                                <br />
+                                📝 {message.recipeInfo.ingredients.length} ingredients, {message.recipeInfo.instructions.length} steps
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const recipeData = {
+                                    name: message.recipeInfo.title,
+                                    ingredients: message.content, // Use the full editable content
+                                    instructions: message.recipeInfo.instructions.join('\n'),
+                                    savedFrom: 'ai_conversation',
+                                    timestamp: new Date().toISOString()
+                                  };
+                                  
+                                  if (onRecipeGenerated) {
+                                    onRecipeGenerated(recipeData);
+                                  }
+                                  
+                                  alert(`✅ Recipe "${message.recipeInfo.title}" saved to your account!`);
+                                }}
+                                style={{
+                                  padding: '6px 12px',
+                                  backgroundColor: '#FF6B35',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  fontWeight: 'bold',
+                                  marginLeft: '10px'
+                                }}
+                              >
+                                📖 Save Recipe
+                              </button>
                             </div>
+                          )}
+                          
+                          {/* ✅ NEW: General save recipe option for any AI response */}
+                          {message.role === 'assistant' && message.content.length > 100 && (
+                            <button
+                              onClick={() => {
+                                const recipeTitle = message.content.split('\n').find(line => 
+                                  line.toLowerCase().includes('recipe') || 
+                                  line.toLowerCase().includes('meal') ||
+                                  line.length > 20
+                                )?.trim() || `Recipe from AI - ${new Date().toLocaleDateString()}`;
+                                
+                                const recipeData = {
+                                  name: recipeTitle.substring(0, 100),
+                                  ingredients: message.content,
+                                  instructions: '',
+                                  savedFrom: 'ai_conversation',
+                                  timestamp: new Date().toISOString()
+                                };
+                                
+                                if (onRecipeGenerated) {
+                                  onRecipeGenerated(recipeData);
+                                }
+                                
+                                alert(`✅ AI response saved as recipe: "${recipeTitle.substring(0, 50)}..."`);
+                              }}
+                              style={{
+                                padding: '8px 12px',
+                                backgroundColor: '#6c757d',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              💾 Save as Recipe
+                            </button>
                           )}
                           
                           {message.groceryList && message.groceryList.length > 0 && (

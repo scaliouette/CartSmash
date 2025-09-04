@@ -107,7 +107,11 @@
       "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
       "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
       "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\server\\utils/**)",
-      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\server\\utils/**)"
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\server\\utils/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)"
     ],
     "deny": [],
     "ask": []
