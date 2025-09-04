@@ -8,7 +8,7 @@ import instacartService from '../services/instacartService';
 
 
 
-function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats }) {
+function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats, savedRecipes, setSavedRecipes }) {
   const isDev = process.env.NODE_ENV !== 'production';
   const recipeLogOnceRef = useRef(false);
   const [recipeExpanded, setRecipeExpanded] = useState(false);
@@ -411,7 +411,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
     
     try {
       const recipe = parseRecipeContent(content);
-      const savedRecipes = JSON.parse(localStorage.getItem('cartsmash-saved-recipes') || '[]');
+      const currentSavedRecipes = savedRecipes || JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
       
       const newRecipe = {
         id: `recipe_${Date.now()}`,
@@ -420,8 +420,15 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
         source: 'ai_generated'
       };
       
-      savedRecipes.push(newRecipe);
-      localStorage.setItem('cartsmash-saved-recipes', JSON.stringify(savedRecipes));
+      const updatedRecipes = [...currentSavedRecipes, newRecipe];
+      
+      // Update parent state if available
+      if (setSavedRecipes) {
+        setSavedRecipes(updatedRecipes);
+      }
+      
+      // Always save to localStorage as backup
+      localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
       
       // Show success message
       alert('✅ Recipe saved successfully!');
@@ -456,37 +463,41 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
                          content.toLowerCase().includes('dinner'));
       
       const savedMealPlans = JSON.parse(localStorage.getItem('cartsmash-saved-meal-plans') || '[]');
-      const savedRecipes = JSON.parse(localStorage.getItem('cartsmash-saved-recipes') || '[]');
+      const currentSavedRecipes = savedRecipes || JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
       
       if (isMealPlan) {
         // Extract individual recipes from meal plan
         const recipes = extractMealPlanRecipes(content);
         
         // Save each recipe individually
-        recipes.forEach(recipe => {
-          const newRecipe = {
-            id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            ...recipe,
-            savedAt: new Date().toISOString(),
-            source: 'meal_plan',
-            mealPlanId: `plan_${Date.now()}`
-          };
-          savedRecipes.push(newRecipe);
-        });
+        const newRecipes = recipes.map(recipe => ({
+          id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          ...recipe,
+          savedAt: new Date().toISOString(),
+          source: 'meal_plan',
+          mealPlanId: `plan_${Date.now()}`
+        }));
+        
+        const updatedSavedRecipes = [...currentSavedRecipes, ...newRecipes];
+        
+        // Update parent state if available
+        if (setSavedRecipes) {
+          setSavedRecipes(updatedSavedRecipes);
+        }
         
         // Save the meal plan
         const newMealPlan = {
           id: `plan_${Date.now()}`,
           title: 'Weekly Meal Plan',
           content: content,
-          recipes: recipes.map(r => r.id),
+          recipes: newRecipes.map(r => r.id),
           savedAt: new Date().toISOString(),
           source: 'ai_generated'
         };
         
         savedMealPlans.push(newMealPlan);
         localStorage.setItem('cartsmash-saved-meal-plans', JSON.stringify(savedMealPlans));
-        localStorage.setItem('cartsmash-saved-recipes', JSON.stringify(savedRecipes));
+        localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedSavedRecipes));
         
         alert(`✅ Meal plan saved with ${recipes.length} recipes!`);
         

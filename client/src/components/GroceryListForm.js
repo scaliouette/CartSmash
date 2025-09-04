@@ -840,6 +840,8 @@ Or paste any grocery list directly!"
           currentUser={currentUser}
           onItemsChange={handleItemsChange}
           parsingStats={parsingStats}
+          savedRecipes={savedRecipes}
+          setSavedRecipes={setSavedRecipes}
         />
       )}
 
