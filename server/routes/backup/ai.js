@@ -336,68 +336,78 @@ function generateClaudeResponse(prompt) {
   const lowerPrompt = prompt.toLowerCase();
   
   if (lowerPrompt.includes('meal plan') || lowerPrompt.includes('weekly')) {
-    return `I'd be happy to help you create a comprehensive weekly meal plan! Here's a balanced approach focusing on nutrition and variety:
+    return `Here's your complete 7-day healthy meal plan for a family of 4:
 
-**WEEKLY MEAL PLAN**
+WEEKLY MEAL PLAN
 
-**Monday - Mediterranean Monday**
-• Breakfast: Greek yogurt parfait with mixed berries
-• Lunch: Quinoa tabbouleh with grilled chicken
-• Dinner: Baked salmon with roasted vegetables
+Day 1 (Monday)
+- Breakfast: Greek yogurt parfait with mixed berries
+- Lunch: Quinoa tabbouleh with grilled chicken  
+- Dinner: Baked chicken breast with roasted vegetables
 
-**Tuesday - Comfort Tuesday** 
-• Breakfast: Overnight oats with sliced banana
-• Lunch: Turkey and avocado wrap with whole grain tortilla
-• Dinner: Lean beef stir-fry with brown rice
+Day 2 (Tuesday)
+- Breakfast: Overnight oats with sliced banana
+- Lunch: Turkey and avocado wrap with whole grain tortilla
+- Dinner: Lean beef stir-fry with brown rice
 
-**COMPLETE SHOPPING LIST:**
+GROCERY LIST
 
-**Proteins:**
-• 2 lbs salmon fillet
-• 2 lbs boneless chicken breast  
-• 1 lb lean ground beef
-• 1 lb turkey deli meat
-• 1 container Greek yogurt (32oz)
-• 1 dozen eggs
+Produce
+- 2 cups mixed berries
+- 4 bananas
+- 2 avocados
+- 1 bag spinach (5oz)
+- 2 bell peppers
+- 1 large onion
+- 3 cloves garlic
+- 2 large sweet potatoes
+- 1 cucumber
+- 2 tomatoes
+- 1 lemon
 
-**Fresh Produce:**
-• 2 cups mixed berries
-• 4 bananas
-• 2 avocados
-• 1 bag spinach (5oz)
-• 2 bell peppers
-• 1 large onion
-• 3 cloves garlic
-• 2 large sweet potatoes
-• 1 cucumber
-• 2 tomatoes
-• 1 lemon
+Proteins & Dairy
+- 2 lbs boneless chicken breast
+- 1 lb lean ground beef
+- 1 lb turkey deli meat
+- 1 container Greek yogurt (32oz)
+- 1 dozen eggs
 
-**Pantry Staples:**
-• 2 cups quinoa
-• 2 cups brown rice
-• 1 container rolled oats
-• 1 can black beans
-• 1 cup red lentils
-• 2 tbsp olive oil
-• 1 loaf whole grain bread
+Grains & Bakery
+- 2 cups quinoa
+- 2 cups brown rice
+- 1 container rolled oats
+- 1 loaf whole grain bread
 
-This plan provides balanced macronutrients with approximately 2000-2200 calories per day.`;
+Pantry
+- 1 can black beans
+- 1 cup red lentils
+- 2 tbsp olive oil
+
+Estimated Total Cost: $75-90
+
+This plan provides balanced nutrition for your family.`;
   }
   
   // Add other response templates here...
   return `Here's a personalized grocery plan based on your request:
 
-**GROCERY SHOPPING LIST:**
+GROCERY LIST
 
-• 2 lbs protein of choice
-• 1 dozen eggs
-• 1 gallon milk
-• 2 cups rice
-• 1 bag vegetables
-• 3 pieces fruit
-• 1 loaf bread
-• 1 bottle olive oil
+Proteins & Dairy
+- 2 lbs protein of choice
+- 1 dozen eggs
+- 1 gallon milk
+
+Grains & Bakery
+- 2 cups rice
+- 1 loaf bread
+
+Produce
+- 1 bag vegetables
+- 3 pieces fruit
+
+Pantry
+- 1 bottle olive oil
 
 This provides a solid foundation for healthy meals.`;
 }
@@ -406,16 +416,23 @@ function generateChatGPTResponse(prompt) {
   // Similar fallback structure...
   return `Here's a practical grocery list:
 
-**SHOPPING LIST:**
+GROCERY LIST
 
-• 2 lbs chicken breast
-• 1 dozen eggs
-• 1 gallon milk
-• 2 cups rice
-• 1 bag mixed vegetables
-• 3 bananas
-• 1 loaf bread
-• 1 bottle cooking oil
+Proteins & Dairy
+- 2 lbs chicken breast
+- 1 dozen eggs
+- 1 gallon milk
+
+Grains & Bakery
+- 2 cups rice
+- 1 loaf bread
+
+Produce
+- 1 bag mixed vegetables
+- 3 bananas
+
+Pantry
+- 1 bottle cooking oil
 
 Perfect for quick, healthy meals!`;
 }

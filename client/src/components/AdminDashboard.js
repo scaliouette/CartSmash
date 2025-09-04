@@ -1,5 +1,5 @@
 // client/src/components/AdminDashboard.js - Fixed with proper null checking
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ParsingAnalyticsDashboard from './ParsingAnalyticsDashboard';
 import SmartParsingDemo from './SmartParsingDemo';
 import AIParsingSettings from './AIParsingSettings';
@@ -34,9 +34,9 @@ function AdminDashboard({ onClose, currentUser }) {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, []);
+  }, [loadSystemHealth]);
 
-  const loadSystemHealth = async () => {
+  const loadSystemHealth = useCallback(async () => {
     try {
       const response = await fetch('/api/settings/health/check');
       if (response.ok) {
@@ -51,7 +51,7 @@ function AdminDashboard({ onClose, currentUser }) {
       setError(error.message);
       setSystemHealth(null);
     }
-  };
+  }, [error]);
 
   const loadUserActivity = async () => {
     try {

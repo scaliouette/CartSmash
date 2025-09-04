@@ -603,41 +603,136 @@ This covers basic nutrition needs with ${isBasic ? 'minimal prep required' : 'fl
 
   const selectedModelData = aiModels[selectedModel];
 
+  // Create fun loading animation keyframes
+  const loadingStyle = `
+    @keyframes cartSmashThinking {
+      0%, 100% { transform: rotate(0deg) scale(1); }
+      25% { transform: rotate(-5deg) scale(1.05); }
+      50% { transform: rotate(5deg) scale(1.1); }
+      75% { transform: rotate(-3deg) scale(1.05); }
+    }
+    
+    @keyframes groceryFloat {
+      0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.8; }
+      33% { transform: translateY(-8px) rotate(120deg); opacity: 1; }
+      66% { transform: translateY(-4px) rotate(240deg); opacity: 0.9; }
+    }
+    
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4); }
+      50% { box-shadow: 0 8px 30px rgba(247, 147, 30, 0.7); }
+    }
+  `;
+
   return (
     <>
+      {/* Add CSS animations */}
+      <style>{loadingStyle}</style>
+      
       {/* Floating Action Button */}
-      <button
-        onClick={() => setIsOpen(true)}
-        style={{
-          position: 'fixed',
-          bottom: '30px',
-          right: '30px',
-          width: '70px',
-          height: '70px',
-          backgroundColor: selectedModelData.color,
-          color: 'white',
-          border: 'none',
-          borderRadius: '50%',
-          fontSize: '24px',
-          cursor: 'pointer',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-          zIndex: 1000,
-          transition: 'all 0.3s ease',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.transform = 'scale(1.1)';
-          e.target.style.boxShadow = '0 6px 25px rgba(0,0,0,0.4)';
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.transform = 'scale(1)';
-          e.target.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
-        }}
-      >
-        {selectedModelData.icon}
-      </button>
+      <div style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 1000 }}>
+        <button
+          onClick={() => setIsOpen(true)}
+          disabled={isLoading}
+          style={{
+            width: '70px',
+            height: '70px',
+            backgroundColor: isLoading ? '#FF6B35' : selectedModelData.color,
+            color: 'white',
+            border: 'none',
+            borderRadius: '50%',
+            fontSize: isLoading ? '20px' : '24px',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            boxShadow: isLoading ? '0 8px 30px rgba(255, 107, 53, 0.6)' : '0 4px 20px rgba(0,0,0,0.3)',
+            transition: 'all 0.3s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            overflow: 'visible',
+            animation: isLoading ? 'cartSmashThinking 1.5s ease-in-out infinite, pulseGlow 2s ease-in-out infinite' : 'none'
+          }}
+          onMouseEnter={(e) => {
+            if (!isLoading) {
+              e.target.style.transform = 'scale(1.1)';
+              e.target.style.boxShadow = '0 6px 25px rgba(0,0,0,0.4)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isLoading) {
+              e.target.style.transform = 'scale(1)';
+              e.target.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+            }
+          }}
+        >
+          {isLoading ? (
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {/* Main cart icon */}
+              🛒
+              
+              {/* Floating grocery items */}
+              <div style={{
+                position: 'absolute',
+                top: '-25px',
+                left: '10px',
+                fontSize: '12px',
+                animation: 'groceryFloat 2s ease-in-out infinite',
+                animationDelay: '0s'
+              }}>🥕</div>
+              
+              <div style={{
+                position: 'absolute',
+                top: '-20px',
+                right: '8px',
+                fontSize: '10px',
+                animation: 'groceryFloat 2s ease-in-out infinite',
+                animationDelay: '0.5s'
+              }}>🍎</div>
+              
+              <div style={{
+                position: 'absolute',
+                bottom: '-25px',
+                left: '12px',
+                fontSize: '11px',
+                animation: 'groceryFloat 2s ease-in-out infinite',
+                animationDelay: '1s'
+              }}>🥛</div>
+              
+              <div style={{
+                position: 'absolute',
+                bottom: '-20px',
+                right: '10px',
+                fontSize: '9px',
+                animation: 'groceryFloat 2s ease-in-out infinite',
+                animationDelay: '1.5s'
+              }}>🍞</div>
+            </div>
+          ) : (
+            selectedModelData.icon
+          )}
+        </button>
+        
+        {/* Loading text that appears below button when loading */}
+        {isLoading && (
+          <div style={{
+            position: 'absolute',
+            top: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'rgba(255, 107, 53, 0.95)',
+            color: 'white',
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            whiteSpace: 'nowrap',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+            animation: 'pulseGlow 2s ease-in-out infinite'
+          }}>
+            🧠 AI is thinking...
+          </div>
+        )}
+      </div>
 
       {/* AI Chat Modal */}
       {isOpen && (
@@ -1021,14 +1116,71 @@ This covers basic nutrition needs with ${isBasic ? 'minimal prep required' : 'fl
                         boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '10px'
+                        gap: '15px',
+                        position: 'relative',
+                        animation: 'pulseGlow 2s ease-in-out infinite'
                       }}>
-                        <LoadingSpinner 
-                          size="small" 
-                          color={selectedModelData.color}
-                          text={`${selectedModelData.name.split(' ')[0]} is thinking...`}
-                          inline
-                        />
+                        {/* CartSmash thinking animation */}
+                        <div style={{
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '40px',
+                          height: '40px',
+                          animation: 'cartSmashThinking 1.5s ease-in-out infinite'
+                        }}>
+                          <div style={{ fontSize: '20px' }}>🛒</div>
+                          
+                          {/* Mini floating groceries around the cart */}
+                          <div style={{
+                            position: 'absolute',
+                            top: '-8px',
+                            left: '8px',
+                            fontSize: '8px',
+                            animation: 'groceryFloat 2s ease-in-out infinite',
+                            animationDelay: '0s'
+                          }}>🥕</div>
+                          
+                          <div style={{
+                            position: 'absolute',
+                            top: '-6px',
+                            right: '6px',
+                            fontSize: '7px',
+                            animation: 'groceryFloat 2s ease-in-out infinite',
+                            animationDelay: '0.7s'
+                          }}>🍎</div>
+                          
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '-8px',
+                            left: '6px',
+                            fontSize: '8px',
+                            animation: 'groceryFloat 2s ease-in-out infinite',
+                            animationDelay: '1.4s'
+                          }}>🥛</div>
+                        </div>
+                        
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px'
+                        }}>
+                          <div style={{
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            color: '#FF6B35'
+                          }}>
+                            {selectedModelData.name.split(' ')[0]} is thinking...
+                          </div>
+                          <div style={{
+                            fontSize: '12px',
+                            color: '#666',
+                            fontStyle: 'italic'
+                          }}>
+                            🧠 Processing your grocery request
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
