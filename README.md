@@ -1,15 +1,15 @@
-# Cart Smash 🛒💥
+# CartSmash
 
-**AI-Powered Grocery List Destroyer** - Smash through grocery lists with superhuman efficiency!
+AI‑Powered Grocery List Destroyer — smash through grocery lists with superhuman efficiency.
 
-## 🎯 Features
-- 🤖 Convert any AI-generated grocery list
-- ⚡ Lightning-fast Instacart integration  
-- 🎯 99% accurate item matching
-- 💥 Bulk processing capabilities
-- 🛒 Viral "SMASH" button experience
+## Features
+- Convert any AI‑generated grocery list
+- Instacart integration
+- High‑accuracy item matching
+- Bulk processing
+- Delightful “SMASH” experience
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # Clone the repository
@@ -27,32 +27,30 @@ cp .env.example .env
 npm run dev
 ```
 
-## 🎮 Usage
+## Usage
+1. Paste your grocery list — any format works
+2. Hit the SMASH button
+3. Review parsed items (quantities, categories)
+4. Add to Instacart
 
-1. **Paste your grocery list** - Any format works!
-2. **Hit the SMASH button** - Watch the magic happen with confetti and effects
-3. **Review parsed items** - AI categorizes and extracts quantities
-4. **Add to Instacart** - One-click integration
+## Tech Stack
+- Frontend: React, JavaScript, CSS
+- Backend: Node.js, Express
+- AI/ML: Custom grocery item recognition
+- Infra: Vercel/Render (configurable), MongoDB Atlas, Firebase
 
-## 🛠 Tech Stack
-- **Frontend**: React, JavaScript, CSS Animations
-- **Backend**: Node.js, Express, Advanced Parsing
-- **AI/ML**: Custom grocery item recognition
-- **Infrastructure**: Docker, AWS ready
-
-## 🎨 Brand Colors
+## Brand Colors
 - Primary Orange: `#FF6B35`
 - Secondary Orange: `#F7931E`
 - Accent Yellow: `#FFD23F`
 
-## 📱 Mobile Ready
-Optimized for mobile with:
-- Touch-friendly SMASH button
+## Mobile Ready
+- Touch‑friendly SMASH button
 - Haptic feedback
 - Responsive design
-- PWA capabilities
+- PWA capable
 
-## 🌟 Roadmap
+## Roadmap
 - [x] Core SMASH functionality
 - [x] Advanced parsing engine
 - [ ] Social sharing features
@@ -60,11 +58,8 @@ Optimized for mobile with:
 - [ ] Influencer partnerships
 - [ ] Voice commands
 
-## 📄 License
-MIT License - see LICENSE file
+## License
+MIT License — see LICENSE file
 
----
+Made by the CartSmash team.
 
-**Made with 💥 by the Cart Smash team**
-
-*Ready to SMASH your grocery lists? Let's go!* 🛒💥

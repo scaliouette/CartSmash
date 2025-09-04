@@ -1,7 +1,8 @@
 // Lightweight ingredient parser + normalizer
 // Handles: quantities (incl. "1 1/2"), units, size hints ("24 oz jar"), and name.
 
-const FRACTION_MAP = { "¼": "1/4", "½": "1/2", "¾": "3/4", "⅓": "1/3", "⅔": "2/3", "⅛": "1/8" };
+// Correct Unicode fractions mapping
+const FRACTION_MAP = { '¼': '1/4', '½': '1/2', '¾': '3/4', '⅓': '1/3', '⅔': '2/3', '⅛': '1/8' };
 
 const UNIT_ALIASES = {
   teaspoon: ["tsp", "teaspoon", "teaspoons"],
@@ -20,7 +21,7 @@ const UNIT_ALIASES = {
   slice: ["slice", "slices"],
   piece: ["piece", "pieces"],
   breast: ["breast", "breasts"],
-  unit: []  // fallback for unitless
+  unit: [] // fallback for unitless
 };
 
 const NORMALIZE_UNIT = Object.entries(UNIT_ALIASES)
@@ -33,7 +34,8 @@ function clean(s = "") {
 
 function fractionToNumber(text) {
   if (!text) return null;
-  const t = text.replace(/[¼½¾⅓⅔⅛]/g, m => FRACTION_MAP[m] || m);
+  // Normalize any single-char Unicode fraction to ascii fraction
+  const t = String(text).replace(/[¼½¾⅓⅔⅛]/g, m => FRACTION_MAP[m] || m);
   // "1 1/2" | "3/4" | "1.5"
   const mMix = t.match(/^(\d+)\s+(\d+)\/(\d+)$/);
   if (mMix) return Number(mMix[1]) + Number(mMix[2]) / Number(mMix[3]);
@@ -113,3 +115,4 @@ function buildSearchQuery(item) {
 }
 
 module.exports = { parseIngredientLine, buildSearchQuery, clean, fractionToNumber };
+

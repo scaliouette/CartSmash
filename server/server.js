@@ -223,7 +223,8 @@ const corsOptions = {
     ].filter(Boolean);
 
     if (!origin) return callback(null, true);
-    if (origin.includes('.vercel.app')) {
+    const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+    if (vercelPattern.test(origin)) {
       return callback(null, true);
     }
     if (allowedOrigins.includes(origin)) {
@@ -242,8 +243,8 @@ const corsOptions = {
     'Accept',
     'Authorization',
     'X-API-Key',
-    'User-ID',        // ADD THIS
-    'user-id'         // ADD THIS (lowercase version too)
+    'User-ID',
+    'user-id'
   ],
   exposedHeaders: ['X-Total-Count', 'X-Rate-Limit-Remaining'],
   optionsSuccessStatus: 200,
@@ -692,6 +693,7 @@ app.get('/api/auth/kroger/login', async (req, res) => {
   }
 });
 
+if (process.env.NODE_ENV !== 'production') {
 app.get('/api/debug/kroger-auth', (req, res) => {
   const clientId = process.env.KROGER_CLIENT_ID;
   const clientSecret = process.env.KROGER_CLIENT_SECRET;
@@ -714,7 +716,9 @@ app.get('/api/debug/kroger-auth', (req, res) => {
     testAuth: `${clientId}:${clientSecret}`
   });
 });
+}
 
+if (process.env.NODE_ENV !== 'production') {
 app.get('/api/test/kroger-creds', async (req, res) => {
   try {
     const credentials = Buffer.from(
@@ -749,8 +753,10 @@ app.get('/api/test/kroger-creds', async (req, res) => {
     });
   }
 });
+}
 
   // Add this temporary debug route to your server.js
+  if (process.env.NODE_ENV !== 'production') {
   app.get('/api/debug/kroger-config', (req, res) => {
     res.json({
       hasClientId: !!process.env.KROGER_CLIENT_ID,
@@ -761,6 +767,7 @@ app.get('/api/test/kroger-creds', async (req, res) => {
       scopes: process.env.KROGER_OAUTH_SCOPES
     });
   });
+  }
 
 // Add this root endpoint handler to your server.js file
 // Place it AFTER the health check endpoints and BEFORE the route loading
