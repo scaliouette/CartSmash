@@ -35,7 +35,8 @@ class AIProductParser {
       'gallon', 'quart', 'pint', 'liter', 'ml', 'fl oz',
       'bag', 'bags', 'box', 'boxes', 'container', 'containers',
       'jar', 'jars', 'can', 'cans', 'bottle', 'bottles',
-      'dozen', 'pack', 'package', 'bunch', 'head', 'loaf', 'piece',
+      'dozen', 'pack', 'package', 'pkg', 'pk', 'bunch', 'head', 'heads', 
+      'loaf', 'piece', 'clove', 'cloves',
       'each', 'ct', 'count', 'packet', 'packets', 'sleeve', 'carton'
     ];
 
@@ -128,11 +129,25 @@ class AIProductParser {
       }
     }
 
-    // Manual fallback and validator
+    // Manual fallback and validator with section context tracking
     const lines = textToParse.split('\n').filter(line => line.trim());
     const rbProducts = [];
+    let currentSection = null;
+    
+    // Track section headers to boost confidence for items under them
+    const sectionHeaders = /^(produce|proteins?|dairy|meat|grains?|bakery|pantry|frozen|deli|beverages?|snacks?):?\s*$/i;
+    
     for (const line of lines) {
-      const product = this.parseLine(line);
+      const trimmedLine = line.trim();
+      
+      // Check if this line is a section header
+      const sectionMatch = trimmedLine.match(sectionHeaders);
+      if (sectionMatch) {
+        currentSection = sectionMatch[1].toLowerCase();
+        continue;
+      }
+      
+      const product = this.parseLine(line, { section: currentSection });
       if (product && product.isValid) rbProducts.push(product);
     }
 
@@ -174,10 +189,14 @@ Rules:
 
     const userPrompt = `Extract grocery products from this text and return JSON array only.\n\n${text}`;
 
+    // Resolve AI clients dynamically at call time (not construction time)
+    const anthropic = global.anthropic || this.ai.anthropic;
+    const openai = global.openai || this.ai.openai;
+
     // Call Anthropic first if available, else OpenAI
     let raw;
-    if (this.ai.anthropic) {
-      const resp = await this.ai.anthropic.messages.create({
+    if (anthropic) {
+      const resp = await anthropic.messages.create({
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 1200,
         temperature: 0,
@@ -187,8 +206,8 @@ Rules:
         ]
       });
       raw = resp.content?.[0]?.text || '';
-    } else if (this.ai.openai) {
-      const resp = await this.ai.openai.chat.completions.create({
+    } else if (openai) {
+      const resp = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         temperature: 0,
         max_tokens: 1200,
@@ -211,14 +230,22 @@ Rules:
   }
 
   extractJsonArray(text) {
+    // Strip code fences and markdown artifacts
+    let cleanText = text.replace(/```json\s*\n?/gi, '')
+                        .replace(/```\s*\n?/gi, '')
+                        .replace(/^\s*json\s*\n?/gi, '')
+                        .trim();
+    
     // If content is pure JSON
     try {
-      const direct = JSON.parse(text);
+      const direct = JSON.parse(cleanText);
       if (Array.isArray(direct)) return direct;
     } catch (_) {}
+    
     // Attempt to find first top-level JSON array
-    const match = text.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    const match = cleanText.match(/\[\s*\{[\s\S]*\}\s*\]/);
     if (!match) return null;
+    
     try {
       return JSON.parse(match[0]);
     } catch (_) { return null; }
@@ -276,7 +303,40 @@ Rules:
     });
   }
 
-  parseLine(line) {
+  // Parse fractions including mixed numbers (1 1/2), simple fractions (1/2), and Unicode fractions (½)
+  parseFraction(str) {
+    // Handle Unicode fractions
+    const unicodeFractions = {
+      '½': 0.5, '⅓': 0.333, '⅔': 0.667, '¼': 0.25, '¾': 0.75,
+      '⅕': 0.2, '⅖': 0.4, '⅗': 0.6, '⅘': 0.8, '⅙': 0.167,
+      '⅚': 0.833, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875
+    };
+    
+    if (unicodeFractions[str]) return unicodeFractions[str];
+    
+    // Handle mixed numbers like "1 1/2"
+    const mixedMatch = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+    if (mixedMatch) {
+      const whole = parseFloat(mixedMatch[1]);
+      const numerator = parseFloat(mixedMatch[2]);
+      const denominator = parseFloat(mixedMatch[3]);
+      return whole + (numerator / denominator);
+    }
+    
+    // Handle simple fractions like "1/2"
+    const fractionMatch = str.match(/^(\d+)\/(\d+)$/);
+    if (fractionMatch) {
+      const numerator = parseFloat(fractionMatch[1]);
+      const denominator = parseFloat(fractionMatch[2]);
+      return numerator / denominator;
+    }
+    
+    // Handle regular decimals or integers
+    const num = parseFloat(str);
+    return isNaN(num) ? null : num;
+  }
+
+  parseLine(line, context = {}) {
     const trimmed = line.trim();
     if (this.isExcludedLine(trimmed)) return null;
     // Remove bullet markers and ordered list prefixes
@@ -289,18 +349,21 @@ Rules:
     let productName = cleaned;
     let containerSize = null;
 
-    const containerPattern = /^(\d+(?:\.\d+)?)\s+(bag|bags|container|containers|jar|jars|can|cans|bottle|bottles|box|boxes|package|packages)\s*\(([^)]+)\)\s+(.+)$/i;
+    // Enhanced patterns to support fractions, mixed numbers, and Unicode fractions
+    const containerPattern = /^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\d+(?:\s+\d+\/\d+)?|\d+\/\d+|\d+(?:\.\d+)?)\s+(bag|bags|container|containers|jar|jars|can|cans|bottle|bottles|box|boxes|package|packages)\s*\(([^)]+)\)\s+(.+)$/i;
     const containerMatch = cleaned.match(containerPattern);
     if (containerMatch) {
-      quantity = parseFloat(containerMatch[1]);
+      const parsedQty = this.parseFraction(containerMatch[1]);
+      quantity = parsedQty !== null ? parsedQty : 1;
       unit = this.normalizeUnit(containerMatch[2]);
       containerSize = containerMatch[3];
       productName = containerMatch[4];
     } else {
-      const sizePattern = /^(\d+(?:\.\d+)?)\s+(\w+)\s*\(([^)]+)\)\s+(.+)$/i;
+      const sizePattern = /^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\d+(?:\s+\d+\/\d+)?|\d+\/\d+|\d+(?:\.\d+)?)\s+(\w+)\s*\(([^)]+)\)\s+(.+)$/i;
       const sizeMatch = cleaned.match(sizePattern);
       if (sizeMatch) {
-        quantity = parseFloat(sizeMatch[1]);
+        const parsedQty = this.parseFraction(sizeMatch[1]);
+        quantity = parsedQty !== null ? parsedQty : 1;
         const possibleUnit = sizeMatch[2];
         containerSize = sizeMatch[3];
         productName = sizeMatch[4];
@@ -310,10 +373,11 @@ Rules:
           productName = possibleUnit + ' ' + productName;
         }
       } else {
-        const simplePattern = /^(\d+(?:\.\d+)?)\s+([a-zA-Z]+)\s+(.+)$/;
+        const simplePattern = /^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\d+(?:\s+\d+\/\d+)?|\d+\/\d+|\d+(?:\.\d+)?)\s+([a-zA-Z]+)\s+(.+)$/;
         const simpleMatch = cleaned.match(simplePattern);
         if (simpleMatch) {
-          quantity = parseFloat(simpleMatch[1]);
+          const parsedQty = this.parseFraction(simpleMatch[1]);
+          quantity = parsedQty !== null ? parsedQty : 1;
           const possibleUnit = simpleMatch[2];
           if (this.isValidUnit(possibleUnit)) {
             unit = this.normalizeUnit(possibleUnit);
@@ -322,10 +386,11 @@ Rules:
             productName = possibleUnit + ' ' + simpleMatch[3];
           }
         } else {
-          const numberPattern = /^(\d+(?:\.\d+)?)\s+(.+)$/;
+          const numberPattern = /^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\d+(?:\s+\d+\/\d+)?|\d+\/\d+|\d+(?:\.\d+)?)\s+(.+)$/;
           const numberMatch = cleaned.match(numberPattern);
           if (numberMatch) {
-            quantity = parseFloat(numberMatch[1]);
+            const parsedQty = this.parseFraction(numberMatch[1]);
+            quantity = parsedQty !== null ? parsedQty : 1;
             productName = numberMatch[2];
           }
         }
@@ -336,7 +401,7 @@ Rules:
     if (!productName || productName.length < 2) return null;
 
     const category = this.categorizeProduct(productName);
-    const confidence = this.calculateConfidence(productName, quantity, unit);
+    const confidence = this.calculateConfidence(productName, quantity, unit, context);
     return {
       id: `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       original: line,
@@ -348,7 +413,8 @@ Rules:
       confidence,
       needsReview: confidence < 0.7,
       isValid: true,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      section: context.section
     };
   }
 
@@ -386,18 +452,46 @@ Rules:
     if (lower.match(/cheese|ricotta|mozzarella|parmesan|milk|yogurt|cream|butter/)) return 'dairy';
     if (lower.match(/beef|chicken|pork|turkey|fish|salmon/)) return 'meat';
     if (lower.match(/spinach|mushroom|onion|garlic|tomato|pepper|lettuce|carrot|banana|apple|orange/)) return 'produce';
-    if (lower.match(/sauce|pasta|rice|oil|vinegar|powder|foil|bread|flour|sugar/)) return 'pantry';
+    if (lower.match(/sauce|pasta|rice|oil|olive oil|vinegar|powder|foil|bread|flour|sugar|salt|sea salt|stock|broth|spice|seasoning/)) return 'pantry';
+    if (lower.match(/edamame|peas|mixed vegetables/)) return 'frozen';
+    if (lower.match(/turkey slices|ham|bacon/)) return 'deli';
     if (lower.includes('egg')) return 'dairy';
     return 'other';
   }
 
-  calculateConfidence(productName, quantity, unit) {
+  calculateConfidence(productName, quantity, unit, context = {}) {
     let confidence = 0.5;
     if (quantity && quantity !== 1) confidence += 0.2;
     if (unit && unit !== 'each') confidence += 0.2;
     const allProducts = Object.values(this.productPatterns).flat();
     if (allProducts.some(product => productName.toLowerCase().includes(product))) confidence += 0.2;
     if (productName.length >= 3 && productName.length <= 50) confidence += 0.1;
+    
+    // Boost confidence for items under section headers
+    if (context.section) {
+      confidence += 0.15; // Base boost for being under any section
+      
+      // Additional boost if the section matches the categorized product
+      const category = this.categorizeProduct(productName);
+      const sectionCategoryMap = {
+        'produce': 'produce',
+        'protein': 'meat', 'proteins': 'meat',
+        'dairy': 'dairy',
+        'meat': 'meat',
+        'grain': 'pantry', 'grains': 'pantry',
+        'bakery': 'pantry',
+        'pantry': 'pantry',
+        'frozen': 'frozen',
+        'deli': 'deli',
+        'beverage': 'other', 'beverages': 'other',
+        'snack': 'other', 'snacks': 'other'
+      };
+      
+      if (sectionCategoryMap[context.section] === category) {
+        confidence += 0.1; // Additional boost for category match
+      }
+    }
+    
     return Math.min(confidence, 1.0);
   }
 

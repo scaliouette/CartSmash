@@ -274,7 +274,7 @@ Focus on specific, measurable items that can be purchased at a grocery store. Av
           context: context,
           strictMode: (isMealPlanning || isBudgetPlanning) ? false : (options.strictMode !== false),
           liteMode: shouldUseLiteMode,
-          confidenceThreshold: shouldUseLiteMode ? 0.6 : 0.4 // Higher threshold for lite mode
+          confidenceThreshold: shouldUseLiteMode ? 0.3 : 0.2 // Lower thresholds to preserve more items
         });
         setCacheResult(cacheKey, parsingResults);
         console.log(`💾 Cached parsing results (${shouldUseLiteMode ? 'lite' : 'full'} mode)`);
@@ -518,7 +518,7 @@ Focus on specific, measurable grocery items that can be easily found in a store.
           context: context,
           strictMode: (isMealPlanning || isBudgetPlanning) ? false : (options.strictMode !== false),
           liteMode: shouldUseLiteMode,
-          confidenceThreshold: shouldUseLiteMode ? 0.6 : 0.4 // Higher threshold for lite mode
+          confidenceThreshold: shouldUseLiteMode ? 0.3 : 0.2 // Lower thresholds to preserve more items
         });
         setCacheResult(cacheKey, parsingResults);
         console.log(`💾 Cached parsing results (${shouldUseLiteMode ? 'lite' : 'full'} mode)`);

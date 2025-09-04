@@ -12,6 +12,9 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
   const isDev = process.env.NODE_ENV !== 'production';
   const recipeLogOnceRef = useRef(false);
   const [recipeExpanded, setRecipeExpanded] = useState(false);
+  
+  // Recipe panel disabled - recipes are handled in SmartAIAssistant
+  const SHOW_RECIPE_PANEL = false;
 
   // Memoize recipe source to avoid recomputation and noisy logs on every render
   const sourceRecipe = useMemo(() => {
@@ -411,7 +414,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
     
     try {
       const recipe = parseRecipeContent(content);
-      const currentSavedRecipes = savedRecipes || JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
+      const currentSavedRecipes = savedRecipes || JSON.parse(localStorage.getItem('cart-smash-recipes') || '[]');
       
       const newRecipe = {
         id: `recipe_${Date.now()}`,
@@ -428,7 +431,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
       }
       
       // Always save to localStorage as backup
-      localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
+      localStorage.setItem('cart-smash-recipes', JSON.stringify(updatedRecipes));
       
       // Show success message
       alert('✅ Recipe saved successfully!');
@@ -462,8 +465,8 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
                          content.toLowerCase().includes('lunch') || 
                          content.toLowerCase().includes('dinner'));
       
-      const savedMealPlans = JSON.parse(localStorage.getItem('cartsmash-saved-meal-plans') || '[]');
-      const currentSavedRecipes = savedRecipes || JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
+      const savedMealPlans = JSON.parse(localStorage.getItem('cart-smash-meal-plans') || '[]');
+      const currentSavedRecipes = savedRecipes || JSON.parse(localStorage.getItem('cart-smash-recipes') || '[]');
       
       if (isMealPlan) {
         // Extract individual recipes from meal plan
@@ -496,8 +499,8 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
         };
         
         savedMealPlans.push(newMealPlan);
-        localStorage.setItem('cartsmash-saved-meal-plans', JSON.stringify(savedMealPlans));
-        localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedSavedRecipes));
+        localStorage.setItem('cart-smash-meal-plans', JSON.stringify(savedMealPlans));
+        localStorage.setItem('cart-smash-recipes', JSON.stringify(updatedSavedRecipes));
         
         alert(`✅ Meal plan saved with ${recipes.length} recipes!`);
         
@@ -1096,6 +1099,12 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
       }}>
         <h3 style={styles.title}>
           🛒 Shopping List Results ({items.length} items)
+          {parsingStats?.meta?.aiUsed && (
+            <span style={styles.aiIndicator}> ✨ Parsed with AI</span>
+          )}
+          {parsingStats?.meta?.aiTried && !parsingStats?.meta?.aiUsed && (
+            <span style={styles.fallbackIndicator}> 🔧 Fallback parsing</span>
+          )}
         </h3>
         {stats.totalEstimatedPrice > 0 && (
           <div style={styles.headerTotal}>
@@ -1106,7 +1115,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
       </div>
 
       {/* Recipe Display */}
-      {sourceRecipe && parsingStats?.sourceRecipe && !parsingStats.sourceRecipe.includes('MEAL PLAN') && (
+      {SHOW_RECIPE_PANEL && sourceRecipe && parsingStats?.sourceRecipe && !parsingStats.sourceRecipe.includes('MEAL PLAN') && (
         <div style={styles.recipeDisplay}>
           <div style={styles.recipeHeader}>
             <h4 style={styles.recipeTitle}>Original Recipe</h4>
@@ -1674,6 +1683,26 @@ const styles = {
     margin: 0,
     fontSize: '24px',
     fontWeight: 'bold'
+  },
+
+  aiIndicator: {
+    fontSize: '14px',
+    color: '#10B981',
+    fontWeight: 'normal',
+    backgroundColor: '#ECFDF5',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    marginLeft: '8px'
+  },
+
+  fallbackIndicator: {
+    fontSize: '14px',
+    color: '#F59E0B',
+    fontWeight: 'normal',
+    backgroundColor: '#FFFBEB',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    marginLeft: '8px'
   },
 
   headerTotal: {
