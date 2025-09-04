@@ -7,16 +7,12 @@ function ParsingAnalyticsDashboard({ onClose }) {
   const [error, setError] = useState(null);
   const [timeRange, setTimeRange] = useState('24h');
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [timeRange, loadAnalytics]);
-
   const loadAnalytics = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-      const response = await fetch(`${API_URL}//api/analytics/parsing?range=${timeRange}`);
+      const response = await fetch(`${API_URL}/api/analytics/parsing?range=${timeRange}`);
       if (response.ok) {
         const data = await response.json();
         setAnalytics(data);
@@ -32,6 +28,10 @@ function ParsingAnalyticsDashboard({ onClose }) {
       setLoading(false);
     }
   }, [timeRange]);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [timeRange, loadAnalytics]);
 
   const generateMockAnalytics = () => ({
     overview: {
@@ -128,7 +128,7 @@ function ParsingAnalyticsDashboard({ onClose }) {
               ...styles.cardValue,
               color: getMetricColor(analytics.overview.accuracyRate || 0)
             }}>
-              {analytics.overview.accuracyRate || 0}%
+              {(analytics.overview.accuracyRate || 0).toFixed(1)}%
             </div>
             <div style={styles.cardSubtext}>Average confidence: {((analytics.overview.avgConfidence || 0) * 100).toFixed(1)}%</div>
           </div>
@@ -147,7 +147,7 @@ function ParsingAnalyticsDashboard({ onClose }) {
           <div style={styles.cardIcon}>😊</div>
           <div style={styles.cardContent}>
             <h3 style={styles.cardTitle}>User Satisfaction</h3>
-            <div style={styles.cardValue}>{analytics.userFeedback?.satisfactionScore || 0}/5.0</div>
+            <div style={styles.cardValue}>{(analytics.userFeedback?.satisfactionScore || 0).toFixed(1)}/5.0</div>
             <div style={styles.cardSubtext}>{analytics.userFeedback?.accepted || 0} items accepted</div>
           </div>
         </div>
@@ -174,7 +174,7 @@ function ParsingAnalyticsDashboard({ onClose }) {
               <div style={styles.stat}>
                 <span style={styles.statLabel}>Accuracy:</span>
                 <span style={{...styles.statValue, color: '#28a745'}}>
-                  {analytics.parsing.intelligentParsing?.accuracy || 0}%
+                  {(analytics.parsing.intelligentParsing?.accuracy || 0).toFixed(1)}%
                 </span>
               </div>
               <div style={styles.stat}>
@@ -183,7 +183,7 @@ function ParsingAnalyticsDashboard({ onClose }) {
               </div>
               <div style={styles.stat}>
                 <span style={styles.statLabel}>Avg Time:</span>
-                <span style={styles.statValue}>{analytics.parsing.intelligentParsing?.avgProcessingTime || 0}s</span>
+                <span style={styles.statValue}>{(analytics.parsing.intelligentParsing?.avgProcessingTime || 0).toFixed(1)}s</span>
               </div>
             </div>
           </div>
@@ -198,7 +198,7 @@ function ParsingAnalyticsDashboard({ onClose }) {
               <div style={styles.stat}>
                 <span style={styles.statLabel}>Accuracy:</span>
                 <span style={{...styles.statValue, color: '#ffc107'}}>
-                  {analytics.parsing.fallbackParsing?.accuracy || 0}%
+                  {(analytics.parsing.fallbackParsing?.accuracy || 0).toFixed(1)}%
                 </span>
               </div>
               <div style={styles.stat}>
@@ -207,7 +207,7 @@ function ParsingAnalyticsDashboard({ onClose }) {
               </div>
               <div style={styles.stat}>
                 <span style={styles.statLabel}>Avg Time:</span>
-                <span style={styles.statValue}>{analytics.parsing.fallbackParsing?.avgProcessingTime || 0}s</span>
+                <span style={styles.statValue}>{(analytics.parsing.fallbackParsing?.avgProcessingTime || 0).toFixed(1)}s</span>
               </div>
             </div>
           </div>
@@ -245,7 +245,7 @@ function ParsingAnalyticsDashboard({ onClose }) {
                   }}
                 />
               </div>
-              <span style={styles.confidencePercentage}>{data?.percentage || 0}%</span>
+              <span style={styles.confidencePercentage}>{(data?.percentage || 0).toFixed(1)}%</span>
             </div>
           ))}
         </div>
@@ -280,7 +280,7 @@ function ParsingAnalyticsDashboard({ onClose }) {
                   ...styles.categoryAccuracy,
                   color: getMetricColor(data?.accuracy || 0)
                 }}>
-                  {data?.accuracy || 0}% accuracy
+                  {(data?.accuracy || 0).toFixed(1)}% accuracy
                 </div>
               </div>
             </div>
@@ -312,7 +312,7 @@ function ParsingAnalyticsDashboard({ onClose }) {
               </div>
               <div style={styles.trendLabel}>
                 <div style={styles.trendDate}>{day?.date?.slice(-2) || '--'}</div>
-                <div style={styles.trendAccuracy}>{day?.accuracy || 0}%</div>
+                <div style={styles.trendAccuracy}>{(day?.accuracy || 0).toFixed(1)}%</div>
                 <div style={styles.trendItems}>{day?.items || 0}</div>
               </div>
             </div>
@@ -332,19 +332,19 @@ function ParsingAnalyticsDashboard({ onClose }) {
         <h3 style={styles.sectionTitle}>⚡ System Performance</h3>
         <div style={styles.performanceGrid}>
           <div style={styles.performanceMetric}>
-            <div style={styles.performanceValue}>{analytics.performance.avgResponseTime || 0}s</div>
+            <div style={styles.performanceValue}>{(analytics.performance.avgResponseTime || 0).toFixed(1)}s</div>
             <div style={styles.performanceLabel}>Avg Response Time</div>
           </div>
           <div style={styles.performanceMetric}>
-            <div style={styles.performanceValue}>{analytics.performance.apiUptime || 0}%</div>
+            <div style={styles.performanceValue}>{(analytics.performance.apiUptime || 0).toFixed(1)}%</div>
             <div style={styles.performanceLabel}>API Uptime</div>
           </div>
           <div style={styles.performanceMetric}>
-            <div style={styles.performanceValue}>{analytics.performance.errorRate || 0}%</div>
+            <div style={styles.performanceValue}>{(analytics.performance.errorRate || 0).toFixed(1)}%</div>
             <div style={styles.performanceLabel}>Error Rate</div>
           </div>
           <div style={styles.performanceMetric}>
-            <div style={styles.performanceValue}>{analytics.performance.cachehitRate || 0}%</div>
+            <div style={styles.performanceValue}>{(analytics.performance.cachehitRate || 0).toFixed(1)}%</div>
             <div style={styles.performanceLabel}>Cache Hit Rate</div>
           </div>
         </div>
@@ -476,8 +476,8 @@ const styles = {
     padding: '8px 12px',
     borderRadius: '6px',
     border: '1px solid rgba(255,255,255,0.3)',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    color: 'white',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    color: '#333',
     fontSize: '14px'
   },
 

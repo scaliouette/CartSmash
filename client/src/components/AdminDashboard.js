@@ -8,9 +8,11 @@ function AdminDashboard({ onClose, currentUser }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [systemHealth, setSystemHealth] = useState(null);
   const [realtimeMetrics, setRealtimeMetrics] = useState(null);
+  const [userActivity, setUserActivity] = useState(null);
+  const [userAccounts, setUserAccounts] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [refreshInterval, setRefreshInterval] = useState(null);
+  const [verificationFilter, setVerificationFilter] = useState('verified'); // 'all', 'verified', 'unverified'
 
   // Sub-component states
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -20,13 +22,14 @@ function AdminDashboard({ onClose, currentUser }) {
   useEffect(() => {
     loadSystemHealth();
     loadRealtimeMetrics();
+    loadUserActivity();
+    loadUserAccounts();
     
     // Set up auto-refresh for real-time data
     const interval = setInterval(() => {
       loadRealtimeMetrics();
+      loadUserActivity(); // Refresh user activity too
     }, 5000); // Refresh every 5 seconds
-    
-    setRefreshInterval(interval);
     
     return () => {
       if (interval) clearInterval(interval);
@@ -39,19 +42,64 @@ function AdminDashboard({ onClose, currentUser }) {
       if (response.ok) {
         const data = await response.json();
         setSystemHealth(data);
+        if (error && data.success) setError(null); // Clear error if health check succeeds
       } else {
-        throw new Error(`HTTP ${response.status}`);
+        throw new Error(`HTTP ${response.status}: Health check failed`);
       }
     } catch (error) {
       console.error('Failed to load system health:', error);
       setError(error.message);
-      // Provide fallback data
-      setSystemHealth({
-        healthy: true,
-        validationErrors: [],
-        settingsCount: 4,
-        lastModified: new Date().toISOString()
+      setSystemHealth(null);
+    }
+  };
+
+  const loadUserActivity = async () => {
+    try {
+      console.log('🔄 Loading user activity...');
+      const response = await fetch('http://localhost:3002/api/analytics/users/activity?limit=10&hours=24', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ User activity loaded:', data);
+        setUserActivity(data);
+      } else {
+        console.error('❌ Failed to load user activity:', response.status, response.statusText);
+        throw new Error(`HTTP ${response.status}: Failed to load user activity`);
+      }
+    } catch (error) {
+      console.error('❌ Error loading user activity:', error);
+      // Set empty state instead of null to show "No data found" instead of "Loading..."
+      setUserActivity({ activities: [], stats: { activeUsers: 0, totalActivities: 0 } });
+    }
+  };
+
+  const loadUserAccounts = async () => {
+    try {
+      console.log('🔄 Loading Firebase user accounts...');
+      const response = await fetch('http://localhost:3002/api/analytics/users/accounts?limit=20', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ User accounts loaded:', data);
+        setUserAccounts(data);
+      } else {
+        console.error('❌ Failed to load user accounts:', response.status, response.statusText);
+        throw new Error(`HTTP ${response.status}: Failed to load user accounts`);
+      }
+    } catch (error) {
+      console.error('❌ Error loading user accounts:', error);
+      // Set empty state instead of null to show "No data found"
+      setUserAccounts({ users: [], totalUsers: 0 });
     }
   };
 
@@ -60,41 +108,20 @@ function AdminDashboard({ onClose, currentUser }) {
       const response = await fetch('/api/analytics/realtime');
       if (response.ok) {
         const data = await response.json();
-        setRealtimeMetrics(data.realtime || generateFallbackMetrics());
+        setRealtimeMetrics(data.realtime);
+        setError(null); // Clear any previous errors
       } else {
-        throw new Error(`HTTP ${response.status}`);
+        throw new Error(`HTTP ${response.status}: Failed to load metrics`);
       }
     } catch (error) {
       console.error('Failed to load realtime metrics:', error);
-      setError(error.message);
-      // Always provide fallback data
-      setRealtimeMetrics(generateFallbackMetrics());
+      setError(`Failed to load metrics: ${error.message}`);
+      setRealtimeMetrics(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const generateFallbackMetrics = () => ({
-    currentHour: {
-      lists: 42,
-      items: 287,
-      avgProcessingTime: 2.3,
-      errors: 1
-    },
-    system: {
-      memoryUsage: {
-        heapUsed: 45 * 1024 * 1024,
-        heapTotal: 67 * 1024 * 1024,
-        external: 12 * 1024 * 1024
-      },
-      cpuUsage: 15.7
-    },
-    performance: {
-      uptime: 7200, // 2 hours in seconds
-      activeConnections: 5,
-      requestsPerMinute: 45
-    }
-  });
 
   // Helper function to safely format numbers
   const safeToFixed = (value, decimals = 1) => {
@@ -106,6 +133,15 @@ function AdminDashboard({ onClose, currentUser }) {
   const getMemoryMB = (bytes) => {
     const num = Number(bytes);
     return isNaN(num) ? 0 : Math.round(num / 1024 / 1024);
+  };
+
+  // Filter Firebase users based on verification status
+  const getFilteredUsers = (users) => {
+    if (!users) return [];
+    if (verificationFilter === 'all') return users;
+    if (verificationFilter === 'verified') return users.filter(user => user.emailVerified);
+    if (verificationFilter === 'unverified') return users.filter(user => !user.emailVerified);
+    return users;
   };
 
   // Helper function to safely get uptime in minutes
@@ -192,11 +228,11 @@ function AdminDashboard({ onClose, currentUser }) {
             <h4 style={styles.healthCardTitle}>Performance</h4>
             <div style={styles.healthMetric}>
               <span>Memory Usage:</span>
-              <span>{getMemoryMB(realtimeMetrics?.system?.memoryUsage?.heapUsed)} MB</span>
+              <span>{realtimeMetrics ? getMemoryMB(realtimeMetrics.system?.memoryUsage?.heapUsed) + ' MB' : 'Loading...'}</span>
             </div>
             <div style={styles.healthMetric}>
               <span>Uptime:</span>
-              <span>{getUptimeMinutes(realtimeMetrics?.performance?.uptime)} min</span>
+              <span>{realtimeMetrics ? getUptimeMinutes(realtimeMetrics.performance?.uptime) + ' min' : 'Loading...'}</span>
             </div>
           </div>
         </div>
@@ -208,32 +244,79 @@ function AdminDashboard({ onClose, currentUser }) {
         <div style={styles.realtimeGrid}>
           <div style={styles.realtimeCard}>
             <div style={styles.realtimeValue}>
-              {realtimeMetrics?.currentHour?.lists || 0}
+              {realtimeMetrics ? realtimeMetrics.currentHour?.lists || 0 : '--'}
             </div>
             <div style={styles.realtimeLabel}>Lists This Hour</div>
           </div>
 
           <div style={styles.realtimeCard}>
             <div style={styles.realtimeValue}>
-              {realtimeMetrics?.currentHour?.items || 0}
+              {realtimeMetrics ? realtimeMetrics.currentHour?.items || 0 : '--'}
             </div>
             <div style={styles.realtimeLabel}>Items Processed</div>
           </div>
 
           <div style={styles.realtimeCard}>
             <div style={styles.realtimeValue}>
-              {safeToFixed(realtimeMetrics?.currentHour?.avgProcessingTime)}s
+              {realtimeMetrics ? safeToFixed(realtimeMetrics.currentHour?.avgProcessingTime) + 's' : '--'}
             </div>
             <div style={styles.realtimeLabel}>Avg Processing Time</div>
           </div>
 
           <div style={styles.realtimeCard}>
             <div style={styles.realtimeValue}>
-              {realtimeMetrics?.performance?.activeConnections || 0}
+              {realtimeMetrics ? realtimeMetrics.performance?.activeConnections || 0 : '--'}
             </div>
             <div style={styles.realtimeLabel}>Active Connections</div>
           </div>
         </div>
+      </div>
+
+      {/* Recent User Activity */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>👥 Recent User Activity</h3>
+        {userActivity ? (
+          <div style={styles.activityContainer}>
+            <div style={styles.activityStats}>
+              <div style={styles.activityStat}>
+                <span style={styles.activityStatValue}>{userActivity.stats?.totalActivities || 0}</span>
+                <span style={styles.activityStatLabel}>Activities (24h)</span>
+              </div>
+              <div style={styles.activityStat}>
+                <span style={styles.activityStatValue}>{userActivity.stats?.activeUsers || 0}</span>
+                <span style={styles.activityStatLabel}>Active Users</span>
+              </div>
+            </div>
+            <div style={styles.activityList}>
+              {userActivity.activities?.slice(0, 8).map((activity, index) => (
+                <div key={activity.id} style={styles.activityItem}>
+                  <div style={styles.activityIcon}>
+                    {activity.type === 'registration' ? '👤' :
+                     activity.type === 'signin' ? '🔑' :
+                     activity.type === 'list_created' ? '📝' :
+                     activity.type === 'list_parsed' ? '🤖' :
+                     activity.type === 'cart_sent' ? '🛒' :
+                     activity.type === 'recipe_saved' ? '👨‍🍳' :
+                     activity.type === 'meal_planned' ? '📅' :
+                     activity.type === 'profile_updated' ? '⚙️' : '📊'}
+                  </div>
+                  <div style={styles.activityContent}>
+                    <div style={styles.activityAction}>{activity.action}</div>
+                    <div style={styles.activityDetails}>
+                      {activity.userName} • {new Date(activity.timestamp).toLocaleTimeString()}
+                      {activity.metadata?.itemCount && ` • ${activity.metadata.itemCount} items`}
+                      {activity.metadata?.estimatedValue && ` • ${activity.metadata.estimatedValue}`}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div style={styles.activityPlaceholder}>
+            <span style={styles.loadingText}>Loading user activity...</span>
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}
@@ -256,7 +339,7 @@ function AdminDashboard({ onClose, currentUser }) {
 
           <button
             onClick={() => setShowDemo(true)}
-            style={{...styles.actionButton, backgroundColor: '#3b82f6'}}
+            style={{...styles.actionButton, backgroundColor: '#FF6B35'}}
           >
             🎯 Test Parsing Demo
           </button>
@@ -264,7 +347,7 @@ function AdminDashboard({ onClose, currentUser }) {
           <button
             onClick={() => handleSystemAction('export_data')}
             disabled={isLoading}
-            style={{...styles.actionButton, backgroundColor: '#00b894'}}
+            style={{...styles.actionButton, backgroundColor: '#F7931E'}}
           >
             📤 Export System Data
           </button>
@@ -272,7 +355,7 @@ function AdminDashboard({ onClose, currentUser }) {
           <button
             onClick={() => handleSystemAction('clear_cache')}
             disabled={isLoading}
-            style={{...styles.actionButton, backgroundColor: '#fdcb6e'}}
+            style={{...styles.actionButton, backgroundColor: '#FF6B35'}}
           >
             🗑️ Clear Cache
           </button>
@@ -280,7 +363,7 @@ function AdminDashboard({ onClose, currentUser }) {
           <button
             onClick={() => handleSystemAction('restart_ai')}
             disabled={isLoading}
-            style={{...styles.actionButton, backgroundColor: '#e17055'}}
+            style={{...styles.actionButton, backgroundColor: '#F7931E'}}
           >
             🔄 Restart AI Services
           </button>
@@ -315,15 +398,15 @@ function AdminDashboard({ onClose, currentUser }) {
             <h4 style={styles.infoGroupTitle}>Memory Usage</h4>
             <div style={styles.infoItem}>
               <span>Heap Used:</span>
-              <span>{getMemoryMB(realtimeMetrics?.system?.memoryUsage?.heapUsed)} MB</span>
+              <span>{realtimeMetrics ? getMemoryMB(realtimeMetrics.system?.memoryUsage?.heapUsed) + ' MB' : 'Loading...'}</span>
             </div>
             <div style={styles.infoItem}>
               <span>Heap Total:</span>
-              <span>{getMemoryMB(realtimeMetrics?.system?.memoryUsage?.heapTotal)} MB</span>
+              <span>{realtimeMetrics ? getMemoryMB(realtimeMetrics.system?.memoryUsage?.heapTotal) + ' MB' : 'Loading...'}</span>
             </div>
             <div style={styles.infoItem}>
               <span>External:</span>
-              <span>{getMemoryMB(realtimeMetrics?.system?.memoryUsage?.external)} MB</span>
+              <span>{realtimeMetrics ? getMemoryMB(realtimeMetrics.system?.memoryUsage?.external) + ' MB' : 'Loading...'}</span>
             </div>
           </div>
 
@@ -358,40 +441,109 @@ function AdminDashboard({ onClose, currentUser }) {
         
         <div style={styles.userStats}>
           <div style={styles.userStatCard}>
-            <div style={styles.userStatValue}>1,247</div>
-            <div style={styles.userStatLabel}>Total Users</div>
+            <div style={styles.userStatValue}>{userActivity?.stats?.activeUsers || 0}</div>
+            <div style={styles.userStatLabel}>Active Users</div>
           </div>
           <div style={styles.userStatCard}>
-            <div style={styles.userStatValue}>342</div>
-            <div style={styles.userStatLabel}>Active Today</div>
+            <div style={styles.userStatValue}>{userActivity?.stats?.totalActivities || 0}</div>
+            <div style={styles.userStatLabel}>Total Activities</div>
           </div>
           <div style={styles.userStatCard}>
-            <div style={styles.userStatValue}>89</div>
-            <div style={styles.userStatLabel}>New This Week</div>
+            <div style={styles.userStatValue}>{userActivity?.stats?.activityTypes?.signin || 0}</div>
+            <div style={styles.userStatLabel}>Sign-ins Today</div>
           </div>
           <div style={styles.userStatCard}>
-            <div style={styles.userStatValue}>4.6</div>
-            <div style={styles.userStatLabel}>Avg Rating</div>
+            <div style={styles.userStatValue}>{userActivity?.stats?.timeRange || '24h'}</div>
+            <div style={styles.userStatLabel}>Time Range</div>
           </div>
         </div>
 
         <div style={styles.section}>
-          <h4 style={styles.sectionTitle}>Recent Activity</h4>
+          <h4 style={styles.sectionTitle}>Recent User Activity</h4>
           <div style={styles.activityList}>
-            {[
-              { user: 'john@example.com', action: 'Parsed grocery list', time: '2 min ago', items: 12 },
-              { user: 'sarah@example.com', action: 'Validated products', time: '5 min ago', items: 8 },
-              { user: 'mike@example.com', action: 'Exported cart', time: '8 min ago', items: 15 },
-              { user: 'anna@example.com', action: 'Used AI assistant', time: '12 min ago', items: 6 },
-              { user: 'david@example.com', action: 'Reviewed flagged items', time: '15 min ago', items: 3 }
-            ].map((activity, index) => (
+            {userActivity && userActivity.activities ? userActivity.activities.map((activity, index) => (
               <div key={index} style={styles.activityItem}>
-                <div style={styles.activityUser}>{activity.user}</div>
+                <div style={styles.activityUser}>
+                  {activity.userName || activity.userEmail || 'Unknown User'}
+                </div>
                 <div style={styles.activityAction}>{activity.action}</div>
-                <div style={styles.activityItems}>{activity.items} items</div>
-                <div style={styles.activityTime}>{activity.time}</div>
+                <div style={styles.activityItems}>
+                  {activity.metadata?.itemCount ? `${activity.metadata.itemCount} items` : 
+                   activity.metadata?.estimatedValue ? activity.metadata.estimatedValue : 
+                   activity.type || 'activity'}
+                </div>
+                <div style={styles.activityTime}>
+                  {new Date(activity.timestamp).toLocaleTimeString()}
+                </div>
               </div>
-            ))}
+            )) : (
+              <div style={styles.noData}>
+                {userActivity === null ? 'Loading user activity...' : 'No recent user activity found'}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={styles.section}>
+          <div style={styles.sectionHeader}>
+            <h4 style={styles.sectionTitle}>Firebase User Accounts</h4>
+            <div style={styles.verificationToggle}>
+              <button
+                style={{
+                  ...styles.toggleButton,
+                  ...(verificationFilter === 'all' ? styles.toggleButtonActive : {})
+                }}
+                onClick={() => setVerificationFilter('all')}
+              >
+                All ({userAccounts?.users?.length || 0})
+              </button>
+              <button
+                style={{
+                  ...styles.toggleButton,
+                  ...(verificationFilter === 'verified' ? styles.toggleButtonActive : {})
+                }}
+                onClick={() => setVerificationFilter('verified')}
+              >
+                ✅ Verified ({userAccounts?.users?.filter(u => u.emailVerified).length || 0})
+              </button>
+              <button
+                style={{
+                  ...styles.toggleButton,
+                  ...(verificationFilter === 'unverified' ? styles.toggleButtonActive : {})
+                }}
+                onClick={() => setVerificationFilter('unverified')}
+              >
+                ⚠️ Unverified ({userAccounts?.users?.filter(u => !u.emailVerified).length || 0})
+              </button>
+            </div>
+          </div>
+          <div style={styles.userAccountsList}>
+            {userAccounts && userAccounts.users ? getFilteredUsers(userAccounts.users).map((user, index) => (
+              <div key={user.uid} style={styles.userAccountItem}>
+                <div style={styles.userAccountDetails}>
+                  <div style={styles.userAccountHeader}>
+                    <span style={styles.userAccountName}>
+                      {user.displayName !== 'No name' ? user.displayName : user.email}
+                    </span>
+                    <span style={styles.userAccountStatus}>
+                      {user.emailVerified ? '✅ Verified' : '⚠️ Unverified'}
+                    </span>
+                  </div>
+                  <div style={styles.userAccountEmail}>{user.email}</div>
+                  <div style={styles.userAccountMeta}>
+                    <span>Created: {new Date(user.creationTime).toLocaleDateString()}</span>
+                    <span>Last Sign-in: {new Date(user.lastSignInTime).toLocaleDateString()}</span>
+                    <span>Provider: {user.providerData[0]?.providerId || 'unknown'}</span>
+                  </div>
+                </div>
+              </div>
+            )) : (
+              <div style={styles.noData}>
+                {userAccounts === null ? 'Loading Firebase accounts...' : 
+                 getFilteredUsers(userAccounts?.users || []).length === 0 ? 
+                 `No ${verificationFilter} users found` : 'No Firebase user accounts found'}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -472,8 +624,8 @@ function AdminDashboard({ onClose, currentUser }) {
           <div style={styles.headerInfo}>
             <span style={styles.userInfo}>
               👤 {currentUser?.email || 'Admin'} • 
-              {systemHealth?.healthy ? ' 🟢 System Healthy' : ' 🔴 Issues Detected'}
-              {error && ' • 📡 Demo Mode'}
+              {systemHealth?.healthy ? ' 🟢 System Healthy' : systemHealth === null ? ' ⚪ Loading...' : ' 🔴 Issues Detected'}
+              {error && ' • ⚠️ API Error'}
             </span>
             <button onClick={onClose} style={styles.closeButton}>×</button>
           </div>
@@ -510,13 +662,14 @@ function AdminDashboard({ onClose, currentUser }) {
           <div style={styles.footerLeft}>
             <div style={styles.systemStatus}>
               Status: <span style={{
-                color: systemHealth?.healthy ? '#28a745' : '#dc3545',
+                color: systemHealth?.healthy ? '#28a745' : systemHealth === null ? '#6c757d' : '#dc3545',
                 fontWeight: 'bold'
               }}>
-                {systemHealth?.healthy ? 'All Systems Operational' : 'Issues Detected'}
+                {systemHealth === null ? 'Loading System Status...' : 
+                 systemHealth?.healthy ? 'All Systems Operational' : 'Issues Detected'}
               </span>
-              {error && <span style={{ color: '#ffc107', marginLeft: '10px' }}>
-                (Using demo data)
+              {error && <span style={{ color: '#dc3545', marginLeft: '10px' }}>
+                • {error}
               </span>}
             </div>
           </div>
@@ -584,7 +737,7 @@ const styles = {
     alignItems: 'center',
     padding: '25px 35px',
     borderBottom: '3px solid #f0f0f0',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
     color: 'white'
   },
 
@@ -640,7 +793,7 @@ const styles = {
   tabActive: {
     backgroundColor: 'white',
     color: '#333',
-    borderBottom: '4px solid #667eea',
+    borderBottom: '4px solid #FF6B35',
     fontWeight: '600'
   },
 
@@ -739,12 +892,12 @@ const styles = {
   },
 
   realtimeCard: {
-    background: 'linear-gradient(135deg, #74b9ff, #0984e3)',
+    background: 'linear-gradient(135deg, #FF6B35, #F7931E)',
     color: 'white',
     padding: '25px',
     borderRadius: '12px',
     textAlign: 'center',
-    boxShadow: '0 8px 25px rgba(116, 185, 255, 0.3)'
+    boxShadow: '0 8px 25px rgba(255, 107, 53, 0.3)'
   },
 
   realtimeValue: {
@@ -816,7 +969,7 @@ const styles = {
   },
 
   userStatCard: {
-    background: 'linear-gradient(135deg, #00cec9, #00b894)',
+    background: 'linear-gradient(135deg, #FF6B35, #F7931E)',
     color: 'white',
     padding: '20px',
     borderRadius: '10px',
@@ -889,7 +1042,7 @@ const styles = {
 
   logRefresh: {
     padding: '8px 16px',
-    backgroundColor: '#17a2b8',
+    backgroundColor: '#FF6B35',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -986,9 +1139,158 @@ const styles = {
     width: '50px',
     height: '50px',
     border: '5px solid #f3f3f3',
-    borderTop: '5px solid #667eea',
+    borderTop: '5px solid #FF6B35',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite'
+  },
+
+  // User Activity Styles
+  activityContainer: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '20px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+  },
+
+  activityStats: {
+    display: 'flex',
+    gap: '30px',
+    marginBottom: '20px',
+    padding: '15px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '8px'
+  },
+
+  activityStat: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
+  },
+
+  activityStatValue: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#FF6B35'
+  },
+
+  activityStatLabel: {
+    fontSize: '12px',
+    color: '#666',
+    marginTop: '4px'
+  },
+
+  activityPlaceholder: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '40px',
+    textAlign: 'center',
+    color: '#666'
+  },
+
+  loadingText: {
+    fontSize: '14px',
+    color: '#999'
+  },
+
+  noData: {
+    padding: '2rem',
+    textAlign: 'center',
+    color: '#6b7280',
+    fontStyle: 'italic',
+    backgroundColor: '#f9fafb',
+    borderRadius: '8px',
+    border: '2px dashed #d1d5db'
+  },
+
+  // Firebase User Accounts Styles
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '16px'
+  },
+
+  verificationToggle: {
+    display: 'flex',
+    gap: '8px',
+    backgroundColor: '#f1f3f4',
+    padding: '4px',
+    borderRadius: '8px'
+  },
+
+  toggleButton: {
+    padding: '8px 12px',
+    border: 'none',
+    borderRadius: '6px',
+    backgroundColor: 'transparent',
+    color: '#6b7280',
+    fontSize: '12px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    whiteSpace: 'nowrap'
+  },
+
+  toggleButtonActive: {
+    backgroundColor: '#FF6B35',
+    color: 'white',
+    boxShadow: '0 2px 4px rgba(255, 107, 53, 0.2)'
+  },
+
+  userAccountsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    maxHeight: '400px',
+    overflowY: 'auto'
+  },
+
+  userAccountItem: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: '8px',
+    padding: '16px',
+    border: '1px solid #e9ecef',
+    borderLeft: '4px solid #FF6B35'
+  },
+
+  userAccountDetails: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+
+  userAccountHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+
+  userAccountName: {
+    fontWeight: '600',
+    fontSize: '16px',
+    color: '#1f2937'
+  },
+
+  userAccountStatus: {
+    fontSize: '12px',
+    padding: '4px 8px',
+    borderRadius: '12px',
+    backgroundColor: 'white',
+    border: '1px solid #d1d5db'
+  },
+
+  userAccountEmail: {
+    fontSize: '14px',
+    color: '#6b7280',
+    fontFamily: 'monospace'
+  },
+
+  userAccountMeta: {
+    display: 'flex',
+    gap: '16px',
+    fontSize: '12px',
+    color: '#9ca3af',
+    flexWrap: 'wrap'
   }
 };
 

@@ -25,7 +25,7 @@ function AIParsingSettings({ onClose, onSettingsChange }) {
     enableSmartSuggestions: true,
     
     // API preferences
-    preferredAI: 'claude',
+    preferredAI: 'chatgpt',
     enableGeminiValidation: false,
     apiTimeout: 10,
     
@@ -185,7 +185,7 @@ function AIParsingSettings({ onClose, onSettingsChange }) {
         showConfidenceScores: true,
         autoReviewLowConfidence: true,
         enableSmartSuggestions: true,
-        preferredAI: 'claude',
+        preferredAI: 'chatgpt',
         enableGeminiValidation: false,
         apiTimeout: 10,
         excludePatterns: [

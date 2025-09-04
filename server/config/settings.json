@@ -13,7 +13,7 @@
     "showConfidenceScores": true,
     "autoReviewLowConfidence": true,
     "enableSmartSuggestions": true,
-    "preferredAI": "claude",
+    "preferredAI": "chatgpt",
     "enableGeminiValidation": false,
     "apiTimeout": 10,
     "excludePatterns": [

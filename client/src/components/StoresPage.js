@@ -200,7 +200,7 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
         </button>
         <div className="page-title">
           <h1>Choose Your Store</h1>
-          <p>Select from our supported grocery stores</p>
+          <p>Select your preferred grocery store to get started</p>
         </div>
         {(krogerAuthComplete || selectedStore || selectedRetailer) && (
           <button 
