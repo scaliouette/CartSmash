@@ -17,32 +17,105 @@ function AdminDashboard({ onClose, currentUser }) {
   const [showDemo, setShowDemo] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Check access after hooks are declared
-  if (!currentUser || !currentUser.isAdmin) {
-    console.warn('⚠️ AdminDashboard: Non-admin user attempted access');
-    return (
-      <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', zIndex: 9999
-      }}>
-        <div style={{
-          background: 'white', padding: '20px', borderRadius: '8px',
-          maxWidth: '400px', textAlign: 'center'
-        }}>
-          <h3>Access Denied</h3>
-          <p>Admin access required.</p>
-          <button onClick={onClose} style={{
-            background: '#dc3545', color: 'white', border: 'none',
-            padding: '10px 20px', borderRadius: '4px', cursor: 'pointer'
-          }}>
-            Close
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Define all callbacks before conditional returns
+  const loadSystemHealth = useCallback(async () => {
+    try {
+      console.log('🩺 Loading system health...');
+      const response = await fetch('/api/settings/health/check');
+      if (response.ok) {
+        const data = await response.json();
+        setSystemHealth(data);
+        if (error && data.success) setError(null);
+      } else if (response.status === 404) {
+        // Health check endpoint doesn't exist - use mock data
+        console.log('⚠️ Health check endpoint not found, using mock data');
+        setSystemHealth({
+          status: 'operational',
+          uptime: '99.9%',
+          responseTime: '120ms',
+          version: '1.0.0',
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        throw new Error(`HTTP ${response.status}: Health check failed`);
+      }
+    } catch (error) {
+      console.error('Failed to load system health:', error);
+      setError(error.message);
+      setSystemHealth(null);
+    }
+  }, [error]);
 
+  const loadUserActivity = useCallback(async () => {
+    try {
+      console.log('🔄 Loading user activity...');
+      const response = await fetch('http://localhost:3002/api/analytics/users/activity?limit=10&hours=24', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ User activity loaded:', data);
+        setUserActivity(data);
+      } else {
+        console.error('❌ Failed to load user activity:', response.status, response.statusText);
+        throw new Error(`HTTP ${response.status}: Failed to load user activity`);
+      }
+    } catch (error) {
+      console.error('❌ Error loading user activity:', error);
+      // Set empty state instead of null to show "No data found" instead of "Loading..."
+      setUserActivity({ activities: [], stats: { activeUsers: 0, totalActivities: 0 } });
+    }
+  }, []);
+
+  const loadUserAccounts = useCallback(async () => {
+    try {
+      console.log('🔄 Loading Firebase user accounts...');
+      const response = await fetch('http://localhost:3002/api/analytics/users/accounts?limit=20', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ User accounts loaded:', data);
+        setUserAccounts(data);
+      } else {
+        console.error('❌ Failed to load user accounts:', response.status, response.statusText);
+        throw new Error(`HTTP ${response.status}: Failed to load user accounts`);
+      }
+    } catch (error) {
+      console.error('❌ Error loading user accounts:', error);
+      // Set empty state instead of null to show "No data found"
+      setUserAccounts({ users: [], totalUsers: 0 });
+    }
+  }, []);
+
+  const loadRealtimeMetrics = useCallback(async () => {
+    try {
+      const response = await fetch('/api/analytics/realtime');
+      if (response.ok) {
+        const data = await response.json();
+        setRealtimeMetrics(data.realtime);
+        setError(null); // Clear any previous errors
+      } else {
+        throw new Error(`HTTP ${response.status}: Failed to load metrics`);
+      }
+    } catch (error) {
+      console.error('Failed to load realtime metrics:', error);
+      setError(`Failed to load metrics: ${error.message}`);
+      setRealtimeMetrics(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // useEffect must be declared before conditional returns
   useEffect(() => {
     console.log('🛠️ AdminDashboard mounting for user:', currentUser?.email);
     
@@ -74,105 +147,33 @@ function AdminDashboard({ onClose, currentUser }) {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, []); // Remove circular dependency
+  }, [loadSystemHealth, loadRealtimeMetrics, loadUserActivity, loadUserAccounts]);
 
-  const loadSystemHealth = useCallback(async () => {
-    try {
-      console.log('🩺 Loading system health...');
-      const response = await fetch('/api/settings/health/check');
-      if (response.ok) {
-        const data = await response.json();
-        setSystemHealth(data);
-        if (error && data.success) setError(null);
-      } else if (response.status === 404) {
-        // Health check endpoint doesn't exist - use mock data
-        console.log('⚠️ Health check endpoint not found, using mock data');
-        setSystemHealth({
-          status: 'operational',
-          uptime: '99.9%',
-          responseTime: '120ms',
-          version: '1.0.0',
-          timestamp: new Date().toISOString()
-        });
-      } else {
-        throw new Error(`HTTP ${response.status}: Health check failed`);
-      }
-    } catch (error) {
-      console.error('Failed to load system health:', error);
-      setError(error.message);
-      setSystemHealth(null);
-    }
-  }, [error]);
-
-  const loadUserActivity = async () => {
-    try {
-      console.log('🔄 Loading user activity...');
-      const response = await fetch('http://localhost:3002/api/analytics/users/activity?limit=10&hours=24', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ User activity loaded:', data);
-        setUserActivity(data);
-      } else {
-        console.error('❌ Failed to load user activity:', response.status, response.statusText);
-        throw new Error(`HTTP ${response.status}: Failed to load user activity`);
-      }
-    } catch (error) {
-      console.error('❌ Error loading user activity:', error);
-      // Set empty state instead of null to show "No data found" instead of "Loading..."
-      setUserActivity({ activities: [], stats: { activeUsers: 0, totalActivities: 0 } });
-    }
-  };
-
-  const loadUserAccounts = async () => {
-    try {
-      console.log('🔄 Loading Firebase user accounts...');
-      const response = await fetch('http://localhost:3002/api/analytics/users/accounts?limit=20', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ User accounts loaded:', data);
-        setUserAccounts(data);
-      } else {
-        console.error('❌ Failed to load user accounts:', response.status, response.statusText);
-        throw new Error(`HTTP ${response.status}: Failed to load user accounts`);
-      }
-    } catch (error) {
-      console.error('❌ Error loading user accounts:', error);
-      // Set empty state instead of null to show "No data found"
-      setUserAccounts({ users: [], totalUsers: 0 });
-    }
-  };
-
-  const loadRealtimeMetrics = async () => {
-    try {
-      const response = await fetch('/api/analytics/realtime');
-      if (response.ok) {
-        const data = await response.json();
-        setRealtimeMetrics(data.realtime);
-        setError(null); // Clear any previous errors
-      } else {
-        throw new Error(`HTTP ${response.status}: Failed to load metrics`);
-      }
-    } catch (error) {
-      console.error('Failed to load realtime metrics:', error);
-      setError(`Failed to load metrics: ${error.message}`);
-      setRealtimeMetrics(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Check access after all hooks are declared
+  if (!currentUser || !currentUser.isAdmin) {
+    console.warn('⚠️ AdminDashboard: Non-admin user attempted access');
+    return (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', zIndex: 9999
+      }}>
+        <div style={{
+          background: 'white', padding: '20px', borderRadius: '8px',
+          maxWidth: '400px', textAlign: 'center'
+        }}>
+          <h3>Access Denied</h3>
+          <p>Admin access required.</p>
+          <button onClick={onClose} style={{
+            background: '#dc3545', color: 'white', border: 'none',
+            padding: '10px 20px', borderRadius: '4px', cursor: 'pointer'
+          }}>
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Helper function to safely format numbers
   const safeToFixed = (value, decimals = 1) => {
