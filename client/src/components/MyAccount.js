@@ -332,18 +332,30 @@ function MyAccount({
                     <strong style={styles.dayName}>{day}:</strong>
                     <div style={styles.dayMeals}>
                       {meals.breakfast && (
-                        <span style={styles.mealTag} title={meals.breakfast.name || 'Breakfast'}>
+                        <span 
+                          style={styles.mealTag} 
+                          title={`${meals.breakfast.name || 'Breakfast'}${meals.breakfast.recipe ? `\nPrep: ${meals.breakfast.recipe.prepTime}m | Cook: ${meals.breakfast.recipe.cookTime}m\nIngredients: ${meals.breakfast.recipe.ingredients?.length || 0}` : ''}`}
+                        >
                           🌅 {meals.breakfast.name ? meals.breakfast.name.substring(0, 10) : 'B'}
+                          {meals.breakfast.recipe && <span style={styles.recipeIndicator}>📖</span>}
                         </span>
                       )}
                       {meals.lunch && (
-                        <span style={styles.mealTag} title={meals.lunch.name || 'Lunch'}>
+                        <span 
+                          style={styles.mealTag} 
+                          title={`${meals.lunch.name || 'Lunch'}${meals.lunch.recipe ? `\nPrep: ${meals.lunch.recipe.prepTime}m | Cook: ${meals.lunch.recipe.cookTime}m\nIngredients: ${meals.lunch.recipe.ingredients?.length || 0}` : ''}`}
+                        >
                           ☀️ {meals.lunch.name ? meals.lunch.name.substring(0, 10) : 'L'}
+                          {meals.lunch.recipe && <span style={styles.recipeIndicator}>📖</span>}
                         </span>
                       )}
                       {meals.dinner && (
-                        <span style={styles.mealTag} title={meals.dinner.name || 'Dinner'}>
+                        <span 
+                          style={styles.mealTag} 
+                          title={`${meals.dinner.name || 'Dinner'}${meals.dinner.recipe ? `\nPrep: ${meals.dinner.recipe.prepTime}m | Cook: ${meals.dinner.recipe.cookTime}m\nIngredients: ${meals.dinner.recipe.ingredients?.length || 0}` : ''}`}
+                        >
                           🌙 {meals.dinner.name ? meals.dinner.name.substring(0, 10) : 'D'}
+                          {meals.dinner.recipe && <span style={styles.recipeIndicator}>📖</span>}
                         </span>
                       )}
                     </div>
@@ -354,6 +366,12 @@ function MyAccount({
               <div style={styles.mealPlanStats}>
                 <span>📦 {plan.totalItems || 0} items</span>
                 <span>🍽️ {plan.totalMeals || 0} meals</span>
+                {plan.recipes && plan.recipes.length > 0 && (
+                  <span>📖 {plan.recipes.length} recipes</span>
+                )}
+                {plan.source === 'imported' && (
+                  <span style={styles.importedBadge}>🔄 Imported</span>
+                )}
               </div>
               
               <div style={styles.mealPlanActions}>
@@ -1583,7 +1601,15 @@ const styles = {
     color: '#002244',
     borderRadius: '4px',
     fontWeight: '500',
-    border: '1px solid #FB4F14'
+    border: '1px solid #FB4F14',
+    position: 'relative',
+    display: 'inline-block'
+  },
+
+  recipeIndicator: {
+    fontSize: '8px',
+    marginLeft: '2px',
+    opacity: 0.8
   },
 
   mealPlanStats: {
@@ -1595,7 +1621,17 @@ const styles = {
     marginBottom: '16px',
     fontSize: '14px',
     color: '#002244',
-    fontWeight: '500'
+    fontWeight: '500',
+    flexWrap: 'wrap'
+  },
+
+  importedBadge: {
+    fontSize: '12px',
+    padding: '2px 6px',
+    backgroundColor: '#002244',
+    color: 'white',
+    borderRadius: '4px',
+    fontWeight: 'bold'
   },
 
   mealPlanActions: {

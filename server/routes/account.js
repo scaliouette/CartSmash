@@ -461,6 +461,41 @@ router.post('/meals', authenticateUser, async (req, res) => {
       // Save to Firestore
       const docRef = await db.collection('mealPlans').add(importedPlan);
       
+      // Also save individual recipes to user's recipe collection
+      const savedRecipeIds = [];
+      for (const recipe of importedPlan.recipes || []) {
+        try {
+          const recipeData = {
+            userId: userId,
+            name: recipe.name,
+            description: recipe.description || '',
+            ingredients: recipe.ingredients || [],
+            instructions: recipe.instructions || [],
+            prepTime: recipe.prepTime || 0,
+            cookTime: recipe.cookTime || 0,
+            servings: recipe.servings || 4,
+            tags: [...(recipe.tags || []), 'imported', recipe.mealType || ''],
+            source: 'meal_plan_import',
+            difficulty: recipe.difficulty || 'medium',
+            parsedIngredients: recipe.parsedIngredients || [],
+            fromMealPlan: {
+              id: docRef.id,
+              name: importedPlan.name,
+              day: recipe.day,
+              mealType: recipe.mealType
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          
+          const recipeDocRef = await db.collection('recipes').add(recipeData);
+          savedRecipeIds.push(recipeDocRef.id);
+          console.log(`✅ Saved recipe: ${recipe.name} (${recipeDocRef.id})`);
+        } catch (error) {
+          console.error(`⚠️ Failed to save recipe ${recipe.name}:`, error.message);
+        }
+      }
+      
       return res.json({
         success: true,
         meal: {
@@ -468,7 +503,8 @@ router.post('/meals', authenticateUser, async (req, res) => {
           ...importedPlan
         },
         summary: summary,
-        message: `Meal plan "${importedPlan.name}" imported successfully with ${summary.totalMeals} meals and ${summary.shoppingItems} shopping items`
+        recipesCreated: savedRecipeIds.length,
+        message: `Meal plan "${importedPlan.name}" imported successfully with ${summary.totalMeals} meals, ${summary.shoppingItems} shopping items, and ${savedRecipeIds.length} individual recipes saved`
       });
     }
     

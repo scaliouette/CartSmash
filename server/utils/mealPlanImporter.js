@@ -55,16 +55,45 @@ function importStructuredMealPlan(jsonMealPlan, userId) {
             servings: meal.servings || 4,
             instructions: meal.instructions || [],
             tags: meal.tags || [],
-            items: items
+            items: items,
+            // Full recipe details
+            recipe: {
+              name: meal.name,
+              description: meal.description || '',
+              ingredients: meal.ingredients || [],
+              instructions: meal.instructions || [],
+              prepTime: meal.prepTime || 0,
+              cookTime: meal.cookTime || 0,
+              totalTime: (meal.prepTime || 0) + (meal.cookTime || 0),
+              servings: meal.servings || 4,
+              difficulty: meal.difficulty || 'medium',
+              tags: meal.tags || [],
+              nutritionInfo: meal.nutritionInfo || null,
+              source: 'imported_meal_plan',
+              notes: meal.notes || '',
+              variations: meal.variations || []
+            }
           };
           
           allRecipes.push({
+            id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             name: meal.name,
+            description: meal.description || '',
             mealType: mealType,
             day: dayName,
             prepTime: meal.prepTime || 0,
             cookTime: meal.cookTime || 0,
-            servings: meal.servings || 4
+            totalTime: (meal.prepTime || 0) + (meal.cookTime || 0),
+            servings: meal.servings || 4,
+            ingredients: meal.ingredients || [],
+            instructions: meal.instructions || [],
+            tags: meal.tags || [],
+            difficulty: meal.difficulty || 'medium',
+            nutritionInfo: meal.nutritionInfo || null,
+            source: 'imported_meal_plan',
+            notes: meal.notes || '',
+            variations: meal.variations || [],
+            parsedIngredients: items // Already processed ingredients
           });
         }
       });
