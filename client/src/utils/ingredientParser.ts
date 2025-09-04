@@ -12,7 +12,10 @@ export function normalizeFractions(s: string): string {
 
 function parseNumberToken(token: string): number | undefined {
   const t = token.trim().toLowerCase();
-  if (NUMBER_WORDS[t] != null) return NUMBER_WORDS[t];
+  // Check if NUMBER_WORDS exists and has the property to avoid initialization errors
+  if (NUMBER_WORDS && typeof NUMBER_WORDS === 'object' && NUMBER_WORDS[t] != null) {
+    return NUMBER_WORDS[t];
+  }
   if (/^\d+\.\d+$/.test(t)) return parseFloat(t);
   if (/^\d+$/.test(t)) return parseInt(t, 10);
   if (/^\d+\s+\d+\/\d+$/.test(t)) {

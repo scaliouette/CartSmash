@@ -26,17 +26,30 @@ function MyAccount({
   const [showListEditModal, setShowListEditModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   
-  // Load meal plans from props or localStorage
+  // Load meal plans from props or localStorage with error handling
   useEffect(() => {
-    if (mealPlans && mealPlans.length > 0) {
-      setLocalMealPlans(mealPlans);
-    } else {
-      const savedMealPlans = localStorage.getItem('cartsmash-mealplans');
-      if (savedMealPlans) {
-        setLocalMealPlans(JSON.parse(savedMealPlans));
+    try {
+      console.log('🏠 MyAccount mounting:', {
+        currentUser: currentUser?.email || 'not logged in',
+        mealPlans: mealPlans?.length || 0,
+        savedLists: savedLists?.length || 0,
+        savedRecipes: savedRecipes?.length || 0
+      });
+      
+      if (mealPlans && mealPlans.length > 0) {
+        setLocalMealPlans(mealPlans);
+      } else {
+        const savedMealPlans = localStorage.getItem('cartsmash-mealplans');
+        if (savedMealPlans) {
+          setLocalMealPlans(JSON.parse(savedMealPlans));
+        }
       }
+    } catch (error) {
+      console.error('❌ MyAccount initialization error:', error);
+      // Set empty state as fallback
+      setLocalMealPlans([]);
     }
-  }, [mealPlans]);
+  }, [mealPlans, currentUser, savedLists, savedRecipes]);
 
   // Calculate stats
   const stats = {
