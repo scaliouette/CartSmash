@@ -348,17 +348,31 @@ Rules:
     let unit = 'each';
     let productName = cleaned;
     let containerSize = null;
+    let quantityRange = null;
+
+    // Handle ranged quantities like "4-6 chicken breasts" or "4 to 6 ..."
+    const rangeMatch = cleaned.match(/^(\d+)\s*(?:-|\s*to\s*)\s*(\d+)\s+(.+)$/i);
+    if (rangeMatch) {
+      const minQ = parseInt(rangeMatch[1], 10);
+      const maxQ = parseInt(rangeMatch[2], 10);
+      if (!Number.isNaN(minQ) && !Number.isNaN(maxQ)) {
+        quantity = minQ;
+        unit = 'each';
+        productName = rangeMatch[3];
+        quantityRange = { min: minQ, max: maxQ };
+      }
+    }
 
     // Enhanced patterns to support fractions, mixed numbers, and Unicode fractions
     const containerPattern = /^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\d+(?:\s+\d+\/\d+)?|\d+\/\d+|\d+(?:\.\d+)?)\s+(bag|bags|container|containers|jar|jars|can|cans|bottle|bottles|box|boxes|package|packages)\s*\(([^)]+)\)\s+(.+)$/i;
     const containerMatch = cleaned.match(containerPattern);
-    if (containerMatch) {
+    if (!quantityRange && containerMatch) {
       const parsedQty = this.parseFraction(containerMatch[1]);
       quantity = parsedQty !== null ? parsedQty : 1;
       unit = this.normalizeUnit(containerMatch[2]);
       containerSize = containerMatch[3];
       productName = containerMatch[4];
-    } else {
+    } else if (!quantityRange) {
       const sizePattern = /^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\d+(?:\s+\d+\/\d+)?|\d+\/\d+|\d+(?:\.\d+)?)\s+(\w+)\s*\(([^)]+)\)\s+(.+)$/i;
       const sizeMatch = cleaned.match(sizePattern);
       if (sizeMatch) {
@@ -409,6 +423,7 @@ Rules:
       quantity,
       unit,
       containerSize,
+      ...(quantityRange ? { quantityRange } : {}),
       category,
       confidence,
       needsReview: confidence < 0.7,
@@ -423,6 +438,9 @@ Rules:
       if (pattern.test(line)) return true;
     }
     const lower = line.toLowerCase();
+    // Exclude markdown headers and section titles like "For the Chicken"
+    if (/^#{1,6}\s/.test(line)) return true;
+    if (/^for the\b/.test(lower)) return true;
     if (['proteins:', 'produce:', 'dairy:', 'pantry:', 'pantry/other:', 'beverages:'].includes(lower)) return true;
     if (lower.includes('salads with') || lower.includes('salmon with') || lower.includes('lunch with') || lower.includes('breakfast with')) return true;
     if (lower.includes('combinations') || lower.includes('quick grain bowls') || lower.includes('wrap sandwiches')) return true;

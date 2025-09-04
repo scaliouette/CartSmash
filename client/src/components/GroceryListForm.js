@@ -237,6 +237,12 @@ function GroceryListForm({
     setError('');
     setShowProgress(true);
     setParsingProgress(0);
+    // Safety: prevent overlays from blocking UI if a request hangs
+    const overlaySafety = setTimeout(() => {
+      setIsLoading(false);
+      setShowProgress(false);
+      setWaitingForAIResponse(false);
+    }, 15000);
     
     // Track if we're waiting for AI
     if (useAI) {
@@ -503,6 +509,8 @@ function GroceryListForm({
         clearInterval(progressInterval);
       }
     } finally {
+      if (progressInterval) clearInterval(progressInterval);
+      clearTimeout(overlaySafety);
       setIsLoading(false);
       setShowProgress(false);
       setParsingProgress(0);

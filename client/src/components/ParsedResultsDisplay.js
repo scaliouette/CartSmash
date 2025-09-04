@@ -603,6 +603,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
     { value: 'cup', label: 'cup' },
     { value: 'tbsp', label: 'tbsp' },
     { value: 'tsp', label: 'tsp' },
+    { value: 'clove', label: 'clove' },
     { value: 'l', label: 'liter' },
     { value: 'ml', label: 'ml' },
     { value: 'gal', label: 'gallon' },
@@ -995,15 +996,22 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
           </div>
 
           <div style={styles.itemQuantity}>
-            <input
-              type="number"
-              value={item.quantity || 1}
-              onChange={(e) => handleItemEdit(item.id, 'quantity', parseFloat(e.target.value) || 1)}
-              style={styles.quantityInput}
-              min="0"
-              step="0.25"
-              disabled={isUpdating}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <input
+                type="number"
+                value={item.quantity || 1}
+                onChange={(e) => handleItemEdit(item.id, 'quantity', parseFloat(e.target.value) || 1)}
+                style={styles.quantityInput}
+                min="0"
+                step="0.25"
+                disabled={isUpdating}
+              />
+              {item.quantityRange && item.quantityRange.min != null && item.quantityRange.max != null && (
+                <span style={{ color: '#6b7280', fontSize: '12px' }}>
+                  {item.quantityRange.min}–{item.quantityRange.max}
+                </span>
+              )}
+            </div>
           </div>
 
           <div style={styles.itemUnit}>
