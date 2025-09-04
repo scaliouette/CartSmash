@@ -539,6 +539,10 @@ function GroceryListForm({
     setMessages([]);
     setWaitingForAIResponse(false);
     clearDraft();
+    // Also clear the current cart and hide results so the list is truly empty
+    setCurrentCart([]);
+    setShowResults(false);
+    setParsingStats(null);
   };
 
   const handleSaveRecipeFromAI = () => {
