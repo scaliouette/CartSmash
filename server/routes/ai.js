@@ -192,12 +192,17 @@ Focus on specific, measurable items that can be purchased at a grocery store. Av
       }
     }
     
-    // Fallback if API unavailable
+    // Fallback only if API is truly unavailable (no client or API error)
     if (!responseText) {
-      console.log('🔄 Using enhanced fallback response...');
-      responseText = generateEnhancedClaudeResponse(prompt);
-      usage = { input_tokens: 150, output_tokens: 300 };
-      model = 'claude-3-sonnet (demo)';
+      if (!anthropic) {
+        console.log('🔄 Claude API unavailable - using fallback...');
+        responseText = "⚠️ **AI SERVICE TEMPORARILY UNAVAILABLE - SHOWING FALLBACK CONTENT**\n\n" + generateEnhancedClaudeResponse(prompt);
+        usage = { input_tokens: 150, output_tokens: 300 };
+        model = 'claude-3-sonnet (fallback)';
+      } else {
+        // API client exists but request failed - return error instead of fallback
+        throw new Error('Claude API request failed but client is available');
+      }
     }
     
     // 🚀 INTELLIGENT PARSING - For meal plans, use less strict parsing to preserve the full plan
@@ -400,12 +405,17 @@ Focus on specific, measurable grocery items that can be easily found in a store.
       }
     }
     
-    // Fallback if API unavailable
+    // Fallback only if API is truly unavailable (no client or API error)
     if (!responseText) {
-      console.log('🔄 Using enhanced fallback response...');
-      responseText = generateEnhancedChatGPTResponse(prompt);
-      usage = { prompt_tokens: 120, completion_tokens: 250 };
-      model = 'gpt-4o-mini (demo)';
+      if (!openai) {
+        console.log('🔄 OpenAI API unavailable - using fallback...');
+        responseText = "⚠️ **AI SERVICE TEMPORARILY UNAVAILABLE - SHOWING FALLBACK CONTENT**\n\n" + generateEnhancedChatGPTResponse(prompt);
+        usage = { prompt_tokens: 120, completion_tokens: 250 };
+        model = 'gpt-4o-mini (fallback)';
+      } else {
+        // API client exists but request failed - return error instead of fallback
+        throw new Error('OpenAI API request failed but client is available');
+      }
     }
     
     // 🚀 INTELLIGENT PARSING - For meal plans, use less strict parsing to preserve the full plan
@@ -640,87 +650,7 @@ function generateEnhancedClaudeResponse(prompt) {
     return generateStructuredMealPlan(prompt);
   }
   
-  // Legacy fallback for non-meal plan requests
-  if (false) { // disabled old approach
-    return `**COMPLETE 7-DAY MEAL PLAN FOR FAMILY OF 4**
-
-**DAY 1 - MONDAY**
-• Breakfast: Greek yogurt parfait with mixed berries and granola
-• Lunch: Quinoa tabbouleh salad with grilled chicken breast
-• Dinner: Baked salmon with roasted vegetables and wild rice
-• Snacks: Apple slices with peanut butter, string cheese
-
-**DAY 2 - TUESDAY** 
-• Breakfast: Overnight oats with banana and cinnamon
-• Lunch: Turkey and avocado wraps with whole wheat tortillas
-• Dinner: Lean beef stir-fry with brown rice and mixed vegetables
-• Snacks: Greek yogurt, handful of almonds
-
-**DAY 3 - WEDNESDAY**
-• Breakfast: Scrambled eggs with whole grain toast and spinach
-• Lunch: Leftover salmon salad with mixed greens
-• Dinner: Chicken and vegetable curry with quinoa
-• Snacks: Carrot sticks with hummus
-
-**DAY 4 - THURSDAY**
-• Breakfast: Smoothie bowl with banana, berries, and granola
-• Lunch: Lentil soup with crusty bread
-• Dinner: Baked chicken thighs with sweet potato and broccoli
-• Snacks: Trail mix, herbal tea
-
-**DAY 5 - FRIDAY**
-• Breakfast: Avocado toast on whole grain bread with tomato
-• Lunch: Leftover curry with naan bread
-• Dinner: Pan-seared cod with quinoa pilaf and asparagus
-• Snacks: Fresh fruit, handful of nuts
-
-**DAY 6 - SATURDAY**
-• Breakfast: Pancakes with fresh berries and maple syrup
-• Lunch: Grilled chicken Caesar salad
-• Dinner: Vegetarian black bean tacos with corn tortillas
-• Snacks: Popcorn, dark chocolate square
-
-**DAY 7 - SUNDAY**
-• Breakfast: French toast with strawberries
-• Lunch: Leftover taco filling in burrito bowls
-• Dinner: Slow-cooked pot roast with potatoes and carrots
-• Snacks: Yogurt parfait, herbal tea
-
-**COMPLETE GROCERY SHOPPING LIST:**
-
-**Proteins & Dairy:**
-• 2 lbs salmon fillets
-• 2 lbs boneless chicken breast  
-• 1 lb lean ground beef
-• 1 lb sliced turkey breast
-• 1 container Greek yogurt (32 oz)
-• 1 dozen large eggs
-• 1 gallon whole milk
-
-**Fresh Produce:**
-• 2 cups mixed berries
-• 4 bananas
-• 2 avocados
-• 1 bag spinach (5 oz)
-• 3 bell peppers
-• 1 large yellow onion
-• 1 head garlic
-• 2 large sweet potatoes
-• 1 English cucumber
-• 3 Roma tomatoes
-• 2 lemons
-
-**Pantry Staples:**
-• 2 cups quinoa
-• 2 cups brown rice
-• 1 container rolled oats (42 oz)
-• 1 can black beans (15 oz)
-• 1 cup red lentils
-• 1 bottle olive oil (16.9 fl oz)
-• 1 loaf whole grain bread
-
-This plan provides balanced nutrition with approximately 2000-2200 calories per day per person.`;
-  }
+  // Legacy fallback removed - use structured meal planner for consistency
   
   if (lowerPrompt.includes('budget') || lowerPrompt.includes('cheap')) {
     return `Here's a budget-friendly grocery plan that maximizes nutrition while minimizing cost:
@@ -728,29 +658,29 @@ This plan provides balanced nutrition with approximately 2000-2200 calories per 
 **BUDGET-SMART GROCERY LIST:**
 
 **Proteins (Budget-Friendly):**
-• 3 lbs ground turkey
-• 2 dozen eggs
-• 1 container Greek yogurt (32 oz)
-• 1 bag dried black beans (1 lb)
-• 1 jar peanut butter (18 oz)
+- 3 lbs ground turkey
+- 2 dozen eggs
+- 1 container Greek yogurt (32 oz)
+- 1 bag dried black beans (1 lb)
+- 1 jar peanut butter (18 oz)
 
 **Bulk Staples:**
-• 5 lbs brown rice
-• 2 lbs whole wheat pasta
-• 1 loaf whole grain bread
-• 1 container oats (42 oz)
+- 5 lbs brown rice
+- 2 lbs whole wheat pasta
+- 1 loaf whole grain bread
+- 1 container oats (42 oz)
 
 **Affordable Produce:**
-• 3 lbs bananas
-• 2 lbs carrots
-• 1 bag potatoes (5 lbs)
-• 1 large onion
-• 1 head garlic
+- 3 lbs bananas
+- 2 lbs carrots
+- 1 bag potatoes (5 lbs)
+- 1 large onion
+- 1 head garlic
 
 **Pantry Essentials:**
-• 1 bottle vegetable oil
-• 1 bag flour (5 lbs)
-• 1 container salt
+- 1 bottle vegetable oil
+- 1 bag flour (5 lbs)
+- 1 container salt
 
 Total estimated cost: $45-55 for a week's worth of nutritious meals.`;
   }
@@ -760,23 +690,23 @@ Total estimated cost: $45-55 for a week's worth of nutritious meals.`;
 **GROCERY SHOPPING LIST:**
 
 **Proteins:**
-• 2 lbs chicken breast
-• 1 dozen eggs
-• 1 container Greek yogurt (32 oz)
+- 2 lbs chicken breast
+- 1 dozen eggs
+- 1 container Greek yogurt (32 oz)
 
 **Fresh Produce:**
-• 3 bananas
-• 2 bell peppers
-• 1 bag spinach (5 oz)
-• 1 onion
+- 3 bananas
+- 2 bell peppers
+- 1 bag spinach (5 oz)
+- 1 onion
 
 **Pantry Items:**
-• 2 cups brown rice
-• 1 loaf bread
-• 1 bottle olive oil (16.9 fl oz)
+- 2 cups brown rice
+- 1 loaf bread
+- 1 bottle olive oil (16.9 fl oz)
 
 **Dairy:**
-• 1 gallon milk
+- 1 gallon milk
 
 This provides a solid foundation for healthy, versatile meals throughout the week.`;
 }

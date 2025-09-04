@@ -131,13 +131,22 @@ function AppContent({
     }
   }, [setSyncStatus, setCurrentCart, setSavedLists, setSavedRecipes, setMealPlans]);
   
-  // Load all data from localStorage first, then Firebase
-  const loadAllData = useCallback(async () => {
+  // Load all data from localStorage first, then Firebase (but preserve current cart if it has items)
+  const loadAllData = useCallback(async (preserveCart = false) => {
     setIsLoading(true);
     
     try {
+      // Store current cart if we need to preserve it
+      const cartToPreserve = preserveCart ? currentCart : null;
+      
       // First load from localStorage for instant display
       loadLocalData();
+      
+      // Restore preserved cart if needed
+      if (cartToPreserve && cartToPreserve.length > 0) {
+        setCurrentCart(cartToPreserve);
+        console.log('🔄 Preserved cart with', cartToPreserve.length, 'items during navigation');
+      }
       
       // Then load from Firebase if user is authenticated
       if (currentUser) {
@@ -149,7 +158,7 @@ function AppContent({
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, setIsLoading, setSyncStatus, loadLocalData, loadFirebaseData]);
+  }, [currentUser, setIsLoading, setSyncStatus, loadLocalData, loadFirebaseData, currentCart]);
   
   const saveCartToFirebase = useCallback(async () => {
     if (!currentUser || currentCart.length === 0) return;
@@ -236,8 +245,22 @@ function AppContent({
       const data = await response.json();
       
       if (data.success) {
+        // Update cart state
         setCurrentCart(data.cart);
-        setCurrentView('home');
+        
+        // Immediately save to localStorage to persist during navigation
+        try {
+          localStorage.setItem('cartsmash-current-cart', JSON.stringify(data.cart));
+          console.log('💾 Recipe cart saved to localStorage during load');
+        } catch (error) {
+          console.error('Failed to save recipe cart to localStorage:', error);
+        }
+        
+        // Navigate to home with small delay
+        setTimeout(() => {
+          setCurrentView('home');
+        }, 50);
+        
         return data.cart.length;
       }
     } catch (error) {
@@ -255,13 +278,29 @@ function AppContent({
       return 0;
     }
     
+    let newCart;
     if (merge) {
-      setCurrentCart(prev => [...prev, ...list.items]);
+      newCart = [...currentCart, ...list.items];
     } else {
-      setCurrentCart(list.items);
+      newCart = list.items;
     }
     
-    setCurrentView('home');
+    // Update cart state
+    setCurrentCart(newCart);
+    
+    // Immediately save to localStorage to persist during navigation
+    try {
+      localStorage.setItem('cartsmash-current-cart', JSON.stringify(newCart));
+      console.log('💾 Cart saved to localStorage during list load');
+    } catch (error) {
+      console.error('Failed to save cart to localStorage:', error);
+    }
+    
+    // Navigate to home and preserve cart
+    setTimeout(() => {
+      setCurrentView('home');
+    }, 50); // Small delay to ensure state is updated
+    
     return list.items.length;
   };
   
