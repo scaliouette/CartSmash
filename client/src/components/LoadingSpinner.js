@@ -71,10 +71,9 @@ export function OverlaySpinner({ text = 'Loading...' }) {
       <div style={{
         width: '48px',
         height: '48px',
-        border: '4px solid #e5e7eb',
-        borderTopColor: '#3b82f6',
-        borderRadius: '50%',
-        animation: 'spin 1s linear infinite'
+        border: '4px solid transparent',
+        borderRadius: '6px',
+        animation: 'overlay-square-rotate 1.2s linear infinite, overlay-square-colors 2s linear infinite'
       }}></div>
       <div style={{
         fontSize: '18px',
@@ -94,29 +93,14 @@ export function ProgressSpinner({ text = 'Processing...' }) {
       alignItems: 'center',
       gap: '16px'
     }}>
-      <svg width="100" height="100" style={{ transform: 'rotate(-90deg)' }}>
-        <circle
-          cx="50"
-          cy="50"
-          r="45"
-          stroke="#e5e7eb"
-          strokeWidth="8"
-          fill="none"
-        />
-        <circle
-          cx="50"
-          cy="50"
-          r="45"
-          strokeWidth="8"
-          fill="none"
-          strokeDasharray="283"
-          strokeDashoffset="70"
-          style={{ 
-            animation: 'cartsmash-spin 2s linear infinite, cartsmash-colors 6s linear infinite',
-            strokeLinecap: 'round'
-          }}
-        />
-      </svg>
+      <div style={{
+        width: '80px',
+        height: '80px',
+        border: '6px solid transparent',
+        borderRadius: '8px',
+        animation: 'progress-square-rotate 1.5s linear infinite, progress-square-colors 2.5s linear infinite',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+      }}></div>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: '16px', color: '#374151', fontWeight: '500' }}>
           {text}
@@ -259,6 +243,74 @@ if (typeof document !== 'undefined' && !document.querySelector('#spinner-keyfram
       50% { stroke: #FF6B35; }
       75% { stroke: #F7931E; }
       100% { stroke: #FF6B35; }
+    }
+    
+    @keyframes overlay-square-rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes overlay-square-colors {
+      0% { 
+        border-color: #FF6B35 transparent transparent transparent; 
+        box-shadow: 0 0 10px rgba(255, 107, 53, 0.6); 
+      }
+      20% { 
+        border-color: #F7931E transparent transparent transparent; 
+        box-shadow: 0 0 10px rgba(247, 147, 30, 0.6); 
+      }
+      40% { 
+        border-color: #28a745 transparent transparent transparent; 
+        box-shadow: 0 0 10px rgba(40, 167, 69, 0.6); 
+      }
+      60% { 
+        border-color: #007bff transparent transparent transparent; 
+        box-shadow: 0 0 10px rgba(0, 123, 255, 0.6); 
+      }
+      80% { 
+        border-color: #dc3545 transparent transparent transparent; 
+        box-shadow: 0 0 10px rgba(220, 53, 69, 0.6); 
+      }
+      100% { 
+        border-color: #FF6B35 transparent transparent transparent; 
+        box-shadow: 0 0 10px rgba(255, 107, 53, 0.6); 
+      }
+    }
+    
+    @keyframes progress-square-rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes progress-square-colors {
+      0% { 
+        border-color: #FF6B35 transparent transparent transparent; 
+        box-shadow: 0 0 15px rgba(255, 107, 53, 0.4); 
+      }
+      16% { 
+        border-color: #F7931E transparent transparent transparent; 
+        box-shadow: 0 0 15px rgba(247, 147, 30, 0.4); 
+      }
+      32% { 
+        border-color: #28a745 transparent transparent transparent; 
+        box-shadow: 0 0 15px rgba(40, 167, 69, 0.4); 
+      }
+      48% { 
+        border-color: #007bff transparent transparent transparent; 
+        box-shadow: 0 0 15px rgba(0, 123, 255, 0.4); 
+      }
+      64% { 
+        border-color: #dc3545 transparent transparent transparent; 
+        box-shadow: 0 0 15px rgba(220, 53, 69, 0.4); 
+      }
+      80% { 
+        border-color: #6f42c1 transparent transparent transparent; 
+        box-shadow: 0 0 15px rgba(111, 66, 193, 0.4); 
+      }
+      100% { 
+        border-color: #FF6B35 transparent transparent transparent; 
+        box-shadow: 0 0 15px rgba(255, 107, 53, 0.4); 
+      }
     }
   `;
   document.head.appendChild(style);
