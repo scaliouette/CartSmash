@@ -14,28 +14,30 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
   const [recipeExpanded, setRecipeExpanded] = useState(false);
 
   // Memoize recipe source to avoid recomputation and noisy logs on every render
-  const sourceRecipeMemo = useMemo(() => {
+  const sourceRecipe = useMemo(() => {
     return parsingStats?.sourceRecipe || items[0]?._sourceRecipe || '';
   }, [parsingStats?.sourceRecipe, items]);
 
-  // Debug log to verify currentUser is being received
+  // Gate debug logs behind development environment
   useEffect(() => {
-    console.log('🔍 ParsedResultsDisplay received currentUser:', currentUser?.email || 'No user');
-    console.log('🔍 ParsedResultsDisplay received items:', items?.length || 0, 'items');
+    if (!isDev) return;
+    console.debug('ParsedResultsDisplay received currentUser:', currentUser?.email || 'No user');
+    console.debug('ParsedResultsDisplay received items:', items?.length || 0, 'items');
     if (items && items.length > 0) {
-      console.log('🔍 First few items:', items.slice(0, 3));
+      console.debug('First few items:', items.slice(0, 3));
     }
-  }, [currentUser, items]);
+  }, [currentUser, items, isDev]);
 
-  // Debug logging for parsingStats and recipe display
+  // Single-time debug logging for recipe display (dev only)
   useEffect(() => {
-    console.log('🔍 ParsedResultsDisplay received parsingStats:', {
-      hasParsingStats: !!parsingStats,
-      hasSourceRecipe: !!parsingStats?.sourceRecipe,
-      sourceRecipeLength: parsingStats?.sourceRecipe?.length,
-      firstChars: parsingStats?.sourceRecipe?.substring(0, 50)
+    if (!isDev || recipeLogOnceRef.current) return;
+    console.debug('Recipe display source', {
+      fromParsingStats: !!parsingStats?.sourceRecipe,
+      fromFirstItem: !!items[0]?._sourceRecipe,
+      hasSource: !!sourceRecipe
     });
-  }, [parsingStats]);
+    recipeLogOnceRef.current = true;
+  }, [isDev, parsingStats?.sourceRecipe, items, sourceRecipe]);
   
   const [sortBy, setSortBy] = useState('confidence');
   const [filterBy, setFilterBy] = useState('all');
@@ -80,7 +82,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
   const fetchRealTimePrices = useCallback(async (itemsToFetch) => {
     // Prevent duplicate fetches and check for valid items
     if (!itemsToFetch || itemsToFetch.length === 0) {
-      console.log(`💰 [FETCH DEBUG] No items to fetch prices for`);
+      if (isDev) console.debug('No items to fetch prices for');
       return;
     }
     
@@ -88,16 +90,16 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
     const alreadyFetching = itemIds.some(id => fetchingPrices.has(id));
     
     if (alreadyFetching) {
-      console.log(`💰 [FETCH DEBUG] Some items are already being fetched, skipping duplicate request`);
+      if (isDev) console.debug('Some items are already being fetched, skipping duplicate request');
       return;
     }
     
-    console.log(`💰 [FETCH DEBUG] Starting to fetch prices for ${itemsToFetch.length} items`);
+    if (isDev) console.debug(`Starting to fetch prices for ${itemsToFetch.length} items`);
     setFetchingPrices(prev => new Set([...prev, ...itemIds]));
 
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-      console.log(`💰 [FETCH DEBUG] Making request to: ${API_URL}/api/cart/fetch-prices`);
+      if (isDev) console.debug(`Making request to: ${API_URL}/api/cart/fetch-prices`);
       
       const response = await fetch(`${API_URL}/api/cart/fetch-prices`, {
         method: 'POST',
@@ -112,7 +114,7 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
 
       if (response.ok) {
         const data = await response.json();
-        console.log(`💰 [FETCH DEBUG] Received response:`, data);
+        if (isDev) console.debug('Received price response:', data);
 
         // Only update if items still exist in current state (avoid race conditions)
         const currentItemIds = new Set(items.map(item => item.id));
@@ -160,8 +162,8 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
           localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
           
           const itemsWithPrices = updatedItems.filter(item => item.realPrice).length;
-          console.log(`💰 [FETCH DEBUG] Updated ${updatedItems.length} items with price data`);
-          console.log(`💰 [FETCH DEBUG] ${itemsWithPrices} items now have Kroger pricing and can be added to cart`);
+          if (isDev) console.debug(`Updated ${updatedItems.length} items with price data`);
+          if (isDev) console.debug(`${itemsWithPrices} items now have Kroger pricing and can be added to cart`);
         }
       } else {
         console.error(`💰 [FETCH DEBUG] Request failed with status: ${response.status}`);
@@ -193,18 +195,18 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
       !fetchingPrices.has(item.id)
     );
     
-    console.log(`💰 [PRICE DEBUG] Initial check: ${itemsNeedingPrices.length} items need prices out of ${items.length} total items`);
+    if (isDev) console.debug(`Initial check: ${itemsNeedingPrices.length} items need prices out of ${items.length} total items`);
     
     // Only auto-fetch on initial load and if reasonable number of items
     if (itemsNeedingPrices.length > 0 && itemsNeedingPrices.length <= 3) {
       const timeoutId = setTimeout(() => {
-        console.log(`💰 [PRICE DEBUG] Auto-fetching prices for initial items:`, itemsNeedingPrices.map(item => item.productName || item.itemName || item.name));
+        if (isDev) console.debug('Auto-fetching prices for initial items:', itemsNeedingPrices.map(item => item.productName || item.itemName || item.name));
         fetchRealTimePrices(itemsNeedingPrices);
       }, 1000); // Reduced to 1 second delay
 
       return () => clearTimeout(timeoutId);
     } else if (itemsNeedingPrices.length > 3) {
-      console.log(`💰 [PRICE DEBUG] Too many items (${itemsNeedingPrices.length}) - use manual refresh for pricing`);
+      if (isDev) console.debug(`Too many items (${itemsNeedingPrices.length}) - use manual refresh for pricing`);
     }
   }, []); // Empty dependency array - only run once on mount
 
@@ -1093,38 +1095,26 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats 
       </div>
 
       {/* Recipe Display */}
-      {(() => {
-        // Get recipe from either parsingStats or first item
-        const sourceRecipe = parsingStats?.sourceRecipe || items[0]?._sourceRecipe;
-        console.log('🔍 Recipe display check:', {
-          fromParsingStats: !!parsingStats?.sourceRecipe,
-          fromFirstItem: !!items[0]?._sourceRecipe,
-          finalDecision: !!sourceRecipe
-        });
-        return sourceRecipe;
-      })() && parsingStats?.sourceRecipe && !parsingStats.sourceRecipe.includes('MEAL PLAN') && (
+      {sourceRecipe && parsingStats?.sourceRecipe && !parsingStats.sourceRecipe.includes('MEAL PLAN') && (
         <div style={styles.recipeDisplay}>
           <div style={styles.recipeHeader}>
-            <h4 style={styles.recipeTitle}>📝 Original Recipe</h4>
+            <h4 style={styles.recipeTitle}>Original Recipe</h4>
             <button 
               style={styles.recipeToggleButton}
-              onClick={() => {
-                const recipeContent = document.getElementById('recipe-content');
-                const isExpanded = recipeContent.style.maxHeight === 'none';
-                recipeContent.style.maxHeight = isExpanded ? '100px' : 'none';
-                recipeContent.style.overflow = isExpanded ? 'hidden' : 'visible';
-                document.querySelector('.recipe-toggle-text').textContent = isExpanded ? 'Show Full Recipe' : 'Show Less';
-              }}
+              onClick={() => setRecipeExpanded(prev => !prev)}
             >
-              <span className="recipe-toggle-text">Show Full Recipe</span>
+              {recipeExpanded ? 'Show Less' : 'Show Full Recipe'}
             </button>
           </div>
           <div 
-            id="recipe-content"
-            style={styles.recipeContent}
+            style={{
+              ...styles.recipeContent,
+              maxHeight: recipeExpanded ? 'none' : '100px',
+              overflow: recipeExpanded ? 'visible' : 'hidden'
+            }}
           >
             <pre style={styles.recipeText}>
-              {parsingStats?.sourceRecipe || items[0]?._sourceRecipe}
+              {sourceRecipe}
             </pre>
           </div>
           

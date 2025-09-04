@@ -30,8 +30,46 @@ const anthropic = Anthropic && process.env.ANTHROPIC_API_KEY ?
 const openai = OpenAI && process.env.OPENAI_API_KEY ? 
   new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
+// Expose clients globally so utility modules (e.g., AIProductParser) can use them
+if (anthropic && !global.anthropic) global.anthropic = anthropic;
+if (openai && !global.openai) global.openai = openai;
+
 // Initialize the intelligent product parser
 const productParser = new AIProductParser();
+
+// Simple in-memory cache for parsing results
+const parsingCache = new Map();
+const CACHE_MAX_SIZE = 100;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Cache utility functions
+const getCacheKey = (text) => {
+  const crypto = require('crypto');
+  return crypto.createHash('md5').update(text).digest('hex');
+};
+
+const getCachedResult = (key) => {
+  const cached = parsingCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  if (cached) {
+    parsingCache.delete(key); // Remove expired
+  }
+  return null;
+};
+
+const setCacheResult = (key, data) => {
+  // Simple LRU: remove oldest if cache is full
+  if (parsingCache.size >= CACHE_MAX_SIZE) {
+    const firstKey = parsingCache.keys().next().value;
+    parsingCache.delete(firstKey);
+  }
+  parsingCache.set(key, {
+    data,
+    timestamp: Date.now()
+  });
+};
 
 // Health check for AI services
 router.get('/health', (req, res) => {
@@ -205,12 +243,43 @@ Focus on specific, measurable items that can be purchased at a grocery store. Av
       }
     }
     
-    // 🚀 INTELLIGENT PARSING - For meal plans, use less strict parsing to preserve the full plan
-    console.log('🎯 Starting intelligent product parsing...');
-    const parsingResults = await productParser.parseGroceryProducts(responseText, {
-      context: context,
-      strictMode: (isMealPlanning || isBudgetPlanning) ? false : (options.strictMode !== false)
-    });
+    // 🚀 INTELLIGENT PARSING with caching and token limits
+    const MAX_PARSING_CHARS = 10000; // Skip AI parsing for extremely long inputs
+    let parsingResults;
+    
+    if (responseText.length > MAX_PARSING_CHARS) {
+      console.log(`🚫 Skipping AI parsing - text too long (${responseText.length} chars > ${MAX_PARSING_CHARS})`);
+      parsingResults = {
+        products: [],
+        totalCandidates: 0,
+        validProducts: 0,
+        averageConfidence: 0
+      };
+    } else {
+      console.log('🎯 Starting intelligent product parsing...');
+      
+      // Check cache first
+      const cacheKey = getCacheKey(responseText + (context || '') + String(isMealPlanning || isBudgetPlanning));
+      const cachedResult = getCachedResult(cacheKey);
+      
+      if (cachedResult) {
+        console.log('💾 Using cached parsing results');
+        parsingResults = cachedResult;
+      } else {
+        // Determine parsing mode based on content complexity and confidence requirements
+        const shouldUseLiteMode = responseText.length > 5000 || options.liteMode === true;
+        
+        // Parse with AI and cache the result
+        parsingResults = await productParser.parseGroceryProducts(responseText, {
+          context: context,
+          strictMode: (isMealPlanning || isBudgetPlanning) ? false : (options.strictMode !== false),
+          liteMode: shouldUseLiteMode,
+          confidenceThreshold: shouldUseLiteMode ? 0.6 : 0.4 // Higher threshold for lite mode
+        });
+        setCacheResult(cacheKey, parsingResults);
+        console.log(`💾 Cached parsing results (${shouldUseLiteMode ? 'lite' : 'full'} mode)`);
+      }
+    }
     
     // Generate parsing statistics
     const parsingStats = productParser.getParsingStats(parsingResults);
@@ -418,12 +487,43 @@ Focus on specific, measurable grocery items that can be easily found in a store.
       }
     }
     
-    // 🚀 INTELLIGENT PARSING - For meal plans, use less strict parsing to preserve the full plan
-    console.log('🎯 Starting intelligent product parsing...');
-    const parsingResults = await productParser.parseGroceryProducts(responseText, {
-      context: context,
-      strictMode: (isMealPlanning || isBudgetPlanning) ? false : (options.strictMode !== false)
-    });
+    // 🚀 INTELLIGENT PARSING with caching and token limits
+    const MAX_PARSING_CHARS = 10000; // Skip AI parsing for extremely long inputs
+    let parsingResults;
+    
+    if (responseText.length > MAX_PARSING_CHARS) {
+      console.log(`🚫 Skipping AI parsing - text too long (${responseText.length} chars > ${MAX_PARSING_CHARS})`);
+      parsingResults = {
+        products: [],
+        totalCandidates: 0,
+        validProducts: 0,
+        averageConfidence: 0
+      };
+    } else {
+      console.log('🎯 Starting intelligent product parsing...');
+      
+      // Check cache first
+      const cacheKey = getCacheKey(responseText + (context || '') + String(isMealPlanning || isBudgetPlanning));
+      const cachedResult = getCachedResult(cacheKey);
+      
+      if (cachedResult) {
+        console.log('💾 Using cached parsing results');
+        parsingResults = cachedResult;
+      } else {
+        // Determine parsing mode based on content complexity and confidence requirements
+        const shouldUseLiteMode = responseText.length > 5000 || options.liteMode === true;
+        
+        // Parse with AI and cache the result
+        parsingResults = await productParser.parseGroceryProducts(responseText, {
+          context: context,
+          strictMode: (isMealPlanning || isBudgetPlanning) ? false : (options.strictMode !== false),
+          liteMode: shouldUseLiteMode,
+          confidenceThreshold: shouldUseLiteMode ? 0.6 : 0.4 // Higher threshold for lite mode
+        });
+        setCacheResult(cacheKey, parsingResults);
+        console.log(`💾 Cached parsing results (${shouldUseLiteMode ? 'lite' : 'full'} mode)`);
+      }
+    }
     
     // Generate parsing statistics
     const parsingStats = productParser.getParsingStats(parsingResults);
