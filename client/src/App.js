@@ -1,5 +1,5 @@
 // client/src/App.js - COMPLETE FIXED VERSION - Emergency Fix 2025-09-02
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SmashCartProvider } from './contexts/SmashCartContext';
 import userDataService from './services/userDataService';
@@ -81,6 +81,10 @@ function AppContent({
   
   const { currentUser } = useAuth();
   console.log('👤 Current user state:', currentUser ? 'authenticated' : 'not authenticated');
+  
+  // Use ref to access current cart length without dependency issues
+  const currentCartRef = useRef(currentCart);
+  currentCartRef.current = currentCart;
 
   const loadLocalData = useCallback(() => {
     try {
@@ -113,8 +117,8 @@ function AppContent({
         userDataService.getMealPlans().catch(() => [])
       ]);
       
-      // Load current cart from the most recent list if exists
-      if (firebaseLists.length > 0 && firebaseLists[0].items) {
+      // Only load current cart from Firebase if we don't have one locally
+      if (firebaseLists.length > 0 && firebaseLists[0].items && currentCartRef.current.length === 0) {
         setCurrentCart(firebaseLists[0].items);
         console.log('📱 Loaded current cart from Firebase:', firebaseLists[0].items.length, 'items');
       }
@@ -131,22 +135,13 @@ function AppContent({
     }
   }, [setSyncStatus, setCurrentCart, setSavedLists, setSavedRecipes, setMealPlans]);
   
-  // Load all data from localStorage first, then Firebase (but preserve current cart if it has items)
-  const loadAllData = useCallback(async (preserveCart = false) => {
+  // Load all data from localStorage first, then Firebase
+  const loadAllData = useCallback(async () => {
     setIsLoading(true);
     
     try {
-      // Store current cart if we need to preserve it
-      const cartToPreserve = preserveCart ? currentCart : null;
-      
       // First load from localStorage for instant display
       loadLocalData();
-      
-      // Restore preserved cart if needed
-      if (cartToPreserve && cartToPreserve.length > 0) {
-        setCurrentCart(cartToPreserve);
-        console.log('🔄 Preserved cart with', cartToPreserve.length, 'items during navigation');
-      }
       
       // Then load from Firebase if user is authenticated
       if (currentUser) {
@@ -158,7 +153,7 @@ function AppContent({
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, setIsLoading, setSyncStatus, loadLocalData, loadFirebaseData, currentCart]);
+  }, [currentUser, setIsLoading, setSyncStatus, loadLocalData, loadFirebaseData]);
   
   const saveCartToFirebase = useCallback(async () => {
     if (!currentUser || currentCart.length === 0) return;
