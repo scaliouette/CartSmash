@@ -138,6 +138,32 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
     console.log(`✅ Item ${itemId} accepted`);
   };
 
+  // Accept all items that need review
+  const handleAcceptAll = () => {
+    const itemsToAccept = localItems.filter(item => 
+      item.needsReview || (item.confidence || 0) < 0.8
+    );
+    
+    if (itemsToAccept.length === 0) {
+      alert('No items need to be accepted!');
+      return;
+    }
+
+    setLocalItems(prev => prev.map(item => 
+      (item.needsReview || (item.confidence || 0) < 0.8)
+        ? { 
+            ...item, 
+            needsReview: false,
+            confidence: Math.max(item.confidence || 0, 0.95),
+            validatedAt: new Date().toISOString(),
+            userApproved: true
+          } 
+        : item
+    ));
+    
+    console.log(`✅ Accepted ${itemsToAccept.length} items`);
+  };
+
 
   // Save all changes and close
   const handleSaveAll = () => {
@@ -227,6 +253,15 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
 
         {/* Action Buttons */}
         <div style={styles.actionBar}>
+          {itemsNeedingReview.length > 0 && (
+            <button
+              onClick={handleAcceptAll}
+              style={styles.acceptAllButton}
+            >
+              ✅ Accept All ({itemsNeedingReview.length} items)
+            </button>
+          )}
+          
           {editedItems.size > 0 && (
             <span style={styles.editIndicator}>
               ⚠️ {editedItems.size} items have unsaved edits
@@ -522,6 +557,21 @@ const styles = {
     gap: '16px',
     padding: '16px 24px',
     backgroundColor: '#f9fafb'
+  },
+
+  acceptAllButton: {
+    padding: '12px 24px',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    transition: 'all 0.2s'
   },
 
   validateAllButton: {
