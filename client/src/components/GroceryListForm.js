@@ -416,9 +416,25 @@ function GroceryListForm({
       const data = await response.json();
       
       if (data.success && data.cart && data.cart.length > 0) {
-        // Attach the recipe to the cart items for persistence
+        // Attach the recipe to the cart items for persistence and ensure stable IDs/fields
         const cartWithRecipe = data.cart.map((item, index) => ({
-          ...item,
+          id: item.id || item._id || `item_${Date.now()}_${index}`,
+          productName: item.productName || item.itemName || item.name || '',
+          quantity: typeof item.quantity === 'number' && !Number.isNaN(item.quantity) ? item.quantity : 1,
+          unit: item.unit || 'each',
+          category: item.category || 'other',
+          confidence: typeof item.confidence === 'number' ? item.confidence : 0.7,
+          realPrice: item.realPrice,
+          salePrice: item.salePrice,
+          availability: item.availability,
+          upc: item.upc,
+          productId: item.productId,
+          krogerProduct: item.krogerProduct,
+          matchedName: item.matchedName,
+          brand: item.brand,
+          size: item.size,
+          storeId: item.storeId,
+          original: item.original,
           // Store recipe only on first item to avoid duplication
           ...(index === 0 ? { _sourceRecipe: listText } : {})
         }));
