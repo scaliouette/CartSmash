@@ -2,7 +2,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 function AdminDashboard({ onClose, currentUser }) {
-  // Add early return with error boundary if user is not admin
+  // All hooks must be called before any conditional returns
+  const [activeTab, setActiveTab] = useState('overview');
+  const [systemHealth, setSystemHealth] = useState(null);
+  const [realtimeMetrics, setRealtimeMetrics] = useState(null);
+  const [userActivity, setUserActivity] = useState(null);
+  const [userAccounts, setUserAccounts] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [verificationFilter, setVerificationFilter] = useState('verified'); // 'all', 'verified', 'unverified'
+
+  // Sub-component states
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Check access after hooks are declared
   if (!currentUser || !currentUser.isAdmin) {
     console.warn('⚠️ AdminDashboard: Non-admin user attempted access');
     return (
@@ -27,19 +42,6 @@ function AdminDashboard({ onClose, currentUser }) {
       </div>
     );
   }
-  const [activeTab, setActiveTab] = useState('overview');
-  const [systemHealth, setSystemHealth] = useState(null);
-  const [realtimeMetrics, setRealtimeMetrics] = useState(null);
-  const [userActivity, setUserActivity] = useState(null);
-  const [userAccounts, setUserAccounts] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [verificationFilter, setVerificationFilter] = useState('verified'); // 'all', 'verified', 'unverified'
-
-  // Sub-component states
-  const [showAnalytics, setShowAnalytics] = useState(false);
-  const [showDemo, setShowDemo] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     console.log('🛠️ AdminDashboard mounting for user:', currentUser?.email);
