@@ -439,8 +439,11 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
     } catch (error) {
       console.error('🚨 AI request failed:', error);
       
-      // ✅ ENHANCED: Better fallback with ingredient choice consideration
-      const fallbackResponse = generateFallbackResponse(message, ingredientChoice);
+      // ✅ ENHANCED: Simple error fallback - AI should be primary
+      const fallbackResponse = {
+        content: `⚠️ AI service temporarily unavailable. Please try again in a moment.\n\nError: ${error.message}`,
+        groceryList: []
+      };
       
       setMessages(prev => [...prev, {
         role: 'assistant',
@@ -466,131 +469,7 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
     }
   };
 
-  // ✅ ENHANCED: Better fallback response generation with ingredient choice
-  const generateFallbackResponse = (prompt, ingredientChoice) => {
-    console.log('🔄 Generating fallback response for:', prompt.substring(0, 50));
-    
-    let groceryItems = [];
-    let response = '';
-    const isBasic = ingredientChoice === 'basic';
-
-    if (prompt.toLowerCase().includes('meal plan') || prompt.toLowerCase().includes('weekly')) {
-      groceryItems = isBasic ? [
-        '1 rotisserie chicken',
-        '2 bags pre-washed salad mix',
-        '1 bottle Italian dressing', 
-        '1 bag frozen mixed vegetables',
-        '2 boxes instant rice',
-        '1 jar pasta sauce',
-        '2 lbs ground turkey',
-        '1 package taco seasoning',
-        '8 flour tortillas',
-        '1 container Greek yogurt (32oz)',
-        '1 dozen eggs',
-        '1 gallon milk',
-        '1 loaf whole grain bread',
-        '1 jar peanut butter'
-      ] : [
-        '3 lbs chicken breast',
-        '2 heads romaine lettuce',
-        '3 bell peppers',
-        '2 large onions',
-        '4 cloves garlic',
-        '1 bottle olive oil',
-        '2 cups quinoa', 
-        '1 lb ground turkey',
-        '2 cans black beans',
-        '1 container Greek yogurt (32oz)',
-        '1 dozen eggs',
-        '1 gallon milk',
-        '2 lbs sweet potatoes'
-      ];
-
-      response = `Here's a ${isBasic ? 'convenient' : 'from-scratch'} weekly meal plan with shopping list:
-
-**WEEKLY MEAL PLAN (${ingredientChoice.toUpperCase()} INGREDIENTS)**
-
-**Monday**: ${isBasic ? 'Rotisserie chicken salad with bagged greens' : 'Grilled chicken breast with homemade quinoa salad'}
-**Tuesday**: ${isBasic ? 'Ground turkey tacos with seasoning packet' : 'Seasoned ground turkey tacos with fresh spices'}  
-**Wednesday**: ${isBasic ? 'Frozen veggie stir-fry over instant rice' : 'Fresh vegetable stir-fry with brown rice'}
-**Thursday**: ${isBasic ? 'Greek yogurt parfait with granola' : 'Homemade Greek yogurt bowl with fresh fruit'}
-**Friday**: ${isBasic ? 'Pasta with jar sauce' : 'Fresh pasta with homemade tomato sauce'}
-
-**SHOPPING LIST (${ingredientChoice.toUpperCase()} APPROACH):**
-${groceryItems.map(item => `• ${item}`).join('\n')}
-
-This plan ${isBasic ? 'minimizes prep time with convenient options' : 'uses fresh ingredients for maximum nutrition and flavor'}.`;
-
-    } else if (prompt.toLowerCase().includes('budget')) {
-      groceryItems = isBasic ? [
-        '1 whole rotisserie chicken',
-        '2 dozen eggs',
-        '1 5lb bag potatoes',
-        '2 lb bag carrots',
-        '1 bag yellow onions',
-        '5 lbs rice',
-        '2 lbs pasta',
-        '2 jars pasta sauce',
-        '1 large container oats',
-        '1 jar peanut butter',
-        '1 gallon milk',
-        '2 loaves bread'
-      ] : [
-        '1 whole chicken',
-        '2 dozen eggs',
-        '1 lb dried black beans',
-        '5 lb bag potatoes',
-        '2 lb bag carrots',
-        '1 bag yellow onions',
-        '5 lbs rice',
-        '2 lbs pasta',
-        '2 cans crushed tomatoes',
-        '1 container oats',
-        '1 jar natural peanut butter',
-        '1 gallon milk'
-      ];
-
-      response = `Budget-friendly grocery plan (${ingredientChoice.toUpperCase()} approach):
-
-**BUDGET GROCERIES ($75 total)**
-
-${groceryItems.map(item => `• ${item}`).join('\n')}
-
-This plan ${isBasic ? 'maximizes convenience while staying budget-friendly' : 'uses basic ingredients you can transform into many meals'}.`;
-
-    } else {
-      // Default response
-      groceryItems = isBasic ? [
-        '1 rotisserie chicken',
-        '1 bag mixed vegetables',
-        '3 pieces fruit',
-        '1 dozen eggs',
-        '1 gallon milk',
-        '2 cups instant rice',
-        '1 loaf bread',
-        '1 bottle olive oil'
-      ] : [
-        '2 lbs chicken breast',
-        '1 bag mixed vegetables',
-        '3 pieces fruit',
-        '1 dozen eggs',
-        '1 gallon milk',
-        '2 cups brown rice',
-        '1 loaf bread',
-        '1 bottle olive oil'
-      ];
-
-      response = `Here's a ${isBasic ? 'convenient' : 'homemade'} grocery list based on your request:
-
-**ESSENTIAL GROCERIES (${ingredientChoice.toUpperCase()}):**
-
-${groceryItems.map(item => `• ${item}`).join('\n')}
-
-This covers basic nutrition needs with ${isBasic ? 'minimal prep required' : 'flexibility for scratch cooking'}.`;
-    }
-
-    return { content: response, groceryList: groceryItems };
-  };
+  // Removed generateFallbackResponse - AI should be the primary service
 
   const handleQuickPrompt = (prompt) => {
     handleSendMessage(prompt.prompt);
