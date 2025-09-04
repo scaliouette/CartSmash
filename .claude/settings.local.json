@@ -10,7 +10,14 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "WebFetch(domain:docs.instacart.com)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\services/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\services/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\services/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\services/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\services/**)"
     ],
     "deny": [],
     "ask": []

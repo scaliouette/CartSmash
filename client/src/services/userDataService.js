@@ -96,6 +96,16 @@ class UserDataService {
   // Save recipe
   async saveRecipe(recipe) {
     await this.init();
+    
+    // Validate recipe object
+    if (!recipe || typeof recipe !== 'object') {
+      throw new Error('Invalid recipe: recipe must be an object');
+    }
+    
+    if (!recipe.id) {
+      throw new Error('Invalid recipe: recipe must have an id');
+    }
+    
     if (!this.userId) {
       // Save to localStorage if not authenticated
       const localRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
