@@ -788,11 +788,18 @@ function GroceryListForm({
             } catch(e) { console.log('Could not clear Firebase:', e); }
           }
           
-          // 4. Try to clear server-side data
-          fetch('/api/user/cart', {
-            method: 'DELETE',
+          // 4. Try to clear server-side data (multiple possible endpoints)
+          fetch('/api/user/data', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cart: [] })
+          }).catch(e => console.log('Could not clear server via user/data:', e));
+          
+          // Also try clearing via account endpoint
+          fetch('/api/account/clear-cart', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' }
-          }).catch(e => console.log('Could not clear server cart:', e));
+          }).catch(e => console.log('Could not clear server via account:', e));
           
           console.log('💥 Nuclear clear completed. Refresh page to verify.');
         }
