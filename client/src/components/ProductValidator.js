@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 
 function ProductValidator({ items, onItemsUpdated, onClose }) {
   const [localItems, setLocalItems] = useState([]);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('needs-review');
   const [editedItems, setEditedItems] = useState(new Map());
 
   // Initialize local items with proper structure
@@ -32,13 +32,15 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
     item.needsReview || (item.confidence || 0) < 0.8
   );
 
-  // Filter items based on selected filter
-  const filteredItems = localItems.filter(item => {
-    if (filter === 'all') return true;
-    if (filter === 'needs-review') return item.needsReview || (item.confidence || 0) < 0.8;
-    if (filter === 'validated') return !item.needsReview && (item.confidence || 0) >= 0.8;
-    return true;
-  });
+  // Filter items based on selected filter and sort by lowest confidence first
+  const filteredItems = localItems
+    .filter(item => {
+      if (filter === 'all') return true;
+      if (filter === 'needs-review') return item.needsReview || (item.confidence || 0) < 0.8;
+      if (filter === 'validated') return !item.needsReview && (item.confidence || 0) >= 0.8;
+      return true;
+    })
+    .sort((a, b) => (a.confidence || 0) - (b.confidence || 0)); // Sort by lowest confidence first
 
   console.log(`🔽 Filtering with '${filter}': ${localItems.length} -> ${filteredItems.length} items`);
 
@@ -297,7 +299,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
                         backgroundColor: getConfidenceColor(item.confidence || 0)
                       }}
                     >
-                      {isValidated ? '✅ Accepted' : isEdited ? '✏️ Edited' : '⚠️ Review'}
+                      {isValidated ? '✅ Accepted' : isEdited ? '✏️ Edited' : '⚠️'}
                     </div>
                     
                     <div style={styles.topRowActions}>
