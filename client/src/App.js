@@ -32,14 +32,6 @@ console.groupEnd();
 // Main App Component
 function App() {
   console.log('🚀 App component initializing...');
-
-  // 🔒 Single Source of Truth for the cart:
-  // 'firestore' (default) | 'local' (only use 'local' for offline demos)
-  const CART_AUTHORITY = process.env.REACT_APP_CART_AUTHORITY || 'firestore';
-  const AUTOSAVE_ENABLED = (process.env.REACT_APP_CART_AUTOSAVE || 'true') !== 'false';
-  
-  console.log('🔑 Cart Authority:', CART_AUTHORITY);
-  console.log('💾 Auto-save Enabled:', AUTOSAVE_ENABLED);
   
   const [currentView, setCurrentView] = useState('home');
   
@@ -89,6 +81,14 @@ function AppContent({
   
   const { currentUser } = useAuth();
   console.log('👤 Current user state:', currentUser ? 'authenticated' : 'not authenticated');
+  
+  // 🔒 Single Source of Truth for the cart:
+  // 'firestore' (default) | 'local' (only use 'local' for offline demos)
+  const CART_AUTHORITY = process.env.REACT_APP_CART_AUTHORITY || 'firestore';
+  const AUTOSAVE_ENABLED = (process.env.REACT_APP_CART_AUTOSAVE || 'true') !== 'false';
+  
+  console.log('🔑 Cart Authority:', CART_AUTHORITY);
+  console.log('💾 Auto-save Enabled:', AUTOSAVE_ENABLED);
   
   // Use ref to access current cart length without dependency issues
   const currentCartRef = useRef(currentCart);
