@@ -3901,6 +3901,48 @@ button[onclick*="Instacart"],
   margin: 0;
 }
 
+/* ============================================
+   INSTACART CHECKOUT FLOW - PROTECTED COLORS
+   ============================================ */
+
+/* Force CartSmash color scheme for Instacart Checkout Flow */
+.instacart-checkout-header {
+  background: linear-gradient(135deg, #002244 0%, #FB4F14 100%) !important;
+  color: white !important;
+}
+
+.instacart-checkout-header * {
+  color: white !important;
+}
+
+.instacart-checkout-progress {
+  background-color: #FFF5F2 !important;
+  border-bottom: 2px solid #FB4F14 !important;
+}
+
+/* Ensure CartSmash colors override any global modal styles */
+.instacart-checkout-flow {
+  --cartsmash-navy: #002244;
+  --cartsmash-orange: #FB4F14;
+  --cartsmash-light-orange: #FF6B35;
+  --cartsmash-bg: #FFF5F2;
+}
+
+/* Override any conflicting modal styles specifically for InstacartCheckoutFlow */
+.instacart-checkout-flow .modal-overlay {
+  background-color: rgba(0, 2, 68, 0.7) !important;
+}
+
+.instacart-checkout-flow button[style*="FB4F14"] {
+  background-color: #FB4F14 !important;
+  background: linear-gradient(135deg, #FB4F14 0%, #FF6B35 100%) !important;
+}
+
+.instacart-checkout-flow button[style*="002244"] {
+  background-color: #002244 !important;
+  color: white !important;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .footer-content {

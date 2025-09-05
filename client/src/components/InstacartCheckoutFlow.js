@@ -89,18 +89,20 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 2, 68, 0.7)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
+    <div 
+      className="instacart-checkout-flow"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 2, 68, 0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000
+      }}>
       <div style={{
         width: '90%',
         maxWidth: '800px',
@@ -113,12 +115,14 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         flexDirection: 'column'
       }}>
         {/* Header */}
-        <div style={{
-          background: 'linear-gradient(135deg, #002244 0%, #FB4F14 100%)',
-          padding: '32px',
-          color: 'white',
-          position: 'relative'
-        }}>
+        <div 
+          className="instacart-checkout-header"
+          style={{
+            background: 'linear-gradient(135deg, #002244 0%, #FB4F14 100%)',
+            padding: '32px',
+            color: 'white',
+            position: 'relative'
+          }}>
           <button 
             onClick={onClose} 
             style={{
@@ -159,14 +163,16 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         </div>
 
         {/* Progress Bar */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '60px',
-          padding: '20px 32px',
-          backgroundColor: '#FFF5F2',
-          borderBottom: '2px solid #FB4F14'
-        }}>
+        <div 
+          className="instacart-checkout-progress"
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '60px',
+            padding: '20px 32px',
+            backgroundColor: '#FFF5F2',
+            borderBottom: '2px solid #FB4F14'
+          }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
               width: '40px',
