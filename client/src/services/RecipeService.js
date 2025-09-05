@@ -364,6 +364,131 @@ export const scaleRecipe = async (recipe, newServings) => {
   }
 };
 
+/**
+ * Save recipe to user's library (unified recipe system)
+ */
+export const saveRecipeToLibrary = async (uid, recipe) => {
+  try {
+    const { db } = await import('../firebase/config');
+    const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+    
+    const recipeRef = doc(db, 'users', uid, 'recipes', recipe.id);
+    await setDoc(recipeRef, {
+      ...recipe,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    
+    return recipe.id;
+  } catch (error) {
+    console.error('Error saving recipe to library:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all recipes from user's library
+ */
+export const getRecipeLibrary = async (uid) => {
+  try {
+    const { db } = await import('../firebase/config');
+    const { collection, getDocs, orderBy, query } = await import('firebase/firestore');
+    
+    const recipesRef = collection(db, 'users', uid, 'recipes');
+    const q = query(recipesRef, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    
+    const recipes = [];
+    snapshot.forEach(doc => {
+      recipes.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    return recipes;
+  } catch (error) {
+    console.error('Error getting recipe library:', error);
+    throw error;
+  }
+};
+
+/**
+ * Import recipe from URL (unified system)
+ */
+export const importFromUrl = async (url, options = {}) => {
+  try {
+    const response = await fetch(`${API_URL}/api/recipes/import-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        mealType: options.mealType,
+        dayAssigned: options.dayAssigned,
+        userId: options.userId
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to import recipe from URL');
+    }
+
+    const data = await response.json();
+    return data.recipe;
+  } catch (error) {
+    console.error('Error importing recipe from URL:', error);
+    throw error;
+  }
+};
+
+/**
+ * Validate URL can be scraped
+ */
+export const validateRecipeUrl = async (url) => {
+  try {
+    const response = await fetch(`${API_URL}/api/recipes/validate-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url })
+    });
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error validating recipe URL:', error);
+    return { success: false, valid: false, error: error.message };
+  }
+};
+
+/**
+ * Preview recipe from URL without saving
+ */
+export const previewRecipeFromUrl = async (url) => {
+  try {
+    const response = await fetch(`${API_URL}/api/recipes/preview-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to preview recipe');
+    }
+
+    const data = await response.json();
+    return data.recipe;
+  } catch (error) {
+    console.error('Error previewing recipe from URL:', error);
+    throw error;
+  }
+};
+
 export default {
   fetchRecipeSuggestions,
   parseRecipeWithAI,
@@ -373,5 +498,11 @@ export default {
   generateMealPlan,
   findIngredientSubstitutions,
   importRecipeFromURL,
-  scaleRecipe
+  scaleRecipe,
+  // Unified recipe system functions
+  saveRecipeToLibrary,
+  getRecipeLibrary,
+  importFromUrl,
+  validateRecipeUrl,
+  previewRecipeFromUrl
 };

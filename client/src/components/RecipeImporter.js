@@ -1,716 +1,323 @@
 // client/src/components/RecipeImporter.js
+// Component for importing recipes from URLs
+
 import React, { useState } from 'react';
-import { ButtonSpinner } from './LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
+import { validateRecipeUrl, previewRecipeFromUrl, importFromUrl } from '../services/RecipeService';
+import UnifiedRecipeCard from './UnifiedRecipeCard';
 
-function RecipeImporter({ onRecipeImported, onClose }) {
-  const [importMethod, setImportMethod] = useState('url'); // url, text, quick
-  const [recipeUrl, setRecipeUrl] = useState('');
-  const [recipeText, setRecipeText] = useState('');
-  const [isImporting, setIsImporting] = useState(false);
-  const [error, setError] = useState('');
-  const [previewData, setPreviewData] = useState(null);
-  
+export default function RecipeImporter({ onRecipesImported, showLibraryActions = true }) {
   const { currentUser } = useAuth();
+  const [urls, setUrls] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [previewRecipes, setPreviewRecipes] = useState([]);
+  const [importResults, setImportResults] = useState(null);
+  const [selectedRecipes, setSelectedRecipes] = useState(new Set());
 
-  // Supported recipe sites
-  const supportedSites = [
-    'allrecipes.com',
-    'foodnetwork.com',
-    'seriouseats.com',
-    'bonappetit.com',
-    'epicurious.com',
-    'simplyrecipes.com',
-    'budgetbytes.com',
-    'cookinglight.com',
-    'delish.com',
-    'tasty.co'
-  ];
-
-  const handleUrlImport = async () => {
-    if (!recipeUrl.trim()) {
-      setError('Please enter a recipe URL');
-      return;
-    }
-
-    setIsImporting(true);
-    setError('');
-
-    try {
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/api/recipes/import-url`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: recipeUrl,
-          userId: currentUser?.uid
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setPreviewData(data.recipe);
-      } else {
-        // Fallback to manual parsing
-        setError('Could not automatically import. Please paste the recipe text instead.');
-        setImportMethod('text');
-      }
-    } catch (err) {
-      console.error('Import failed:', err);
-      setError('Failed to import recipe. Try pasting the text instead.');
-      setImportMethod('text');
-    } finally {
-      setIsImporting(false);
+  // Handle URL input
+  const handleUrlsChange = (e) => {
+    setUrls(e.target.value);
+    if (previewRecipes.length > 0) {
+      setPreviewRecipes([]);
+      setSelectedRecipes(new Set());
     }
   };
 
-  const handleTextImport = async () => {
-    if (!recipeText.trim()) {
-      setError('Please paste recipe text');
+  // Parse URLs from input
+  const parseUrls = () => {
+    const urlList = urls
+      .split('\n')
+      .map(url => url.trim())
+      .filter(url => url.length > 0);
+    
+    return urlList;
+  };
+
+  // Validate and preview recipes
+  const handlePreviewRecipes = async () => {
+    const urlList = parseUrls();
+    
+    if (urlList.length === 0) {
+      alert('Please enter at least one recipe URL');
       return;
     }
 
-    setIsImporting(true);
-    setError('');
-
-    try {
-      // Parse recipe from text
-      const lines = recipeText.split('\n').filter(l => l.trim());
-      
-      // Detect recipe structure
-      let recipeName = 'Imported Recipe';
-      let ingredients = [];
-      let instructions = [];
-      let inIngredients = false;
-      let inInstructions = false;
-
-      for (const line of lines) {
-        const lowerLine = line.toLowerCase();
-        
-        // Detect recipe name (usually first line or after "Recipe:")
-        if (lines.indexOf(line) === 0 && !lowerLine.includes('ingredient')) {
-          recipeName = line.replace(/recipe:?\s*/i, '').trim();
-        }
-        
-        // Detect sections
-        if (lowerLine.includes('ingredient')) {
-          inIngredients = true;
-          inInstructions = false;
-          continue;
-        }
-        if (lowerLine.includes('instruction') || lowerLine.includes('direction') || lowerLine.includes('method')) {
-          inIngredients = false;
-          inInstructions = true;
-          continue;
-        }
-        
-        // Add to appropriate section
-        if (inIngredients && line.trim()) {
-          ingredients.push(line.trim());
-        } else if (inInstructions && line.trim()) {
-          instructions.push(line.trim());
-        } else if (!inIngredients && !inInstructions && line.trim()) {
-          // Assume ingredients if line contains common measurements
-          if (/\d+|cup|tbsp|tsp|oz|lb|can|jar|bottle/i.test(line)) {
-            ingredients.push(line.trim());
-          }
-        }
-      }
-
-      const recipe = {
-        name: recipeName,
-        ingredients: ingredients.join('\n'),
-        instructions: instructions.join('\n'),
-        source: 'manual_import',
-        importedAt: new Date().toISOString()
-      };
-
-      setPreviewData(recipe);
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  const handleSaveRecipe = async () => {
-    if (!previewData) return;
-
-    setError(''); // Clear any previous errors
-
-    try {
-      let parsedIngredients = [];
-
-      // Try to parse ingredients to cart items
+    setIsValidating(true);
+    const previews = [];
+    
+    for (const url of urlList) {
       try {
-        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-        const parseResponse = await fetch(`${API_URL}/api/cart/parse`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            listText: previewData.ingredients,
-            userId: currentUser?.uid,
-            useAI: true,
-            options: {
-              context: 'recipe',
-              recipeInfo: {
-                name: previewData.name,
-                servings: previewData.servings || 4
-              }
-            }
-          })
-        });
-
-        if (parseResponse.ok) {
-          const parseData = await parseResponse.json();
-          if (parseData.success && parseData.cart) {
-            parsedIngredients = parseData.cart;
-            console.log(`✅ Successfully parsed ${parsedIngredients.length} ingredients with AI`);
-          } else {
-            console.warn('AI parsing returned no results, saving recipe without parsed ingredients');
-          }
+        // First validate the URL
+        const validation = await validateRecipeUrl(url);
+        
+        if (validation.valid) {
+          // Preview the recipe
+          const recipe = await previewRecipeFromUrl(url);
+          previews.push({
+            ...recipe,
+            id: recipe.id || `preview-${Date.now()}-${Math.random()}`,
+            sourceUrl: url,
+            validationStatus: 'valid'
+          });
         } else {
-          console.warn('AI parsing endpoint failed, saving recipe without parsed ingredients');
+          previews.push({
+            id: `invalid-${Date.now()}-${Math.random()}`,
+            title: 'Invalid Recipe URL',
+            sourceUrl: url,
+            validationStatus: 'invalid',
+            validationError: validation.error || 'Could not find recipe data'
+          });
         }
-      } catch (parseError) {
-        console.warn('AI parsing failed, saving recipe without parsed ingredients:', parseError.message);
-        // Continue with saving the recipe even if parsing fails
+      } catch (error) {
+        console.error(`Error processing URL ${url}:`, error);
+        previews.push({
+          id: `error-${Date.now()}-${Math.random()}`,
+          title: 'Error Loading Recipe',
+          sourceUrl: url,
+          validationStatus: 'error',
+          validationError: error.message
+        });
       }
-
-      const finalRecipe = {
-        ...previewData,
-        id: `recipe_${Date.now()}`,
-        items: parsedIngredients,
-        parsedIngredients: parsedIngredients,
-        createdAt: new Date().toISOString(),
-        savedWithAI: parsedIngredients.length > 0
-      };
-
-      if (onRecipeImported) {
-        onRecipeImported(finalRecipe);
-      }
-
-      // Reset form
-      setRecipeUrl('');
-      setRecipeText('');
-      setPreviewData(null);
-      setError('');
-      
-      if (onClose) {
-        onClose();
-      }
-    } catch (err) {
-      console.error('Failed to save recipe:', err);
-      setError('Failed to save recipe: ' + err.message);
     }
+    
+    setPreviewRecipes(previews);
+    
+    // Auto-select valid recipes
+    const validRecipeIds = previews
+      .filter(r => r.validationStatus === 'valid')
+      .map(r => r.id);
+    setSelectedRecipes(new Set(validRecipeIds));
+    
+    setIsValidating(false);
+  };
+
+  // Handle recipe selection
+  const handleRecipeSelection = (recipeId, isSelected) => {
+    const newSelection = new Set(selectedRecipes);
+    if (isSelected) {
+      newSelection.add(recipeId);
+    } else {
+      newSelection.delete(recipeId);
+    }
+    setSelectedRecipes(newSelection);
+  };
+
+  // Import selected recipes
+  const handleImportSelected = async () => {
+    const selectedPreviewRecipes = previewRecipes.filter(r => 
+      selectedRecipes.has(r.id) && r.validationStatus === 'valid'
+    );
+    
+    if (selectedPreviewRecipes.length === 0) {
+      alert('Please select at least one valid recipe to import');
+      return;
+    }
+
+    setIsImporting(true);
+    const results = {
+      successful: [],
+      failed: []
+    };
+
+    for (const previewRecipe of selectedPreviewRecipes) {
+      try {
+        const importedRecipe = await importFromUrl(previewRecipe.sourceUrl, {
+          userId: currentUser?.uid
+        });
+        
+        results.successful.push({
+          url: previewRecipe.sourceUrl,
+          recipe: importedRecipe
+        });
+      } catch (error) {
+        console.error(`Failed to import ${previewRecipe.sourceUrl}:`, error);
+        results.failed.push({
+          url: previewRecipe.sourceUrl,
+          error: error.message
+        });
+      }
+    }
+
+    setImportResults(results);
+    setIsImporting(false);
+
+    // Notify parent component
+    if (onRecipesImported) {
+      onRecipesImported(results);
+    }
+
+    // Clear form if all imports were successful
+    if (results.failed.length === 0) {
+      setUrls('');
+      setPreviewRecipes([]);
+      setSelectedRecipes(new Set());
+    }
+  };
+
+  // Clear all
+  const handleClear = () => {
+    setUrls('');
+    setPreviewRecipes([]);
+    setSelectedRecipes(new Set());
+    setImportResults(null);
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>📖 Import Recipe</h2>
-        {onClose && (
-          <button onClick={onClose} style={styles.closeButton}>×</button>
-        )}
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-semibold mb-4">Import Recipes from URLs</h3>
+        
+        {/* URL Input */}
+        <div className="mb-4">
+          <label htmlFor="recipe-urls" className="block text-sm font-medium text-gray-700 mb-2">
+            Recipe URLs (one per line)
+          </label>
+          <textarea
+            id="recipe-urls"
+            value={urls}
+            onChange={handleUrlsChange}
+            placeholder="https://example.com/recipe1&#10;https://example.com/recipe2&#10;https://example.com/recipe3"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
+            rows="4"
+            disabled={isValidating || isImporting}
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Paste recipe URLs from popular cooking websites like AllRecipes, Food Network, etc.
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={handlePreviewRecipes}
+            disabled={!urls.trim() || isValidating || isImporting}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isValidating ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Validating...
+              </>
+            ) : (
+              <>👁️ Preview Recipes</>
+            )}
+          </button>
+
+          {previewRecipes.length > 0 && (
+            <button
+              onClick={handleImportSelected}
+              disabled={selectedRecipes.size === 0 || isImporting}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {isImporting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Importing...
+                </>
+              ) : (
+                <>📥 Import Selected ({selectedRecipes.size})</>
+              )}
+            </button>
+          )}
+
+          {(previewRecipes.length > 0 || importResults) && (
+            <button
+              onClick={handleClear}
+              disabled={isValidating || isImporting}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              🗑️ Clear
+            </button>
+          )}
+        </div>
       </div>
 
-      {!previewData ? (
-        <>
-          {/* Import Method Tabs */}
-          <div style={styles.tabs}>
-            <button
-              onClick={() => setImportMethod('url')}
-              style={{
-                ...styles.tab,
-                ...(importMethod === 'url' ? styles.tabActive : {})
-              }}
-            >
-              🔗 From URL
-            </button>
-            <button
-              onClick={() => setImportMethod('text')}
-              style={{
-                ...styles.tab,
-                ...(importMethod === 'text' ? styles.tabActive : {})
-              }}
-            >
-              📝 Paste Text
-            </button>
-            <button
-              onClick={() => setImportMethod('quick')}
-              style={{
-                ...styles.tab,
-                ...(importMethod === 'quick' ? styles.tabActive : {})
-              }}
-            >
-              ⚡ Quick Add
-            </button>
+      {/* Preview Recipes */}
+      {previewRecipes.length > 0 && (
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-medium text-blue-900 mb-2">Recipe Preview</h4>
+            <p className="text-sm text-blue-700">
+              Review the recipes below and select which ones you'd like to import to your library.
+              Invalid URLs will be marked and cannot be selected.
+            </p>
           </div>
 
-          <div style={styles.content}>
-            {importMethod === 'url' && (
-              <div style={styles.urlSection}>
-                <label style={styles.label}>Recipe URL</label>
-                <input
-                  type="url"
-                  value={recipeUrl}
-                  onChange={(e) => setRecipeUrl(e.target.value)}
-                  placeholder="https://www.allrecipes.com/recipe/..."
-                  style={styles.input}
+          {previewRecipes.map(recipe => (
+            <div key={recipe.id}>
+              {recipe.validationStatus === 'valid' ? (
+                <UnifiedRecipeCard
+                  recipe={recipe}
+                  showSelection={true}
+                  isSelected={selectedRecipes.has(recipe.id)}
+                  onSelectionChange={handleRecipeSelection}
+                  onAddToLibrary={null} // Disable library actions in preview
+                  onAddToMealPlan={null} // Disable meal plan actions in preview
                 />
-                
-                <div style={styles.supportedSites}>
-                  <p style={styles.supportedTitle}>Supported sites:</p>
-                  <div style={styles.sitesList}>
-                    {supportedSites.map(site => (
-                      <span key={site} style={styles.site}>✓ {site}</span>
-                    ))}
+              ) : (
+                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">❌</span>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-red-900">{recipe.title}</h3>
+                      <p className="text-sm text-red-700 mb-2">
+                        <strong>URL:</strong> {recipe.sourceUrl}
+                      </p>
+                      <p className="text-sm text-red-600">
+                        <strong>Error:</strong> {recipe.validationError}
+                      </p>
+                    </div>
                   </div>
                 </div>
-
-                <button
-                  onClick={handleUrlImport}
-                  disabled={isImporting || !recipeUrl.trim()}
-                  style={styles.importButton}
-                >
-                  {isImporting ? <ButtonSpinner /> : '🔍'} Import Recipe
-                </button>
-              </div>
-            )}
-
-            {importMethod === 'text' && (
-              <div style={styles.textSection}>
-                <label style={styles.label}>Paste Recipe Text</label>
-                <textarea
-                  value={recipeText}
-                  onChange={(e) => setRecipeText(e.target.value)}
-                  placeholder="Paste your recipe here including ingredients and instructions..."
-                  style={styles.textarea}
-                  rows={12}
-                />
-                
-                <button
-                  onClick={handleTextImport}
-                  disabled={isImporting || !recipeText.trim()}
-                  style={styles.importButton}
-                >
-                  {isImporting ? <ButtonSpinner /> : '📝'} Parse Recipe
-                </button>
-              </div>
-            )}
-
-            {importMethod === 'quick' && (
-              <QuickRecipeForm onRecipeCreated={setPreviewData} />
-            )}
-
-            {error && (
-              <div style={styles.error}>
-                ⚠️ {error}
-              </div>
-            )}
-          </div>
-        </>
-      ) : (
-        <RecipePreview 
-          recipe={previewData}
-          onSave={handleSaveRecipe}
-          onEdit={() => setPreviewData(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-// Quick Recipe Form Component
-function QuickRecipeForm({ onRecipeCreated }) {
-  const [name, setName] = useState('');
-  const [ingredients, setIngredients] = useState('');
-  const [servings, setServings] = useState(4);
-
-  const handleQuickAdd = () => {
-    if (!name || !ingredients) return;
-
-    onRecipeCreated({
-      name,
-      ingredients,
-      servings,
-      source: 'quick_add',
-      createdAt: new Date().toISOString()
-    });
-  };
-
-  return (
-    <div style={styles.quickForm}>
-      <div style={styles.formGroup}>
-        <label style={styles.label}>Recipe Name</label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g., Chicken Stir Fry"
-          style={styles.input}
-        />
-      </div>
-
-      <div style={styles.formGroup}>
-        <label style={styles.label}>Ingredients (one per line)</label>
-        <textarea
-          value={ingredients}
-          onChange={(e) => setIngredients(e.target.value)}
-          placeholder="2 lbs chicken breast
-1 cup rice
-2 bell peppers
-3 tbsp soy sauce
-1 onion, diced
-2 cloves garlic"
-          style={styles.textarea}
-          rows={8}
-        />
-      </div>
-
-      <div style={styles.formGroup}>
-        <label style={styles.label}>Servings</label>
-        <input
-          type="number"
-          value={servings}
-          onChange={(e) => setServings(parseInt(e.target.value) || 4)}
-          min="1"
-          max="12"
-          style={styles.servingsInput}
-        />
-      </div>
-
-      <button
-        onClick={handleQuickAdd}
-        disabled={!name || !ingredients}
-        style={styles.importButton}
-      >
-        ⚡ Create Recipe
-      </button>
-    </div>
-  );
-}
-
-// Recipe Preview Component
-function RecipePreview({ recipe, onSave, onEdit }) {
-  const ingredientLines = recipe.ingredients?.split('\n').filter(l => l.trim()) || [];
-  
-  return (
-    <div style={styles.preview}>
-      <h3 style={styles.previewTitle}>{recipe.name}</h3>
-      
-      {recipe.source && (
-        <p style={styles.source}>
-          Source: {recipe.source.replace('_', ' ')}
-        </p>
-      )}
-
-      <div style={styles.previewSection}>
-        <h4 style={styles.sectionTitle}>
-          Ingredients ({ingredientLines.length} items)
-        </h4>
-        <ul style={styles.ingredientsList}>
-          {ingredientLines.map((ing, idx) => (
-            <li key={idx} style={styles.ingredient}>
-              {ing}
-            </li>
+              )}
+            </div>
           ))}
-        </ul>
-      </div>
-
-      {recipe.instructions && (
-        <div style={styles.previewSection}>
-          <h4 style={styles.sectionTitle}>Instructions</h4>
-          <p style={styles.instructions}>{recipe.instructions}</p>
         </div>
       )}
 
-      <div style={styles.previewActions}>
-        <button onClick={onSave} style={styles.saveButton}>
-          💾 Save Recipe & Add to Cart
-        </button>
-        <button onClick={onEdit} style={styles.editButton}>
-          ✏️ Edit
-        </button>
-      </div>
+      {/* Import Results */}
+      {importResults && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h4 className="font-semibold text-lg mb-4">Import Results</h4>
+          
+          {importResults.successful.length > 0 && (
+            <div className="mb-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h5 className="font-medium text-green-900 mb-2">
+                  ✅ Successfully Imported ({importResults.successful.length})
+                </h5>
+                <ul className="text-sm text-green-700 space-y-1">
+                  {importResults.successful.map((result, index) => (
+                    <li key={index}>
+                      <strong>{result.recipe.title}</strong> from {result.url}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {importResults.failed.length > 0 && (
+            <div>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <h5 className="font-medium text-red-900 mb-2">
+                  ❌ Failed to Import ({importResults.failed.length})
+                </h5>
+                <ul className="text-sm text-red-700 space-y-2">
+                  {importResults.failed.map((failure, index) => (
+                    <li key={index}>
+                      <strong>URL:</strong> {failure.url}<br />
+                      <strong>Error:</strong> {failure.error}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-const styles = {
-  container: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    overflow: 'hidden',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-    width: '90%',
-    maxWidth: '600px',
-    maxHeight: '90vh',
-    overflowY: 'auto'
-  },
-
-  header: {
-    padding: '20px',
-    background: 'linear-gradient(45deg, #FF6B35, #F7931E)',
-    color: 'white',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-
-  title: {
-    margin: 0,
-    fontSize: '24px'
-  },
-
-  closeButton: {
-    width: '32px',
-    height: '32px',
-    border: 'none',
-    background: 'rgba(255,255,255,0.2)',
-    borderRadius: '8px',
-    color: 'white',
-    fontSize: '20px',
-    cursor: 'pointer',
-    transition: 'background 0.2s',
-    ':hover': {
-      background: 'rgba(255,255,255,0.3)'
-    }
-  },
-
-  tabs: {
-    display: 'flex',
-    borderBottom: '2px solid #e5e7eb',
-    backgroundColor: '#f9fafb'
-  },
-
-  tab: {
-    flex: 1,
-    padding: '16px',
-    border: 'none',
-    backgroundColor: 'transparent',
-    cursor: 'pointer',
-    fontSize: '15px',
-    fontWeight: '500',
-    color: '#6b7280',
-    transition: 'all 0.2s'
-  },
-
-  tabActive: {
-    backgroundColor: 'white',
-    color: '#FF6B35',
-    borderBottom: '2px solid #FF6B35',
-    marginBottom: '-2px'
-  },
-
-  content: {
-    padding: '24px'
-  },
-
-  urlSection: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px'
-  },
-
-  textSection: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px'
-  },
-
-  label: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: '4px'
-  },
-
-  input: {
-    padding: '12px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px',
-    outline: 'none',
-    transition: 'border-color 0.2s',
-    ':focus': {
-      borderColor: '#FF6B35'
-    }
-  },
-
-  textarea: {
-    padding: '12px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-    resize: 'vertical',
-    outline: 'none',
-    transition: 'border-color 0.2s',
-    ':focus': {
-      borderColor: '#FF6B35'
-    }
-  },
-
-  supportedSites: {
-    padding: '16px',
-    backgroundColor: '#f0f9ff',
-    borderRadius: '8px',
-    border: '1px solid #3b82f6'
-  },
-
-  supportedTitle: {
-    margin: '0 0 8px 0',
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#1e40af'
-  },
-
-  sitesList: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '12px'
-  },
-
-  site: {
-    fontSize: '12px',
-    color: '#3b82f6'
-  },
-
-  importButton: {
-    padding: '14px 24px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    transition: 'background 0.2s',
-    ':hover': {
-      backgroundColor: '#059669'
-    },
-    ':disabled': {
-      backgroundColor: '#9ca3af',
-      cursor: 'not-allowed'
-    }
-  },
-
-  error: {
-    padding: '12px',
-    backgroundColor: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: '8px',
-    color: '#dc2626',
-    fontSize: '14px'
-  },
-
-  quickForm: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px'
-  },
-
-  formGroup: {
-    display: 'flex',
-    flexDirection: 'column'
-  },
-
-  servingsInput: {
-    width: '100px',
-    padding: '10px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px',
-    outline: 'none',
-    transition: 'border-color 0.2s',
-    ':focus': {
-      borderColor: '#FF6B35'
-    }
-  },
-
-  preview: {
-    padding: '24px'
-  },
-
-  previewTitle: {
-    margin: '0 0 8px 0',
-    fontSize: '24px',
-    color: '#1f2937'
-  },
-
-  source: {
-    margin: '0 0 20px 0',
-    fontSize: '14px',
-    color: '#6b7280'
-  },
-
-  previewSection: {
-    marginBottom: '24px'
-  },
-
-  sectionTitle: {
-    margin: '0 0 12px 0',
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#374151'
-  },
-
-  ingredientsList: {
-    margin: 0,
-    paddingLeft: '20px'
-  },
-
-  ingredient: {
-    padding: '4px 0',
-    fontSize: '14px',
-    color: '#4b5563'
-  },
-
-  instructions: {
-    fontSize: '14px',
-    lineHeight: '1.6',
-    color: '#4b5563'
-  },
-
-  previewActions: {
-    display: 'flex',
-    gap: '12px'
-  },
-
-  saveButton: {
-    flex: 1,
-    padding: '14px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'background 0.2s',
-    ':hover': {
-      backgroundColor: '#059669'
-    }
-  },
-
-  editButton: {
-    padding: '14px 24px',
-    backgroundColor: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'background 0.2s',
-    ':hover': {
-      backgroundColor: '#4b5563'
-    }
-  }
-};
-
-export default RecipeImporter;
