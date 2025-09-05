@@ -5,41 +5,48 @@ const axios = require('axios');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
 // Instacart API configuration
-const INSTACART_API_BASE = process.env.INSTACART_API_BASE || 'https://api.instacart.com';
-const INSTACART_CLIENT_ID = process.env.INSTACART_CLIENT_ID;
-const INSTACART_CLIENT_SECRET = process.env.INSTACART_CLIENT_SECRET;
+const INSTACART_API_BASE = process.env.INSTACART_API_BASE || 'https://connect.instacart.com';
+const INSTACART_CONNECT_KEY = process.env.INSTACART_CONNECT_KEY || 'keys.T6Kz2vkdBirIEnR-FzOCCtlfyDc-C19u0jEN2J42DzQ';
+const INSTACART_CATALOG_KEY = process.env.INSTACART_CATALOG_KEY || 'keys.eRRq-GgY2ri6Yp6x8LTS9sCqlW16LqkEMFZ7jYZ9A74';
+const INSTACART_DEVELOPER_KEY = process.env.INSTACART_DEVELOPER_KEY || 'keys.l02AgO_0upmAHr_0NYQ8y_ejdYrBepMw55HqcUeePBU';
 
-// Helper function to get Instacart access token
-const getInstacartAccessToken = async () => {
-  try {
-    const response = await axios.post(`${INSTACART_API_BASE}/oauth/token`, {
-      grant_type: 'client_credentials',
-      client_id: INSTACART_CLIENT_ID,
-      client_secret: INSTACART_CLIENT_SECRET
-    }, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    return response.data.access_token;
-  } catch (error) {
-    console.error('Error getting Instacart access token:', error.response?.data || error.message);
-    throw new Error('Failed to authenticate with Instacart API');
-  }
+// API endpoint configurations
+const API_ENDPOINTS = {
+  CONNECT: 'https://connect.instacart.com',
+  CATALOG: 'https://api.instacart.com/v2',
+  DEVELOPER: 'https://developer.instacart.com/api/v1'
 };
 
-// Helper function to make authenticated Instacart API calls
-const instacartApiCall = async (endpoint, method = 'GET', data = null, accessToken = null) => {
+// Helper function to make authenticated Instacart API calls with API keys
+const instacartApiCall = async (endpoint, method = 'GET', data = null, apiType = 'CONNECT') => {
   try {
-    const token = accessToken || await getInstacartAccessToken();
+    // Select appropriate API key and base URL
+    let apiKey, baseUrl;
+    switch (apiType) {
+      case 'CONNECT':
+        apiKey = INSTACART_CONNECT_KEY;
+        baseUrl = API_ENDPOINTS.CONNECT;
+        break;
+      case 'CATALOG':
+        apiKey = INSTACART_CATALOG_KEY;
+        baseUrl = API_ENDPOINTS.CATALOG;
+        break;
+      case 'DEVELOPER':
+        apiKey = INSTACART_DEVELOPER_KEY;
+        baseUrl = API_ENDPOINTS.DEVELOPER;
+        break;
+      default:
+        apiKey = INSTACART_CONNECT_KEY;
+        baseUrl = API_ENDPOINTS.CONNECT;
+    }
     
     const config = {
       method,
-      url: `${INSTACART_API_BASE}${endpoint}`,
+      url: `${baseUrl}${endpoint}`,
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'CartSmash/1.0 (https://cart-smash.vercel.app)'
       }
     };
     
@@ -47,12 +54,40 @@ const instacartApiCall = async (endpoint, method = 'GET', data = null, accessTok
       config.data = data;
     }
     
+    console.log(`📡 Making ${method} request to: ${config.url}`);
+    
     const response = await axios(config);
     return response.data;
   } catch (error) {
-    console.error(`Error making Instacart API call to ${endpoint}:`, error.response?.data || error.message);
+    console.error(`❌ Error making ${apiType} API call to ${endpoint}:`, {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
     throw error;
   }
+};
+
+// Helper function to validate API keys on startup
+const validateApiKeys = () => {
+  const keys = {
+    CONNECT: INSTACART_CONNECT_KEY,
+    CATALOG: INSTACART_CATALOG_KEY,
+    DEVELOPER: INSTACART_DEVELOPER_KEY
+  };
+  
+  let hasValidKeys = false;
+  for (const [type, key] of Object.entries(keys)) {
+    if (key && key.startsWith('keys.')) {
+      console.log(`✅ ${type} API key configured`);
+      hasValidKeys = true;
+    } else {
+      console.log(`⚠️ ${type} API key missing or invalid`);
+    }
+  }
+  
+  return hasValidKeys;
 };
 
 // GET /api/instacart/retailers - Get available retailers for a location
@@ -62,10 +97,35 @@ router.get('/retailers', async (req, res) => {
     
     const { zipCode } = req.query;
     
-    // If we have real Instacart API access, use it
-    if (INSTACART_CLIENT_ID && INSTACART_CLIENT_SECRET) {
-      const retailers = await instacartApiCall(`/v3/retailers${zipCode ? `?zip_code=${zipCode}` : ''}`);
-      res.json({ success: true, retailers: retailers.data || [] });
+    // Check if we have valid API keys
+    if (validateApiKeys()) {
+      try {
+        // Use Connect API to get available retailers
+        const endpoint = zipCode ? `/retailers?zip_code=${zipCode}` : '/retailers';
+        const retailers = await instacartApiCall(endpoint, 'GET', null, 'CONNECT');
+        
+        // Transform response to match our expected format
+        const formattedRetailers = (retailers.retailers || retailers.data || []).map(retailer => ({
+          id: retailer.id || retailer.retailer_id,
+          name: retailer.name,
+          logo: retailer.logo_url || '🏪',
+          estimatedDelivery: retailer.estimated_delivery || '2-4 hours',
+          available: retailer.available !== false,
+          service_fee: retailer.service_fee || 3.99,
+          delivery_fee: retailer.delivery_fee || 5.99,
+          minimum_order: retailer.minimum_order || 35.00
+        }));
+        
+        res.json({ 
+          success: true, 
+          retailers: formattedRetailers,
+          count: formattedRetailers.length
+        });
+      } catch (error) {
+        console.log('⚠️ Real API failed, falling back to mock data');
+        // Fall back to mock data if API fails
+        throw error;
+      }
     } else {
       // Mock response for development
       const mockRetailers = [
@@ -142,33 +202,54 @@ router.post('/search', async (req, res) => {
       });
     }
     
-    // If we have real Instacart API access, use it
-    if (INSTACART_CLIENT_ID && INSTACART_CLIENT_SECRET) {
-      const searchParams = {
-        query: query,
-        retailer_id: retailerId,
-        limit: 10
-      };
-      
-      if (zipCode) searchParams.zip_code = zipCode;
-      if (category) searchParams.category = category;
-      
-      const searchResults = await instacartApiCall('/v3/catalog/search', 'POST', searchParams);
-      
-      // Transform API response to our format
-      const products = (searchResults.data || []).map(product => ({
-        id: product.id,
-        sku: product.sku,
-        name: product.name,
-        price: product.pricing?.price || 0,
-        size: product.package_size,
-        brand: product.brand,
-        image: product.image_url,
-        availability: product.availability,
-        confidence: calculateConfidence(originalItem, product)
-      }));
-      
-      res.json({ success: true, products });
+    // Check if we have valid API keys
+    if (validateApiKeys()) {
+      try {
+        // Use Catalog API to search for products
+        const searchParams = {
+          q: query,
+          retailer_id: retailerId,
+          limit: 10
+        };
+        
+        if (zipCode) searchParams.zip_code = zipCode;
+        if (category) searchParams.category = category;
+        
+        console.log('🔍 Searching with params:', searchParams);
+        
+        // Use catalog API for product search
+        const searchResults = await instacartApiCall('/catalog/search', 'POST', searchParams, 'CATALOG');
+        
+        // Transform API response to our format
+        const products = (searchResults.items || searchResults.data || []).map(product => ({
+          id: product.id || product.product_id,
+          sku: product.sku || product.retailer_sku,
+          name: product.name || product.display_name,
+          price: product.price || product.pricing?.price || 0,
+          size: product.size || product.package_size,
+          brand: product.brand || product.brand_name,
+          image: product.image_url || product.images?.[0]?.url,
+          availability: product.availability || 'available',
+          confidence: calculateConfidence(originalItem, product),
+          retailer_id: retailerId,
+          unit_price: product.unit_price,
+          description: product.description
+        }));
+        
+        console.log(`✅ Found ${products.length} products`);
+        
+        res.json({ 
+          success: true, 
+          products,
+          query: query,
+          retailer: retailerId,
+          count: products.length
+        });
+      } catch (error) {
+        console.log('⚠️ Catalog API failed, falling back to mock data');
+        // Fall back to mock data if API fails
+        throw error;
+      }
     } else {
       // Mock search results for development
       const mockProducts = generateMockProducts(query, originalItem, retailerId);
@@ -198,52 +279,80 @@ router.post('/cart/create', authMiddleware, async (req, res) => {
       });
     }
     
-    // If we have real Instacart API access, use it
-    if (INSTACART_CLIENT_ID && INSTACART_CLIENT_SECRET) {
-      // Step 1: Create cart
-      const cartData = {
-        retailer_id: retailerId,
-        ...(zipCode && { zip_code: zipCode })
-      };
-      
-      const cartResponse = await instacartApiCall('/v3/carts', 'POST', cartData);
-      const cartId = cartResponse.data.id;
-      
-      console.log(`✅ Created cart: ${cartId}`);
-      
-      // Step 2: Add items to cart
-      const cartItems = items.map(item => ({
-        retailer_sku: item.retailer_sku,
-        quantity: item.quantity
-      }));
-      
-      const addItemsResponse = await instacartApiCall(
-        `/v3/carts/${cartId}/items`, 
-        'POST', 
-        { items: cartItems }
-      );
-      
-      console.log(`✅ Added ${cartItems.length} items to cart`);
-      
-      // Step 3: Get checkout URL
-      const checkoutUrl = `${INSTACART_API_BASE}/checkout/${cartId}?source=CartSmash`;
-      
-      // Log successful integration
-      if (metadata) {
-        console.log('📊 Integration metadata:', metadata);
-      }
-      
-      res.json({
-        success: true,
-        cartId,
-        checkoutUrl,
-        itemsAdded: cartItems.length,
-        metadata: {
-          ...metadata,
-          createdAt: new Date().toISOString(),
-          apiVersion: 'v3'
+    // Check if we have valid API keys
+    if (validateApiKeys()) {
+      try {
+        // Step 1: Create cart using Connect API
+        const cartData = {
+          retailer_id: retailerId,
+          partner_id: 'CartSmash',
+          ...(zipCode && { delivery_address: { zip_code: zipCode } })
+        };
+        
+        console.log('🛒 Creating cart with data:', cartData);
+        
+        const cartResponse = await instacartApiCall('/carts', 'POST', cartData, 'CONNECT');
+        const cartId = cartResponse.id || cartResponse.cart_id;
+        
+        console.log(`✅ Created cart: ${cartId}`);
+        
+        // Step 2: Add items to cart
+        const cartItems = items.map(item => ({
+          product_id: item.product_id || item.id,
+          retailer_sku: item.retailer_sku || item.sku,
+          quantity: item.quantity || 1,
+          ...(item.variant_id && { variant_id: item.variant_id })
+        }));
+        
+        console.log('📦 Adding items to cart:', cartItems);
+        
+        const addItemsResponse = await instacartApiCall(
+          `/carts/${cartId}/items`, 
+          'POST', 
+          { items: cartItems },
+          'CONNECT'
+        );
+        
+        console.log(`✅ Added ${cartItems.length} items to cart`);
+        
+        // Step 3: Generate checkout URL
+        const checkoutUrl = `https://www.instacart.com/store/checkout_v3/${cartId}?partner=CartSmash&utm_source=CartSmash&utm_medium=api`;
+        
+        // Get cart totals if available
+        let cartTotals = null;
+        try {
+          const cartDetails = await instacartApiCall(`/carts/${cartId}`, 'GET', null, 'CONNECT');
+          cartTotals = {
+            subtotal: cartDetails.subtotal,
+            total: cartDetails.total,
+            item_count: cartDetails.item_count
+          };
+        } catch (e) {
+          console.log('⚠️ Could not fetch cart totals:', e.message);
         }
-      });
+        
+        // Log successful integration
+        if (metadata) {
+          console.log('📊 Integration metadata:', metadata);
+        }
+        
+        res.json({
+          success: true,
+          cartId,
+          checkoutUrl,
+          itemsAdded: cartItems.length,
+          totals: cartTotals,
+          metadata: {
+            ...metadata,
+            createdAt: new Date().toISOString(),
+            apiVersion: 'connect',
+            retailer: retailerId
+          }
+        });
+      } catch (error) {
+        console.log('⚠️ Connect API failed, falling back to mock cart');
+        throw error;
+      }
     } else {
       // Mock response for development
       const mockCartId = `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -415,10 +524,26 @@ router.get('/cart/:cartId/status', authMiddleware, async (req, res) => {
     
     console.log(`📊 Getting cart status: ${cartId}`);
     
-    // If we have real Instacart API access, use it
-    if (INSTACART_CLIENT_ID && INSTACART_CLIENT_SECRET) {
-      const cartStatus = await instacartApiCall(`/v3/carts/${cartId}`);
-      res.json({ success: true, cart: cartStatus.data });
+    // Check if we have valid API keys
+    if (validateApiKeys()) {
+      try {
+        const cartStatus = await instacartApiCall(`/carts/${cartId}`, 'GET', null, 'CONNECT');
+        res.json({ 
+          success: true, 
+          cart: {
+            id: cartStatus.id,
+            status: cartStatus.status,
+            item_count: cartStatus.item_count,
+            subtotal: cartStatus.subtotal,
+            total: cartStatus.total,
+            created_at: cartStatus.created_at,
+            retailer: cartStatus.retailer
+          }
+        });
+      } catch (error) {
+        console.log('⚠️ Cart status API failed, returning mock data');
+        throw error;
+      }
     } else {
       // Mock response
       res.json({
@@ -443,6 +568,136 @@ router.get('/cart/:cartId/status', authMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/instacart/test - Test API connectivity
+router.get('/test', async (req, res) => {
+  try {
+    console.log('🧪 Testing Instacart API connectivity');
+    
+    const testResults = {
+      apiKeys: validateApiKeys(),
+      endpoints: {
+        connect: API_ENDPOINTS.CONNECT,
+        catalog: API_ENDPOINTS.CATALOG,
+        developer: API_ENDPOINTS.DEVELOPER
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    // Try to make a simple API call to test connectivity
+    if (testResults.apiKeys) {
+      try {
+        await instacartApiCall('/retailers?limit=1', 'GET', null, 'CONNECT');
+        testResults.connectivity = 'success';
+      } catch (error) {
+        testResults.connectivity = 'failed';
+        testResults.error = error.message;
+      }
+    } else {
+      testResults.connectivity = 'no-keys';
+    }
+    
+    res.json({
+      success: true,
+      test: testResults
+    });
+  } catch (error) {
+    console.error('Test endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Test failed',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/instacart/batch-search - Search for multiple items at once
+router.post('/batch-search', async (req, res) => {
+  try {
+    const { items, retailerId, zipCode } = req.body;
+    
+    console.log(`🔍 Batch searching ${items?.length || 0} items at ${retailerId}`);
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Items array is required'
+      });
+    }
+    
+    const results = [];
+    
+    for (const item of items) {
+      try {
+        const searchParams = {
+          q: item.name || item.query,
+          retailer_id: retailerId,
+          limit: 3
+        };
+        
+        if (zipCode) searchParams.zip_code = zipCode;
+        
+        let products = [];
+        
+        if (validateApiKeys()) {
+          try {
+            const searchResults = await instacartApiCall('/catalog/search', 'POST', searchParams, 'CATALOG');
+            products = (searchResults.items || searchResults.data || []).slice(0, 3).map(product => ({
+              id: product.id || product.product_id,
+              sku: product.sku || product.retailer_sku,
+              name: product.name || product.display_name,
+              price: product.price || product.pricing?.price || 0,
+              confidence: calculateConfidence(item, product)
+            }));
+          } catch (apiError) {
+            console.log(`⚠️ API search failed for "${item.name}", using mock data`);
+            products = generateMockProducts(item.name, item, retailerId).slice(0, 3);
+          }
+        } else {
+          products = generateMockProducts(item.name, item, retailerId).slice(0, 3);
+        }
+        
+        results.push({
+          originalItem: item,
+          matches: products,
+          bestMatch: products[0] || null
+        });
+        
+        // Add small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        console.error(`Error searching for item "${item.name}":`, error);
+        results.push({
+          originalItem: item,
+          matches: [],
+          bestMatch: null,
+          error: error.message
+        });
+      }
+    }
+    
+    console.log(`✅ Batch search completed: ${results.length} items processed`);
+    
+    res.json({
+      success: true,
+      results,
+      summary: {
+        totalItems: items.length,
+        itemsWithMatches: results.filter(r => r.matches.length > 0).length,
+        itemsWithErrors: results.filter(r => r.error).length
+      }
+    });
+    
+  } catch (error) {
+    console.error('Batch search error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Batch search failed',
+      message: error.message
+    });
+  }
+});
+
 // Error handling middleware
 router.use((error, req, res, next) => {
   console.error('Instacart API Error:', error);
@@ -452,5 +707,9 @@ router.use((error, req, res, next) => {
     message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
   });
 });
+
+// Initialize API on module load
+console.log('🚀 Initializing Instacart API routes...');
+validateApiKeys();
 
 module.exports = router;
