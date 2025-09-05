@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SmashCartProvider } from './contexts/SmashCartContext';
 import userDataService from './services/userDataService';
+import { db } from './firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import './styles/cartsmash.css';
 import Header from './components/Header';
 import GroceryListForm from './components/GroceryListForm';
@@ -93,6 +95,9 @@ function AppContent({
   // Use ref to access current cart length without dependency issues
   const currentCartRef = useRef(currentCart);
   currentCartRef.current = currentCart;
+  
+  // Hydration guard to prevent save/load conflicts
+  const cartHydratedRef = useRef(false);
 
   const loadLocalData = useCallback(() => {
     try {
@@ -141,13 +146,7 @@ function AppContent({
         userDataService.getMealPlans().catch(() => [])
       ]);
       
-      // ⚠️ Load current cart from Firestore ONLY if Firestore is the cart authority
-      if (CART_AUTHORITY === 'firestore' && firebaseLists.length > 0 && firebaseLists[0].items) {
-        setCurrentCart(firebaseLists[0].items);
-        console.log('🔥 Firestore is cart authority - loaded current cart:', firebaseLists[0].items.length, 'items');
-      } else if (CART_AUTHORITY === 'local') {
-        console.log('📱 Local storage is cart authority - skipping Firestore cart load');
-      }
+      // 🔒 Do NOT set currentCart here. Cart now hydrates from carts/{uid} only.
       
       setSavedLists(firebaseLists);
       setSavedRecipes(firebaseRecipes);
@@ -160,6 +159,31 @@ function AppContent({
       setSyncStatus('error');
     }
   }, [setSyncStatus, setCurrentCart, setSavedLists, setSavedRecipes, setMealPlans]);
+  
+  // Dedicated cart hydration from carts/{uid} - prevents restoration loop
+  const hydrateCartFromFirestore = useCallback(async () => {
+    if (cartHydratedRef.current) return;
+    if (CART_AUTHORITY !== 'firestore') return;
+    if (!currentUser) return;
+
+    try {
+      const ref = doc(db, 'carts', currentUser.uid);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const items = Array.isArray(snap.data()?.items) ? snap.data().items : [];
+        setCurrentCart(items);
+        console.log('🛒 Hydrated cart from carts/{uid}:', items.length, 'items');
+      } else {
+        // Create empty doc so future saves are clean
+        await setDoc(ref, { items: [], updatedAt: serverTimestamp() }, { merge: false });
+        setCurrentCart([]);
+        console.log('🆕 Created empty carts/{uid} document');
+      }
+      cartHydratedRef.current = true;
+    } catch (e) {
+      console.error('Cart hydration failed:', e);
+    }
+  }, [CART_AUTHORITY, currentUser, setCurrentCart]);
   
   // Load all data from localStorage first, then Firebase
   const loadAllData = useCallback(async () => {
@@ -191,17 +215,18 @@ function AppContent({
     }
     
     try {
-      // Auto-save current cart as a list
-      const autoSaveList = {
-        id: 'auto-save-current',
-        name: `Auto-saved Cart ${new Date().toLocaleString()}`,
-        items: currentCart,
-        autoSaved: true,
-        updatedAt: new Date().toISOString()
-      };
-      
-      await userDataService.saveParsedList(autoSaveList);
-      console.log('✅ Cart auto-saved to Firebase');
+      // Save to carts/{uid} (replace write so deletions stick)
+      if (!cartHydratedRef.current) {
+        console.log('⏸️ Skipping save until cart hydration completes');
+        return;
+      }
+      const ref = doc(db, 'carts', currentUser.uid);
+      await setDoc(
+        ref,
+        { items: currentCart, updatedAt: serverTimestamp() },
+        { merge: false } // 🔥 replace entire array; no re-merge ghosts
+      );
+      console.log('✅ Cart saved to carts/{uid}');
       
       // Also save to localStorage as backup ONLY if localStorage is cart authority
       if (CART_AUTHORITY === 'local') {
@@ -226,15 +251,29 @@ function AppContent({
   // Expose refresh function globally for components
   useEffect(() => {
     window.refreshAccountData = loadAllData;
+    
+    // Add debug function to clear Firestore cart
+    window.debugCart = {
+      ...(window.debugCart || {}),
+      clearFirestoreCart: async () => {
+        if (!currentUser) return;
+        await setDoc(doc(db, 'carts', currentUser.uid), { items: [], updatedAt: serverTimestamp() }, { merge: false });
+        setCurrentCart([]);
+        console.log('🧼 carts/{uid} cleared');
+      }
+    };
+    
     return () => {
       delete window.refreshAccountData;
     };
-  }, [loadAllData]);
+  }, [loadAllData, currentUser, setCurrentCart]);
   
   // Load all data on mount and when user changes
   useEffect(() => {
     loadAllData();
-  }, [loadAllData]);
+    // Hydrate the cart once from carts/{uid}
+    hydrateCartFromFirestore();
+  }, [loadAllData, hydrateCartFromFirestore]);
   
   // Auto-save cart to Firebase when it changes (debounced)
   useEffect(() => {
