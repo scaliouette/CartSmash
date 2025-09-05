@@ -768,6 +768,33 @@ function GroceryListForm({
           console.log('Items in storage but not in current:', 
             saved.filter(s => !currentCart.some(current => current.id === s.id))
           );
+        },
+        // EMERGENCY NUCLEAR OPTION - Clear ALL cart data sources
+        nuclearClear: () => {
+          console.log('💥 NUCLEAR CLEAR: Removing cart from ALL sources...');
+          
+          // 1. Clear localStorage
+          localStorage.removeItem('cartsmash-current-cart');
+          localStorage.removeItem('cartsmash-lists');
+          localStorage.removeItem('cart-smash-draft');
+          
+          // 2. Clear current cart state
+          setCurrentCart([]);
+          
+          // 3. Clear any auto-save data
+          if (window.userDataService) {
+            try {
+              window.userDataService.saveShoppingList({id: 'current-cart', items: []});
+            } catch(e) { console.log('Could not clear Firebase:', e); }
+          }
+          
+          // 4. Try to clear server-side data
+          fetch('/api/user/cart', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+          }).catch(e => console.log('Could not clear server cart:', e));
+          
+          console.log('💥 Nuclear clear completed. Refresh page to verify.');
         }
       };
       

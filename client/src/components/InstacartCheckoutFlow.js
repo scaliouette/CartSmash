@@ -449,7 +449,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                         • window.checkoutDebug.findProblematicItems()<br/>
                         • window.debugCart.checkLocalStorage()<br/>
                         • window.debugCart.compareWithLocalStorage()<br/>
-                        • window.debugCart.clearLocalStorage() (then refresh)
+                        • window.debugCart.nuclearClear() ⚠️ CLEARS ALL
                       </div>
                       <div style={{ 
                         marginTop: '8px', 
@@ -462,9 +462,12 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                           ⚠️ ISSUE FOUND:
                         </div>
                         <div style={{ fontSize: '11px', color: '#cc0000', marginTop: '4px' }}>
-                          Items are restored from localStorage on page refresh.<br/>
-                          Even if you delete items, they come back from saved data.<br/>
-                          Use clearLocalStorage() command above to fix.
+                          MULTIPLE DATA SOURCES CONFLICT:<br/>
+                          • App.js restores from localStorage<br/>
+                          • CartContext restores from localStorage + server<br/>
+                          • Firebase auto-saves deleted items<br/>
+                          • MongoDB server may have conflicting data<br/>
+                          Use nuclearClear() to clear ALL sources.
                         </div>
                       </div>
                     </div>
