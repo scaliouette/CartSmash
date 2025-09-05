@@ -888,22 +888,53 @@ Or paste any grocery list directly!"
             parsingStats={parsingStats}
             savedRecipes={savedRecipes}
             setSavedRecipes={setSavedRecipes}
+            // Pass a prop to hide the export button in ParsedResultsDisplay
+            hideExportButton={true}
           />
           
-          {/* Instacart Checkout Button */}
+          {/* Single Unified Checkout Button */}
           <div style={styles.checkoutSection}>
             <button
               onClick={() => setShowInstacartCheckout(true)}
               style={styles.instacartButton}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(251, 79, 20, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(251, 79, 20, 0.25)';
+              }}
               disabled={currentCart.length === 0}
             >
-              <span style={styles.buttonIcon}>🛒</span>
-              <div>
-                <div style={styles.buttonTitle}>Continue to Checkout</div>
-                <div style={styles.buttonSubtitle}>Order from Instacart • {currentCart.length} items</div>
+              <div style={styles.buttonIcon}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" fill="currentColor"/>
+                </svg>
               </div>
-              <span style={styles.buttonArrow}>→</span>
+              <div style={styles.buttonContent}>
+                <div style={styles.buttonTitle}>CARTSMASH to Instacart</div>
+                <div style={styles.buttonSubtitle}>
+                  Send {currentCart.length} items to your Instacart cart
+                </div>
+              </div>
+              <div style={styles.buttonArrow}>→</div>
             </button>
+            
+            <div style={styles.checkoutFeatures}>
+              <div style={styles.featureItem}>
+                <span style={styles.featureCheck}>✓</span>
+                <span>Auto-match products</span>
+              </div>
+              <div style={styles.featureItem}>
+                <span style={styles.featureCheck}>✓</span>
+                <span>Find best prices</span>
+              </div>
+              <div style={styles.featureItem}>
+                <span style={styles.featureCheck}>✓</span>
+                <span>Schedule delivery</span>
+              </div>
+            </div>
           </div>
         </>
       )}
@@ -1327,21 +1358,20 @@ const styles = {
     marginTop: '8px'
   },
 
-  // Instacart Checkout Styles
+  // Updated Checkout Styles with CARTSMASH branding
   checkoutSection: {
-    marginTop: '20px',
-    padding: '20px',
-    backgroundColor: 'white',
+    marginTop: '30px',
+    padding: '24px',
+    background: 'linear-gradient(135deg, #FFF5F2 0%, #FFFFFF 100%)',
     borderRadius: '16px',
-    boxShadow: '0 4px 20px rgba(0,2,68,0.1)',
-    border: '2px solid #002244'
+    boxShadow: '0 4px 20px rgba(0, 2, 68, 0.1)',
+    border: '3px solid #FB4F14'
   },
 
   instacartButton: {
     width: '100%',
-    padding: '20px',
-    backgroundColor: 'linear-gradient(135deg, #00D4AA 0%, #00B894 100%)',
-    background: 'linear-gradient(135deg, #00D4AA 0%, #00B894 100%)',
+    padding: '24px',
+    background: 'linear-gradient(135deg, #FB4F14 0%, #FF6B35 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '12px',
@@ -1351,33 +1381,80 @@ const styles = {
     justifyContent: 'space-between',
     transition: 'all 0.3s ease',
     fontSize: '16px',
-    fontWeight: '600',
-    boxShadow: '0 4px 16px rgba(0, 212, 170, 0.3)',
-    gap: '16px'
+    fontWeight: '700',
+    boxShadow: '0 4px 16px rgba(251, 79, 20, 0.25)',
+    gap: '20px',
+    position: 'relative',
+    overflow: 'hidden'
   },
 
   buttonIcon: {
-    fontSize: '24px',
+    width: '48px',
+    height: '48px',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0
   },
 
+  buttonContent: {
+    flex: 1,
+    textAlign: 'left'
+  },
+
   buttonTitle: {
-    fontSize: '18px',
-    fontWeight: '700',
-    margin: '0 0 4px 0'
+    fontSize: '20px',
+    fontWeight: '800',
+    margin: '0 0 6px 0',
+    letterSpacing: '0.5px',
+    textTransform: 'uppercase'
   },
 
   buttonSubtitle: {
-    fontSize: '14px',
-    opacity: 0.9,
-    margin: 0
+    fontSize: '15px',
+    opacity: 0.95,
+    margin: 0,
+    fontWeight: '500'
   },
 
   buttonArrow: {
-    fontSize: '20px',
+    fontSize: '28px',
     fontWeight: 'bold',
     flexShrink: 0,
-    transition: 'transform 0.2s ease'
+    transition: 'transform 0.2s ease',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  checkoutFeatures: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '30px',
+    marginTop: '20px',
+    paddingTop: '20px',
+    borderTop: '2px solid rgba(251, 79, 20, 0.1)'
+  },
+
+  featureItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    color: '#002244',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  featureCheck: {
+    color: '#FB4F14',
+    fontWeight: 'bold',
+    fontSize: '16px'
   }
 };
 
