@@ -390,12 +390,9 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
         extractedItems = extractGroceryItems(aiResponseText);
       }
       
-      // ✅ NEW: Extract and save recipe information
+      // ✅ NEW: Extract recipe information (don't auto-save, let user choose)
       if (aiResponseText.length > 200) { // Only extract recipes from substantial responses
         recipeInfo = extractRecipeInfo(aiResponseText);
-        if (recipeInfo.ingredients.length > 0 || recipeInfo.instructions.length > 0) {
-          saveRecipe(recipeInfo);
-        }
       }
       
       const aiMessage = {
@@ -411,17 +408,20 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
 
       setMessages(prev => [...prev, aiMessage]);
 
-      // ✅ ENHANCED: Auto-offer to add grocery items and save recipe
-      if (extractedItems && extractedItems.length > 0) {
-        console.log(`🛒 Found ${extractedItems.length} grocery items, offering to add to cart...`);
-        setTimeout(() => {
-          let confirmMessage = `Found ${extractedItems.length} grocery items!`;
-          
-          if (recipeInfo && (recipeInfo.ingredients.length > 0 || recipeInfo.instructions.length > 0)) {
-            confirmMessage += `\n\n✅ Recipe saved for future reference!\n🍳 "${recipeInfo.title}"`;
+      // ✅ ENHANCED: Auto-offer to add grocery items and ask to save recipe
+      setTimeout(() => {
+        // First, ask about saving recipe if one was detected
+        if (recipeInfo && (recipeInfo.ingredients.length > 0 || recipeInfo.instructions.length > 0)) {
+          if (window.confirm(`📖 Recipe detected: "${recipeInfo.title}"\n\nWould you like to save this recipe for future use?`)) {
+            saveRecipe(recipeInfo);
+            console.log('✅ Recipe saved:', recipeInfo.title);
           }
-          
-          confirmMessage += `\n\nAdd grocery items to your cart?\n\nFirst few items:\n${extractedItems.slice(0, 3).map(item => `• ${item}`).join('\n')}${extractedItems.length > 3 ? '\n...and more' : ''}`;
+        }
+        
+        // Then, ask about adding grocery items if found
+        if (extractedItems && extractedItems.length > 0) {
+          console.log(`🛒 Found ${extractedItems.length} grocery items, offering to add to cart...`);
+          let confirmMessage = `Found ${extractedItems.length} grocery items!\n\nAdd them to your cart?\n\nFirst few items:\n${extractedItems.slice(0, 3).map(item => `• ${item}`).join('\n')}${extractedItems.length > 3 ? '\n...and more' : ''}`;
           
           if (window.confirm(confirmMessage)) {
             // Format the items properly for the main form
@@ -431,10 +431,8 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
             onGroceryListGenerated(formattedList);
             setIsOpen(false);
           }
-        }, 1000);
-      } else {
-        console.log('⚠️ No grocery items found in AI response');
-      }
+        }
+      }, 1000);
 
     } catch (error) {
       console.error('🚨 AI request failed:', error);
