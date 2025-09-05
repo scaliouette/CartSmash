@@ -630,7 +630,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6 relative">
+        <div className="text-white p-6 relative" style={{background: 'linear-gradient(135deg, #002244, #FB4F14)'}}>
           <button
             onClick={handleClose}
             className="absolute top-4 right-4 text-white hover:text-gray-200 transition-colors"
@@ -640,8 +640,8 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
           <div className="flex items-center space-x-3">
             <ShoppingCart className="w-8 h-8" />
             <div>
-              <h1 className="text-2xl font-bold">Continue to Checkout</h1>
-              <p className="text-orange-100">Powered by Instacart</p>
+              <h1 className="text-2xl font-bold">CartSmash Checkout</h1>
+              <p className="text-orange-100">Powered by CartSmash + Instacart</p>
             </div>
           </div>
         </div>
