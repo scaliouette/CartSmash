@@ -158,7 +158,11 @@ Provide recipes with instructions and list each grocery item on a separate line.
       /recipe/i, /instructions/i, /directions/i, /steps/i, /method/i,
       /monday|tuesday|wednesday|thursday|friday|saturday|sunday/i,
       /breakfast|lunch|dinner|snack/i, /day \d+/i, /week \d+/i,
-      /serves/i, /calories/i, /prep time/i, /cook time/i, /total:/i
+      /serves/i, /calories/i, /prep time/i, /cook time/i, /total:/i,
+      /^for delicious/i, /^here's a/i, /^these quantities/i, /should serve/i,
+      /^perfect for/i, /^great for/i, /^ideal for/i, /people\./i,
+      /^this will/i, /^you can/i, /^feel free/i, /^don't forget/i,
+      /^make sure/i, /^remember to/i, /^note:/i, /^tip:/i
     ];
 
     for (let i = 0; i < lines.length; i++) {
@@ -390,7 +394,7 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
         extractedItems = extractGroceryItems(aiResponseText);
       }
       
-      // ✅ NEW: Extract recipe information (don't auto-save, let user choose)
+      // ✅ NEW: Extract recipe information (ask user before saving)
       if (aiResponseText.length > 200) { // Only extract recipes from substantial responses
         recipeInfo = extractRecipeInfo(aiResponseText);
       }

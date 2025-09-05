@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 
 function ProductValidator({ items, onItemsUpdated, onClose }) {
   const [localItems, setLocalItems] = useState([]);
-  const [filter, setFilter] = useState('needs-review'); // Default to needs review
+  const [filter, setFilter] = useState('needs-review');
   const [editedItems, setEditedItems] = useState(new Map());
 
   // Initialize local items with proper structure
