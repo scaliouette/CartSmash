@@ -973,6 +973,9 @@ function GroceryListForm({
             onChange={(e) => {
               setInputText(e.target.value);
               setWaitingForAIResponse(false);
+              // Auto-expand textarea based on content
+              e.target.style.height = 'auto';
+              e.target.style.height = Math.max(80, Math.min(e.target.scrollHeight, 400)) + 'px';
             }}
             onKeyPress={(e) => {
               if (e.key === 'Enter' && e.shiftKey && e.ctrlKey) {
@@ -990,8 +993,13 @@ Examples:
 • Give me a keto-friendly shopping list
 
 Or paste any grocery list directly!"
-            style={styles.mainTextarea}
-            rows="8"
+            style={{
+              ...styles.mainTextarea,
+              minHeight: '80px', // About 3-4 lines
+              height: 'auto',
+              resize: 'none'
+            }}
+            rows="3"
           />
           
           {waitingForAIResponse && (
@@ -1361,12 +1369,15 @@ const styles = {
     fontSize: '16px',
     border: '3px solid #002244',
     borderRadius: '12px',
-    resize: 'vertical',
+    resize: 'none',
     fontFamily: 'inherit',
     lineHeight: '1.5',
-    transition: 'border-color 0.2s',
+    transition: 'border-color 0.2s, height 0.2s ease',
     outline: 'none',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+    minHeight: '80px',
+    maxHeight: '400px'
   },
 
   aiStatusMessage: {
