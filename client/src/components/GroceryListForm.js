@@ -801,7 +801,7 @@ function GroceryListForm({
         window.checkoutDebug.regenerateIds = window.debugCart.regenerateIds;
       }
     }
-  }, [debugDeleteItem, setCurrentCart]);
+  }, [currentCart, debugDeleteItem, setCurrentCart]);
 
   // Dedicated delete handler with multiple ID checks
   const handleDeleteItem = (itemId) => {

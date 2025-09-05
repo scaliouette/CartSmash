@@ -105,7 +105,7 @@ export function AuthProvider({ children }) {
       console.error('Error checking admin status:', error);
       return ADMIN_EMAILS.includes(user.email);
     }
-  }, []);
+  }, [ADMIN_EMAILS]);
   
   // Email/Password Signup
   const signup = async (email, password, displayName = '') => {

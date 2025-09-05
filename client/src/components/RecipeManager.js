@@ -22,23 +22,6 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
   const { currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadRecipes();
-  }, [savedRecipes, loadRecipes]);
-
-  // Handle initial editing recipe from props
-  useEffect(() => {
-    if (initialEditingRecipe) {
-      setEditingRecipe(initialEditingRecipe);
-      setNewRecipe({
-        name: initialEditingRecipe.name || '',
-        ingredients: initialEditingRecipe.ingredients || '',
-        instructions: initialEditingRecipe.instructions || ''
-      });
-      setActiveTab('edit');
-    }
-  }, [initialEditingRecipe]);
-
   const loadRecipes = useCallback(async () => {
     setLoading(true);
     try {
@@ -74,6 +57,23 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
       setLoading(false);
     }
   }, [currentUser?.uid]);
+
+  useEffect(() => {
+    loadRecipes();
+  }, [savedRecipes, loadRecipes]);
+
+  // Handle initial editing recipe from props
+  useEffect(() => {
+    if (initialEditingRecipe) {
+      setEditingRecipe(initialEditingRecipe);
+      setNewRecipe({
+        name: initialEditingRecipe.name || '',
+        ingredients: initialEditingRecipe.ingredients || '',
+        instructions: initialEditingRecipe.instructions || ''
+      });
+      setActiveTab('edit');
+    }
+  }, [initialEditingRecipe]);
 
   const handleSaveRecipe = async (recipe = null) => {
     const recipeToSave = recipe || newRecipe;
