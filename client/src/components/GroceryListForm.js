@@ -788,18 +788,8 @@ function GroceryListForm({
             } catch(e) { console.log('Could not clear Firebase:', e); }
           }
           
-          // 4. Try to clear server-side data (multiple possible endpoints)
-          fetch('/api/user/data', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cart: [] })
-          }).catch(e => console.log('Could not clear server via user/data:', e));
-          
-          // Also try clearing via account endpoint
-          fetch('/api/account/clear-cart', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          }).catch(e => console.log('Could not clear server via account:', e));
+          // 4. Server clearing skipped (no compatible endpoints found)
+          console.log('⚠️ Server clearing skipped - no compatible API endpoints');
           
           console.log('💥 Nuclear clear completed. Refresh page to verify.');
         }
