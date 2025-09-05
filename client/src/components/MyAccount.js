@@ -1647,10 +1647,6 @@ const styles = {
     fontWeight: 'bold'
   },
 
-  mealPlanActions: {
-    display: 'flex',
-    gap: '8px'
-  },
 
   loadMealPlanButton: {
     flex: 1,

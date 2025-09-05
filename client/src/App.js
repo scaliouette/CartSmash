@@ -131,7 +131,7 @@ function AppContent({
     } catch (error) {
       console.error('Error loading from localStorage:', error);
     }
-  }, [setCurrentCart, setSavedLists, setSavedRecipes, setMealPlans]);
+  }, [setCurrentCart, setSavedLists, setSavedRecipes, setMealPlans, CART_AUTHORITY]);
 
   const loadFirebaseData = useCallback(async () => {
     try {
@@ -158,7 +158,7 @@ function AppContent({
       console.error('Firebase sync error:', error);
       setSyncStatus('error');
     }
-  }, [setSyncStatus, setCurrentCart, setSavedLists, setSavedRecipes, setMealPlans]);
+  }, [setSyncStatus, setSavedLists, setSavedRecipes, setMealPlans]);
   
   // Dedicated cart hydration from carts/{uid} - prevents restoration loop
   const hydrateCartFromFirestore = useCallback(async () => {
@@ -246,7 +246,7 @@ function AppContent({
         }
       }
     }
-  }, [currentUser, currentCart]);
+  }, [currentUser, currentCart, AUTOSAVE_ENABLED, CART_AUTHORITY]);
   
   // Expose refresh function globally for components
   useEffect(() => {

@@ -58,15 +58,6 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   const [showValidationPage, setShowValidationPage] = useState(false);
   const [validatingAll, setValidatingAll] = useState(false);
 
-  // const trackEvent = (action, category, label, value) => {
-  //   if (window.gtag) {
-  //     window.gtag('event', action, {
-  //       event_category: category,
-  //       event_label: label,
-  //       value: value
-  //     });
-  //   }
-  // };
 
   // Mobile detection
   useEffect(() => {
@@ -180,7 +171,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         return newSet;
       });
     }
-  }, [items, onItemsChange, fetchingPrices]);
+  }, [items, onItemsChange, fetchingPrices, isDev]);
 
   // Fetch real-time prices on mount - Fixed dependencies
   // Auto-fetch prices on mount only - removed constant polling to prevent interference
@@ -208,7 +199,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     } else if (itemsNeedingPrices.length > 3) {
       if (isDev) console.debug(`Too many items (${itemsNeedingPrices.length}) - use manual refresh for pricing`);
     }
-  }, []); // Empty dependency array - only run once on mount
+  }, [items, fetchingPrices, isDev, fetchRealTimePrices]); // Add required dependencies
 
 
   // Auto-save to localStorage whenever items change
