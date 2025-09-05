@@ -318,7 +318,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   const renderRetailerSelection = () => (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose Your Store</h2>
+        <h2 className="text-2xl font-bold mb-2" style={{color: '#002244'}}>Choose Your Store</h2>
         <p className="text-gray-600">Select where you'd like to shop and have your groceries delivered from</p>
       </div>
 
@@ -350,11 +350,11 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             <button
               key={retailer.id}
               onClick={() => setSelectedRetailer(retailer)}
-              className={`p-4 border-2 rounded-lg transition-all ${
-                selectedRetailer?.id === retailer.id
-                  ? 'border-orange-500 bg-orange-50'
-                  : 'border-gray-200 hover:border-gray-300 bg-white'
-              }`}
+              className="p-4 border-2 rounded-lg transition-all"
+            style={{
+              borderColor: selectedRetailer?.id === retailer.id ? '#FB4F14' : '#E5E7EB',
+              backgroundColor: selectedRetailer?.id === retailer.id ? '#FFF5F2' : 'white'
+            }}
             >
               <div className="flex items-start space-x-3">
                 <div className="text-2xl">{retailer.logo}</div>
@@ -363,7 +363,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                   <div className="text-sm text-gray-500">{retailer.estimatedDelivery}</div>
                 </div>
                 {selectedRetailer?.id === retailer.id && (
-                  <CheckCircle className="w-5 h-5 text-orange-500" />
+                  <CheckCircle className="w-5 h-5" style={{color: '#FB4F14'}} />
                 )}
               </div>
             </button>
@@ -402,7 +402,10 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       <button
         onClick={handleRetailerContinue}
         disabled={!currentCart || currentCart.length === 0}
-        className="w-full py-3 px-6 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+        className="w-full py-3 px-6 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+        style={{
+          background: !currentCart || currentCart.length === 0 ? '#D1D5DB' : 'linear-gradient(135deg, #FB4F14 0%, #FF6B35 100%)'
+        }}
       >
         Continue to Match Products
       </button>
@@ -411,16 +414,16 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
   const renderMatching = () => (
     <div className="text-center py-12 space-y-6">
-      <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto" />
+      <Loader2 className="w-12 h-12 animate-spin mx-auto" style={{color: '#FB4F14'}} />
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Matching Your Items</h2>
+        <h2 className="text-2xl font-bold mb-2" style={{color: '#002244'}}>Matching Your Items</h2>
         <p className="text-gray-600">
           Finding the best products at {selectedRetailer?.name}...
         </p>
       </div>
       <div className="max-w-sm mx-auto">
         <div className="bg-gray-200 rounded-full h-2">
-          <div className="bg-orange-500 h-2 rounded-full transition-all duration-500" style={{ width: '60%' }} />
+          <div className="h-2 rounded-full transition-all duration-500" style={{ backgroundColor: '#FB4F14', width: '60%' }} />
         </div>
       </div>
     </div>
@@ -432,7 +435,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Confirm Product Match</h2>
+          <h2 className="text-2xl font-bold mb-2" style={{color: '#002244'}}>Confirm Product Match</h2>
           <p className="text-gray-600">
             Help us find the right product for "{currentItem.cartItem.productName}"
           </p>
@@ -447,9 +450,10 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             {lowConfidenceItems.map((_, idx) => (
               <div
                 key={idx}
-                className={`w-2 h-2 rounded-full ${
-                  idx <= currentConfirmIndex ? 'bg-orange-500' : 'bg-gray-300'
-                }`}
+                className="w-2 h-2 rounded-full"
+                style={{
+                  backgroundColor: idx <= currentConfirmIndex ? '#FB4F14' : '#D1D5DB'
+                }}
               />
             ))}
           </div>
@@ -465,7 +469,21 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               <button
                 key={product.id}
                 onClick={() => confirmProduct(product)}
-                className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-all text-left"
+                className="w-full p-4 border-2 border-gray-200 rounded-lg transition-all text-left"
+                style={{
+                  '&:hover': {
+                    borderColor: '#FB4F14',
+                    backgroundColor: '#FFF5F2'
+                  }
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.borderColor = '#FB4F14';
+                  e.target.style.backgroundColor = '#FFF5F2';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.borderColor = '#E5E7EB';
+                  e.target.style.backgroundColor = 'white';
+                }}
               >
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
@@ -477,7 +495,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                   </div>
                   <div className="flex-1">
                     <div className="font-medium text-gray-900">{product.name}</div>
-                    <div className="text-lg font-semibold text-orange-600">
+                    <div className="text-lg font-semibold" style={{color: '#FB4F14'}}>
                       ${product.price?.toFixed(2) || 'N/A'}
                     </div>
                     {product.size && (
@@ -522,16 +540,16 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
   const renderCreating = () => (
     <div className="text-center py-12 space-y-6">
-      <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto" />
+      <Loader2 className="w-12 h-12 animate-spin mx-auto" style={{color: '#FB4F14'}} />
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Creating Your Instacart Cart</h2>
+        <h2 className="text-2xl font-bold mb-2" style={{color: '#002244'}}>Creating Your Instacart Cart</h2>
         <p className="text-gray-600">
           Adding {matchedProducts.length} items to your cart at {selectedRetailer?.name}...
         </p>
       </div>
       <div className="max-w-sm mx-auto">
         <div className="bg-gray-200 rounded-full h-2">
-          <div className="bg-orange-500 h-2 rounded-full transition-all duration-500" style={{ width: '90%' }} />
+          <div className="h-2 rounded-full transition-all duration-500" style={{ backgroundColor: '#FB4F14', width: '90%' }} />
         </div>
       </div>
     </div>
@@ -543,7 +561,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle className="w-8 h-8 text-green-600" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Cart Ready!</h2>
+        <h2 className="text-2xl font-bold mb-2" style={{color: '#002244'}}>Cart Ready!</h2>
         <p className="text-gray-600">
           Your cart has been created with {matchedProducts.length} items
         </p>
@@ -613,7 +631,10 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
       <button
         onClick={() => window.open(checkoutUrl, '_blank')}
-        className="w-full py-4 px-6 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors flex items-center justify-center space-x-2"
+        className="w-full py-4 px-6 text-white rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2"
+        style={{
+          background: 'linear-gradient(135deg, #FB4F14 0%, #FF6B35 100%)'
+        }}
       >
         <span>Continue to Instacart Checkout</span>
         <ExternalLink className="w-5 h-5" />
@@ -647,30 +668,28 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         </div>
         
         {/* Progress Steps */}
-        <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b">
-          <div className={`flex items-center space-x-2 ${currentStep === 'retailer' ? 'text-orange-600' : 'text-gray-400'}`}>
+        <div className="flex items-center justify-between px-6 py-4" style={{backgroundColor: '#FFF5F2', borderBottom: '2px solid #FB4F14'}}>
+          <div className={`flex items-center space-x-2 ${currentStep === 'retailer' ? 'text-orange-600' : 'text-gray-400'}`} style={{color: currentStep === 'retailer' ? '#FB4F14' : '#9CA3AF'}}>
             <Store className="w-5 h-5" />
             <span className="text-sm font-medium">Select Store</span>
           </div>
           <div className="flex-1 h-1 bg-gray-200 mx-4">
-            <div className={`h-1 transition-all duration-500 ${
-              currentStep !== 'retailer' ? 'bg-orange-500' : 'bg-gray-200'
-            }`} style={{ width: currentStep !== 'retailer' ? '100%' : '0%' }} />
+            <div className={`h-1 transition-all duration-500`} style={{ 
+              backgroundColor: currentStep !== 'retailer' ? '#FB4F14' : '#E5E7EB',
+              width: currentStep !== 'retailer' ? '100%' : '0%' 
+            }} />
           </div>
-          <div className={`flex items-center space-x-2 ${
-            ['matching', 'confirming'].includes(currentStep) ? 'text-orange-600' : 'text-gray-400'
-          }`}>
+          <div className={`flex items-center space-x-2`} style={{color: ['matching', 'confirming'].includes(currentStep) ? '#FB4F14' : '#9CA3AF'}}>
             <Search className="w-5 h-5" />
             <span className="text-sm font-medium">Match Items</span>
           </div>
           <div className="flex-1 h-1 bg-gray-200 mx-4">
-            <div className={`h-1 transition-all duration-500 ${
-              ['creating', 'complete'].includes(currentStep) ? 'bg-orange-500' : 'bg-gray-200'
-            }`} style={{ width: ['creating', 'complete'].includes(currentStep) ? '100%' : '0%' }} />
+            <div className={`h-1 transition-all duration-500`} style={{
+              backgroundColor: ['creating', 'complete'].includes(currentStep) ? '#FB4F14' : '#E5E7EB',
+              width: ['creating', 'complete'].includes(currentStep) ? '100%' : '0%'
+            }} />
           </div>
-          <div className={`flex items-center space-x-2 ${
-            currentStep === 'complete' ? 'text-orange-600' : 'text-gray-400'
-          }`}>
+          <div className={`flex items-center space-x-2`} style={{color: currentStep === 'complete' ? '#FB4F14' : '#9CA3AF'}}>
             <CheckCircle className="w-5 h-5" />
             <span className="text-sm font-medium">Complete</span>
           </div>

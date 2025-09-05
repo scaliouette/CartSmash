@@ -425,8 +425,12 @@ function GroceryListForm({
       
       if (data.success && data.cart && data.cart.length > 0) {
         // Attach the recipe to the cart items for persistence and ensure stable IDs/fields
-        const cartWithRecipe = data.cart.map((item, index) => ({
-          id: item.id || item._id || `item_${Date.now()}_${index}`,
+        const cartWithRecipe = data.cart.map((item, index) => {
+          // Generate a truly unique ID using timestamp + random string
+          const uniqueId = item.id || item._id || `item_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          return {
+          id: uniqueId,
           productName: item.productName || item.itemName || item.name || '',
           quantity: typeof item.quantity === 'number' && !Number.isNaN(item.quantity) ? item.quantity : 1,
           unit: item.unit || 'each',
@@ -445,7 +449,8 @@ function GroceryListForm({
           original: item.original,
           // Store recipe only on first item to avoid duplication
           ...(index === 0 ? { _sourceRecipe: listText } : {})
-        }));
+          };
+        });
         
         // Debug logging before cart update
         console.log('🛒 Cart update debug:');
@@ -636,7 +641,67 @@ function GroceryListForm({
 
 
   const handleItemsChange = (updatedItems) => {
-    setCurrentCart(updatedItems);
+    console.log('🔄 Updating cart items:', {
+      before: currentCart.length,
+      after: updatedItems.length,
+      items: updatedItems.map(item => ({
+        id: item.id,
+        name: item.productName
+      }))
+    });
+    
+    // Force a complete state refresh
+    setCurrentCart([...updatedItems]);
+  };
+
+  // Debug delete function to test individual item removal
+  const debugDeleteItem = (itemId) => {
+    console.log('🗑️ Attempting to delete item:', itemId);
+    const itemToDelete = currentCart.find(item => item.id === itemId);
+    console.log('Item found:', itemToDelete);
+    
+    if (itemToDelete) {
+      const newCart = currentCart.filter(item => item.id !== itemId);
+      console.log('New cart after deletion:', newCart);
+      setCurrentCart(newCart);
+    } else {
+      console.error('❌ Item not found in cart!');
+    }
+  };
+
+  // Debug useEffect to expose cart debugging functions
+  useEffect(() => {
+    // Expose debug function to window for testing
+    if (typeof window !== 'undefined') {
+      window.debugCart = {
+        showItems: () => {
+          console.table(currentCart.map(item => ({
+            id: item.id,
+            name: item.productName,
+            quantity: item.quantity
+          })));
+        },
+        deleteItem: (itemId) => debugDeleteItem(itemId),
+        clearCart: () => setCurrentCart([]),
+        getItem: (index) => currentCart[index]
+      };
+    }
+  }, [currentCart]);
+
+  // Dedicated delete handler with multiple ID checks
+  const handleDeleteItem = (itemId) => {
+    setCurrentCart(prevCart => {
+      const newCart = prevCart.filter(item => {
+        // Use multiple checks to ensure we're comparing the right field
+        const shouldKeep = item.id !== itemId && 
+                           item._id !== itemId && 
+                           item.productId !== itemId;
+        return shouldKeep;
+      });
+      
+      console.log(`🗑️ Deleted item ${itemId}. Cart went from ${prevCart.length} to ${newCart.length} items`);
+      return newCart;
+    });
   };
 
   return (
@@ -882,9 +947,11 @@ Or paste any grocery list directly!"
       {showResults && currentCart.length > 0 && (
         <>
           <ParsedResultsDisplay 
+            key={currentCart.length} // Force re-render when cart length changes
             items={currentCart} 
             currentUser={currentUser}
             onItemsChange={handleItemsChange}
+            onDeleteItem={handleDeleteItem} // Add dedicated delete handler
             parsingStats={parsingStats}
             savedRecipes={savedRecipes}
             setSavedRecipes={setSavedRecipes}

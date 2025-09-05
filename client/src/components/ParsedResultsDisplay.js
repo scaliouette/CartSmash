@@ -7,7 +7,7 @@ import ProductValidator from './ProductValidator';
 
 
 
-function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats, savedRecipes, setSavedRecipes }) {
+function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser, parsingStats, savedRecipes, setSavedRecipes }) {
   const isDev = process.env.NODE_ENV !== 'production';
   const recipeLogOnceRef = useRef(false);
   const [recipeExpanded, setRecipeExpanded] = useState(false);
@@ -46,7 +46,6 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
   const [showStats, setShowStats] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [showInstacart, setShowInstacart] = useState(false);
   const [showKroger, setShowKroger] = useState(false);
   const [updatingItems, setUpdatingItems] = useState(new Set());
   const [fetchingPrices, setFetchingPrices] = useState(new Set());
@@ -720,12 +719,25 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
   };
 
   const handleRemoveItem = async (itemId) => {
+    console.log('🗑️ handleRemoveItem called with ID:', itemId);
+    console.log('📋 Current items:', items.map(item => ({id: item.id, name: item.productName})));
+    
     setUpdatingItems(prev => new Set([...prev, itemId]));
     
     try {
-      // Remove from local state immediately
-      const updatedItems = items.filter(item => item.id !== itemId);
-      onItemsChange(updatedItems);
+      // If parent provided onDeleteItem handler, use it (more robust)
+      if (onDeleteItem && typeof onDeleteItem === 'function') {
+        console.log('✅ Using parent onDeleteItem handler');
+        onDeleteItem(itemId);
+      } else {
+        console.log('✅ Using local onItemsChange handler');
+        // Remove from local state immediately
+        const updatedItems = items.filter(item => item.id !== itemId);
+        onItemsChange(updatedItems);
+        
+        // Update localStorage
+        localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+      }
       
       // Clear any ongoing price fetch for this item
       setFetchingPrices(prev => {
@@ -734,12 +746,9 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
         return newSet;
       });
       
-      // Update localStorage
-      localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
-      
-      console.log(`✅ Removed item ${itemId} from shopping list display`);
+      console.log(`✅ Successfully removed item ${itemId} from shopping list display`);
     } catch (error) {
-      console.error('Error removing item from display:', error);
+      console.error('❌ Error removing item from display:', error);
     } finally {
       setUpdatingItems(prev => {
         const newSet = new Set(prev);
@@ -1294,29 +1303,8 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
         
       </div>
 
-      {/* Primary Checkout Action */}
-      <div style={styles.checkoutSection}>
-        <button
-          onClick={() => setShowInstacart(true)}
-          style={styles.checkoutBtn}
-        >
-          🛍️ Continue to Check Out
-        </button>
-      </div>
 
 
-      {/* Instacart Modal */}
-      {showInstacart && (
-        <EnhancedInstacartModal
-          items={items}
-          currentUser={currentUser}
-          onClose={() => setShowInstacart(false)}
-          onOpenKroger={() => {
-            setShowInstacart(false);
-            setShowKroger(true);
-          }}
-        />
-      )}
 
       {/* Kroger Modal */}
       {showKroger && (
@@ -1382,196 +1370,6 @@ function ParsedResultsDisplay({ items, onItemsChange, currentUser, parsingStats,
   );
 }
 
-// Enhanced Instacart Modal Function
-function EnhancedInstacartModal({ items, onClose, currentUser }) {
-  const [selectedStore, setSelectedStore] = useState('safeway');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showKrogerFlow, setShowKrogerFlow] = useState(false);
-
-  const stores = [
-    { 
-      id: 'kroger', 
-      name: 'Kroger', 
-      logo: '🛒', 
-      fee: 'Direct', 
-      minOrder: 0,
-      isNative: true,
-      description: 'Send directly to Kroger cart'
-    },
-    { id: 'safeway', name: 'Safeway', logo: '🏪', fee: '$4.99', minOrder: 35 },
-    { id: 'wholefoods', name: 'Whole Foods', logo: '🌿', fee: '$4.99', minOrder: 35 },
-    { id: 'costco', name: 'Costco', logo: '📦', fee: 'Free', minOrder: 0, membership: true },
-    { id: 'target', name: 'Target', logo: '🎯', fee: '$5.99', minOrder: 35 },
-    { id: 'walmart', name: 'Walmart', logo: '🏬', fee: '$7.95', minOrder: 35 }
-  ];
-
-  const selectedStoreInfo = stores.find(s => s.id === selectedStore);
-
-  const handleStoreClick = (store) => {
-    if (store.id === 'kroger') {
-      setShowKrogerFlow(true);
-    } else {
-      setSelectedStore(store.id);
-    }
-  };
-
-  if (showKrogerFlow) {
-    return (
-      <KrogerOrderFlow
-        cartItems={items}
-        currentUser={currentUser}
-        onClose={onClose}
-      />
-    );
-  }
-
-  const handleProceed = () => {
-    setIsProcessing(true);
-
-    const listText = items.map(item => 
-      `${item.quantity || 1} ${item.unit || ''} ${item.productName || item.itemName}`
-    ).join('\n');
-    
-    setTimeout(() => {
-      navigator.clipboard.writeText(listText).then(() => {
-        window.open('https://www.instacart.com/', '_blank');
-        alert('Your list has been copied! Select your store on Instacart and paste your list.');
-        onClose();
-      });
-    }, 800);
-  };
-
-  const estimatedTotal = items.reduce((sum, item) => {
-    const avgPrice = 3.99;
-    const each = (item.realPrice ?? avgPrice) * (item.quantity || 1);
-    return sum + each;
-  }, 0);
-
-  return (
-    <div style={styles.modalOverlay} onClick={onClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} style={styles.closeBtn}>×</button>
-
-        <h2 style={styles.modalTitle}>
-          <span style={{ fontSize: '28px' }}>🛍️</span>
-          Choose Your Store
-        </h2>
-
-        <div style={styles.storeGrid}>
-          {stores.map(store => (
-            <div
-              key={store.id}
-              onClick={() => handleStoreClick(store)}
-              style={{
-                ...styles.storeCard,
-                ...(selectedStore === store.id && store.id !== 'kroger' ? styles.storeCardActive : {}),
-                ...(store.id === 'kroger' ? {
-                  background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
-                  color: 'white',
-                  cursor: 'pointer',
-                  position: 'relative',
-                  transform: 'scale(1.05)',
-                  boxShadow: '0 4px 15px rgba(251,79,20,0.3)'
-                } : {})
-              }}
-            >
-              <div style={{
-                ...styles.storeLogo,
-                ...(store.id === 'kroger' ? { fontSize: '32px' } : {})
-              }}>
-                {store.logo}
-              </div>
-              <div style={{
-                ...styles.storeName,
-                ...(store.id === 'kroger' ? { color: 'white', fontWeight: 'bold' } : {})
-              }}>
-                {store.name}
-              </div>
-              <div style={{
-                ...styles.storeFee,
-                ...(store.id === 'kroger' ? { color: '#FFE5D9' } : {})
-              }}>
-                {store.fee}
-              </div>
-              {store.membership && (
-                <div style={styles.membershipBadge}>Membership</div>
-              )}
-              {store.isNative && (
-                <div style={{
-                  position: 'absolute',
-                  top: '4px',
-                  right: '4px',
-                  background: 'rgba(255,255,255,0.9)',
-                  color: '#FB4F14',
-                  fontSize: '10px',
-                  padding: '3px 6px',
-                  borderRadius: '4px',
-                  fontWeight: 'bold'
-                }}>
-                  API
-                </div>
-              )}
-              {store.id === 'kroger' && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: '8px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  fontSize: '11px',
-                  color: '#FFE5D9',
-                  whiteSpace: 'nowrap'
-                }}>
-                  Click to Connect
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div style={styles.orderSummary}>
-          <h3 style={styles.summaryTitle}>Your Cart</h3>
-          <div style={styles.summaryRow}>
-            <span>Items</span>
-            <span>{items.length}</span>
-          </div>
-          <div style={styles.summaryRow}>
-            <span>Est. Total</span>
-            <span>${estimatedTotal.toFixed(2)}</span>
-          </div>
-        </div>
-
-        {selectedStore !== 'kroger' && (
-          <>
-            <div style={styles.modalActions}>
-              <button
-                onClick={handleProceed}
-                disabled={isProcessing}
-                style={styles.proceedBtn}
-              >
-                {isProcessing ? '⏳ Opening Instacart...' : `📋 Copy List & Open Instacart`}
-              </button>
-            </div>
-            <p style={styles.disclaimer}>
-              Select {selectedStoreInfo?.name} on Instacart and paste your list
-            </p>
-          </>
-        )}
-
-        <div style={{
-          marginTop: '20px',
-          padding: '12px',
-          backgroundColor: '#FFF5F2',
-          borderRadius: '8px',
-          fontSize: '13px',
-          color: '#002244'
-        }}>
-          <strong>🛒 Kroger:</strong> Direct API integration - sends items directly to your Kroger cart<br/>
-          <strong>🛍️ Other Stores:</strong> Copies your list to clipboard for use with Instacart
-        </div>
-      </div>
-    </div>
-  );
-}
 
 const styles = {
   container: {
@@ -2260,174 +2058,7 @@ const styles = {
     cursor: 'pointer'
   },
 
-  checkoutSection: {
-    marginTop: '20px',
-    padding: '0',
-    textAlign: 'center'
-  },
 
-  checkoutBtn: {
-    width: '100%',
-    padding: '16px 24px',
-    background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(251,79,20,0.25)',
-    transition: 'all 0.2s'
-  },
-
-  // Modal styles
-  modalOverlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0, 2, 68, 0.7)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 4000,
-    backdropFilter: 'blur(2px)'
-  },
-
-  modal: {
-    background: 'white',
-    borderRadius: '20px',
-    width: '600px',
-    maxWidth: '90vw',
-    maxHeight: '90vh',
-    overflow: 'auto',
-    padding: '28px',
-    position: 'relative',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-    border: '3px solid #002244'
-  },
-
-  closeBtn: {
-    position: 'absolute',
-    top: '12px',
-    right: '12px',
-    width: '32px',
-    height: '32px',
-    background: '#002244',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '20px',
-    cursor: 'pointer'
-  },
-
-  modalTitle: {
-    fontSize: '22px',
-    fontWeight: 'bold',
-    color: '#002244',
-    marginBottom: '20px',
-    textAlign: 'center',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '10px'
-  },
-
-  storeGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '10px',
-    marginBottom: '20px'
-  },
-
-  storeCard: {
-    padding: '14px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    textAlign: 'center',
-    position: 'relative'
-  },
-
-  storeCardActive: {
-    borderColor: '#FB4F14',
-    background: '#FFF5F2'
-  },
-
-  storeLogo: {
-    fontSize: '28px',
-    marginBottom: '6px'
-  },
-
-  storeName: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#002244',
-    marginBottom: '2px'
-  },
-
-  storeFee: {
-    fontSize: '12px',
-    color: '#6b7280'
-  },
-
-  membershipBadge: {
-    position: 'absolute',
-    top: '6px',
-    right: '6px',
-    background: '#FB4F14',
-    color: 'white',
-    fontSize: '10px',
-    padding: '2px 6px',
-    borderRadius: '4px',
-    fontWeight: 'bold'
-  },
-
-  orderSummary: {
-    background: '#FFF5F2',
-    padding: '14px',
-    borderRadius: '12px',
-    marginBottom: '18px'
-  },
-
-  summaryTitle: {
-    fontSize: '15px',
-    fontWeight: '600',
-    color: '#002244',
-    marginBottom: '10px'
-  },
-
-  summaryRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '6px 0',
-    fontSize: '14px',
-    color: '#6b7280'
-  },
-
-  modalActions: {
-    display: 'flex',
-    gap: '10px'
-  },
-
-  proceedBtn: {
-    flex: 1,
-    padding: '14px',
-    background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    fontSize: '15px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(251,79,20,0.3)'
-  },
-
-  disclaimer: {
-    textAlign: 'center',
-    fontSize: '12px',
-    color: '#9ca3af',
-    marginTop: '12px'
-  },
 
   // List creator modal styles
   listCreatorModal: {
