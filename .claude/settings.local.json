@@ -247,7 +247,15 @@
       "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\styles/**)",
       "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\styles/**)",
       "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\contexts/**)",
-      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\server\\routes/**)"
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\server\\routes/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client/**)"
     ],
     "deny": [],
     "ask": []

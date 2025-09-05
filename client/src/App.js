@@ -32,6 +32,14 @@ console.groupEnd();
 // Main App Component
 function App() {
   console.log('🚀 App component initializing...');
+
+  // 🔒 Single Source of Truth for the cart:
+  // 'firestore' (default) | 'local' (only use 'local' for offline demos)
+  const CART_AUTHORITY = process.env.REACT_APP_CART_AUTHORITY || 'firestore';
+  const AUTOSAVE_ENABLED = (process.env.REACT_APP_CART_AUTOSAVE || 'true') !== 'false';
+  
+  console.log('🔑 Cart Authority:', CART_AUTHORITY);
+  console.log('💾 Auto-save Enabled:', AUTOSAVE_ENABLED);
   
   const [currentView, setCurrentView] = useState('home');
   
@@ -98,10 +106,18 @@ function AppContent({
         cartItemNames: loadedCart.map(item => item.productName),
         lists: loadedLists.length,
         recipes: loadedRecipes.length,
-        mealPlans: loadedMealPlans.length
+        mealPlans: loadedMealPlans.length,
+        cartAuthority: CART_AUTHORITY
       });
       
-      setCurrentCart(loadedCart);
+      // ⛔ Do NOT hydrate the cart from localStorage unless authority = 'local'
+      if (CART_AUTHORITY === 'local') {
+        setCurrentCart(loadedCart);
+        console.log('📱 Using localStorage as cart authority');
+      } else {
+        console.log('🔒 Firestore is cart authority - skipping localStorage cart restoration');
+      }
+      
       setSavedLists(loadedLists);
       setSavedRecipes(loadedRecipes);
       setMealPlans(loadedMealPlans);
@@ -125,10 +141,12 @@ function AppContent({
         userDataService.getMealPlans().catch(() => [])
       ]);
       
-      // Only load current cart from Firebase if we don't have one locally
-      if (firebaseLists.length > 0 && firebaseLists[0].items && currentCartRef.current.length === 0) {
+      // ⚠️ Load current cart from Firestore ONLY if Firestore is the cart authority
+      if (CART_AUTHORITY === 'firestore' && firebaseLists.length > 0 && firebaseLists[0].items) {
         setCurrentCart(firebaseLists[0].items);
-        console.log('📱 Loaded current cart from Firebase:', firebaseLists[0].items.length, 'items');
+        console.log('🔥 Firestore is cart authority - loaded current cart:', firebaseLists[0].items.length, 'items');
+      } else if (CART_AUTHORITY === 'local') {
+        console.log('📱 Local storage is cart authority - skipping Firestore cart load');
       }
       
       setSavedLists(firebaseLists);
@@ -166,6 +184,12 @@ function AppContent({
   const saveCartToFirebase = useCallback(async () => {
     if (!currentUser || currentCart.length === 0) return;
     
+    // ⚠️ Only auto-save if explicitly enabled
+    if (!AUTOSAVE_ENABLED) {
+      console.log('🚫 Auto-save disabled - skipping Firebase save');
+      return;
+    }
+    
     try {
       // Auto-save current cart as a list
       const autoSaveList = {
@@ -179,17 +203,22 @@ function AppContent({
       await userDataService.saveParsedList(autoSaveList);
       console.log('✅ Cart auto-saved to Firebase');
       
-      // Also save to localStorage as backup
-      localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
+      // Also save to localStorage as backup ONLY if localStorage is cart authority
+      if (CART_AUTHORITY === 'local') {
+        localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
+        console.log('💾 Cart also saved to localStorage (authority)');
+      }
       
     } catch (error) {
       console.error('Error saving cart to Firebase:', error);
-      // Fallback to localStorage on error
-      try {
-        localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
-        console.log('💾 Cart saved locally as fallback');
-      } catch (localError) {
-        console.error('Local save also failed:', localError);
+      // Fallback to localStorage on error ONLY if localStorage is cart authority
+      if (CART_AUTHORITY === 'local') {
+        try {
+          localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
+          console.log('💾 Cart saved locally as fallback');
+        } catch (localError) {
+          console.error('Local save also failed:', localError);
+        }
       }
     }
   }, [currentUser, currentCart]);
@@ -251,12 +280,14 @@ function AppContent({
         // Update cart state
         setCurrentCart(data.cart);
         
-        // Immediately save to localStorage to persist during navigation
-        try {
-          localStorage.setItem('cartsmash-current-cart', JSON.stringify(data.cart));
-          console.log('💾 Recipe cart saved to localStorage during load');
-        } catch (error) {
-          console.error('Failed to save recipe cart to localStorage:', error);
+        // Only save to localStorage if it's the cart authority
+        if (CART_AUTHORITY === 'local') {
+          try {
+            localStorage.setItem('cartsmash-current-cart', JSON.stringify(data.cart));
+            console.log('💾 Recipe cart saved to localStorage (authority)');
+          } catch (error) {
+            console.error('Failed to save recipe cart to localStorage:', error);
+          }
         }
         
         // Navigate to home with small delay
@@ -291,12 +322,14 @@ function AppContent({
     // Update cart state
     setCurrentCart(newCart);
     
-    // Immediately save to localStorage to persist during navigation
-    try {
-      localStorage.setItem('cartsmash-current-cart', JSON.stringify(newCart));
-      console.log('💾 Cart saved to localStorage during list load');
-    } catch (error) {
-      console.error('Failed to save cart to localStorage:', error);
+    // Only save to localStorage if it's the cart authority
+    if (CART_AUTHORITY === 'local') {
+      try {
+        localStorage.setItem('cartsmash-current-cart', JSON.stringify(newCart));
+        console.log('💾 Cart saved to localStorage (authority) during list load');
+      } catch (error) {
+        console.error('Failed to save cart to localStorage:', error);
+      }
     }
     
     // Navigate to home and preserve cart

@@ -753,8 +753,8 @@ function GroceryListForm({
           console.log('🗑️ Cleared localStorage cart - refresh page to see effect');
         },
         updateLocalStorage: () => {
-          localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
-          console.log('💾 Updated localStorage with current cart state');
+          console.log('🚫 Cart localStorage writes disabled (Firestore is cart authority)');
+          console.log('💡 Cart authority system prevents localStorage cart writes');
         },
         compareWithLocalStorage: () => {
           const savedCart = localStorage.getItem('cartsmash-current-cart');
