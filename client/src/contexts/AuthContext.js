@@ -1,7 +1,7 @@
 // client/src/contexts/AuthContext.js
 // COMPLETE WORKING VERSION - NO CIRCULAR IMPORTS
 
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -77,7 +77,7 @@ export function AuthProvider({ children }) {
   ];
 
   // Check admin status function
-  const checkAdminStatus = async (user) => {
+  const checkAdminStatus = useCallback(async (user) => {
     if (!user) return false;
     
     try {
@@ -105,7 +105,7 @@ export function AuthProvider({ children }) {
       console.error('Error checking admin status:', error);
       return ADMIN_EMAILS.includes(user.email);
     }
-  };
+  }, []);
   
   // Email/Password Signup
   const signup = async (email, password, displayName = '') => {

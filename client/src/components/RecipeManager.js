@@ -1,5 +1,5 @@
 // client/src/components/RecipeManager.js - FIXED VERSION
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, onRecipeDelete, editingRecipe: initialEditingRecipe, initialTab = 'browse' }) {
@@ -24,7 +24,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
 
   useEffect(() => {
     loadRecipes();
-  }, [savedRecipes]);
+  }, [savedRecipes, loadRecipes]);
 
   // Handle initial editing recipe from props
   useEffect(() => {
@@ -39,7 +39,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
     }
   }, [initialEditingRecipe]);
 
-  const loadRecipes = async () => {
+  const loadRecipes = useCallback(async () => {
     setLoading(true);
     try {
       // First check localStorage
@@ -73,7 +73,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser?.uid]);
 
   const handleSaveRecipe = async (recipe = null) => {
     const recipeToSave = recipe || newRecipe;

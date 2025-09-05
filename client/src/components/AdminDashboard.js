@@ -147,7 +147,7 @@ function AdminDashboard({ onClose, currentUser }) {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [loadSystemHealth, loadRealtimeMetrics, loadUserActivity, loadUserAccounts]);
+  }, [loadSystemHealth, loadRealtimeMetrics, loadUserActivity, loadUserAccounts, currentUser?.email]);
 
   // Check access after all hooks are declared
   if (!currentUser || !currentUser.isAdmin) {
