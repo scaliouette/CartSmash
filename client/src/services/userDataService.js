@@ -42,8 +42,17 @@ class UserDataService {
 
     try {
       const listRef = doc(this.db, 'users', this.userId, 'lists', list.id || 'current-cart');
+      
+      // Filter out undefined values to prevent Firestore errors
+      const cleanList = Object.entries(list).reduce((clean, [key, value]) => {
+        if (value !== undefined) {
+          clean[key] = value;
+        }
+        return clean;
+      }, {});
+      
       await setDoc(listRef, {
-        ...list,
+        ...cleanList,
         userId: this.userId,
         updatedAt: new Date().toISOString()
       }, { merge: true });

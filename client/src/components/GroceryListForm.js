@@ -429,27 +429,32 @@ function GroceryListForm({
           // Generate a truly unique ID using timestamp + random string
           const uniqueId = item.id || item._id || `item_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
           
-          return {
-          id: uniqueId,
-          productName: item.productName || item.itemName || item.name || '',
-          quantity: typeof item.quantity === 'number' && !Number.isNaN(item.quantity) ? item.quantity : 1,
-          unit: item.unit || 'each',
-          category: item.category || 'other',
-          confidence: typeof item.confidence === 'number' ? item.confidence : 0.7,
-          realPrice: item.realPrice,
-          salePrice: item.salePrice,
-          availability: item.availability,
-          upc: item.upc,
-          productId: item.productId,
-          krogerProduct: item.krogerProduct,
-          matchedName: item.matchedName,
-          brand: item.brand,
-          size: item.size,
-          storeId: item.storeId,
-          original: item.original,
-          // Store recipe only on first item to avoid duplication
-          ...(index === 0 ? { _sourceRecipe: listText } : {})
+          // Create clean item without undefined values
+          const cleanItem = {
+            id: uniqueId,
+            productName: item.productName || item.itemName || item.name || '',
+            quantity: typeof item.quantity === 'number' && !Number.isNaN(item.quantity) ? item.quantity : 1,
+            unit: item.unit || 'each',
+            category: item.category || 'other',
+            confidence: typeof item.confidence === 'number' ? item.confidence : 0.7,
+            // Store recipe only on first item to avoid duplication
+            ...(index === 0 ? { _sourceRecipe: listText } : {})
           };
+          
+          // Only add optional fields if they have valid values
+          if (item.realPrice !== undefined && item.realPrice !== null) cleanItem.realPrice = item.realPrice;
+          if (item.salePrice !== undefined && item.salePrice !== null) cleanItem.salePrice = item.salePrice;
+          if (item.availability !== undefined && item.availability !== null) cleanItem.availability = item.availability;
+          if (item.upc !== undefined && item.upc !== null) cleanItem.upc = item.upc;
+          if (item.productId !== undefined && item.productId !== null) cleanItem.productId = item.productId;
+          if (item.krogerProduct !== undefined && item.krogerProduct !== null) cleanItem.krogerProduct = item.krogerProduct;
+          if (item.matchedName !== undefined && item.matchedName !== null) cleanItem.matchedName = item.matchedName;
+          if (item.brand !== undefined && item.brand !== null) cleanItem.brand = item.brand;
+          if (item.size !== undefined && item.size !== null) cleanItem.size = item.size;
+          if (item.storeId !== undefined && item.storeId !== null) cleanItem.storeId = item.storeId;
+          if (item.original !== undefined && item.original !== null) cleanItem.original = item.original;
+          
+          return cleanItem;
         });
         
         // Debug logging before cart update
@@ -946,8 +951,7 @@ Or paste any grocery list directly!"
 
       {showResults && currentCart.length > 0 && (
         <>
-          <ParsedResultsDisplay 
-            key={currentCart.length} // Force re-render when cart length changes
+          <ParsedResultsDisplay
             items={currentCart} 
             currentUser={currentUser}
             onItemsChange={handleItemsChange}
