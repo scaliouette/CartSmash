@@ -1,707 +1,564 @@
 // client/src/components/InstacartCheckoutFlow.js
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ShoppingCart, MapPin, Store, AlertCircle, CheckCircle, Loader2, ExternalLink, Search, Package, X } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useEffect } from 'react';
 
 const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
-  const { currentUser } = useAuth();
-  
-  // Main state
-  const [currentStep, setCurrentStep] = useState('retailer');
-  const [selectedRetailer, setSelectedRetailer] = useState(null);
+  const [currentStep, setCurrentStep] = useState('store');
+  const [selectedStore, setSelectedStore] = useState(null);
   const [zipCode, setZipCode] = useState('');
-  const [matchedProducts, setMatchedProducts] = useState([]);
-  const [lowConfidenceItems, setLowConfidenceItems] = useState([]);
-  const [currentConfirmIndex, setCurrentConfirmIndex] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState('');
-  const [error, setError] = useState(null);
-  const [estimatedTotal, setEstimatedTotal] = useState(0);
-  const [retailers, setRetailers] = useState([]);
-  const [userPreferences, setUserPreferences] = useState({});
+  const [matchedProducts, setMatchedProducts] = useState([]);
+  const [stores, setStores] = useState([]);
+  const [searchingStores, setSearchingStores] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
 
-  // API URL
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
-  // Load user preferences on mount
+  // Debug logging
   useEffect(() => {
-    const loadUserPreferences = async () => {
-      try {
-        // Load from localStorage first
-        const savedPrefs = localStorage.getItem(`cartsmash-instacart-prefs-${currentUser?.uid || 'guest'}`);
-        if (savedPrefs) {
-          const prefs = JSON.parse(savedPrefs);
-          setUserPreferences(prefs);
-          if (prefs.zipCode) setZipCode(prefs.zipCode);
-          if (prefs.preferredRetailer) setSelectedRetailer(prefs.preferredRetailer);
-        }
-
-        // Load available retailers for the user's location
-        if (currentUser) {
-          const response = await fetch(`${API_URL}/api/instacart/retailers`, {
-            headers: {
-              'Authorization': `Bearer ${currentUser.accessToken}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            setRetailers(data.retailers || []);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading user preferences:', error);
-        // Fallback to default retailers
-        setRetailers([
-          { id: 'safeway', name: 'Safeway', logo: '🏪', estimatedDelivery: '2 hours' },
-          { id: 'whole_foods', name: 'Whole Foods', logo: '🥬', estimatedDelivery: '1-2 hours' },
-          { id: 'costco', name: 'Costco', logo: '📦', estimatedDelivery: 'Same day' },
-          { id: 'kroger', name: 'Kroger', logo: '🛒', estimatedDelivery: '2-3 hours' },
-          { id: 'target', name: 'Target', logo: '🎯', estimatedDelivery: '2 hours' }
-        ]);
-      }
-    };
-
-    loadUserPreferences();
-  }, [currentUser, API_URL]);
-
-  // Save user preferences
-  const saveUserPreferences = useCallback((prefs) => {
-    const updatedPrefs = { ...userPreferences, ...prefs };
-    setUserPreferences(updatedPrefs);
-    localStorage.setItem(
-      `cartsmash-instacart-prefs-${currentUser?.uid || 'guest'}`, 
-      JSON.stringify(updatedPrefs)
-    );
-  }, [userPreferences, currentUser]);
-
-  // Search products using real API
-  const searchProducts = async (cartItem, retailerId) => {
-    try {
-      const response = await fetch(`${API_URL}/api/instacart/search`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(currentUser && { 'Authorization': `Bearer ${currentUser.accessToken}` })
-        },
-        body: JSON.stringify({
-          query: `${cartItem.productName} ${cartItem.unit}`,
-          retailerId,
-          zipCode,
-          quantity: cartItem.quantity,
-          category: cartItem.category,
-          originalItem: cartItem
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Search failed: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.products || [];
-    } catch (error) {
-      console.error('Error searching products:', error);
-      return [];
-    }
-  };
-
-  // Process all cart items and match products
-  const processItemMatching = async () => {
-    setCurrentStep('matching');
-    setIsProcessing(true);
-    setError(null);
-    
-    try {
-      const matched = [];
-      const needsConfirmation = [];
-      let runningTotal = 0;
-      
-      // Process each cart item
-      for (const cartItem of currentCart) {
-        console.log(`🔍 Searching for: ${cartItem.productName} (${cartItem.quantity} ${cartItem.unit})`);
-        
-        const matches = await searchProducts(cartItem, selectedRetailer.id);
-        
-        if (matches.length > 0) {
-          const bestMatch = matches[0];
-          
-          if (bestMatch.confidence >= 0.7) {
-            // High confidence - auto-match
-            const matchedItem = {
-              cartItem,
-              product: bestMatch,
-              autoMatched: true
-            };
-            matched.push(matchedItem);
-            runningTotal += bestMatch.price * cartItem.quantity;
-            
-            console.log(`✅ Auto-matched: ${cartItem.productName} → ${bestMatch.name} (${Math.round(bestMatch.confidence * 100)}% confidence)`);
-          } else {
-            // Low confidence - needs user confirmation
-            needsConfirmation.push({
-              cartItem,
-              candidates: matches.slice(0, 3) // Top 3 matches
-            });
-            
-            console.log(`⚠️ Needs confirmation: ${cartItem.productName} (${Math.round(matches[0].confidence * 100)}% confidence)`);
-          }
-        } else {
-          // No matches found
-          needsConfirmation.push({
-            cartItem,
-            candidates: []
-          });
-          
-          console.log(`❌ No matches found for: ${cartItem.productName}`);
-        }
-      }
-      
-      setMatchedProducts(matched);
-      setLowConfidenceItems(needsConfirmation);
-      setEstimatedTotal(runningTotal);
-      
-      console.log(`📊 Matching complete: ${matched.length} auto-matched, ${needsConfirmation.length} need confirmation`);
-      
-      // Move to confirmation step if needed, otherwise create cart
-      if (needsConfirmation.length > 0) {
-        setCurrentStep('confirming');
-        setCurrentConfirmIndex(0);
-      } else {
-        await createInstacartCart(matched);
-      }
-    } catch (err) {
-      setError('Failed to match products. Please try again.');
-      console.error('Product matching error:', err);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Handle user confirmation of low-confidence matches
-  const confirmProduct = (product) => {
-    const currentItem = lowConfidenceItems[currentConfirmIndex];
-    const newMatch = {
-      cartItem: currentItem.cartItem,
-      product: product,
-      userConfirmed: true
-    };
-    
-    const updatedMatched = [...matchedProducts, newMatch];
-    setMatchedProducts(updatedMatched);
-    setEstimatedTotal(prev => prev + (product.price * currentItem.cartItem.quantity));
-    
-    console.log(`✅ User confirmed: ${currentItem.cartItem.productName} → ${product.name}`);
-    
-    // Move to next item or complete
-    if (currentConfirmIndex < lowConfidenceItems.length - 1) {
-      setCurrentConfirmIndex(currentConfirmIndex + 1);
-    } else {
-      // All items confirmed, create cart
-      createInstacartCart(updatedMatched);
-    }
-  };
-
-  // Skip item (remove from cart)
-  const skipItem = () => {
-    const currentItem = lowConfidenceItems[currentConfirmIndex];
-    console.log(`⏭️ User skipped: ${currentItem.cartItem.productName}`);
-    
-    if (currentConfirmIndex < lowConfidenceItems.length - 1) {
-      setCurrentConfirmIndex(currentConfirmIndex + 1);
-    } else {
-      // All items processed, create cart
-      createInstacartCart(matchedProducts);
-    }
-  };
-
-  // Create Instacart cart via real API
-  const createInstacartCart = async (finalMatches) => {
-    setCurrentStep('creating');
-    setIsProcessing(true);
-    
-    try {
-      console.log(`🛒 Creating Instacart cart with ${finalMatches.length} items`);
-      
-      // Prepare cart items for API
-      const cartItemsForAPI = finalMatches.map(match => ({
-        retailer_sku: match.product.sku || match.product.id,
-        quantity: match.cartItem.quantity,
-        price: match.product.price,
-        product_name: match.product.name,
-        original_item: {
-          name: match.cartItem.productName,
-          category: match.cartItem.category,
-          confidence: match.product.confidence
-        }
-      }));
-      
-      const response = await fetch(`${API_URL}/api/instacart/cart/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(currentUser && { 'Authorization': `Bearer ${currentUser.accessToken}` })
-        },
-        body: JSON.stringify({
-          retailerId: selectedRetailer.id,
-          zipCode,
-          items: cartItemsForAPI,
-          userId: currentUser?.uid,
-          metadata: {
-            source: 'CartSmash',
-            totalItems: finalMatches.length,
-            estimatedTotal: estimatedTotal
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Cart creation failed: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.success && data.checkoutUrl) {
-        setCheckoutUrl(data.checkoutUrl);
-        setCurrentStep('complete');
-        
-        console.log(`✅ Cart created successfully: ${data.cartId}`);
-        
-        // Save successful integration for future use
-        saveUserPreferences({
-          lastSuccessfulRetailer: selectedRetailer,
-          lastOrderDate: new Date().toISOString()
-        });
-      } else {
-        throw new Error(data.error || 'Failed to create cart');
-      }
-    } catch (err) {
-      setError('Failed to create Instacart cart. Please try again.');
-      console.error('Cart creation error:', err);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Handle retailer selection and continue
-  const handleRetailerContinue = () => {
-    if (!selectedRetailer || !zipCode || zipCode.length !== 5) {
-      setError('Please select a retailer and enter a valid ZIP code');
-      return;
-    }
-
-    if (!currentCart || currentCart.length === 0) {
-      setError('Your cart is empty. Please add items before continuing.');
-      return;
-    }
-
-    setError(null);
-    
-    // Save preferences
-    saveUserPreferences({
-      zipCode,
-      preferredRetailer: selectedRetailer
+    console.log('🛒 InstacartCheckoutFlow - Cart received:', {
+      itemCount: currentCart?.length || 0,
+      items: currentCart?.map(item => ({
+        id: item.id,
+        name: item.productName,
+        hasId: !!item.id,
+        type: typeof item.id,
+        fullItem: item
+      })) || []
     });
     
-    processItemMatching();
-  };
+    // Expose debug tools
+    window.checkoutDebug = {
+      cart: currentCart,
+      inspectItems: () => {
+        console.table(currentCart?.map(item => ({
+          id: item.id,
+          name: item.productName,
+          quantity: item.quantity,
+          hasUndefined: Object.values(item).includes(undefined)
+        })));
+      },
+      findProblematicItems: () => {
+        const problematic = currentCart?.filter(item => 
+          !item.id || item.id === undefined || item.id === null
+        ) || [];
+        console.log('🚨 Problematic items:', problematic);
+        return problematic;
+      }
+    };
+  }, [currentCart]);
 
-  // Close modal
-  const handleClose = () => {
-    if (onClose) {
-      onClose();
+  const availableStores = [
+    { id: 'kroger', name: 'Kroger', logo: '🛒', price: null, special: 'Click to Connect', featured: true },
+    { id: 'safeway', name: 'Safeway', logo: '🏪', price: '$4.99', hasAPI: true },
+    { id: 'whole-foods', name: 'Whole Foods', logo: '🌿', price: '$4.99' },
+    { id: 'costco', name: 'Costco', logo: '📦', price: 'Free', membership: true },
+    { id: 'target', name: 'Target', logo: '🎯', price: '$5.99' },
+    { id: 'walmart', name: 'Walmart', logo: '🏬', price: '$7.95' }
+  ];
+
+  const handleZipSearch = () => {
+    if (zipCode.length === 5) {
+      setSearchingStores(true);
+      setTimeout(() => {
+        setStores(availableStores);
+        setSearchingStores(false);
+      }, 1000);
     }
   };
 
-  // Render different steps
-  const renderRetailerSelection = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold mb-2" style={{color: '#002244'}}>Choose Your Store</h2>
-        <p className="text-gray-600">Select where you'd like to shop and have your groceries delivered from</p>
-      </div>
-
-      {/* ZIP Code Input */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Delivery ZIP Code
-        </label>
-        <div className="relative">
-          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            maxLength="5"
-            value={zipCode}
-            onChange={(e) => setZipCode(e.target.value.replace(/\D/g, ''))}
-            placeholder="Enter ZIP code"
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          />
-        </div>
-      </div>
-
-      {/* Retailer Grid */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          Available Stores
-        </label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {retailers.map(retailer => (
-            <button
-              key={retailer.id}
-              onClick={() => setSelectedRetailer(retailer)}
-              className="p-4 border-2 rounded-lg transition-all"
-            style={{
-              borderColor: selectedRetailer?.id === retailer.id ? '#FB4F14' : '#E5E7EB',
-              backgroundColor: selectedRetailer?.id === retailer.id ? '#FFF5F2' : 'white'
-            }}
-            >
-              <div className="flex items-start space-x-3">
-                <div className="text-2xl">{retailer.logo}</div>
-                <div className="flex-1 text-left">
-                  <div className="font-semibold text-gray-900">{retailer.name}</div>
-                  <div className="text-sm text-gray-500">{retailer.estimatedDelivery}</div>
-                </div>
-                {selectedRetailer?.id === retailer.id && (
-                  <CheckCircle className="w-5 h-5" style={{color: '#FB4F14'}} />
-                )}
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Cart Preview */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <div className="flex items-center justify-between mb-3">
-          <span className="font-medium text-gray-900">Your Cart Items</span>
-          <span className="text-sm text-gray-500">{currentCart?.length || 0} items</span>
-        </div>
-        <div className="space-y-2 max-h-40 overflow-y-auto">
-          {(currentCart || []).slice(0, 5).map(item => (
-            <div key={item.id} className="text-sm text-gray-600 flex justify-between">
-              <span>• {item.productName}</span>
-              <span className="text-gray-400">{item.quantity} {item.unit}</span>
-            </div>
-          ))}
-          {currentCart && currentCart.length > 5 && (
-            <div className="text-sm text-gray-400">
-              and {currentCart.length - 5} more items...
-            </div>
-          )}
-        </div>
-      </div>
-
-      {error && (
-        <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg">
-          <AlertCircle className="w-5 h-5" />
-          <span className="text-sm">{error}</span>
-        </div>
-      )}
-
-      <button
-        onClick={handleRetailerContinue}
-        disabled={!currentCart || currentCart.length === 0}
-        className="w-full py-3 px-6 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-        style={{
-          background: !currentCart || currentCart.length === 0 ? '#D1D5DB' : 'linear-gradient(135deg, #FB4F14 0%, #FF6B35 100%)'
-        }}
-      >
-        Continue to Match Products
-      </button>
-    </div>
-  );
-
-  const renderMatching = () => (
-    <div className="text-center py-12 space-y-6">
-      <Loader2 className="w-12 h-12 animate-spin mx-auto" style={{color: '#FB4F14'}} />
-      <div>
-        <h2 className="text-2xl font-bold mb-2" style={{color: '#002244'}}>Matching Your Items</h2>
-        <p className="text-gray-600">
-          Finding the best products at {selectedRetailer?.name}...
-        </p>
-      </div>
-      <div className="max-w-sm mx-auto">
-        <div className="bg-gray-200 rounded-full h-2">
-          <div className="h-2 rounded-full transition-all duration-500" style={{ backgroundColor: '#FB4F14', width: '60%' }} />
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderConfirmation = () => {
-    const currentItem = lowConfidenceItems[currentConfirmIndex];
-    
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold mb-2" style={{color: '#002244'}}>Confirm Product Match</h2>
-          <p className="text-gray-600">
-            Help us find the right product for "{currentItem.cartItem.productName}"
-          </p>
-        </div>
-
-        {/* Progress indicator */}
-        <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-          <span className="text-sm text-gray-600">
-            Item {currentConfirmIndex + 1} of {lowConfidenceItems.length}
-          </span>
-          <div className="flex space-x-1">
-            {lowConfidenceItems.map((_, idx) => (
-              <div
-                key={idx}
-                className="w-2 h-2 rounded-full"
-                style={{
-                  backgroundColor: idx <= currentConfirmIndex ? '#FB4F14' : '#D1D5DB'
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Product options */}
-        {currentItem.candidates.length > 0 ? (
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">
-              Select the correct product:
-            </label>
-            {currentItem.candidates.map(product => (
-              <button
-                key={product.id}
-                onClick={() => confirmProduct(product)}
-                className="w-full p-4 border-2 border-gray-200 rounded-lg transition-all text-left"
-                style={{
-                  '&:hover': {
-                    borderColor: '#FB4F14',
-                    backgroundColor: '#FFF5F2'
-                  }
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.borderColor = '#FB4F14';
-                  e.target.style.backgroundColor = '#FFF5F2';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.borderColor = '#E5E7EB';
-                  e.target.style.backgroundColor = 'white';
-                }}
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
-                    {product.image ? (
-                      <img src={product.image} alt={product.name} className="w-8 h-8 object-cover rounded" />
-                    ) : (
-                      <Package className="w-6 h-6 text-gray-400" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900">{product.name}</div>
-                    <div className="text-lg font-semibold" style={{color: '#FB4F14'}}>
-                      ${product.price?.toFixed(2) || 'N/A'}
-                    </div>
-                    {product.size && (
-                      <div className="text-sm text-gray-500">{product.size}</div>
-                    )}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {Math.round((product.confidence || 0) * 100)}% match
-                  </div>
-                </div>
-              </button>
-            ))}
-            
-            <button
-              onClick={skipItem}
-              className="w-full py-2 text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              Skip this item
-            </button>
-          </div>
-        ) : (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-              <div>
-                <p className="text-sm text-yellow-800">
-                  No matches found for this item at {selectedRetailer?.name}.
-                </p>
-                <button
-                  onClick={skipItem}
-                  className="mt-2 text-sm text-yellow-700 underline hover:text-yellow-900"
-                >
-                  Skip and continue
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
+  const handleContinue = () => {
+    if (currentStep === 'store' && selectedStore) {
+      setCurrentStep('match');
+      // Simulate matching products
+      setTimeout(() => {
+        setMatchedProducts(currentCart.map(item => ({
+          ...item,
+          matched: true,
+          instacartProduct: { name: item.productName, price: 5.99 }
+        })));
+      }, 500);
+    } else if (currentStep === 'match') {
+      setCurrentStep('complete');
+    }
   };
 
-  const renderCreating = () => (
-    <div className="text-center py-12 space-y-6">
-      <Loader2 className="w-12 h-12 animate-spin mx-auto" style={{color: '#FB4F14'}} />
-      <div>
-        <h2 className="text-2xl font-bold mb-2" style={{color: '#002244'}}>Creating Your Instacart Cart</h2>
-        <p className="text-gray-600">
-          Adding {matchedProducts.length} items to your cart at {selectedRetailer?.name}...
-        </p>
-      </div>
-      <div className="max-w-sm mx-auto">
-        <div className="bg-gray-200 rounded-full h-2">
-          <div className="h-2 rounded-full transition-all duration-500" style={{ backgroundColor: '#FB4F14', width: '90%' }} />
-        </div>
-      </div>
-    </div>
-  );
+  const handleFinalCheckout = () => {
+    setIsProcessing(true);
+    setTimeout(() => {
+      window.open('https://www.instacart.com', '_blank');
+      onClose();
+    }, 1500);
+  };
 
-  const renderComplete = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle className="w-8 h-8 text-green-600" />
-        </div>
-        <h2 className="text-2xl font-bold mb-2" style={{color: '#002244'}}>Cart Ready!</h2>
-        <p className="text-gray-600">
-          Your cart has been created with {matchedProducts.length} items
-        </p>
-      </div>
-
-      {/* Order Summary */}
-      <div className="bg-gray-50 rounded-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <span className="font-semibold text-gray-900">Order Summary</span>
-          <span className="text-sm text-gray-500">{selectedRetailer?.name}</span>
-        </div>
-        
-        <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
-          {matchedProducts.map((match, idx) => (
-            <div key={idx} className="flex justify-between text-sm">
-              <div className="flex items-start space-x-2 flex-1">
-                <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                  {match.product.image ? (
-                    <img src={match.product.image} alt={match.product.name} className="w-6 h-6 object-cover rounded" />
-                  ) : (
-                    <Package className="w-4 h-4 text-gray-400" />
-                  )}
-                </div>
-                <div>
-                  <div className="text-gray-900">{match.product.name}</div>
-                  <div className="text-gray-500">Qty: {match.cartItem.quantity}</div>
-                </div>
-              </div>
-              <div className="text-gray-900 font-medium">
-                ${((match.product.price || 0) * match.cartItem.quantity).toFixed(2)}
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        <div className="border-t pt-3">
-          <div className="flex justify-between">
-            <span className="font-semibold text-gray-900">Estimated Total</span>
-            <span className="text-xl font-bold text-gray-900">
-              ${estimatedTotal.toFixed(2)}
-            </span>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">
-            *Final price will be calculated at checkout with taxes and fees
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 2, 68, 0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000
+    }}>
+      <div style={{
+        width: '90%',
+        maxWidth: '800px',
+        maxHeight: '90vh',
+        backgroundColor: 'white',
+        borderRadius: '20px',
+        overflow: 'hidden',
+        boxShadow: '0 20px 60px rgba(0, 2, 68, 0.3)',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        {/* Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #002244 0%, #FB4F14 100%)',
+          padding: '32px',
+          color: 'white',
+          position: 'relative'
+        }}>
+          <button 
+            onClick={onClose} 
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              background: 'rgba(255, 255, 255, 0.2)',
+              border: 'none',
+              color: 'white',
+              fontSize: '24px',
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            ✕
+          </button>
+          <h1 style={{
+            fontSize: '32px',
+            fontWeight: 'bold',
+            margin: '0 0 8px 0',
+            textAlign: 'center'
+          }}>
+            CartSmash Checkout
+          </h1>
+          <p style={{
+            fontSize: '16px',
+            opacity: 0.95,
+            margin: 0,
+            textAlign: 'center'
+          }}>
+            Powered by CartSmash + Instacart
           </p>
         </div>
-      </div>
 
-      {/* Matched items breakdown */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <Package className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div className="text-sm">
-            <p className="text-blue-900 font-medium mb-1">Matching Summary</p>
-            <p className="text-blue-700">
-              ✓ {matchedProducts.filter(m => m.autoMatched).length} items auto-matched
-              {matchedProducts.filter(m => m.userConfirmed).length > 0 && (
-                <><br />✓ {matchedProducts.filter(m => m.userConfirmed).length} items confirmed by you</>
-              )}
-              {(currentCart?.length || 0) - matchedProducts.length > 0 && (
-                <><br />✗ {(currentCart?.length || 0) - matchedProducts.length} items skipped</>
-              )}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <button
-        onClick={() => window.open(checkoutUrl, '_blank')}
-        className="w-full py-4 px-6 text-white rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2"
-        style={{
-          background: 'linear-gradient(135deg, #FB4F14 0%, #FF6B35 100%)'
-        }}
-      >
-        <span>Continue to Instacart Checkout</span>
-        <ExternalLink className="w-5 h-5" />
-      </button>
-      
-      <p className="text-center text-sm text-gray-500">
-        You'll be redirected to Instacart to complete your purchase
-      </p>
-    </div>
-  );
-
-  // Main render
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="text-white p-6 relative" style={{background: 'linear-gradient(135deg, #002244, #FB4F14)'}}>
-          <button
-            onClick={handleClose}
-            className="absolute top-4 right-4 text-white hover:text-gray-200 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <div className="flex items-center space-x-3">
-            <ShoppingCart className="w-8 h-8" />
-            <div>
-              <h1 className="text-2xl font-bold">CartSmash Checkout</h1>
-              <p className="text-orange-100">Powered by CartSmash + Instacart</p>
+        {/* Progress Bar */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '60px',
+          padding: '20px 32px',
+          backgroundColor: '#FFF5F2',
+          borderBottom: '2px solid #FB4F14'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              backgroundColor: currentStep === 'store' ? '#FB4F14' : currentStep !== 'store' ? '#002244' : '#E5E5E5',
+              color: currentStep === 'store' || currentStep !== 'store' ? 'white' : '#999',
+              boxShadow: currentStep === 'store' ? '0 4px 12px rgba(251, 79, 20, 0.3)' : 'none'
+            }}>
+              {currentStep !== 'store' ? '✓' : '1'}
             </div>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#002244' }}>
+              Select Store
+            </span>
           </div>
-        </div>
-        
-        {/* Progress Steps */}
-        <div className="flex items-center justify-between px-6 py-4" style={{backgroundColor: '#FFF5F2', borderBottom: '2px solid #FB4F14'}}>
-          <div className={`flex items-center space-x-2 ${currentStep === 'retailer' ? 'text-orange-600' : 'text-gray-400'}`} style={{color: currentStep === 'retailer' ? '#FB4F14' : '#9CA3AF'}}>
-            <Store className="w-5 h-5" />
-            <span className="text-sm font-medium">Select Store</span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              backgroundColor: currentStep === 'match' ? '#FB4F14' : currentStep === 'complete' ? '#002244' : '#E5E5E5',
+              color: currentStep === 'match' || currentStep === 'complete' ? 'white' : '#999',
+              boxShadow: currentStep === 'match' ? '0 4px 12px rgba(251, 79, 20, 0.3)' : 'none'
+            }}>
+              {currentStep === 'complete' ? '✓' : '2'}
+            </div>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#002244' }}>
+              Match Items
+            </span>
           </div>
-          <div className="flex-1 h-1 bg-gray-200 mx-4">
-            <div className={`h-1 transition-all duration-500`} style={{ 
-              backgroundColor: currentStep !== 'retailer' ? '#FB4F14' : '#E5E7EB',
-              width: currentStep !== 'retailer' ? '100%' : '0%' 
-            }} />
-          </div>
-          <div className={`flex items-center space-x-2`} style={{color: ['matching', 'confirming'].includes(currentStep) ? '#FB4F14' : '#9CA3AF'}}>
-            <Search className="w-5 h-5" />
-            <span className="text-sm font-medium">Match Items</span>
-          </div>
-          <div className="flex-1 h-1 bg-gray-200 mx-4">
-            <div className={`h-1 transition-all duration-500`} style={{
-              backgroundColor: ['creating', 'complete'].includes(currentStep) ? '#FB4F14' : '#E5E7EB',
-              width: ['creating', 'complete'].includes(currentStep) ? '100%' : '0%'
-            }} />
-          </div>
-          <div className={`flex items-center space-x-2`} style={{color: currentStep === 'complete' ? '#FB4F14' : '#9CA3AF'}}>
-            <CheckCircle className="w-5 h-5" />
-            <span className="text-sm font-medium">Complete</span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              backgroundColor: currentStep === 'complete' ? '#FB4F14' : '#E5E5E5',
+              color: currentStep === 'complete' ? 'white' : '#999',
+              boxShadow: currentStep === 'complete' ? '0 4px 12px rgba(251, 79, 20, 0.3)' : 'none'
+            }}>
+              3
+            </div>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#002244' }}>
+              Complete
+            </span>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-          {currentStep === 'retailer' && renderRetailerSelection()}
-          {currentStep === 'matching' && renderMatching()}
-          {currentStep === 'confirming' && renderConfirmation()}
-          {currentStep === 'creating' && renderCreating()}
-          {currentStep === 'complete' && renderComplete()}
+        {/* Content */}
+        <div style={{ flex: 1, padding: '32px', overflowY: 'auto' }}>
+          {currentStep === 'store' && (
+            <>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#002244', marginBottom: '16px' }}>
+                Choose Your Store
+              </h2>
+              <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
+                Select where you'd like to shop and have your groceries delivered from
+              </p>
+
+              <div style={{ marginBottom: '32px' }}>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: '#002244', marginBottom: '8px' }}>
+                  Delivery ZIP Code
+                </div>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    placeholder="Enter ZIP code"
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      fontSize: '16px',
+                      border: '2px solid #002244',
+                      borderRadius: '8px',
+                      outline: 'none'
+                    }}
+                    maxLength="5"
+                  />
+                  <button 
+                    onClick={handleZipSearch} 
+                    style={{
+                      padding: '12px 24px',
+                      backgroundColor: '#FB4F14',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {searchingStores ? '...' : '🔍'}
+                  </button>
+                </div>
+              </div>
+
+              {stores.length > 0 && (
+                <>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#002244', marginBottom: '16px' }}>
+                    Available Stores
+                  </div>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                    gap: '12px',
+                    marginBottom: '24px'
+                  }}>
+                    {stores.map(store => (
+                      <div
+                        key={store.id}
+                        onClick={() => setSelectedStore(store)}
+                        style={{
+                          padding: '16px',
+                          borderRadius: '12px',
+                          border: '2px solid',
+                          borderColor: selectedStore?.id === store.id ? '#FB4F14' : '#E5E5E5',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          backgroundColor: store.featured ? '#FB4F14' : selectedStore?.id === store.id ? '#FFF5F2' : 'white',
+                          transform: selectedStore?.id === store.id ? 'scale(1.02)' : 'scale(1)',
+                          boxShadow: selectedStore?.id === store.id ? '0 4px 12px rgba(251, 79, 20, 0.2)' : 'none',
+                          transition: 'all 0.2s',
+                          position: 'relative'
+                        }}
+                      >
+                        {store.hasAPI && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '8px',
+                            right: '8px',
+                            backgroundColor: '#FF4444',
+                            color: 'white',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 'bold'
+                          }}>
+                            API
+                          </div>
+                        )}
+                        <div style={{ fontSize: '32px', marginBottom: '8px' }}>{store.logo}</div>
+                        <div style={{
+                          fontSize: '16px',
+                          fontWeight: 'bold',
+                          marginBottom: '4px',
+                          color: store.featured ? 'white' : '#002244'
+                        }}>
+                          {store.name}
+                        </div>
+                        <div style={{
+                          fontSize: '14px',
+                          color: store.featured ? 'white' : '#666'
+                        }}>
+                          {store.special || store.price}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div style={{
+                backgroundColor: '#FFF5F2',
+                borderRadius: '12px',
+                padding: '20px',
+                marginTop: '24px',
+                border: '2px solid #FB4F14'
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  marginBottom: '16px' 
+                }}>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#002244' }}>
+                    Your Cart Items ({currentCart.length})
+                  </div>
+                  <button
+                    onClick={() => setShowDebug(!showDebug)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      backgroundColor: showDebug ? '#FB4F14' : '#002244',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {showDebug ? 'Hide Debug' : 'Debug Items'}
+                  </button>
+                </div>
+                
+                {!showDebug ? (
+                  <div style={{ fontSize: '14px', color: '#333', lineHeight: '1.8' }}>
+                    {currentCart.slice(0, 5).map((item, idx) => (
+                      <div key={idx}>• {item.productName}</div>
+                    ))}
+                    {currentCart.length > 5 && (
+                      <div style={{ fontStyle: 'italic', marginTop: '8px' }}>
+                        ... and {currentCart.length - 5} more items
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{
+                    maxHeight: '300px',
+                    overflowY: 'auto',
+                    backgroundColor: 'white',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    padding: '12px'
+                  }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: '#666' }}>
+                      Debug Information:
+                    </div>
+                    {currentCart.map((item, idx) => (
+                      <div key={idx} style={{
+                        padding: '8px',
+                        borderBottom: '1px solid #eee',
+                        fontSize: '12px'
+                      }}>
+                        <div style={{ fontWeight: 'bold', color: '#002244' }}>
+                          Item #{idx + 1}: {item.productName}
+                        </div>
+                        <div style={{ color: '#666', marginTop: '4px' }}>
+                          ID: {item.id ? `"${item.id}"` : '❌ NO ID'} ({typeof item.id})
+                        </div>
+                        <div style={{ color: '#666' }}>
+                          Quantity: {item.quantity || 'N/A'}
+                        </div>
+                        <div style={{ color: '#666' }}>
+                          Has undefined values: {Object.values(item).includes(undefined) ? '❌ YES' : '✅ NO'}
+                        </div>
+                        {!item.id && (
+                          <div style={{ 
+                            color: '#ff0000', 
+                            fontWeight: 'bold', 
+                            marginTop: '4px' 
+                          }}>
+                            ⚠️ This item may not be deletable - missing ID
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <div style={{ 
+                      marginTop: '12px', 
+                      padding: '8px', 
+                      backgroundColor: '#f8f9fa', 
+                      borderRadius: '4px' 
+                    }}>
+                      <div style={{ fontSize: '11px', color: '#666' }}>
+                        Console Commands Available:
+                      </div>
+                      <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#333' }}>
+                        • window.checkoutDebug.inspectItems()<br/>
+                        • window.checkoutDebug.findProblematicItems()<br/>
+                        • window.debugCart.checkLocalStorage()<br/>
+                        • window.debugCart.compareWithLocalStorage()<br/>
+                        • window.debugCart.clearLocalStorage() (then refresh)
+                      </div>
+                      <div style={{ 
+                        marginTop: '8px', 
+                        padding: '8px', 
+                        backgroundColor: '#ffe6e6', 
+                        borderRadius: '4px',
+                        border: '1px solid #ffcccc'
+                      }}>
+                        <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#cc0000' }}>
+                          ⚠️ ISSUE FOUND:
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#cc0000', marginTop: '4px' }}>
+                          Items are restored from localStorage on page refresh.<br/>
+                          Even if you delete items, they come back from saved data.<br/>
+                          Use clearLocalStorage() command above to fix.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {!selectedStore && stores.length === 0 && (
+                <p style={{ textAlign: 'center', color: '#666', marginTop: '32px' }}>
+                  Please enter your ZIP code to see available stores
+                </p>
+              )}
+            </>
+          )}
+
+          {currentStep === 'match' && (
+            <>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#002244', marginBottom: '16px' }}>
+                Matching Your Items
+              </h2>
+              <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
+                Finding the best products at {selectedStore?.name}...
+              </p>
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
+                <p>Matching {currentCart.length} items with {selectedStore?.name} inventory...</p>
+              </div>
+            </>
+          )}
+
+          {currentStep === 'complete' && (
+            <>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#002244', marginBottom: '16px' }}>
+                Ready to Checkout!
+              </h2>
+              <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
+                Your items are ready to be sent to Instacart
+              </p>
+              <div style={{
+                textAlign: 'center',
+                padding: '40px',
+                backgroundColor: '#FFF5F2',
+                borderRadius: '12px',
+                border: '2px solid #FB4F14'
+              }}>
+                <div style={{ fontSize: '64px', marginBottom: '16px', color: '#28A745' }}>✅</div>
+                <p style={{ fontSize: '18px', color: '#002244', fontWeight: 'bold' }}>
+                  {currentCart.length} items matched successfully!
+                </p>
+                <p style={{ color: '#666', marginTop: '8px' }}>
+                  Click "Send to Instacart" to complete your order
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '24px 32px',
+          backgroundColor: '#FFF5F2',
+          borderTop: '2px solid #FB4F14',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <button 
+            onClick={onClose} 
+            style={{
+              padding: '12px 24px',
+              backgroundColor: 'white',
+              color: '#002244',
+              border: '2px solid #002244',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '500',
+              cursor: 'pointer'
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={currentStep === 'complete' ? handleFinalCheckout : handleContinue}
+            disabled={currentStep === 'store' && !selectedStore}
+            style={{
+              padding: '14px 32px',
+              background: currentStep === 'store' && !selectedStore ? '#CCC' : 'linear-gradient(135deg, #FB4F14 0%, #FF6B35 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: currentStep === 'store' && !selectedStore ? 'not-allowed' : 'pointer',
+              boxShadow: currentStep === 'store' && !selectedStore ? 'none' : '0 4px 12px rgba(251, 79, 20, 0.25)',
+              opacity: currentStep === 'store' && !selectedStore ? 0.5 : 1
+            }}
+          >
+            {isProcessing ? 'Processing...' : 
+             currentStep === 'complete' ? 'Send to Instacart' : 'Continue'}
+          </button>
         </div>
       </div>
     </div>

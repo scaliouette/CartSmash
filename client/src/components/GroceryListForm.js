@@ -680,16 +680,102 @@ function GroceryListForm({
     if (typeof window !== 'undefined') {
       window.debugCart = {
         showItems: () => {
-          console.table(currentCart.map(item => ({
+          console.table(currentCart.map((item, index) => ({
+            index: index,
             id: item.id,
             name: item.productName,
-            quantity: item.quantity
+            quantity: item.quantity,
+            hasId: !!item.id,
+            idType: typeof item.id,
+            hasUndefined: Object.values(item).includes(undefined),
+            allKeys: Object.keys(item).join(', ')
           })));
         },
         deleteItem: (itemId) => debugDeleteItem(itemId),
+        deleteByIndex: (index) => {
+          console.log(`🗑️ Attempting to delete item at index ${index}`);
+          if (currentCart[index]) {
+            const item = currentCart[index];
+            console.log('Item to delete:', item);
+            debugDeleteItem(item.id);
+          } else {
+            console.error(`❌ No item at index ${index}`);
+          }
+        },
+        forceDeleteByName: (productName) => {
+          console.log(`🔨 Force deleting item by name: "${productName}"`);
+          const beforeCount = currentCart.length;
+          const newCart = currentCart.filter(item => 
+            item.productName !== productName && 
+            item.name !== productName
+          );
+          setCurrentCart(newCart);
+          console.log(`Deleted ${beforeCount - newCart.length} items matching "${productName}"`);
+        },
+        findProblematicItems: () => {
+          const problematic = currentCart.filter(item => 
+            !item.id || item.id === undefined || item.id === null || typeof item.id !== 'string'
+          );
+          console.log('🚨 Problematic items (no valid ID):', problematic);
+          return problematic;
+        },
+        regenerateIds: () => {
+          console.log('🔄 Regenerating IDs for all items...');
+          const updatedCart = currentCart.map((item, index) => ({
+            ...item,
+            id: `item-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`
+          }));
+          setCurrentCart(updatedCart);
+          console.log('✅ All IDs regenerated');
+        },
         clearCart: () => setCurrentCart([]),
-        getItem: (index) => currentCart[index]
+        getItem: (index) => currentCart[index],
+        getFullCart: () => currentCart,
+        testDeleteAll: () => {
+          console.log('🧪 Testing deletion of all items one by one...');
+          currentCart.forEach((item, index) => {
+            console.log(`Testing deletion of item ${index + 1}:`, item.productName);
+            if (item.id) {
+              debugDeleteItem(item.id);
+            } else {
+              console.error(`❌ Item ${index + 1} has no ID, cannot delete`);
+            }
+          });
+        },
+        // Local Storage debugging
+        checkLocalStorage: () => {
+          const savedCart = localStorage.getItem('cartsmash-current-cart');
+          console.log('💾 Current localStorage cart:', savedCart ? JSON.parse(savedCart) : 'empty');
+          return savedCart ? JSON.parse(savedCart) : [];
+        },
+        clearLocalStorage: () => {
+          localStorage.removeItem('cartsmash-current-cart');
+          console.log('🗑️ Cleared localStorage cart - refresh page to see effect');
+        },
+        updateLocalStorage: () => {
+          localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
+          console.log('💾 Updated localStorage with current cart state');
+        },
+        compareWithLocalStorage: () => {
+          const savedCart = localStorage.getItem('cartsmash-current-cart');
+          const saved = savedCart ? JSON.parse(savedCart) : [];
+          console.log('🔍 Comparison between current cart and localStorage:');
+          console.log('Current cart items:', currentCart.length);
+          console.log('LocalStorage items:', saved.length);
+          console.log('Items in current but not in storage:', 
+            currentCart.filter(current => !saved.some(s => s.id === current.id))
+          );
+          console.log('Items in storage but not in current:', 
+            saved.filter(s => !currentCart.some(current => current.id === s.id))
+          );
+        }
       };
+      
+      // Also expose to checkout debug
+      if (window.checkoutDebug) {
+        window.checkoutDebug.deleteItem = debugDeleteItem;
+        window.checkoutDebug.regenerateIds = window.debugCart.regenerateIds;
+      }
     }
   }, [currentCart]);
 

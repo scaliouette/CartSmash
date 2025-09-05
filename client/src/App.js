@@ -93,6 +93,14 @@ function AppContent({
       const loadedRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
       const loadedMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
       
+      console.log('🔄 App.js - Loading data from localStorage:', {
+        cartItems: loadedCart.length,
+        cartItemNames: loadedCart.map(item => item.productName),
+        lists: loadedLists.length,
+        recipes: loadedRecipes.length,
+        mealPlans: loadedMealPlans.length
+      });
+      
       setCurrentCart(loadedCart);
       setSavedLists(loadedLists);
       setSavedRecipes(loadedRecipes);
