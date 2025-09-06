@@ -97,20 +97,51 @@ router.get('/health', (req, res) => {
 
 // OPTIONS handler for Claude endpoint (CORS preflight)
 router.options('/claude', (req, res) => {
-  res.header('Access-Control-Allow-Origin', 'https://cart-smash.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://cart-smash.vercel.app',
+    'https://cartsmash.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [])
+  ];
+  
+  // Check for Vercel preview URLs
+  const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+  
+  if (!origin || allowedOrigins.includes(origin) || vercelPattern.test(origin)) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  
   res.sendStatus(204);
 });
 
 // Enhanced Claude API Integration with intelligent parsing
 router.post('/claude', async (req, res) => {
-  // Ensure CORS headers are set
-  res.header('Access-Control-Allow-Origin', 'https://cart-smash.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
+  // Ensure CORS headers are set dynamically
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://cart-smash.vercel.app',
+    'https://cartsmash.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [])
+  ];
+  
+  // Check for Vercel preview URLs
+  const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+  
+  if (!origin || allowedOrigins.includes(origin) || vercelPattern.test(origin)) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
   
   console.log('🧠 Enhanced Claude API request received');
   
@@ -357,6 +388,27 @@ Focus on specific, measurable items that can be purchased at a grocery store. Av
 
 // Enhanced ChatGPT API Integration
 router.post('/chatgpt', async (req, res) => {
+  // Ensure CORS headers are set dynamically
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://cart-smash.vercel.app',
+    'https://cartsmash.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [])
+  ];
+  
+  // Check for Vercel preview URLs
+  const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+  
+  if (!origin || allowedOrigins.includes(origin) || vercelPattern.test(origin)) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  
   console.log('🤖 Enhanced ChatGPT API request received');
   
   try {

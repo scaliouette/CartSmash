@@ -8,7 +8,6 @@ import ProductValidator from './ProductValidator';
 import InstacartCheckoutFlow from './InstacartCheckoutFlow';
 import { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
-import userDataService from '../services/userDataService';
 import confetti from 'canvas-confetti';
 
 // Helper functions
@@ -26,7 +25,6 @@ function extractGroceryListOnly(text) {
   const lines = text.split('\n');
   const groceryItems = [];
   let inGrocerySection = false;
-  let inItemList = false;
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -61,7 +59,6 @@ function extractGroceryListOnly(text) {
         // Extract item, removing quantity info in parentheses for cleaner display
         const item = line.substring(2).trim();
         groceryItems.push(item);
-        inItemList = true;
       } else if (lowerLine.endsWith(':') && (
         lowerLine.includes('produce') || lowerLine.includes('protein') || 
         lowerLine.includes('dairy') || lowerLine.includes('grain') ||
@@ -107,11 +104,10 @@ function GroceryListForm({
   const [parsingProgress, setParsingProgress] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
   const [ingredientStyle, setIngredientStyle] = useState('basic');
-  const [selectedAI, setSelectedAI] = useState('claude');
+  const [selectedAI] = useState('claude');
   // eslint-disable-next-line no-unused-vars
   const [recipes, setRecipes] = useState([]);
   const [waitingForAIResponse, setWaitingForAIResponse] = useState(false);
-  const [currentRecipe, setCurrentRecipe] = useState(''); // Store recipe separately
   const [parsedRecipes, setParsedRecipes] = useState([]); // Store parsed AI recipes
   const { currentUser } = useAuth();
   const textareaRef = useRef(null);
@@ -376,7 +372,6 @@ function GroceryListForm({
         const lines = text.split('\n');
         const ingredients = [];
         let inIngredientsSection = false;
-        let inInstructionsSection = false;
         
         for (const line of lines) {
           const trimmed = line.trim();
@@ -391,7 +386,6 @@ function GroceryListForm({
           // Check for instructions/directions section (stop ingredients)
           if (trimmed.match(/^(instructions?:?\s*$|directions?:?\s*$|method:?\s*$|steps?:?\s*$|##?\s*(instructions?|directions?|method|steps?))/i)) {
             inIngredientsSection = false;
-            inInstructionsSection = true;
             continue;
           }
           
@@ -735,7 +729,7 @@ function GroceryListForm({
               const instructionLine = lines[k].trim();
               if (!instructionLine) break;
               if (instructionLine.match(/^\d+\./) || instructionLine.startsWith('-')) {
-                currentRecipe.instructions.push(instructionLine.replace(/^[\d\-\.\s]*/, '').trim());
+                currentRecipe.instructions.push(instructionLine.replace(/^[\d\-.\s]*/, '').trim());
               }
             }
           }
@@ -1561,8 +1555,7 @@ const styles = {
     outline: 'none',
     boxSizing: 'border-box',
     overflow: 'hidden',
-    minHeight: '80px',
-    maxHeight: '400px'
+    minHeight: '80px'
   },
 
   aiStatusMessage: {
