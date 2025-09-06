@@ -209,7 +209,7 @@ function AppContent({
     }
   }, [currentUser, setIsLoading, setSyncStatus, loadLocalData, loadFirebaseData]);
   
-  const saveCartToFirebase = useCallback(async () => {
+  const saveCartToFirebase = useCallback(async (forceImmediate = false) => {
     if (!currentUser) return;
     
     // ⚠️ Only auto-save if explicitly enabled
@@ -220,7 +220,8 @@ function AppContent({
     
     try {
       // Save to carts/{uid} (replace write so deletions stick)
-      if (!cartHydratedRef.current) {
+      // ⚡ Skip hydration check for immediate saves (deletions)
+      if (!cartHydratedRef.current && !forceImmediate) {
         console.log('⏸️ Skipping save until cart hydration completes');
         return;
       }
@@ -282,11 +283,21 @@ function AppContent({
   // Auto-save cart to Firebase when it changes (debounced)
   useEffect(() => {
     // ✅ FIXED: Save empty carts too - prevents deleted items from reappearing
-    const saveTimer = setTimeout(() => {
-      saveCartToFirebase();
-    }, 2000); // 2 second debounce
+    // ⚡ IMMEDIATE save for deletions to prevent hydration race conditions
+    const wasLarger = currentCartRef.current && currentCartRef.current.length > currentCart.length;
     
-    return () => clearTimeout(saveTimer);
+    if (wasLarger) {
+      // Immediate save on deletion - don't wait for debounce
+      console.log('🚨 Deletion detected - immediate save to prevent hydration race');
+      saveCartToFirebase(true); // Pass forceImmediate = true
+    } else {
+      // Regular debounced save for other changes
+      const saveTimer = setTimeout(() => {
+        saveCartToFirebase();
+      }, 2000); // 2 second debounce
+      
+      return () => clearTimeout(saveTimer);
+    }
   }, [currentCart, currentUser, saveCartToFirebase]);
   
   // CONNECTED FUNCTIONS

@@ -367,7 +367,8 @@
       "Bash(sed:*)",
       "Bash(npm run lint)",
       "Bash(rg:*)",
-      "Bash(start http://localhost:3000)"
+      "Bash(start http://localhost:3000)",
+      "Bash(PORT=3001 npm start)"
     ],
     "deny": [],
     "ask": []
