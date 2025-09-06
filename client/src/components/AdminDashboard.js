@@ -21,7 +21,8 @@ function AdminDashboard({ onClose, currentUser }) {
   const loadSystemHealth = useCallback(async () => {
     try {
       console.log('🩺 Loading system health...');
-      const response = await fetch('/api/settings/health/check');
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/settings/health/check`);
       if (response.ok) {
         const data = await response.json();
         setSystemHealth(data);
@@ -49,7 +50,8 @@ function AdminDashboard({ onClose, currentUser }) {
   const loadUserActivity = useCallback(async () => {
     try {
       console.log('🔄 Loading user activity...');
-      const response = await fetch('http://localhost:3002/api/analytics/users/activity?limit=10&hours=24', {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/analytics/users/activity?limit=10&hours=24`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -74,7 +76,8 @@ function AdminDashboard({ onClose, currentUser }) {
   const loadUserAccounts = useCallback(async () => {
     try {
       console.log('🔄 Loading Firebase user accounts...');
-      const response = await fetch('http://localhost:3002/api/analytics/users/accounts?limit=20', {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/analytics/users/accounts?limit=20`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -98,7 +101,8 @@ function AdminDashboard({ onClose, currentUser }) {
 
   const loadRealtimeMetrics = useCallback(async () => {
     try {
-      const response = await fetch('/api/analytics/realtime');
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/analytics/realtime`);
       if (response.ok) {
         const data = await response.json();
         setRealtimeMetrics(data.realtime);
@@ -204,18 +208,19 @@ function AdminDashboard({ onClose, currentUser }) {
 
   const handleSystemAction = async (action) => {
     setIsLoading(true);
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
     try {
       switch (action) {
         case 'restart_ai':
-          await fetch('/api/ai/restart', { method: 'POST' });
+          await fetch(`${apiUrl}/api/ai/restart`, { method: 'POST' });
           alert('🔄 AI services restarted');
           break;
         case 'clear_cache':
-          await fetch('/api/cache/clear', { method: 'POST' });
+          await fetch(`${apiUrl}/api/cache/clear`, { method: 'POST' });
           alert('🗑️ Cache cleared');
           break;
         case 'export_data':
-          const response = await fetch('/api/analytics/export');
+          const response = await fetch(`${apiUrl}/api/analytics/export`);
           const blob = await response.blob();
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
