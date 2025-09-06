@@ -23,6 +23,10 @@ function MyAccount({
   const [editingList, setEditingList] = useState(null);
   const [showListEditModal, setShowListEditModal] = useState(false);
   const [showAddListModal, setShowAddListModal] = useState(false);
+  const [showAddRecipeModal, setShowAddRecipeModal] = useState(false);
+  const [selectedMealPlanForRecipe, setSelectedMealPlanForRecipe] = useState(null);
+  const [selectedDayForRecipe, setSelectedDayForRecipe] = useState(null);
+  const [selectedMealTypeForRecipe, setSelectedMealTypeForRecipe] = useState(null);
   
   // Load meal plans from props or localStorage with error handling
   useEffect(() => {
@@ -104,6 +108,43 @@ function MyAccount({
     } catch (error) {
       console.error('❌ Error adding shopping list:', error);
       alert('Failed to create shopping list. Please try again.');
+    }
+  };
+
+  // Handler for ADD button in meal plan
+  const handleAddRecipeToMealPlan = (mealPlan, day, mealType) => {
+    setSelectedMealPlanForRecipe(mealPlan);
+    setSelectedDayForRecipe(day);
+    setSelectedMealTypeForRecipe(mealType);
+    setShowAddRecipeModal(true);
+  };
+
+  // Handler for saving recipe to meal plan
+  const handleSaveRecipeToMealPlan = async (updatedMealPlan, newRecipe) => {
+    try {
+      // Update meal plan in Firebase
+      if (currentUser) {
+        await userDataService.updateMealPlan(updatedMealPlan.id, updatedMealPlan);
+        
+        // Also save the recipe to the recipe library
+        await userDataService.saveRecipe(newRecipe);
+      }
+      
+      // Update local state
+      setLocalMealPlans(prevPlans => 
+        prevPlans.map(p => p.id === updatedMealPlan.id ? updatedMealPlan : p)
+      );
+      
+      // Also add to recipes if not already there
+      if (savedRecipes && !savedRecipes.find(r => r.id === newRecipe.id)) {
+        // This would need to be handled by parent component
+        console.log('New recipe to add to library:', newRecipe);
+      }
+      
+      alert(`✅ Recipe "${newRecipe.name}" added to ${selectedDayForRecipe} ${selectedMealTypeForRecipe}!`);
+    } catch (error) {
+      console.error('Error adding recipe to meal plan:', error);
+      alert('Failed to add recipe. Please try again.');
     }
   };
 
@@ -613,6 +654,22 @@ function MyAccount({
         />
       )}
 
+      {/* Add Recipe to Meal Plan Modal */}
+      {showAddRecipeModal && selectedMealPlanForRecipe && (
+        <AddRecipeToMealPlanModal
+          mealPlan={selectedMealPlanForRecipe}
+          day={selectedDayForRecipe}
+          mealType={selectedMealTypeForRecipe}
+          onSave={handleSaveRecipeToMealPlan}
+          onClose={() => {
+            setShowAddRecipeModal(false);
+            setSelectedMealPlanForRecipe(null);
+            setSelectedDayForRecipe(null);
+            setSelectedMealTypeForRecipe(null);
+          }}
+        />
+      )}
+
     </div>
   );
 }
@@ -975,10 +1032,10 @@ function MealPlanModal({ isOpen, onClose, editingPlan, savedRecipes, onSave }) {
                       ) : (
                         <div style={modalStyles.mealActions}>
                           <button
-                            onClick={() => handleMealToggle(day, mealType)}
+                            onClick={() => handleAddRecipeToMealPlan(editingMealPlan, day, mealType)}
                             style={modalStyles.addMealBtn}
                           >
-                            + Add
+                            + Add Recipe
                           </button>
                           {savedRecipes && savedRecipes.length > 0 && (
                             <button
@@ -1991,6 +2048,34 @@ const modalStyles = {
     fontSize: '13px',
     color: '#666',
     borderBottom: '1px solid #eee'
+  },
+
+  // Additional styles for AddRecipeToMealPlanModal
+  infoBox: {
+    backgroundColor: '#E6F7FF',
+    border: '2px solid #1890FF',
+    borderRadius: '8px',
+    padding: '12px',
+    marginBottom: '20px'
+  },
+
+  infoText: {
+    margin: 0,
+    fontSize: '14px',
+    color: '#002244',
+    lineHeight: '1.6'
+  },
+
+  formRow: {
+    display: 'flex',
+    gap: '16px',
+    marginBottom: '16px'
+  },
+
+  formGroupHalf: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column'
   }
 
 };
@@ -2112,6 +2197,168 @@ function AddShoppingListModal({ onClose, onSave }) {
             disabled={!listName.trim()}
           >
             Create List ({parsedItems.length} items)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Add Recipe to Meal Plan Modal Component
+function AddRecipeToMealPlanModal({ mealPlan, day, mealType, onSave, onClose }) {
+  const [recipeName, setRecipeName] = useState('');
+  const [ingredients, setIngredients] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [prepTime, setPrepTime] = useState('');
+  const [cookTime, setCookTime] = useState('');
+  const [servings, setServings] = useState('4');
+  
+  const handleSave = async () => {
+    if (!recipeName.trim()) {
+      alert('Please enter a recipe name');
+      return;
+    }
+    
+    if (!ingredients.trim()) {
+      alert('Please enter ingredients');
+      return;
+    }
+    
+    const newRecipe = {
+      id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: recipeName,
+      title: recipeName,
+      ingredients: ingredients,
+      instructions: instructions || 'Prepare according to your preference.',
+      prepTime: prepTime || '',
+      cookTime: cookTime || '',
+      servings: servings || '4',
+      mealType: mealType,
+      day: day,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      source: 'manual_entry'
+    };
+    
+    // Add recipe to the meal plan
+    const updatedMealPlan = { ...mealPlan };
+    if (!updatedMealPlan.days) updatedMealPlan.days = {};
+    if (!updatedMealPlan.days[day]) updatedMealPlan.days[day] = {};
+    if (!updatedMealPlan.days[day][mealType]) updatedMealPlan.days[day][mealType] = [];
+    
+    updatedMealPlan.days[day][mealType].push(newRecipe);
+    updatedMealPlan.updatedAt = new Date().toISOString();
+    
+    onSave(updatedMealPlan, newRecipe);
+    onClose();
+  };
+  
+  return (
+    <div style={modalStyles.overlay}>
+      <div style={modalStyles.modal}>
+        <div style={modalStyles.header}>
+          <h3 style={modalStyles.title}>
+            📖 Add Recipe to {day} - {mealType}
+          </h3>
+          <button onClick={onClose} style={modalStyles.closeButton}>✕</button>
+        </div>
+        
+        <div style={modalStyles.body}>
+          <div style={modalStyles.infoBox}>
+            <p style={modalStyles.infoText}>
+              Adding recipe to: <strong>{mealPlan.name}</strong><br/>
+              Day: <strong>{day}</strong> | Meal: <strong>{mealType}</strong>
+            </p>
+          </div>
+          
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Recipe Name: *</label>
+            <input
+              type="text"
+              value={recipeName}
+              onChange={(e) => setRecipeName(e.target.value)}
+              style={modalStyles.input}
+              placeholder="e.g., Grilled Chicken Salad"
+              autoFocus
+            />
+          </div>
+          
+          <div style={modalStyles.formRow}>
+            <div style={modalStyles.formGroupHalf}>
+              <label style={modalStyles.label}>Servings:</label>
+              <input
+                type="text"
+                value={servings}
+                onChange={(e) => setServings(e.target.value)}
+                style={modalStyles.input}
+                placeholder="e.g., 4"
+              />
+            </div>
+            
+            <div style={modalStyles.formGroupHalf}>
+              <label style={modalStyles.label}>Prep Time:</label>
+              <input
+                type="text"
+                value={prepTime}
+                onChange={(e) => setPrepTime(e.target.value)}
+                style={modalStyles.input}
+                placeholder="e.g., 15 min"
+              />
+            </div>
+          </div>
+          
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Cook Time:</label>
+            <input
+              type="text"
+              value={cookTime}
+              onChange={(e) => setCookTime(e.target.value)}
+              style={modalStyles.input}
+              placeholder="e.g., 20 min"
+            />
+          </div>
+          
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Ingredients: * (one per line)</label>
+            <textarea
+              value={ingredients}
+              onChange={(e) => setIngredients(e.target.value)}
+              style={modalStyles.textarea}
+              placeholder={`2 chicken breasts
+4 cups mixed greens
+1 cup cherry tomatoes
+1/2 cup feta cheese
+1/4 cup olive oil
+2 tbsp lemon juice`}
+              rows={6}
+            />
+          </div>
+          
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Instructions:</label>
+            <textarea
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              style={modalStyles.textarea}
+              placeholder={`1. Season and grill chicken
+2. Let chicken rest, then slice
+3. Toss greens with dressing
+4. Top with chicken and serve`}
+              rows={5}
+            />
+          </div>
+        </div>
+        
+        <div style={modalStyles.footer}>
+          <button 
+            onClick={handleSave}
+            style={modalStyles.saveButton}
+            disabled={!recipeName.trim() || !ingredients.trim()}
+          >
+            💾 Add Recipe to Meal Plan
+          </button>
+          <button onClick={onClose} style={modalStyles.cancelButton}>
+            Cancel
           </button>
         </div>
       </div>
