@@ -118,6 +118,14 @@ function GroceryListForm({
   const { currentUser } = useAuth();
   const textareaRef = useRef(null);
 
+  // Function to trigger textarea auto-expansion
+  const expandTextarea = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.max(80, Math.min(textareaRef.current.scrollHeight, 400)) + 'px';
+    }
+  };
+
   // Auto-save hooks
   const { 
     // eslint-disable-next-line no-unused-vars
@@ -184,6 +192,10 @@ function GroceryListForm({
   const handleTemplateClick = (template) => {
     setInputText(template.prompt);
     setWaitingForAIResponse(false);
+    // Trigger textarea expansion after template content loads
+    setTimeout(() => {
+      expandTextarea();
+    }, 50);
   };
 
   const extractAIResponseText = (aiData) => {
@@ -309,6 +321,11 @@ function GroceryListForm({
             if (textareaRef.current) {
               textareaRef.current.value = cleanGroceryList;
             }
+            
+            // Trigger textarea auto-expansion after content is loaded
+            setTimeout(() => {
+              expandTextarea();
+            }, 50);
             
             // Clear loading states
             clearInterval(progressInterval);
@@ -968,8 +985,7 @@ function GroceryListForm({
               setInputText(e.target.value);
               setWaitingForAIResponse(false);
               // Auto-expand textarea based on content
-              e.target.style.height = 'auto';
-              e.target.style.height = Math.max(80, Math.min(e.target.scrollHeight, 400)) + 'px';
+              expandTextarea();
             }}
             onKeyPress={(e) => {
               if (e.key === 'Enter' && e.shiftKey && e.ctrlKey) {

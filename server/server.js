@@ -10,6 +10,7 @@ const winston = require('winston');
 const axios = require('axios');
 const { OpenAI } = require('openai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Anthropic = require('@anthropic-ai/sdk');
 require('dotenv').config();
 
 const app = express();
@@ -95,16 +96,31 @@ const logger = winston.createLogger({
 });
 
 // Initialize AI Services
-let openai, genAI;
+let openai, genAI, anthropic;
 
 if (process.env.OPENAI_API_KEY) {
   try {
     openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY
     });
+    // Assign to global for AIProductParser
+    global.openai = openai;
     logger.info('OpenAI service initialized');
   } catch (error) {
     logger.warn('OpenAI initialization failed:', error.message);
+  }
+}
+
+if (process.env.ANTHROPIC_API_KEY) {
+  try {
+    anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY
+    });
+    // Assign to global for AIProductParser
+    global.anthropic = anthropic;
+    logger.info('Anthropic service initialized');
+  } catch (error) {
+    logger.warn('Anthropic initialization failed:', error.message);
   }
 }
 
@@ -287,6 +303,7 @@ app.get('/health', async (req, res) => {
       mongodb: mongoose.connection.readyState === 1,
       kroger: !!(process.env.KROGER_CLIENT_ID && process.env.KROGER_CLIENT_SECRET),
       openai: !!openai,
+      anthropic: !!anthropic,
       googleai: !!genAI
     },
     tokenStore: stats
