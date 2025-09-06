@@ -38,35 +38,13 @@ function App() {
   const [currentView, setCurrentView] = useState('home');
   
   // CENTRALIZED STATE MANAGEMENT
-  const [currentCart, setCurrentCartInternal] = useState([]);
+  const [currentCart, setCurrentCart] = useState([]);
   const [savedLists, setSavedLists] = useState([]);
   const [savedRecipes, setSavedRecipes] = useState([]);
   const [mealPlans, setMealPlans] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState('idle'); // idle, syncing, synced, error
   
-  // Protected cart setter that tracks user actions
-  const setCurrentCart = useCallback((newCart, isSystemAction = false) => {
-    if (typeof newCart === 'function') {
-      setCurrentCartInternal(prevCart => {
-        const result = newCart(prevCart);
-        // Only update timestamp if cart actually changed (deletion/addition) and it's a user action
-        if (result.length !== prevCart.length && !isSystemAction) {
-          lastUserActionTimestamp.current = Date.now();
-          console.log('👤 User action detected - cart size changed:', prevCart.length, '->', result.length);
-        }
-        return result;
-      });
-    } else {
-      setCurrentCartInternal(newCart);
-      if (!isSystemAction) {
-        lastUserActionTimestamp.current = Date.now();
-        console.log('👤 User action detected - cart set directly');
-      } else {
-        console.log('🤖 System action - cart set without timestamp update');
-      }
-    }
-  }, []);
   
   // Get auth context inside the provider
   return (
@@ -115,14 +93,37 @@ function AppContent({
   console.log('🔑 Cart Authority:', CART_AUTHORITY);
   console.log('💾 Auto-save Enabled:', AUTOSAVE_ENABLED);
   
+  // Enhanced hydration guard refs
+  const cartHydratedRef = useRef(false);
+  const hydrationInProgress = useRef(false);
+  const lastUserActionTimestamp = useRef(Date.now());
+  
   // Use ref to access current cart length without dependency issues
   const currentCartRef = useRef(currentCart);
   currentCartRef.current = currentCart;
   
-  // Enhanced hydration guard to prevent save/load conflicts
-  const cartHydratedRef = useRef(false);
-  const hydrationInProgress = useRef(false);
-  const lastUserActionTimestamp = useRef(Date.now());
+  // Protected cart setter that tracks user actions
+  const setCurrentCartWithTracking = useCallback((newCart, isSystemAction = false) => {
+    if (typeof newCart === 'function') {
+      setCurrentCart(prevCart => {
+        const result = newCart(prevCart);
+        // Only update timestamp if cart actually changed (deletion/addition) and it's a user action
+        if (result.length !== prevCart.length && !isSystemAction) {
+          lastUserActionTimestamp.current = Date.now();
+          console.log('👤 User action detected - cart size changed:', prevCart.length, '->', result.length);
+        }
+        return result;
+      });
+    } else {
+      setCurrentCart(newCart);
+      if (!isSystemAction) {
+        lastUserActionTimestamp.current = Date.now();
+        console.log('👤 User action detected - cart set directly');
+      } else {
+        console.log('🤖 System action - cart set without timestamp update');
+      }
+    }
+  }, [setCurrentCart]);
 
   const loadLocalData = useCallback(() => {
     try {
@@ -132,7 +133,7 @@ function AppContent({
       });
       
       // No localStorage reads - session state only
-      setCurrentCart([], true); // System action - initial load
+      setCurrentCartWithTracking([], true); // System action - initial load
       setSavedLists([]);
       // ✅ REMOVED: No more localStorage for recipes - will be loaded from Firestore for auth users
       console.log('✅ Recipes will be loaded from Firestore for authenticated users');
@@ -201,12 +202,12 @@ function AppContent({
       
       if (snap.exists()) {
         const items = Array.isArray(snap.data()?.items) ? snap.data().items : [];
-        setCurrentCart(items, true); // Mark as system action
+        setCurrentCartWithTracking(items, true); // Mark as system action
         console.log('🛒 Hydrated cart from carts/{uid}:', items.length, 'items');
       } else {
         // Create empty doc so future saves are clean
         await setDoc(ref, { items: [], updatedAt: serverTimestamp() }, { merge: false });
-        setCurrentCart([], true); // Mark as system action
+        setCurrentCartWithTracking([], true); // Mark as system action
         console.log('🆕 Created empty carts/{uid} document');
       }
       cartHydratedRef.current = true;
@@ -215,7 +216,7 @@ function AppContent({
     } finally {
       hydrationInProgress.current = false;
     }
-  }, [CART_AUTHORITY, currentUser, setCurrentCart]);
+  }, [CART_AUTHORITY, currentUser, setCurrentCartWithTracking]);
   
   // ✅ NEW: Load recipes from Firestore for authenticated users
   const loadRecipesFromFirestore = useCallback(async () => {
@@ -254,7 +255,7 @@ function AppContent({
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, setIsLoading, setSyncStatus, loadLocalData, loadFirebaseData]);
+  }, [currentUser, setIsLoading, setSyncStatus, loadLocalData, loadFirebaseData, setCurrentCartWithTracking]);
   
   const saveCartToFirebase = useCallback(async (forceImmediate = false) => {
     if (!currentUser) return;
@@ -308,7 +309,7 @@ function AppContent({
       clearFirestoreCart: async () => {
         if (!currentUser) return;
         await setDoc(doc(db, 'carts', currentUser.uid), { items: [], updatedAt: serverTimestamp() }, { merge: false });
-        setCurrentCart([], true); // System action - debug clear
+        setCurrentCartWithTracking([], true); // System action - debug clear
         console.log('🧼 carts/{uid} cleared');
       }
     };
@@ -345,7 +346,7 @@ function AppContent({
       
       return () => clearTimeout(saveTimer);
     }
-  }, [currentCart, currentUser, saveCartToFirebase]);
+  }, [currentCart, currentUser, saveCartToFirebase, setCurrentCartWithTracking]);
   
   // CONNECTED FUNCTIONS
   const loadRecipeToCart = async (recipe, merge = false) => {
