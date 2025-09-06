@@ -869,216 +869,279 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     let currentRecipe = null;
     let currentSection = '';
     let currentDay = '';
+    let captureNextAsRecipeName = false;
     
     console.log('🔍 Enhanced recipe extraction starting...');
     console.log('📊 Total lines to process:', lines.length);
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
+      
+      // Skip empty lines but don't reset section
       if (!line) continue;
       
       // Detect day headers
-      const dayMatch = line.match(/^Day\s+(\d+)|^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
+      const dayMatch = line.match(/^(Day\s+\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[\s:]*$/i);
       if (dayMatch) {
-        currentDay = dayMatch[0].replace(':', '').trim();
+        currentDay = dayMatch[1].replace(':', '').trim();
         console.log('📅 Found day header:', currentDay);
         continue;
       }
       
-      // Detect recipe name patterns - expanded to catch more formats
-      if (line.match(/^Recipe Name:|^Recipe:|^##\s+/i) || 
-          line.match(/^(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i) ||
-          line.match(/^Day\s+\d+\s*-\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i) ||
-          (line.match(/^[A-Z][a-zA-Z\s]+$/) && line.length < 50 && 
-           !line.match(/^(Ingredients?|Instructions?|Directions?|Method|Steps?|Notes?|Tips?|Day\s+\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i))) {
-        
-        // Save previous recipe if exists
-        if (currentRecipe && currentRecipe.title) {
-          // Only save if recipe has actual content
-          if (currentRecipe.ingredients.length > 0 || currentRecipe.instructions.length > 0) {
-            console.log('💾 Saving complete recipe:', currentRecipe.title, 
-                       `(${currentRecipe.ingredients.length} ingredients, ${currentRecipe.instructions.length} steps)`);
+      // Detect meal type headers (these often precede recipe names)
+      const mealTypeMatch = line.match(/^(Breakfast|Lunch|Dinner|Snack)[\s:]*$/i);
+      if (mealTypeMatch) {
+        captureNextAsRecipeName = true;
+        currentSection = ''; // Reset section when new meal starts
+        continue;
+      }
+      
+      // Detect recipe patterns
+      const recipeStartPatterns = [
+        /^(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i,  // "Breakfast: Oatmeal"
+        /^Recipe Name:\s*(.+)/i,                       // "Recipe Name: Chicken Stir-fry"
+        /^Recipe:\s*(.+)/i,                           // "Recipe: Pasta"
+        /^##\s+(.+)/i,                                // "## Recipe Title"
+        /^Day\s+\d+\s*[-–]\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i // "Day 1 - Breakfast: Oatmeal"
+      ];
+      
+      let foundRecipe = false;
+      
+      // Check if this line starts a new recipe
+      for (const pattern of recipeStartPatterns) {
+        const match = line.match(pattern);
+        if (match) {
+          // Save previous recipe if exists
+          if (currentRecipe && currentRecipe.title) {
+            if (currentRecipe.ingredients.length === 0) {
+              currentRecipe.ingredients = inferIngredientsFromRecipeName(currentRecipe.title);
+            }
+            if (currentRecipe.instructions.length === 0) {
+              currentRecipe.instructions = [`Prepare ${currentRecipe.title} as directed.`];
+            }
+            console.log('💾 Saving recipe:', currentRecipe.title, 
+                       `(${currentRecipe.ingredients.length} ingredients)`);
             recipes.push(currentRecipe);
           }
-        }
-        
-        // Extract recipe name - handle multiple formats
-        let recipeName = line;
-        let mealType = 'Dinner'; // Default
-        
-        // Handle various recipe name formats
-        if (line.match(/^Recipe Name:/i)) {
-          recipeName = line.replace(/^Recipe Name:/i, '').trim();
-        } else if (line.match(/^Recipe:/i)) {
-          recipeName = line.replace(/^Recipe:/i, '').trim();
-        } else if (line.match(/^##\s+/i)) {
-          recipeName = line.replace(/^##\s+/i, '').trim();
-        } else if (line.match(/^(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i)) {
-          const mealMatch = line.match(/^(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i);
-          mealType = mealMatch[1];
-          recipeName = mealMatch[2].trim();
-        } else if (line.match(/^Day\s+\d+\s*-\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i)) {
-          const dayMealMatch = line.match(/^Day\s+\d+\s*-\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i);
-          mealType = dayMealMatch[1];
-          recipeName = dayMealMatch[2].trim();
-        } else {
-          // Standalone recipe name - try to infer meal type from context or name
-          recipeName = line.trim();
-          if (recipeName.toLowerCase().includes('breakfast') || recipeName.toLowerCase().includes('oatmeal') || recipeName.toLowerCase().includes('cereal')) {
-            mealType = 'Breakfast';
-          } else if (recipeName.toLowerCase().includes('lunch') || recipeName.toLowerCase().includes('sandwich') || recipeName.toLowerCase().includes('salad')) {
-            mealType = 'Lunch';
-          } else if (recipeName.toLowerCase().includes('snack') || recipeName.toLowerCase().includes('nuts') || recipeName.toLowerCase().includes('fruit')) {
-            mealType = 'Snack';
+          
+          // Extract recipe info based on pattern
+          let recipeName = '';
+          let mealType = 'Dinner';
+          
+          if (pattern.toString().includes('Breakfast|Lunch|Dinner|Snack')) {
+            // Pattern has meal type
+            if (match[2]) {
+              // "Breakfast: Recipe Name" format
+              mealType = match[1];
+              recipeName = match[2].trim();
+            } else if (match[1]) {
+              // Other formats
+              recipeName = match[1].trim();
+            }
+          } else {
+            // No meal type in pattern
+            recipeName = match[1].trim();
           }
+          
+          currentRecipe = {
+            title: recipeName,
+            ingredients: [],
+            instructions: [],
+            servings: '',
+            prepTime: '',
+            cookTime: '',
+            mealType: mealType,
+            day: currentDay,
+            tags: [currentDay || 'meal plan', mealType.toLowerCase()],
+            notes: '',
+            id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          };
+          
+          currentSection = '';
+          foundRecipe = true;
+          console.log(`📝 Found ${mealType} recipe: "${recipeName}"`);
+          break;
+        }
+      }
+      
+      if (foundRecipe) continue;
+      
+      // Check if we should capture this line as a recipe name
+      if (captureNextAsRecipeName && line && !line.match(/^(Ingredients?|Instructions?|Directions?|Method|Grocery|Shopping)/i)) {
+        // Save previous recipe
+        if (currentRecipe && currentRecipe.title) {
+          if (currentRecipe.ingredients.length === 0) {
+            currentRecipe.ingredients = inferIngredientsFromRecipeName(currentRecipe.title);
+          }
+          if (currentRecipe.instructions.length === 0) {
+            currentRecipe.instructions = [`Prepare ${currentRecipe.title} as directed.`];
+          }
+          recipes.push(currentRecipe);
         }
         
+        // Create new recipe
         currentRecipe = {
-          title: recipeName,
+          title: line,
           ingredients: [],
           instructions: [],
           servings: '',
           prepTime: '',
           cookTime: '',
-          mealType: mealType,
+          mealType: 'Dinner',
           day: currentDay,
           tags: [currentDay || 'meal plan'],
           notes: '',
           id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         };
         
+        captureNextAsRecipeName = false;
         currentSection = '';
-        console.log('📝 Found recipe:', recipeName, `(${mealType})`);
+        console.log('📝 Captured recipe name:', line);
         continue;
       }
       
-      // Detect sections
-      if (line.match(/^Servings?:/i)) {
-        if (currentRecipe) {
-          currentRecipe.servings = line.replace(/^Servings?:/i, '').trim();
+      // If no current recipe, check if this line could be a standalone recipe name
+      if (!currentRecipe && !line.match(/^[-•*]/) && !line.match(/^\d+[.\)]/) && 
+          line.length > 5 && line.length < 100 &&
+          !line.match(/^(Grocery|Shopping|Estimated|Total|Tips|Notes)/i)) {
+        
+        // This might be a recipe name without a prefix
+        const lowerLine = line.toLowerCase();
+        if (lowerLine.includes('with') || lowerLine.includes('and') || 
+            lowerLine.includes('chicken') || lowerLine.includes('beef') || 
+            lowerLine.includes('salmon') || lowerLine.includes('pasta') ||
+            lowerLine.includes('salad') || lowerLine.includes('soup') ||
+            lowerLine.includes('sandwich') || lowerLine.includes('oatmeal') ||
+            lowerLine.includes('eggs') || lowerLine.includes('pancakes')) {
+          
+          currentRecipe = {
+            title: line,
+            ingredients: [],
+            instructions: [],
+            servings: '',
+            prepTime: '',
+            cookTime: '',
+            mealType: 'Dinner',
+            day: currentDay,
+            tags: [currentDay || 'meal plan'],
+            notes: '',
+            id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          };
+          
+          currentSection = '';
+          console.log('📝 Found standalone recipe:', line);
+          continue;
         }
+      }
+      
+      // Only process further if we have a current recipe
+      if (!currentRecipe) continue;
+      
+      // Detect metadata
+      if (line.match(/^Servings?:/i)) {
+        currentRecipe.servings = line.replace(/^Servings?:/i, '').trim();
         continue;
       }
       
       if (line.match(/^Prep\s+Time:|^Preparation\s+Time:/i)) {
-        if (currentRecipe) {
-          currentRecipe.prepTime = line.replace(/^Prep(?:aration)?\s+Time:/i, '').trim();
-        }
+        currentRecipe.prepTime = line.replace(/^Prep(?:aration)?\s+Time:/i, '').trim();
         continue;
       }
       
       if (line.match(/^Cook(?:ing)?\s+Time:/i)) {
-        if (currentRecipe) {
-          currentRecipe.cookTime = line.replace(/^Cook(?:ing)?\s+Time:/i, '').trim();
-        }
+        currentRecipe.cookTime = line.replace(/^Cook(?:ing)?\s+Time:/i, '').trim();
         continue;
       }
       
-      if (line.match(/^Ingredients?:/i)) {
+      // Detect section headers
+      if (line.match(/^Ingredients?:?\s*$/i)) {
         currentSection = 'ingredients';
-        console.log('  → Entering ingredients section');
+        console.log('  → Found ingredients section for:', currentRecipe.title);
         continue;
       }
       
-      if (line.match(/^Instructions?:|^Directions?:|^Method:|^Steps?:/i)) {
+      if (line.match(/^(Instructions?|Directions?|Method|Steps?):?\s*$/i)) {
         currentSection = 'instructions';
-        console.log('  → Entering instructions section');
+        console.log('  → Found instructions section for:', currentRecipe.title);
         continue;
       }
       
-      if (line.match(/^Notes?:|^Tips?:/i)) {
+      if (line.match(/^(Notes?|Tips?):?\s*$/i)) {
         currentSection = 'notes';
         continue;
       }
       
-      if (line.match(/^Grocery\s+List:|^Shopping\s+List:/i)) {
-        currentSection = 'grocery';
+      // Stop processing this recipe if we hit a new section
+      if (line.match(/^(Grocery\s+List|Shopping\s+List|Estimated\s+Total|Money-Saving)/i)) {
+        currentSection = '';
         continue;
       }
       
-      // Add content to current recipe section
-      if (currentRecipe && currentSection && line) {
-        // Clean up bullet points and numbers
-        const cleanLine = line
+      // Add content to current section
+      if (currentSection && line) {
+        // Clean up the line
+        let cleanLine = line
           .replace(/^[-•*]\s*/, '')
-          .replace(/^\d+\.\s*/, '')
+          .replace(/^\d+[.)]\s*/, '')
+          .replace(/\*\*/g, '')
+          .replace(/\*/g, '')
           .trim();
         
         if (!cleanLine) continue;
         
-        // Check if this line is starting a new section
-        if (line.match(/^Instructions?:|^Directions?:|^Method:|^Steps?:/i)) {
-          currentSection = 'instructions';
-          console.log('  → Switching to instructions section');
-          continue;
-        }
-        
-        if (line.match(/^Notes?:|^Tips?:/i)) {
-          currentSection = 'notes';
-          continue;
-        }
-        
-        if (line.match(/^Grocery\s+List:|^Shopping\s+List:/i)) {
-          currentSection = 'grocery';
-          continue;
-        }
-        
-        // Smart context detection - if we have a recipe but no section, 
-        // and the line looks like an ingredient, assume ingredients section
-        if (!currentSection && currentRecipe) {
-          if (cleanLine.match(/^\d+\s+(cup|tbsp|tsp|lb|oz|g|kg|ml|l|liter)\b/i) || 
-              cleanLine.match(/^(Salt|Pepper|Oil|Butter|Flour|Sugar|Milk|Water|Cheese|Bread|Rice|Pasta|Chicken|Beef|Fish)\b/i) ||
-              cleanLine.match(/^-\s*\d/) || cleanLine.match(/^•\s*/)) {
-            currentSection = 'ingredients';
-            console.log('  → Auto-detected ingredients section from context');
-          }
-        }
-        
         switch (currentSection) {
           case 'ingredients':
-            // Don't add if it looks like a section header
-            if (!cleanLine.match(/^(Instructions?|Directions?|Method|Steps?|Notes?|Tips?|Grocery|Shopping):/i)) {
+            // Skip if it looks like a new section header
+            if (!cleanLine.match(/^(Instructions?|Directions?|Method|Steps?|Notes?|Tips?):/i)) {
               currentRecipe.ingredients.push(cleanLine);
-              console.log('    + Adding ingredient:', cleanLine);
+              console.log(`    + Added ingredient to ${currentRecipe.title}: ${cleanLine}`);
             }
             break;
             
           case 'instructions':
-            // Add as instruction step
-            if (!cleanLine.match(/^(Notes?|Tips?|Grocery|Shopping|Ingredients?):/i)) {
+            if (!cleanLine.match(/^(Notes?|Tips?|Grocery|Shopping):/i)) {
               currentRecipe.instructions.push(cleanLine);
-              console.log('    + Adding instruction:', cleanLine);
+              console.log(`    + Added instruction to ${currentRecipe.title}: ${cleanLine.substring(0, 50)}...`);
             }
             break;
             
           case 'notes':
             currentRecipe.notes += (currentRecipe.notes ? '\n' : '') + cleanLine;
             break;
-            
-          default:
-            // If we have content but no section, try to infer
-            if (currentRecipe && cleanLine && currentRecipe.ingredients.length === 0) {
-              // First content after recipe name is likely ingredients
-              currentSection = 'ingredients';
-              currentRecipe.ingredients.push(cleanLine);
-              console.log('    + Adding ingredient (inferred):', cleanLine);
-            }
-            break;
+        }
+      } else if (currentRecipe && !currentSection && line) {
+        // If we have a recipe but no section, try to guess what this content is
+        const cleanLine = line
+          .replace(/^[-•*]\s*/, '')
+          .replace(/^\d+[.)]\s*/, '')
+          .trim();
+        
+        // Check if it looks like an ingredient (has measurements or common ingredient words)
+        if (cleanLine.match(/^\d+\s*(cup|tbsp|tsp|lb|oz|g|kg|ml|l|can|jar|bottle|bunch|cloves?)\b/i) ||
+            cleanLine.match(/^(Salt|Pepper|Oil|Butter|Flour|Sugar|Milk|Eggs|Water|Onion|Garlic|Chicken|Beef|Fish|Rice|Pasta)\b/i)) {
+          currentRecipe.ingredients.push(cleanLine);
+          console.log(`    + Auto-detected ingredient for ${currentRecipe.title}: ${cleanLine}`);
+        } else if (cleanLine.match(/^(Heat|Cook|Add|Mix|Stir|Combine|Place|Serve|Season|Chop|Dice|Slice)\b/i)) {
+          // Looks like an instruction
+          if (currentRecipe.instructions.length === 0) {
+            currentSection = 'instructions'; // Switch to instructions mode
+          }
+          currentRecipe.instructions.push(cleanLine);
+          console.log(`    + Auto-detected instruction for ${currentRecipe.title}: ${cleanLine.substring(0, 50)}...`);
         }
       }
     }
     
-    // Save last recipe
+    // Save the last recipe
     if (currentRecipe && currentRecipe.title) {
-      // If recipe has no instructions, add a default
-      if (currentRecipe.instructions.length === 0 && currentRecipe.ingredients.length > 0) {
-        currentRecipe.instructions = [`Prepare ${currentRecipe.title} according to your preferred method using the ingredients listed.`];
+      // Add default content if missing
+      if (currentRecipe.ingredients.length === 0) {
+        console.log('⚠️ No ingredients found for:', currentRecipe.title, '- using inference');
+        currentRecipe.ingredients = inferIngredientsFromRecipeName(currentRecipe.title);
       }
       
-      // If recipe has no ingredients but has a name, use inference as fallback
-      if (currentRecipe.ingredients.length === 0) {
-        console.log('⚠️ Recipe has no ingredients, using inference fallback for:', currentRecipe.title);
-        currentRecipe.ingredients = inferIngredientsFromRecipeName(currentRecipe.title);
+      if (currentRecipe.instructions.length === 0) {
+        currentRecipe.instructions = [`Prepare ${currentRecipe.title} according to your preferred method.`];
       }
       
       console.log('💾 Saving final recipe:', currentRecipe.title, 
@@ -1086,13 +1149,14 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       recipes.push(currentRecipe);
     }
     
-    console.log(`✅ Enhanced extraction complete: Found ${recipes.length} recipes with full details`);
+    console.log(`✅ Extraction complete: Found ${recipes.length} recipes`);
     recipes.forEach(r => {
-      console.log(`  - ${r.title}: ${r.ingredients.length} ingredients, ${r.instructions.length} steps`);
+      console.log(`  - ${r.day || 'No day'} ${r.mealType}: ${r.title}`);
+      console.log(`    Ingredients: ${r.ingredients.length}, Instructions: ${r.instructions.length}`);
     });
     
     return {
-      isMealPlan: true,
+      isMealPlan: recipes.length > 0,
       recipes: recipes,
       totalRecipes: recipes.length
     };
