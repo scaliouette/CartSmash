@@ -16,13 +16,20 @@ import {
 /**
  * Generate a meal plan using AI
  */
-export async function generateAIMealPlan(preferences) {
+export async function generateAIMealPlan(preferences, currentUser = null) {
   try {
     const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
     
+    // Get auth token if user is provided
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentUser && typeof currentUser.getIdToken === 'function') {
+      const token = await currentUser.getIdToken();
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${API_URL}/api/ai/generate-meal-plan`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         familySize: preferences.familySize || 4,
         dietaryRestrictions: preferences.dietaryRestrictions || [],
@@ -302,14 +309,8 @@ export async function exportMealPlan(uid, mealPlanId, format = 'json') {
         return JSON.stringify(mealPlan, null, 2);
       
       case 'pdf':
-        // Call PDF generation service
-        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-        const pdfResponse = await fetch(`${API_URL}/api/export/meal-plan-pdf`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mealPlan })
-        });
-        return await pdfResponse.blob();
+        // TODO: PDF generation service not yet implemented
+        throw new Error('PDF export not yet available');
       
       case 'csv':
         // Convert to CSV format for shopping list
@@ -348,13 +349,20 @@ function convertShoppingListToCSV(shoppingList) {
 /**
  * Regenerate specific meals with AI
  */
-export async function regenerateMeal(uid, mealPlanId, day, mealType, preferences) {
+export async function regenerateMeal(uid, mealPlanId, day, mealType, preferences, currentUser = null) {
   try {
     const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
     
+    // Get auth token if user is provided
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentUser && typeof currentUser.getIdToken === 'function') {
+      const token = await currentUser.getIdToken();
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${API_URL}/api/ai/regenerate-meal`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         userId: uid,
         mealPlanId,

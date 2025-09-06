@@ -95,8 +95,23 @@ router.get('/health', (req, res) => {
   });
 });
 
+// OPTIONS handler for Claude endpoint (CORS preflight)
+router.options('/claude', (req, res) => {
+  res.header('Access-Control-Allow-Origin', 'https://cart-smash.vercel.app');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(204);
+});
+
 // Enhanced Claude API Integration with intelligent parsing
 router.post('/claude', async (req, res) => {
+  // Ensure CORS headers are set
+  res.header('Access-Control-Allow-Origin', 'https://cart-smash.vercel.app');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
   console.log('🧠 Enhanced Claude API request received');
   
   try {

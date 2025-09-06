@@ -1,13 +1,22 @@
 // server/services/databaseService.js
 // Database service for meal plans and recipes
 
-const { db } = require('../config/firebase');
+const admin = require('firebase-admin');
+
+// Get Firestore instance from initialized admin
+const getDB = () => {
+  if (admin.apps.length === 0) {
+    throw new Error('Firebase Admin not initialized');
+  }
+  return admin.firestore();
+};
 
 /**
  * Save recipe to user's library
  */
 async function saveRecipeToDatabase(userId, recipe) {
   try {
+    const db = getDB();
     const recipeRef = db.collection('users').doc(userId).collection('recipes').doc(recipe.id);
     await recipeRef.set({
       ...recipe,
@@ -26,6 +35,7 @@ async function saveRecipeToDatabase(userId, recipe) {
  */
 async function saveMealPlanToUser(userId, mealPlan) {
   try {
+    const db = getDB();
     const planId = mealPlan.planId || `meal-plan-${Date.now()}`;
     const mealPlanRef = db.collection('users').doc(userId).collection('mealPlans').doc(planId);
     
@@ -47,6 +57,7 @@ async function saveMealPlanToUser(userId, mealPlan) {
  */
 async function getMealPlan(userId, mealPlanId) {
   try {
+    const db = getDB();
     const mealPlanRef = db.collection('users').doc(userId).collection('mealPlans').doc(mealPlanId);
     const doc = await mealPlanRef.get();
     
@@ -69,6 +80,7 @@ async function getMealPlan(userId, mealPlanId) {
  */
 async function getUserRecipes(userId) {
   try {
+    const db = getDB();
     const recipesRef = db.collection('users').doc(userId).collection('recipes');
     const snapshot = await recipesRef.get();
     
@@ -92,6 +104,7 @@ async function getUserRecipes(userId) {
  */
 async function getUserMealPlans(userId) {
   try {
+    const db = getDB();
     const mealPlansRef = db.collection('users').doc(userId).collection('mealPlans');
     const snapshot = await mealPlansRef.get();
     
