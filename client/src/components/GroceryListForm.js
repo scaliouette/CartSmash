@@ -736,6 +736,72 @@ function GroceryListForm({
     return { name, ingredients, instructions };
   };
 
+  // Helper function to infer basic ingredients from recipe name
+  const inferIngredientsFromRecipeName = (recipeName) => {
+    const name = recipeName.toLowerCase();
+    const ingredients = [];
+    
+    // Common ingredients based on recipe name patterns
+    if (name.includes('oatmeal') || name.includes('oats')) {
+      ingredients.push('Rolled oats', 'Milk', 'Salt');
+      if (name.includes('berries')) ingredients.push('Mixed berries');
+      if (name.includes('honey')) ingredients.push('Honey');
+    } else if (name.includes('sandwich') || name.includes('sandwiches')) {
+      ingredients.push('Bread');
+      if (name.includes('turkey')) ingredients.push('Turkey slices');
+      if (name.includes('avocado')) ingredients.push('Avocado');
+      if (name.includes('ham')) ingredients.push('Ham slices');
+      if (name.includes('cheese')) ingredients.push('Cheese slices');
+    } else if (name.includes('yogurt')) {
+      ingredients.push('Greek yogurt');
+      if (name.includes('granola')) ingredients.push('Granola');
+      if (name.includes('berries')) ingredients.push('Mixed berries');
+    } else if (name.includes('eggs')) {
+      ingredients.push('Eggs');
+      if (name.includes('scrambled')) ingredients.push('Butter', 'Salt', 'Pepper');
+      if (name.includes('spinach')) ingredients.push('Fresh spinach');
+    } else if (name.includes('chicken')) {
+      ingredients.push('Chicken breast');
+      if (name.includes('baked')) ingredients.push('Olive oil', 'Salt', 'Pepper');
+      if (name.includes('caesar')) ingredients.push('Romaine lettuce', 'Caesar dressing');
+    } else if (name.includes('salmon')) {
+      ingredients.push('Salmon fillet', 'Olive oil', 'Lemon');
+      if (name.includes('rice')) ingredients.push('Brown rice');
+      if (name.includes('broccoli')) ingredients.push('Fresh broccoli');
+    } else if (name.includes('quinoa')) {
+      ingredients.push('Quinoa');
+      if (name.includes('chickpeas')) ingredients.push('Chickpeas');
+      if (name.includes('bowls')) ingredients.push('Mixed vegetables');
+    } else if (name.includes('stir') && name.includes('fry')) {
+      ingredients.push('Mixed vegetables', 'Soy sauce', 'Garlic', 'Ginger');
+      if (name.includes('beef')) ingredients.push('Beef strips');
+      if (name.includes('chicken')) ingredients.push('Chicken strips');
+    } else if (name.includes('salad')) {
+      ingredients.push('Mixed greens', 'Olive oil', 'Vinegar');
+      if (name.includes('chicken')) ingredients.push('Chicken breast');
+    } else if (name.includes('pasta')) {
+      ingredients.push('Pasta', 'Olive oil');
+      if (name.includes('tomato')) ingredients.push('Tomato sauce');
+    } else if (name.includes('nuts')) {
+      ingredients.push('Mixed nuts');
+    } else if (name.includes('cheese') && name.includes('crackers')) {
+      ingredients.push('String cheese', 'Crackers');
+    } else {
+      // Generic fallback - extract key food words
+      const foodWords = name.match(/\b(chicken|beef|fish|salmon|turkey|pork|rice|pasta|bread|cheese|eggs|milk|butter|olive oil|onion|garlic|tomato|lettuce|spinach|broccoli|carrots|potatoes)\b/g);
+      if (foodWords) {
+        ingredients.push(...foodWords.map(word => word.charAt(0).toUpperCase() + word.slice(1)));
+      }
+    }
+    
+    // Ensure we have at least some basic ingredients
+    if (ingredients.length === 0) {
+      ingredients.push('Basic ingredients needed');
+    }
+    
+    return ingredients;
+  };
+
   // Extract multiple recipes from a meal plan
   const extractMealPlanRecipes = (text) => {
     const recipes = [];
@@ -775,11 +841,13 @@ function GroceryListForm({
         const mealType = mealMatch[1];
         const recipeName = mealMatch[2].trim();
         
-        // Create a new recipe
+        // Create a new recipe with basic ingredients inferred from the recipe name
+        const basicIngredients = inferIngredientsFromRecipeName(recipeName);
+        
         currentRecipe = {
           title: recipeName,
-          ingredients: [],
-          instructions: [],
+          ingredients: basicIngredients,
+          instructions: [`Prepare ${recipeName} as desired`],
           servings: '4 people',
           prepTime: '15-30 minutes',
           cookTime: 'Varies',
@@ -1040,6 +1108,61 @@ function GroceryListForm({
   const handleAddToMealPlan = (recipe) => {
     // For now, just show an alert. This could be enhanced to integrate with meal planning
     alert(`📅 "${recipe.title}" would be added to meal plan (feature to be implemented)`);
+  };
+
+  // Handle adding recipe ingredients to cart
+  const handleAddRecipeToCart = async (recipe) => {
+    if (!recipe.ingredients || recipe.ingredients.length === 0) {
+      alert('❌ This recipe has no ingredients to add to cart');
+      return;
+    }
+
+    console.log('🛒 Adding recipe to cart:', recipe.title);
+    console.log('🥕 Recipe ingredients:', recipe.ingredients);
+
+    try {
+      // Convert ingredients array to text format
+      const ingredientsText = recipe.ingredients.join('\n');
+      
+      // Use the same API endpoint as regular grocery list parsing
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/cart/parse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          listText: ingredientsText,
+          action: 'merge', // Merge with existing cart
+          userId: currentUser?.uid || null,
+          options: {
+            mergeDuplicates: true,
+            enhancedQuantityParsing: true,
+            detectContainers: true
+          }
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success && data.cart) {
+        // Update the cart with new items
+        setCurrentCart(data.cart);
+        
+        const addedCount = data.cart.filter(item => 
+          recipe.ingredients.some(ingredient => 
+            ingredient.toLowerCase().includes(item.productName.toLowerCase().split(' ')[0])
+          )
+        ).length;
+        
+        alert(`✅ Added ${addedCount} ingredients from "${recipe.title}" to your cart!`);
+        
+        console.log(`✅ Successfully added ${addedCount} items to cart from recipe:`, recipe.title);
+      } else {
+        throw new Error('Failed to parse recipe ingredients');
+      }
+    } catch (error) {
+      console.error('❌ Error adding recipe to cart:', error);
+      alert('❌ Failed to add recipe ingredients to cart. Please try again.');
+    }
   };
 
   // Handle removing a recipe from the parsed recipes list
@@ -1460,13 +1583,29 @@ Or paste any grocery list directly!"
                     <span style={styles.mealTypeTag}>{recipe.mealType}</span>
                   )}
                 </h4>
-                <button 
-                  onClick={() => handleRemoveRecipe(index)}
-                  style={styles.deleteButton}
-                  title="Remove this recipe"
-                >
-                  🗑️
-                </button>
+                <div style={styles.headerButtons}>
+                  <button 
+                    onClick={() => handleAddToRecipeLibrary(recipe)}
+                    style={styles.headerButton}
+                    title="Add to Recipe Library"
+                  >
+                    🔲
+                  </button>
+                  <button 
+                    onClick={() => handleAddToMealPlan(recipe)}
+                    style={styles.headerButton}
+                    title="Add to Meal Plan"
+                  >
+                    📅
+                  </button>
+                  <button 
+                    onClick={() => handleRemoveRecipe(index)}
+                    style={styles.deleteButton}
+                    title="Remove this recipe"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
               
               <div style={styles.recipeContent}>
@@ -1501,18 +1640,11 @@ Or paste any grocery list directly!"
               
               <div style={styles.recipeActions}>
                 <button 
-                  onClick={() => handleAddToRecipeLibrary(recipe)}
-                  style={styles.recipeButton}
-                  title="Add to Recipe Library"
+                  onClick={() => handleAddRecipeToCart(recipe)}
+                  style={styles.addToCartButton}
+                  title="Add recipe ingredients to cart"
                 >
-                  🔲 <strong>[Add to Recipe Library]</strong>
-                </button>
-                <button 
-                  onClick={() => handleAddToMealPlan(recipe)}
-                  style={styles.recipeButton}
-                  title="Add to Meal Plan"
-                >
-                  📅 <strong>[Add to Meal Plan]</strong>
+                  🛒 <strong>[Add to Cart]</strong>
                 </button>
               </div>
             </div>
@@ -2153,6 +2285,45 @@ const styles = {
     fontWeight: '500',
     transition: 'all 0.2s',
     boxShadow: '0 2px 4px rgba(0,34,68,0.2)'
+  },
+
+  addToCartButton: {
+    padding: '10px 16px',
+    background: '#FB4F14', // CartSmash orange color
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 4px rgba(251,79,20,0.3)',
+    ':hover': {
+      background: '#E0440F',
+      transform: 'translateY(-1px)',
+      boxShadow: '0 4px 8px rgba(251,79,20,0.4)'
+    }
+  },
+
+  headerButtons: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center'
+  },
+
+  headerButton: {
+    padding: '6px 10px',
+    background: '#f8f9fa',
+    color: '#002244',
+    border: '1px solid #dee2e6',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    transition: 'all 0.2s',
+    ':hover': {
+      background: '#e9ecef',
+      borderColor: '#adb5bd'
+    }
   }
 };
 
