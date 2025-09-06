@@ -648,38 +648,27 @@ function GroceryListForm({
     return { name, ingredients, instructions };
   };
 
-  // Parse AI response for recipes in the new display format
+  // Parse AI response for recipes in multiple formats
   const parseAIRecipes = (aiResponseText) => {
     if (!aiResponseText) return [];
 
     const recipes = [];
     const lines = aiResponseText.split('\n');
-    let currentRecipe = null;
     
-    // Find the main recipe title - look for lines that aren't numbered steps or ingredient lists
+    console.log('🔍 Parsing AI response for recipes, line count:', lines.length);
+    
+    // Method 1: Look for structured recipe formats (Recipe Name:, Ingredients:, Instructions:)
+    let currentRecipe = null;
+    let currentSection = '';
+    
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       
-      // Skip empty lines and common headers
-      if (!line || line.toLowerCase().includes('grocery list') || 
-          line.toLowerCase().includes('shopping list') || 
-          line.toLowerCase().includes('ingredients:') ||
-          line.toLowerCase().includes('instructions:')) continue;
-          
-      // Look for main recipe title (not numbered steps like "1. Cook Pasta")
-      if (!line.match(/^\d+\./) && // Not a numbered step
-          !line.startsWith('-') && // Not a bullet point
-          !line.startsWith('*') && // Not an asterisk point
-          line.length > 5 && line.length < 80 && // Reasonable title length
-          !line.includes('minutes') && // Not timing info
-          !line.includes('calories') && // Not calorie info
-          !line.toLowerCase().includes('prep') && // Not prep info
-          !line.toLowerCase().includes('cook') && // Not cook info
-          !line.includes('recipe') && // Skip generic "recipe" text
-          line !== line.toUpperCase()) { // Not all caps headers
-        
+      // Detect recipe name section
+      if (line.toLowerCase().match(/^recipe\s*name\s*:/)) {
+        if (currentRecipe) recipes.push(currentRecipe);
         currentRecipe = {
-          title: line,
+          title: line.replace(/^recipe\s*name\s*:/i, '').trim(),
           ingredients: [],
           instructions: [],
           prepTime: '',
@@ -687,70 +676,93 @@ function GroceryListForm({
           calories: '',
           tags: []
         };
-        
-        // Once we find a recipe title, parse the content that follows
-        for (let j = i + 1; j < lines.length; j++) {
-          const contentLine = lines[j].trim();
-          
-          // Stop at next potential recipe title
-          if (contentLine && !contentLine.match(/^\d+\./) && 
-              !contentLine.startsWith('-') && !contentLine.startsWith('*') &&
-              contentLine.length > 5 && contentLine.length < 80 &&
-              !contentLine.includes(':') && 
-              !contentLine.includes('minutes') && 
-              !contentLine.includes('calories') && 
-              j > i + 5) { // Only consider lines after some content
-            break;
+        currentSection = 'title';
+        continue;
+      }
+      
+      // Detect ingredients section
+      if (line.toLowerCase().match(/^ingredients?\s*:/)) {
+        currentSection = 'ingredients';
+        continue;
+      }
+      
+      // Detect instructions section
+      if (line.toLowerCase().match(/^(instructions?|directions?|method|steps?)\s*:/)) {
+        currentSection = 'instructions';
+        continue;
+      }
+      
+      // Add content to current section
+      if (currentRecipe && line) {
+        if (currentSection === 'title' && !currentRecipe.title) {
+          currentRecipe.title = line;
+        } else if (currentSection === 'ingredients') {
+          const cleanIngredient = line.replace(/^[-*•]\s*/, '').trim();
+          if (cleanIngredient && !cleanIngredient.toLowerCase().match(/^(instructions?|directions?|method|steps?)\s*:/)) {
+            currentRecipe.ingredients.push(cleanIngredient);
           }
-          
-          // Parse ingredients
-          if (contentLine.toLowerCase().includes('ingredients:')) {
-            for (let k = j + 1; k < lines.length && k < j + 20; k++) {
-              const ingredientLine = lines[k].trim();
-              if (!ingredientLine || 
-                  ingredientLine.toLowerCase().includes('instructions:') ||
-                  ingredientLine.toLowerCase().includes('directions:')) break;
-              if (ingredientLine.startsWith('-') || ingredientLine.startsWith('*')) {
-                currentRecipe.ingredients.push(ingredientLine.substring(1).trim());
-              }
-            }
-          }
-          
-          // Parse instructions (but don't mistake them for recipe titles)
-          else if (contentLine.toLowerCase().includes('instructions:') || 
-                   contentLine.toLowerCase().includes('directions:')) {
-            for (let k = j + 1; k < lines.length && k < j + 15; k++) {
-              const instructionLine = lines[k].trim();
-              if (!instructionLine) break;
-              if (instructionLine.match(/^\d+\./) || instructionLine.startsWith('-')) {
-                currentRecipe.instructions.push(instructionLine.replace(/^[\d\-.\s]*/, '').trim());
-              }
-            }
-          }
-          
-          // Parse timing and nutrition
-          else if (contentLine.toLowerCase().includes('prep') || 
-                   contentLine.toLowerCase().includes('cook') || 
-                   contentLine.toLowerCase().includes('calories')) {
-            const timeMatch = contentLine.match(/prep[^0-9]*(\d+)\s*(min|minutes)/i);
-            if (timeMatch) currentRecipe.prepTime = timeMatch[1];
-            
-            const cookMatch = contentLine.match(/cook[^0-9]*(\d+)\s*(min|minutes)/i);
-            if (cookMatch) currentRecipe.cookTime = cookMatch[1];
-            
-            const caloriesMatch = contentLine.match(/calories[^0-9]*(\d+)/i);
-            if (caloriesMatch) currentRecipe.calories = caloriesMatch[1];
+        } else if (currentSection === 'instructions') {
+          const cleanInstruction = line.replace(/^[\d.-]*\s*/, '').trim();
+          if (cleanInstruction) {
+            currentRecipe.instructions.push(cleanInstruction);
           }
         }
-        
-        // Add the recipe if it has content
-        if (currentRecipe.title && (currentRecipe.ingredients.length > 0 || currentRecipe.instructions.length > 0)) {
-          recipes.push(currentRecipe);
-        }
-        break; // Only parse the first recipe found
       }
     }
-
+    
+    // Add the last recipe if it exists
+    if (currentRecipe && currentRecipe.title) {
+      recipes.push(currentRecipe);
+    }
+    
+    // Method 2: If no structured recipes found, look for recipe-like sections in the text
+    if (recipes.length === 0) {
+      console.log('🔍 No structured recipes found, looking for recipe patterns...');
+      
+      // Look for lines that could be recipe titles (not grocery list items)
+      const potentialRecipes = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Skip obvious grocery list headers and items
+        if (!line || 
+            line.toLowerCase().includes('grocery list') || 
+            line.toLowerCase().includes('shopping list') ||
+            line.startsWith('-') || 
+            line.startsWith('•') ||
+            line.match(/^\d+\s*(oz|lb|cups?|tbsp|tsp|cloves?|bunch|bag|jar|can|container|loaf|bottle)/i)) {
+          continue;
+        }
+        
+        // Look for potential recipe titles (descriptive food names)
+        if (line.length > 8 && line.length < 60 &&
+            !line.match(/^\d+\./) && // Not numbered steps
+            (line.toLowerCase().includes('chicken') || 
+             line.toLowerCase().includes('pasta') || 
+             line.toLowerCase().includes('salad') ||
+             line.toLowerCase().includes('soup') ||
+             line.toLowerCase().includes('sandwich') ||
+             line.toLowerCase().includes('recipe') ||
+             line.toLowerCase().match(/(with|and|or|in)\s+/))) { // Contains food relationship words
+          
+          potentialRecipes.push({
+            title: line.replace(/[*#]+/g, '').trim(), // Remove markdown formatting
+            ingredients: [],
+            instructions: [],
+            prepTime: '',
+            cookTime: '',
+            calories: '',
+            tags: []
+          });
+        }
+      }
+      
+      console.log('🔍 Found potential recipes:', potentialRecipes.length);
+      recipes.push(...potentialRecipes.slice(0, 3)); // Limit to 3 recipes
+    }
+    
+    console.log(`📝 Parsed ${recipes.length} recipes from AI response`);
     return recipes;
   };
 
