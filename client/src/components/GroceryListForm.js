@@ -541,14 +541,9 @@ function GroceryListForm({
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Determine if we should use AI or parse directly
-    // Use AI unless we're already waiting for AI response or the text looks like AI-generated content
-    const shouldUseAI = !waitingForAIResponse && 
-                       !inputText.includes('**Grocery List**') && 
-                       !inputText.includes('## Ingredients') &&
-                       !inputText.includes('Here\'s your') &&
-                       !inputText.includes('Shopping List:') &&
-                       inputText.trim().length > 0;
+    // Always use AI on the first submission unless we're already waiting for a response
+    // The key insight: if waitingForAIResponse is true, it means AI has already processed this and we should parse
+    const shouldUseAI = !waitingForAIResponse && selectedAI && inputText.trim().length > 0;
     
     console.log('Submit clicked. Using AI:', shouldUseAI, '| Selected AI Model:', selectedAI, '| Waiting for AI Response:', waitingForAIResponse);
     console.log('Input text preview:', inputText.substring(0, 100));
