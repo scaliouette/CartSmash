@@ -668,19 +668,44 @@ function GroceryListForm({
     const lines = aiResponseText.split('\n');
     let currentRecipe = null;
 
+    // Look for the main recipe title first (usually a heading)
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
 
-      // Look for recipe titles (format: **Recipe Title** or Recipe Name:)
-      if (line.includes('**') && !line.startsWith('*') && line.length < 100) {
+      // Look for main recipe titles (headings, not instruction steps or metadata)
+      if (line.startsWith('# ') || 
+         (line.includes('**') && 
+          !line.startsWith('*') && 
+          !line.match(/^\d+\.\s/) && 
+          line.length < 100 && 
+          line.length > 5 &&
+          !line.toLowerCase().includes('cook') && 
+          !line.toLowerCase().includes('prepare') && 
+          !line.toLowerCase().includes('step') &&
+          !line.toLowerCase().includes('serves') &&
+          !line.toLowerCase().includes('prep time') &&
+          !line.toLowerCase().includes('cook time') &&
+          !line.toLowerCase().includes('total time') &&
+          !line.toLowerCase().includes('instructions') &&
+          !line.toLowerCase().includes('ingredients') &&
+          !line.toLowerCase().includes('garnish') &&
+          !line.toLowerCase().includes('main components') &&
+          !line.toLowerCase().includes('sauce'))) {
         // Save previous recipe
-        if (currentRecipe && currentRecipe.title) {
+        if (currentRecipe && currentRecipe.title && currentRecipe.ingredients.length > 0) {
           recipes.push(currentRecipe);
         }
         
-        // Start new recipe
+        // Start new recipe with proper title
+        let recipeTitle = line;
+        if (line.startsWith('# ')) {
+          recipeTitle = line.substring(2).trim();
+        } else {
+          recipeTitle = line.replace(/\*\*/g, '').trim();
+        }
+        
         currentRecipe = {
-          title: line.replace(/\*\*/g, '').trim(),
+          title: recipeTitle,
           ingredients: [],
           instructions: [],
           prepTime: '',
