@@ -788,37 +788,26 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     alert('List copied to clipboard!');
   };
 
-  const handleSaveList = () => {
+  const handleSaveList = async () => {
     const listName = prompt('Enter a name for this list:', `Shopping List ${new Date().toLocaleDateString()}`);
     if (!listName) return;
     
+    // Check if saveCartAsList prop is provided
+    if (!saveCartAsList || typeof saveCartAsList !== 'function') {
+      console.error('❌ saveCartAsList function not provided');
+      alert('Unable to save list. Please try again.');
+      return;
+    }
+    
     try {
-      // Create list object
-      const newList = {
-        id: `list_${Date.now()}`,
-        name: listName,
-        items: [...items],
-        itemCount: items.length,
-        createdAt: new Date().toISOString(),
-        userId: currentUser?.uid || 'guest'
-      };
+      // Use the parent's saveCartAsList function
+      const newList = await saveCartAsList(listName, items);
       
-      // ✅ REMOVED: No localStorage list operations - delegated to parent component
-      
-      // Try to save to server if user is logged in
-      if (currentUser?.uid) {
-        const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-        fetch(`${API_URL}/api/cart/save-list`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'user-id': currentUser.uid 
-          },
-          body: JSON.stringify(newList)
-        }).catch(err => console.error('Failed to save to server, but saved locally:', err));
+      if (newList) {
+        alert(`✅ List "${listName}" saved successfully!`);
+      } else {
+        throw new Error('Failed to save list');
       }
-      
-      alert(`✅ List "${listName}" saved successfully!`);
     } catch (error) {
       console.error('Error saving list:', error);
       alert('Failed to save list. Please try again.');

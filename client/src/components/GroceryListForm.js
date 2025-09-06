@@ -159,6 +159,9 @@ function GroceryListForm({
   // Recipe Manager Modal State
   const [showRecipeManager, setShowRecipeManager] = useState(false);
   const [selectedRecipeForMealPlan, setSelectedRecipeForMealPlan] = useState(null);
+  
+  // Shopping List Manager Modal State
+  const [showShoppingListManager, setShowShoppingListManager] = useState(false);
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
@@ -1368,6 +1371,204 @@ function GroceryListForm({
     );
   };
 
+  // QuickSaveListButton Component  
+  const QuickSaveListButton = ({ items, onSave, disabled = false }) => {
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleQuickSave = async () => {
+      if (!items || items.length === 0) {
+        alert('No items to save!');
+        return;
+      }
+
+      const listName = `Shopping List ${new Date().toLocaleDateString()}`;
+      setIsSaving(true);
+      
+      try {
+        await onSave(listName, items);
+        alert(`✅ Quick saved "${listName}"!`);
+      } catch (error) {
+        console.error('Quick save failed:', error);
+        alert('Failed to quick save list');
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    return (
+      <button
+        onClick={handleQuickSave}
+        disabled={disabled || isSaving || !items || items.length === 0}
+        style={{
+          ...styles.quickSaveButton,
+          opacity: disabled || !items || items.length === 0 ? 0.5 : 1,
+          cursor: disabled || !items || items.length === 0 ? 'not-allowed' : 'pointer'
+        }}
+        onMouseEnter={(e) => {
+          if (!disabled && items && items.length > 0) {
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 34, 68, 0.3)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!disabled && items && items.length > 0) {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 34, 68, 0.2)';
+          }
+        }}
+      >
+        {isSaving ? (
+          <div style={styles.quickSaveContent}>
+            <ButtonSpinner size={16} />
+            <span style={{ marginLeft: '8px' }}>Saving...</span>
+          </div>
+        ) : (
+          <div style={styles.quickSaveContent}>
+            <span style={styles.quickSaveIcon}>💾</span>
+            <span>Quick Save ({items ? items.length : 0} items)</span>
+          </div>
+        )}
+      </button>
+    );
+  };
+
+  // ShoppingListManager Modal Component
+  const ShoppingListManager = ({ items, onClose, onSave }) => {
+    const [listName, setListName] = useState(`Shopping List ${new Date().toLocaleDateString()}`);
+    const [selectedItems, setSelectedItems] = useState([]);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Initialize selected items when modal opens
+    useEffect(() => {
+      if (items && items.length > 0) {
+        setSelectedItems(items.map(item => item.id));
+      }
+    }, [items]);
+
+    const toggleItem = (itemId) => {
+      setSelectedItems(prev => 
+        prev.includes(itemId) 
+          ? prev.filter(id => id !== itemId)
+          : [...prev, itemId]
+      );
+    };
+
+    const handleSave = async () => {
+      if (!listName.trim()) {
+        alert('Please enter a list name');
+        return;
+      }
+
+      if (selectedItems.length === 0) {
+        alert('Please select at least one item');
+        return;
+      }
+
+      setIsSaving(true);
+      try {
+        const itemsToSave = items.filter(item => selectedItems.includes(item.id));
+        await onSave(listName.trim(), itemsToSave);
+        alert(`✅ List "${listName}" saved successfully!`);
+        onClose();
+      } catch (error) {
+        console.error('Save failed:', error);
+        alert('Failed to save list. Please try again.');
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    return (
+      <div style={styles.modalOverlay} onClick={onClose}>
+        <div style={styles.shoppingListModal} onClick={(e) => e.stopPropagation()}>
+          <div style={styles.modalHeader}>
+            <h3 style={styles.modalTitle}>Save Shopping List</h3>
+            <button onClick={onClose} style={styles.modalCloseButton}>×</button>
+          </div>
+          
+          <div style={styles.modalBody}>
+            <div style={styles.inputGroup}>
+              <label style={styles.inputLabel}>List Name:</label>
+              <input
+                type="text"
+                value={listName}
+                onChange={(e) => setListName(e.target.value)}
+                style={styles.modalInput}
+                placeholder="Enter list name..."
+              />
+            </div>
+
+            <div style={styles.itemsSection}>
+              <div style={styles.itemsHeader}>
+                <span style={styles.itemsTitle}>
+                  Items ({selectedItems.length} of {items ? items.length : 0} selected)
+                </span>
+                <div style={styles.selectionButtons}>
+                  <button
+                    onClick={() => setSelectedItems(items ? items.map(item => item.id) : [])}
+                    style={styles.selectionButton}
+                  >
+                    Select All
+                  </button>
+                  <button
+                    onClick={() => setSelectedItems([])}
+                    style={styles.selectionButton}
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+
+              <div style={styles.itemsList}>
+                {items && items.map((item) => (
+                  <div key={item.id} style={styles.itemRow}>
+                    <label style={styles.itemLabel}>
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.includes(item.id)}
+                        onChange={() => toggleItem(item.id)}
+                        style={styles.itemCheckbox}
+                      />
+                      <div style={styles.itemDetails}>
+                        <div style={styles.itemName}>{item.productName}</div>
+                        <div style={styles.itemInfo}>
+                          Qty: {item.quantity} | ${item.price ? item.price.toFixed(2) : 'N/A'}
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.modalFooter}>
+            <button onClick={onClose} style={styles.cancelButton}>
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving || selectedItems.length === 0 || !listName.trim()}
+              style={{
+                ...styles.saveButton,
+                opacity: isSaving || selectedItems.length === 0 || !listName.trim() ? 0.5 : 1
+              }}
+            >
+              {isSaving ? (
+                <div style={styles.buttonContent}>
+                  <ButtonSpinner size={16} />
+                  <span style={{ marginLeft: '8px' }}>Saving...</span>
+                </div>
+              ) : (
+                `Save List (${selectedItems.length} items)`
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Handle adding recipe ingredients to cart
   const handleAddRecipeToCart = async (recipe) => {
     if (!recipe.ingredients || recipe.ingredients.length === 0) {
@@ -1922,6 +2123,38 @@ Or paste any grocery list directly!"
             hideExportButton={true}
           />
           
+          {/* Quick Save Actions */}
+          <div style={styles.quickSaveSection}>
+            <div style={styles.quickSaveTitle}>Save Your Shopping List</div>
+            <div style={styles.quickSaveActions}>
+              <QuickSaveListButton
+                items={currentCart}
+                onSave={saveCartAsList}
+                disabled={!saveCartAsList}
+              />
+              <button
+                onClick={() => setShowShoppingListManager(true)}
+                style={styles.customSaveButton}
+                disabled={currentCart.length === 0}
+                onMouseEnter={(e) => {
+                  if (currentCart.length > 0) {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 79, 20, 0.3)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (currentCart.length > 0) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(251, 79, 20, 0.2)';
+                  }
+                }}
+              >
+                <span style={styles.customSaveIcon}>⚙️</span>
+                <span>Custom Save</span>
+              </button>
+            </div>
+          </div>
+          
           {/* Single Unified Checkout Button */}
           <div style={styles.checkoutSection}>
             <button
@@ -1993,6 +2226,15 @@ Or paste any grocery list directly!"
             setShowRecipeManager(false);
             setSelectedRecipeForMealPlan(null);
           }}
+        />
+      )}
+
+      {/* Shopping List Manager Modal */}
+      {showShoppingListManager && (
+        <ShoppingListManager
+          items={currentCart}
+          onClose={() => setShowShoppingListManager(false)}
+          onSave={saveCartAsList}
         />
       )}
 
@@ -2860,6 +3102,174 @@ const styles = {
     fontSize: '14px',
     fontWeight: '600',
     transition: 'all 0.2s'
+  },
+
+  // Quick Save Section Styles
+  quickSaveSection: {
+    backgroundColor: '#f8f9fa',
+    border: '2px dashed #002244',
+    borderRadius: '12px',
+    padding: '20px',
+    marginBottom: '20px',
+    textAlign: 'center'
+  },
+
+  quickSaveTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#002244',
+    marginBottom: '16px'
+  },
+
+  quickSaveActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'center',
+    flexWrap: 'wrap'
+  },
+
+  quickSaveButton: {
+    padding: '12px 20px',
+    backgroundColor: '#002244',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 8px rgba(0, 34, 68, 0.2)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+
+  quickSaveContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+
+  quickSaveIcon: {
+    fontSize: '16px'
+  },
+
+  customSaveButton: {
+    padding: '12px 20px',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 8px rgba(251, 79, 20, 0.2)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+
+  customSaveIcon: {
+    fontSize: '16px'
+  },
+
+  // Shopping List Manager Modal Styles
+  shoppingListModal: {
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    width: '90%',
+    maxWidth: '600px',
+    maxHeight: '80vh',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+  },
+
+  itemsSection: {
+    marginTop: '20px'
+  },
+
+  itemsHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px'
+  },
+
+  itemsTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#002244'
+  },
+
+  selectionButtons: {
+    display: 'flex',
+    gap: '8px'
+  },
+
+  selectionButton: {
+    padding: '6px 12px',
+    backgroundColor: 'transparent',
+    color: '#FB4F14',
+    border: '1px solid #FB4F14',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '600',
+    transition: 'all 0.2s'
+  },
+
+  itemsList: {
+    maxHeight: '300px',
+    overflowY: 'auto',
+    border: '1px solid #e0e0e0',
+    borderRadius: '8px',
+    padding: '8px'
+  },
+
+  itemRow: {
+    padding: '8px',
+    borderRadius: '6px',
+    marginBottom: '4px',
+    backgroundColor: '#f8f9fa',
+    transition: 'background-color 0.2s'
+  },
+
+  itemLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    cursor: 'pointer',
+    gap: '12px'
+  },
+
+  itemCheckbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer'
+  },
+
+  itemDetails: {
+    flex: 1
+  },
+
+  itemName: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#002244',
+    marginBottom: '4px'
+  },
+
+  itemInfo: {
+    fontSize: '12px',
+    color: '#666'
+  },
+
+  buttonContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
   }
 };
 

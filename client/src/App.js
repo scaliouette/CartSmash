@@ -445,16 +445,20 @@ function AppContent({
   
   const saveCartAsList = async (name, items = null) => {
     const itemsToSave = items || currentCart;
-    if (itemsToSave.length === 0) {
+    
+    if (!itemsToSave || itemsToSave.length === 0) {
       alert('No items to save!');
       return null;
     }
     
     const newList = {
+      id: `list_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name: name || `Shopping List ${new Date().toLocaleDateString()}`,
       items: [...itemsToSave],
       itemCount: itemsToSave.length,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      userId: currentUser?.uid || 'guest'
     };
     
     try {
