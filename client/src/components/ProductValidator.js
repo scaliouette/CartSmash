@@ -191,7 +191,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
       <div style={styles.modal}>
         {/* Header */}
         <div style={styles.header}>
-          <h2 style={styles.title}>🔍 Review & Accept Items</h2>
+          <h2 style={styles.title}>🔍 Review Items</h2>
           <button onClick={onClose} style={styles.closeButton}>×</button>
         </div>
 
