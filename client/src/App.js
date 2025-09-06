@@ -281,8 +281,7 @@ function AppContent({
   
   // Auto-save cart to Firebase when it changes (debounced)
   useEffect(() => {
-    if (currentCart.length === 0) return;
-    
+    // ✅ FIXED: Save empty carts too - prevents deleted items from reappearing
     const saveTimer = setTimeout(() => {
       saveCartToFirebase();
     }, 2000); // 2 second debounce
