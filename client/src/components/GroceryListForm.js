@@ -344,9 +344,31 @@ function GroceryListForm({
               ingredientChoice: ingredientStyle,
               options: {
                 includeRecipes: true,
+                includeInstructions: true,
                 formatAsList: true,
                 structuredFormat: true,
-                formatInstruction: "Please format your response with clear sections:\n\nRecipe Name:\n[Recipe name here]\n\nIngredients:\n[List ingredients here, one per line]\n\nInstructions:\n[Cooking instructions here]\n\nThis allows users to save the recipe to their collection before parsing ingredients for shopping."
+                formatInstruction: `Please provide COMPLETE recipes with:
+
+RECIPE FORMAT:
+Recipe Name: [Name]
+Servings: [Number]
+Prep Time: [Minutes]
+Cook Time: [Minutes]
+
+Ingredients:
+- [List each ingredient with quantities]
+
+Instructions:
+1. [Step-by-step cooking instructions]
+2. [Continue with all steps]
+
+Notes: [Any tips or variations]
+
+Then provide:
+Grocery List:
+[Complete shopping list with all ingredients]
+
+Please ensure each recipe has FULL cooking instructions, not just ingredient lists.`
               }
             })
           });
@@ -844,159 +866,169 @@ function GroceryListForm({
   const extractMealPlanRecipes = (text) => {
     const recipes = [];
     const lines = text.split('\n');
-    let currentDay = '';
     let currentRecipe = null;
-    let inIngredientsSection = false;
-    let inInstructionsSection = false;
+    let currentSection = '';
+    let currentDay = '';
     
-    console.log('🔍 Parsing meal plan content for recipe information...');
+    console.log('🔍 Enhanced recipe extraction starting...');
     console.log('📊 Total lines to process:', lines.length);
-    console.log('📄 First 10 lines:', lines.slice(0, 10));
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
       
       // Detect day headers
-      const dayMatch = line.match(/^Day\s+(\d+)(?:\s*\(([^)]+)\))?:?/i) ||
-                       line.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday):?/i);
+      const dayMatch = line.match(/^Day\s+(\d+)|^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
       if (dayMatch) {
         currentDay = dayMatch[0].replace(':', '').trim();
-        console.log('📅 Found day header:', currentDay, 'on line:', i);
+        console.log('📅 Found day header:', currentDay);
         continue;
       }
       
-      // Detect meal entries with better pattern matching
-      const mealMatch = line.match(/^[-*•]?\s*(Breakfast|Lunch|Dinner|Snack[s]?):\s*(.+)$/i);
-      if (mealMatch) {
-        console.log('🍽️ Found meal match on line', i, ':', line);
+      // Detect recipe name patterns
+      if (line.match(/^Recipe Name:|^Recipe:|^##\s+/i) || 
+          line.match(/^(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i)) {
+        
         // Save previous recipe if exists
         if (currentRecipe && currentRecipe.title) {
-          console.log('💾 Saving previous recipe:', currentRecipe.title);
-          recipes.push(currentRecipe);
+          // Only save if recipe has actual content
+          if (currentRecipe.ingredients.length > 0 || currentRecipe.instructions.length > 0) {
+            console.log('💾 Saving complete recipe:', currentRecipe.title, 
+                       `(${currentRecipe.ingredients.length} ingredients, ${currentRecipe.instructions.length} steps)`);
+            recipes.push(currentRecipe);
+          }
         }
         
-        const mealType = mealMatch[1];
-        const recipeName = mealMatch[2].trim();
+        // Extract recipe name
+        let recipeName = line
+          .replace(/^Recipe Name:|^Recipe:|^##\s+/i, '')
+          .replace(/^(Breakfast|Lunch|Dinner|Snack):\s*/i, '')
+          .trim();
         
-        // Create a new recipe with basic ingredients inferred from the recipe name
-        const basicIngredients = inferIngredientsFromRecipeName(recipeName);
+        const mealTypeMatch = line.match(/^(Breakfast|Lunch|Dinner|Snack):/i);
+        const mealType = mealTypeMatch ? mealTypeMatch[1] : 'Dinner';
         
         currentRecipe = {
           title: recipeName,
-          ingredients: basicIngredients,
-          instructions: [`Prepare ${recipeName} as desired`],
-          servings: '4 people',
-          prepTime: '15-30 minutes',
-          cookTime: 'Varies',
+          ingredients: [],
+          instructions: [],
+          servings: '',
+          prepTime: '',
+          cookTime: '',
           mealType: mealType,
           day: currentDay,
-          tags: [currentDay.toLowerCase().includes('day') ? currentDay : 'meal plan'],
+          tags: [currentDay || 'meal plan'],
+          notes: '',
           id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         };
         
-        console.log('🍽️ Created new recipe:', `${currentDay} ${mealType}: ${recipeName}`);
-        inIngredientsSection = false;
-        inInstructionsSection = false;
+        currentSection = 'title';
+        console.log('📝 Found recipe:', recipeName);
         continue;
       }
       
-      // Detect ingredients section
-      if (line.toLowerCase().includes('ingredients:')) {
-        inIngredientsSection = true;
-        inInstructionsSection = false;
+      // Detect sections
+      if (line.match(/^Servings?:/i)) {
+        if (currentRecipe) {
+          currentRecipe.servings = line.replace(/^Servings?:/i, '').trim();
+        }
         continue;
       }
       
-      // Detect instructions section
-      if (line.toLowerCase().match(/instructions?:|directions?:|method:|steps:/)) {
-        inInstructionsSection = true;
-        inIngredientsSection = false;
+      if (line.match(/^Prep\s+Time:|^Preparation\s+Time:/i)) {
+        if (currentRecipe) {
+          currentRecipe.prepTime = line.replace(/^Prep(?:aration)?\s+Time:/i, '').trim();
+        }
         continue;
       }
       
-      // Add content to current recipe
-      if (currentRecipe) {
-        if (inIngredientsSection && line.match(/^[-•*]\s*.+$/)) {
-          const ingredient = line.replace(/^[-•*]\s*/, '').trim();
-          if (ingredient) {
-            currentRecipe.ingredients.push(ingredient);
-          }
-        } else if (inInstructionsSection && line.match(/^\d+\.\s*.+$/)) {
-          const instruction = line.replace(/^\d+\.\s*/, '').trim();
-          if (instruction) {
-            currentRecipe.instructions.push(instruction);
-          }
+      if (line.match(/^Cook(?:ing)?\s+Time:/i)) {
+        if (currentRecipe) {
+          currentRecipe.cookTime = line.replace(/^Cook(?:ing)?\s+Time:/i, '').trim();
+        }
+        continue;
+      }
+      
+      if (line.match(/^Ingredients?:/i)) {
+        currentSection = 'ingredients';
+        continue;
+      }
+      
+      if (line.match(/^Instructions?:|^Directions?:|^Method:|^Steps?:/i)) {
+        currentSection = 'instructions';
+        continue;
+      }
+      
+      if (line.match(/^Notes?:|^Tips?:/i)) {
+        currentSection = 'notes';
+        continue;
+      }
+      
+      if (line.match(/^Grocery\s+List:|^Shopping\s+List:/i)) {
+        currentSection = 'grocery';
+        continue;
+      }
+      
+      // Add content to current recipe section
+      if (currentRecipe && currentSection && line) {
+        // Clean up bullet points and numbers
+        const cleanLine = line
+          .replace(/^[-•*]\s*/, '')
+          .replace(/^\d+\.\s*/, '')
+          .trim();
+        
+        if (!cleanLine) continue;
+        
+        switch (currentSection) {
+          case 'ingredients':
+            // Don't add if it looks like a section header
+            if (!cleanLine.match(/^(Instructions?|Directions?|Method|Steps?):/i)) {
+              currentRecipe.ingredients.push(cleanLine);
+            }
+            break;
+            
+          case 'instructions':
+            // Add as instruction step
+            if (!cleanLine.match(/^(Notes?|Tips?|Grocery|Shopping):/i)) {
+              currentRecipe.instructions.push(cleanLine);
+            }
+            break;
+            
+          case 'notes':
+            currentRecipe.notes += (currentRecipe.notes ? '\n' : '') + cleanLine;
+            break;
         }
       }
     }
     
-    // Don't forget the last recipe
+    // Save last recipe
     if (currentRecipe && currentRecipe.title) {
-      console.log('💾 Saving final recipe:', currentRecipe.title);
+      // If recipe has no instructions, add a default
+      if (currentRecipe.instructions.length === 0 && currentRecipe.ingredients.length > 0) {
+        currentRecipe.instructions = [`Prepare ${currentRecipe.title} according to your preferred method using the ingredients listed.`];
+      }
+      
+      // If recipe has no ingredients but has a name, use inference as fallback
+      if (currentRecipe.ingredients.length === 0) {
+        console.log('⚠️ Recipe has no ingredients, using inference fallback for:', currentRecipe.title);
+        currentRecipe.ingredients = inferIngredientsFromRecipeName(currentRecipe.title);
+      }
+      
+      console.log('💾 Saving final recipe:', currentRecipe.title, 
+                 `(${currentRecipe.ingredients.length} ingredients, ${currentRecipe.instructions.length} steps)`);
       recipes.push(currentRecipe);
     }
     
-    console.log('📊 After main parsing, found', recipes.length, 'recipes');
+    console.log(`✅ Enhanced extraction complete: Found ${recipes.length} recipes with full details`);
+    recipes.forEach(r => {
+      console.log(`  - ${r.title}: ${r.ingredients.length} ingredients, ${r.instructions.length} steps`);
+    });
     
-    // If we found too few recipes, try fallback parsing
-    if (recipes.length < 3) {
-      console.log('🔍 Found few structured recipes, trying fallback parsing...');
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        
-        // Skip grocery list items and headers
-        if (!line || 
-            line.toLowerCase().includes('grocery') || 
-            line.toLowerCase().includes('shopping') ||
-            line.startsWith('-') || 
-            line.startsWith('•') ||
-            line.match(/^\d+\s*(oz|lb|cups?|tbsp|tsp|bunch|bag|jar|can|container|loaf)/i)) {
-          continue;
-        }
-        
-        // Look for potential meal descriptions
-        if (line.length > 15 && line.length < 80 &&
-            !line.match(/^\d+\./) && // Not numbered steps
-            (line.toLowerCase().includes('chicken') || 
-             line.toLowerCase().includes('salmon') ||
-             line.toLowerCase().includes('pasta') || 
-             line.toLowerCase().includes('salad') ||
-             line.toLowerCase().includes('soup') ||
-             line.toLowerCase().includes('stir') ||
-             line.toLowerCase().includes('grilled') ||
-             line.toLowerCase().includes('baked') ||
-             line.toLowerCase().includes('with') ||
-             line.toLowerCase().includes('recipe'))) {
-          
-          recipes.push({
-            title: line.replace(/[*#-]+/g, '').trim(),
-            ingredients: [],
-            instructions: [],
-            prepTime: '',
-            cookTime: '',
-            calories: '',
-            tags: ['meal idea'],
-            mealType: 'suggested meal'
-          });
-          
-          if (recipes.length >= 5) break; // Limit to reasonable number
-        }
-      }
-    }
-    
-    console.log(`✅ Meal plan extraction complete: Found ${recipes.length} recipes`);
-    console.log('📋 Final recipe list:', recipes.map(r => `${r.mealType}: ${r.title} (${r.day})`));
-    
-    const result = {
+    return {
       isMealPlan: true,
-      recipes: recipes.slice(0, 7), // Limit to 7 recipes max for display
+      recipes: recipes,
       totalRecipes: recipes.length
     };
-    
-    console.log('🔄 Returning meal plan result:', result);
-    return result;
   };
 
   // Parse AI response for recipes in multiple formats
@@ -1573,6 +1605,127 @@ function GroceryListForm({
     );
   };
 
+  // Enhanced Recipe Card Component
+  const RecipeCard = ({ recipe, index, onAddToCart, onAddToLibrary, onAddToMealPlan, onRemove }) => {
+    const [expanded, setExpanded] = useState(false);
+    
+    return (
+      <div style={styles.enhancedRecipeCard}>
+        <div style={styles.recipeHeader}>
+          <h4 style={styles.recipeTitle}>
+            {recipe.mealType === 'Breakfast' ? '🍳' : 
+             recipe.mealType === 'Lunch' ? '🥗' :
+             recipe.mealType === 'Dinner' ? '🍽️' :
+             recipe.mealType === 'Snack' ? '🍪' : '🍳'} 
+            <strong>{recipe.title}</strong>
+            {recipe.mealType && (
+              <span style={styles.mealTypeTag}>{recipe.mealType}</span>
+            )}
+            {recipe.day && (
+              <span style={styles.dayTag}>{recipe.day}</span>
+            )}
+          </h4>
+          <div style={styles.headerButtons}>
+            <button 
+              onClick={() => setExpanded(!expanded)}
+              style={styles.expandButton}
+              title={expanded ? "Show less" : "Show full recipe"}
+            >
+              {expanded ? '▼' : '▶'} {expanded ? 'Less' : 'More'}
+            </button>
+            <button 
+              onClick={() => onAddToCart(recipe)}
+              style={styles.addToCartHeaderButton}
+            >
+              🛒 Add to Cart
+            </button>
+            <button 
+              onClick={() => onAddToLibrary(recipe)}
+              style={styles.wideHeaderButton}
+            >
+              📖 Save Recipe
+            </button>
+            <button 
+              onClick={() => onAddToMealPlan(recipe)}
+              style={styles.wideHeaderButton}
+            >
+              📅 Meal Plan
+            </button>
+            <button 
+              onClick={() => onRemove(index)}
+              style={styles.wideDeleteButton}
+            >
+              🗑️ Remove
+            </button>
+          </div>
+        </div>
+        
+        <div style={styles.recipeContent}>
+          {/* Recipe Metadata */}
+          <div style={styles.recipeMetadata}>
+            {recipe.servings && (
+              <span style={styles.metaItem}>👥 Servings: {recipe.servings}</span>
+            )}
+            {recipe.prepTime && (
+              <span style={styles.metaItem}>⏱️ Prep: {recipe.prepTime}</span>
+            )}
+            {recipe.cookTime && (
+              <span style={styles.metaItem}>🔥 Cook: {recipe.cookTime}</span>
+            )}
+          </div>
+          
+          {/* Ingredients */}
+          {recipe.ingredients && recipe.ingredients.length > 0 && (
+            <div style={styles.recipeSection}>
+              <h5 style={styles.sectionTitle}>📝 Ingredients:</h5>
+              {expanded ? (
+                <ul style={styles.ingredientsList}>
+                  {recipe.ingredients.map((ingredient, idx) => (
+                    <li key={idx} style={styles.ingredientItem}>{ingredient}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={styles.collapsedText}>
+                  {recipe.ingredients.slice(0, 3).join(', ')}
+                  {recipe.ingredients.length > 3 && ` ... +${recipe.ingredients.length - 3} more`}
+                </p>
+              )}
+            </div>
+          )}
+          
+          {/* Instructions */}
+          {expanded && recipe.instructions && recipe.instructions.length > 0 && (
+            <div style={styles.recipeSection}>
+              <h5 style={styles.sectionTitle}>👨‍🍳 Instructions:</h5>
+              <ol style={styles.instructionsList}>
+                {recipe.instructions.map((step, idx) => (
+                  <li key={idx} style={styles.instructionItem}>{step}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+          
+          {/* Notes */}
+          {expanded && recipe.notes && (
+            <div style={styles.recipeSection}>
+              <h5 style={styles.sectionTitle}>💡 Notes:</h5>
+              <p style={styles.notesText}>{recipe.notes}</p>
+            </div>
+          )}
+          
+          {/* Tags */}
+          {recipe.tags && recipe.tags.length > 0 && (
+            <div style={styles.recipeTags}>
+              {recipe.tags.map((tag, idx) => (
+                <span key={idx} style={styles.tag}>{tag}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // Handle adding recipe ingredients to cart
   const handleAddRecipeToCart = async (recipe) => {
     if (!recipe.ingredients || recipe.ingredients.length === 0) {
@@ -2034,80 +2187,15 @@ Or paste any grocery list directly!"
               '📋 Meal Plan Ideas' : '🍳 Recipes Found'}
           </h3>
           {parsedRecipes.map((recipe, index) => (
-            <div key={index} style={styles.recipeCard}>
-              <div style={styles.recipeHeader}>
-                <h4 style={styles.recipeTitle}>
-                  {recipe.mealType === 'Breakfast' ? '🍳' : 
-                   recipe.mealType === 'Lunch' ? '🥗' :
-                   recipe.mealType === 'Dinner' ? '🍽️' :
-                   recipe.mealType === 'Snack' ? '🍪' : '🍳'} 
-                  <strong>{recipe.title}</strong>
-                  {recipe.mealType && recipe.mealType !== 'meal' && (
-                    <span style={styles.mealTypeTag}>{recipe.mealType}</span>
-                  )}
-                </h4>
-                <div style={styles.headerButtons}>
-                  <button 
-                    onClick={() => handleAddRecipeToCart(recipe)}
-                    style={styles.addToCartHeaderButton}
-                    title="Add recipe ingredients to cart"
-                  >
-                    🛒 Add to Cart
-                  </button>
-                  <button 
-                    onClick={() => handleAddToRecipeLibrary(recipe)}
-                    style={styles.wideHeaderButton}
-                    title="Save to Recipe Library"
-                  >
-                    📖 Save Recipe
-                  </button>
-                  <button 
-                    onClick={() => handleAddToMealPlan(recipe)}
-                    style={styles.wideHeaderButton}
-                    title="ADD MEAL PLAN"
-                  >
-                    📅 Meal Plan
-                  </button>
-                  <button 
-                    onClick={() => handleRemoveRecipe(index)}
-                    style={styles.wideDeleteButton}
-                    title="REMOVE"
-                  >
-                    🗑️ Remove
-                  </button>
-                </div>
-              </div>
-              
-              <div style={styles.recipeContent}>
-                {recipe.ingredients.length > 0 && (
-                  <div style={styles.recipeIngredients}>
-                    • <strong>Ingredients:</strong> {recipe.ingredients.join(', ')}
-                  </div>
-                )}
-                
-                <div style={styles.recipeMetadata}>
-                  {(recipe.prepTime || recipe.cookTime) && (
-                    <div style={styles.recipeTime}>
-                      • <strong>Time:</strong> 
-                      {recipe.prepTime && ` Prep ${recipe.prepTime} min`}
-                      {recipe.cookTime && ` | Cook ${recipe.cookTime} min`}
-                      {recipe.calories && ` | `}
-                      {recipe.calories && (
-                        <span style={styles.recipeCalories}>
-                          <strong>Calories:</strong> ~{recipe.calories}/serving
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-                
-                {recipe.tags && recipe.tags.length > 0 && (
-                  <div style={styles.recipeTags}>
-                    • <strong>Tags:</strong> {recipe.tags.map(tag => `\`${tag}\``).join(' ')}
-                  </div>
-                )}
-              </div>
-            </div>
+            <RecipeCard 
+              key={index} 
+              recipe={recipe} 
+              index={index}
+              onAddToCart={handleAddRecipeToCart}
+              onAddToLibrary={handleAddToRecipeLibrary}
+              onAddToMealPlan={handleAddToMealPlan}
+              onRemove={handleRemoveRecipe}
+            />
           ))}
         </div>
       )}
@@ -3274,6 +3362,145 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px'
+  },
+
+  // Enhanced Recipe Card Styles
+  enhancedRecipeCard: {
+    background: '#FFF5F2',
+    borderRadius: '12px',
+    padding: '20px',
+    marginBottom: '16px',
+    border: '2px solid #FB4F14',
+    boxShadow: '0 4px 12px rgba(251,79,20,0.15)',
+    transition: 'all 0.3s ease'
+  },
+  
+  expandButton: {
+    padding: '6px 12px',
+    backgroundColor: '#6c757d',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '600',
+    transition: 'all 0.2s',
+    marginRight: '8px'
+  },
+  
+  dayTag: {
+    fontSize: '10px',
+    fontWeight: '600',
+    backgroundColor: '#002244',
+    color: 'white',
+    padding: '3px 8px',
+    borderRadius: '12px',
+    marginLeft: '8px',
+    textTransform: 'uppercase'
+  },
+  
+  recipeSection: {
+    marginBottom: '16px',
+    paddingTop: '12px',
+    borderTop: '1px solid rgba(251, 79, 20, 0.2)'
+  },
+  
+  sectionTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '14px',
+    fontWeight: '700',
+    color: '#002244'
+  },
+  
+  recipeMetadata: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '12px',
+    marginBottom: '12px',
+    paddingBottom: '8px',
+    borderBottom: '1px solid rgba(251, 79, 20, 0.1)'
+  },
+  
+  metaItem: {
+    display: 'inline-block',
+    fontSize: '13px',
+    fontWeight: '500',
+    color: '#666',
+    backgroundColor: '#f8f9fa',
+    padding: '4px 8px',
+    borderRadius: '6px'
+  },
+  
+  ingredientsList: {
+    margin: '8px 0',
+    paddingLeft: '20px',
+    backgroundColor: '#ffffff',
+    borderRadius: '8px',
+    padding: '12px 20px'
+  },
+  
+  ingredientItem: {
+    fontSize: '14px',
+    lineHeight: '1.6',
+    color: '#002244',
+    marginBottom: '4px'
+  },
+  
+  instructionsList: {
+    margin: '8px 0',
+    paddingLeft: '20px',
+    backgroundColor: '#ffffff',
+    borderRadius: '8px',
+    padding: '12px 20px'
+  },
+  
+  instructionItem: {
+    fontSize: '14px',
+    lineHeight: '1.8',
+    color: '#002244',
+    marginBottom: '8px',
+    paddingLeft: '8px'
+  },
+  
+  collapsedText: {
+    fontSize: '14px',
+    color: '#666',
+    fontStyle: 'italic',
+    margin: '4px 0',
+    backgroundColor: '#f8f9fa',
+    padding: '8px 12px',
+    borderRadius: '6px'
+  },
+  
+  notesText: {
+    fontSize: '14px',
+    color: '#495057',
+    fontStyle: 'italic',
+    backgroundColor: '#fff3cd',
+    padding: '12px',
+    borderRadius: '8px',
+    margin: '8px 0',
+    border: '1px solid #ffeaa7'
+  },
+  
+  recipeTags: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '6px',
+    marginTop: '12px',
+    paddingTop: '8px',
+    borderTop: '1px solid rgba(251, 79, 20, 0.1)'
+  },
+  
+  tag: {
+    display: 'inline-block',
+    padding: '4px 10px',
+    backgroundColor: '#e9ecef',
+    color: '#495057',
+    borderRadius: '15px',
+    fontSize: '11px',
+    fontWeight: '500',
+    border: '1px solid #dee2e6'
   }
 };
 
