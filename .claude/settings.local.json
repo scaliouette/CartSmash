@@ -368,7 +368,9 @@
       "Bash(npm run lint)",
       "Bash(rg:*)",
       "Bash(start http://localhost:3000)",
-      "Bash(PORT=3001 npm start)"
+      "Bash(PORT=3001 npm start)",
+      "Bash(del test-meal-plan-parsing.js)",
+      "Bash(start http://localhost:3002)"
     ],
     "deny": [],
     "ask": []

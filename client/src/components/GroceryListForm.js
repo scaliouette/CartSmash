@@ -343,19 +343,40 @@ function GroceryListForm({
             // Parse and store recipes from AI response BEFORE extracting grocery list
             // Priority 1: Check for meal plan format first
             console.log('🔍 Checking for meal plan format...');
+            console.log('📄 AI Response Preview (first 500 chars):', aiResponseText.substring(0, 500));
+            
             const mealPlanData = extractMealPlanRecipes(aiResponseText);
+            console.log('🍽️ Meal plan parsing result:', {
+              isMealPlan: mealPlanData.isMealPlan,
+              recipeCount: mealPlanData.recipes.length,
+              totalRecipes: mealPlanData.totalRecipes
+            });
+            
             if (mealPlanData.recipes.length > 0) {
               console.log(`📝 Found ${mealPlanData.recipes.length} meal plan recipes`);
+              console.log('📋 Recipe titles:', mealPlanData.recipes.map(r => r.title));
               setParsedRecipes(mealPlanData.recipes);
+              console.log('✅ Set parsed recipes state with meal plan data');
             } else {
               // Priority 2: Fall back to individual recipe parsing
               console.log('🔍 No meal plan found, trying individual recipe parsing...');
               const foundRecipes = parseAIRecipes(aiResponseText);
+              console.log('🍲 Individual recipe parsing result:', foundRecipes.length);
+              
               if (foundRecipes.length > 0) {
                 console.log(`📝 Found ${foundRecipes.length} individual recipes in AI response`);
+                console.log('📋 Individual recipe titles:', foundRecipes.map(r => r.title || r.name));
                 setParsedRecipes(foundRecipes);
+                console.log('✅ Set parsed recipes state with individual recipes');
               } else {
                 console.log('❌ No recipes found in AI response');
+                console.log('🔍 Response contains keywords check:', {
+                  hasBreakfast: aiResponseText.toLowerCase().includes('breakfast'),
+                  hasLunch: aiResponseText.toLowerCase().includes('lunch'),
+                  hasDinner: aiResponseText.toLowerCase().includes('dinner'),
+                  hasDay: aiResponseText.toLowerCase().includes('day '),
+                  hasRecipe: aiResponseText.toLowerCase().includes('recipe')
+                });
               }
             }
             
@@ -709,6 +730,8 @@ function GroceryListForm({
     let inInstructionsSection = false;
     
     console.log('🔍 Parsing meal plan content for recipe information...');
+    console.log('📊 Total lines to process:', lines.length);
+    console.log('📄 First 10 lines:', lines.slice(0, 10));
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -719,15 +742,17 @@ function GroceryListForm({
                        line.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday):?/i);
       if (dayMatch) {
         currentDay = dayMatch[0].replace(':', '').trim();
-        console.log('📅 Found day header:', currentDay);
+        console.log('📅 Found day header:', currentDay, 'on line:', i);
         continue;
       }
       
       // Detect meal entries with better pattern matching
       const mealMatch = line.match(/^[-*•]?\s*(Breakfast|Lunch|Dinner|Snack[s]?):\s*(.+)$/i);
       if (mealMatch) {
+        console.log('🍽️ Found meal match on line', i, ':', line);
         // Save previous recipe if exists
         if (currentRecipe && currentRecipe.title) {
+          console.log('💾 Saving previous recipe:', currentRecipe.title);
           recipes.push(currentRecipe);
         }
         
@@ -748,7 +773,7 @@ function GroceryListForm({
           id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         };
         
-        console.log('🍽️ Found meal:', `${currentDay} ${mealType}: ${recipeName}`);
+        console.log('🍽️ Created new recipe:', `${currentDay} ${mealType}: ${recipeName}`);
         inIngredientsSection = false;
         inInstructionsSection = false;
         continue;
@@ -786,8 +811,11 @@ function GroceryListForm({
     
     // Don't forget the last recipe
     if (currentRecipe && currentRecipe.title) {
+      console.log('💾 Saving final recipe:', currentRecipe.title);
       recipes.push(currentRecipe);
     }
+    
+    console.log('📊 After main parsing, found', recipes.length, 'recipes');
     
     // If we found too few recipes, try fallback parsing
     if (recipes.length < 3) {
@@ -837,12 +865,16 @@ function GroceryListForm({
     }
     
     console.log(`✅ Meal plan extraction complete: Found ${recipes.length} recipes`);
+    console.log('📋 Final recipe list:', recipes.map(r => `${r.mealType}: ${r.title} (${r.day})`));
     
-    return {
+    const result = {
       isMealPlan: true,
       recipes: recipes.slice(0, 7), // Limit to 7 recipes max for display
       totalRecipes: recipes.length
     };
+    
+    console.log('🔄 Returning meal plan result:', result);
+    return result;
   };
 
   // Parse AI response for recipes in multiple formats
