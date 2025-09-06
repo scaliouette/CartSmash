@@ -145,6 +145,7 @@ function GroceryListForm({
   setSavedRecipes,
   parsedRecipes,
   setParsedRecipes,
+  saveCartAsList,
   saveRecipe,
   loadRecipeToCart
 }) {
@@ -1696,6 +1697,7 @@ Or paste any grocery list directly!"
             parsingStats={parsingStats}
             savedRecipes={savedRecipes}
             setSavedRecipes={setSavedRecipes}
+            saveCartAsList={saveCartAsList}
             // Pass a prop to hide the export button in ParsedResultsDisplay
             hideExportButton={true}
           />

@@ -443,16 +443,17 @@ function AppContent({
     return list.items.length;
   };
   
-  const saveCartAsList = async (name) => {
-    if (currentCart.length === 0) {
-      alert('Cart is empty!');
+  const saveCartAsList = async (name, items = null) => {
+    const itemsToSave = items || currentCart;
+    if (itemsToSave.length === 0) {
+      alert('No items to save!');
       return null;
     }
     
     const newList = {
       name: name || `Shopping List ${new Date().toLocaleDateString()}`,
-      items: [...currentCart],
-      itemCount: currentCart.length,
+      items: [...itemsToSave],
+      itemCount: itemsToSave.length,
       createdAt: new Date().toISOString()
     };
     

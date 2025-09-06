@@ -7,7 +7,7 @@ import ProductValidator from './ProductValidator';
 
 
 
-function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser, parsingStats, savedRecipes, setSavedRecipes }) {
+function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser, parsingStats, savedRecipes, setSavedRecipes, saveCartAsList }) {
   const isDev = process.env.NODE_ENV !== 'production';
   const recipeLogOnceRef = useRef(false);
   const [recipeExpanded, setRecipeExpanded] = useState(false);
@@ -504,9 +504,14 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     }
   };
 
-  // Add items to new list
+  // Add items to new list using proper parent callback
   const addToNewList = async (listName) => {
     if (!listName || selectedItems.size === 0) return;
+    if (!saveCartAsList) {
+      console.error('❌ saveCartAsList function not provided');
+      alert('Unable to save list. Please try again.');
+      return;
+    }
 
     const selectedItemsList = items
       .filter(item => selectedItems.has(item.id))
@@ -523,37 +528,13 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
       }));
 
     try {
-      // Create new list object
-      const newList = {
-        id: `list_${Date.now()}`,
-        name: listName,
-        items: selectedItemsList,
-        itemCount: selectedItemsList.length,
-        createdAt: new Date().toISOString(),
-        userId: currentUser?.uid || 'guest'
-      };
+      // Use proper parent callback to save selected items (saves to Firebase + local state)
+      const newList = await saveCartAsList(listName, selectedItemsList);
       
-      // ✅ REMOVED: No localStorage list operations - delegated to parent component
-      
-      // Try to save to server if user is logged in
-      if (currentUser?.uid) {
-        const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-        fetch(`${API_URL}/api/cart/save-list`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'user-id': currentUser.uid 
-          },
-          body: JSON.stringify(newList)
-        }).catch(err => console.error('Failed to save to server, but saved locally:', err));
-      }
-      
-      setSelectedItems(new Set());
-      setNewListName('');
-      alert(`✅ Created new list "${listName}" with ${selectedItemsList.length} items!`);
-      
-      if (window.refreshAccountData) {
-        window.refreshAccountData();
+      if (newList) {
+        setSelectedItems(new Set());
+        setNewListName('');
+        alert(`✅ Created new list "${listName}" with ${selectedItemsList.length} items!`);
       }
     } catch (error) {
       console.error('Error creating list:', error);
