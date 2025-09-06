@@ -155,6 +155,10 @@ function GroceryListForm({
   const [error, setError] = useState('');
   const [mergeCart, setMergeCart] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  
+  // Recipe Manager Modal State
+  const [showRecipeManager, setShowRecipeManager] = useState(false);
+  const [selectedRecipeForMealPlan, setSelectedRecipeForMealPlan] = useState(null);
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
@@ -1144,69 +1148,224 @@ function GroceryListForm({
   };
 
   // Handle adding recipe to meal plan
-  const handleAddToMealPlan = async (recipe) => {
-    if (!saveMealPlan) {
-      console.error('❌ saveMealPlan function not provided');
-      alert('Unable to save meal plan. Please try again.');
-      return;
-    }
-
-    try {
-      // Create a meal plan from the recipe
-      const mealPlan = {
-        id: `mealplan_${Date.now()}`,
-        name: `${recipe.title} - Meal Plan`,
-        weekOf: new Date().toISOString().split('T')[0], // Today's date
-        days: {
-          [getDayOfWeek()]: {
-            [recipe.mealType || 'Dinner']: [{
-              id: `recipe_${Date.now()}`,
-              title: recipe.title,
-              ingredients: recipe.ingredients || [],
-              instructions: recipe.instructions || [],
-              mealType: recipe.mealType || 'Dinner',
-              source: 'ai_generated'
-            }]
-          }
-        },
-        totalMeals: 1,
-        recipes: [{
-          id: `recipe_${Date.now()}`,
-          title: recipe.title,
-          ingredients: recipe.ingredients || [],
-          instructions: recipe.instructions || [],
-          mealType: recipe.mealType || 'Dinner',
-          source: 'ai_generated'
-        }],
-        shoppingList: {
-          items: recipe.ingredients?.map((ingredient, index) => ({
-            id: `item_${Date.now()}_${index}`,
-            itemName: ingredient,
-            productName: ingredient,
-            quantity: 1,
-            unit: 'item',
-            category: 'Other'
-          })) || [],
-          name: `${recipe.title} - Shopping List`
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      const savedPlan = await saveMealPlan(mealPlan);
-      if (savedPlan) {
-        alert(`✅ Created meal plan "${mealPlan.name}" with ${recipe.title}!`);
-      }
-    } catch (error) {
-      console.error('Error creating meal plan:', error);
-      alert('Failed to create meal plan. Please try again.');
-    }
+  const handleAddToMealPlan = (recipe) => {
+    // Store the recipe and show the manager modal
+    setSelectedRecipeForMealPlan(recipe);
+    setShowRecipeManager(true);
   };
 
   // Helper function to get current day of week
   const getDayOfWeek = () => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     return days[new Date().getDay()];
+  };
+
+  // Recipe Manager Modal Component
+  const RecipeManagerModal = ({ recipe, onClose }) => {
+    const [selectedDay, setSelectedDay] = useState('Monday');
+    const [selectedMealType, setSelectedMealType] = useState(recipe.mealType || 'Dinner');
+    const [saveToLibrary, setSaveToLibrary] = useState(true);
+    const [quickAddMode, setQuickAddMode] = useState(false);
+    const [customName, setCustomName] = useState(recipe.title || '');
+    
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+
+    const handleSaveMealPlan = async () => {
+      try {
+        // First save to recipe library if requested
+        if (saveToLibrary) {
+          handleAddToRecipeLibrary({
+            ...recipe,
+            title: customName || recipe.title,
+            mealType: selectedMealType
+          });
+        }
+
+        // Create meal plan
+        const mealPlan = {
+          id: `mealplan_${Date.now()}`,
+          name: `${selectedDay} ${selectedMealType} - ${customName || recipe.title}`,
+          weekOf: new Date().toISOString().split('T')[0],
+          days: {
+            [selectedDay]: {
+              [selectedMealType]: [{
+                id: `recipe_${Date.now()}`,
+                title: customName || recipe.title,
+                ingredients: recipe.ingredients || [],
+                instructions: recipe.instructions || [],
+                mealType: selectedMealType,
+                source: 'ai_generated'
+              }]
+            }
+          },
+          totalMeals: 1,
+          recipes: [{
+            id: `recipe_${Date.now()}`,
+            title: customName || recipe.title,
+            ingredients: recipe.ingredients || [],
+            instructions: recipe.instructions || [],
+            mealType: selectedMealType,
+            source: 'ai_generated'
+          }],
+          shoppingList: {
+            items: recipe.ingredients?.map((ingredient, index) => ({
+              id: `item_${Date.now()}_${index}`,
+              itemName: ingredient,
+              productName: ingredient,
+              quantity: 1,
+              unit: 'item',
+              category: 'Other'
+            })) || [],
+            name: `${customName || recipe.title} - Shopping List`
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        // Save meal plan
+        if (saveMealPlan) {
+          const savedPlan = await saveMealPlan(mealPlan);
+          if (savedPlan) {
+            alert(`✅ Added to meal plan: ${selectedDay} ${selectedMealType}!`);
+          }
+        }
+        
+        onClose();
+      } catch (error) {
+        console.error('Error creating meal plan:', error);
+        alert('Failed to create meal plan. Please try again.');
+      }
+    };
+
+    return (
+      <div style={styles.modalOverlay}>
+        <div style={styles.modalContent}>
+          <div style={styles.modalHeader}>
+            <h3 style={styles.modalTitle}>
+              {quickAddMode ? '⚡ Quick Add to Meal Plan' : '📅 Add to Meal Plan'}
+            </h3>
+            <button onClick={onClose} style={styles.closeButton}>✕</button>
+          </div>
+
+          <div style={styles.modalBody}>
+            {/* Mode Toggle */}
+            <div style={styles.modeToggle}>
+              <button
+                onClick={() => setQuickAddMode(false)}
+                style={{
+                  ...styles.modeButton,
+                  ...(quickAddMode ? {} : styles.modeButtonActive)
+                }}
+              >
+                📝 Full Details
+              </button>
+              <button
+                onClick={() => setQuickAddMode(true)}
+                style={{
+                  ...styles.modeButton,
+                  ...(quickAddMode ? styles.modeButtonActive : {})
+                }}
+              >
+                ⚡ Quick Add
+              </button>
+            </div>
+
+            {/* Recipe Name */}
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Recipe Name:</label>
+              <input
+                type="text"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                style={styles.input}
+                placeholder="Enter recipe name..."
+              />
+            </div>
+
+            {!quickAddMode && (
+              <>
+                {/* Day Selection */}
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Select Day:</label>
+                  <div style={styles.dayGrid}>
+                    {days.map(day => (
+                      <button
+                        key={day}
+                        onClick={() => setSelectedDay(day)}
+                        style={{
+                          ...styles.dayButton,
+                          ...(selectedDay === day ? styles.dayButtonActive : {})
+                        }}
+                      >
+                        {day.slice(0, 3)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Meal Type Selection */}
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Meal Type:</label>
+                  <div style={styles.mealTypeGrid}>
+                    {mealTypes.map(type => (
+                      <button
+                        key={type}
+                        onClick={() => setSelectedMealType(type)}
+                        style={{
+                          ...styles.mealButton,
+                          ...(selectedMealType === type ? styles.mealButtonActive : {})
+                        }}
+                      >
+                        {type === 'Breakfast' ? '🍳' : 
+                         type === 'Lunch' ? '🥗' :
+                         type === 'Dinner' ? '🍽️' : '🍪'} {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Save to Library Option */}
+            <div style={styles.checkboxGroup}>
+              <label style={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={saveToLibrary}
+                  onChange={(e) => setSaveToLibrary(e.target.checked)}
+                  style={styles.checkbox}
+                />
+                Also save to Recipe Library
+              </label>
+            </div>
+
+            {/* Preview */}
+            {!quickAddMode && (
+              <div style={styles.preview}>
+                <h4 style={styles.previewTitle}>Preview:</h4>
+                <p style={styles.previewText}>
+                  📅 <strong>{selectedDay}</strong> - {selectedMealType}<br/>
+                  🍳 <strong>{customName || recipe.title}</strong><br/>
+                  {recipe.ingredients?.length > 0 && (
+                    <>📝 {recipe.ingredients.length} ingredients</>
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div style={styles.modalFooter}>
+            <button onClick={handleSaveMealPlan} style={styles.saveButton}>
+              {quickAddMode ? '⚡ Quick Add' : '💾 Save to Meal Plan'}
+            </button>
+            <button onClick={onClose} style={styles.cancelButton}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Handle adding recipe ingredients to cart
@@ -1693,9 +1852,9 @@ Or paste any grocery list directly!"
                   <button 
                     onClick={() => handleAddToRecipeLibrary(recipe)}
                     style={styles.wideHeaderButton}
-                    title="ADD RECIPE"
+                    title="Save to Recipe Library"
                   >
-                    🔲 Recipe
+                    📖 Save Recipe
                   </button>
                   <button 
                     onClick={() => handleAddToMealPlan(recipe)}
@@ -1823,6 +1982,17 @@ Or paste any grocery list directly!"
         <InstacartCheckoutFlow
           currentCart={currentCart}
           onClose={() => setShowInstacartCheckout(false)}
+        />
+      )}
+
+      {/* Recipe Manager Modal */}
+      {showRecipeManager && selectedRecipeForMealPlan && (
+        <RecipeManagerModal
+          recipe={selectedRecipeForMealPlan}
+          onClose={() => {
+            setShowRecipeManager(false);
+            setSelectedRecipeForMealPlan(null);
+          }}
         />
       )}
 
@@ -2476,6 +2646,220 @@ const styles = {
       transform: 'translateY(-1px)',
       boxShadow: '0 2px 4px rgba(220,53,69,0.3)'
     }
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 2, 68, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5000
+  },
+  
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    width: '90%',
+    maxWidth: '600px',
+    maxHeight: '90vh',
+    overflow: 'auto',
+    boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+    border: '3px solid #FB4F14'
+  },
+  
+  modalHeader: {
+    padding: '20px 24px',
+    borderBottom: '2px solid #FB4F14',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: 'linear-gradient(135deg, #FFF5F2 0%, #FFFFFF 100%)'
+  },
+  
+  modalTitle: {
+    margin: 0,
+    fontSize: '24px',
+    color: '#002244',
+    fontWeight: 'bold'
+  },
+  
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    color: '#002244',
+    padding: '0 8px'
+  },
+  
+  modalBody: {
+    padding: '24px'
+  },
+  
+  modeToggle: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '24px',
+    justifyContent: 'center'
+  },
+  
+  modeButton: {
+    padding: '10px 20px',
+    border: '2px solid #002244',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'all 0.2s',
+    flex: 1
+  },
+  
+  modeButtonActive: {
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    borderColor: '#FB4F14'
+  },
+  
+  formGroup: {
+    marginBottom: '20px'
+  },
+  
+  label: {
+    display: 'block',
+    marginBottom: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#002244'
+  },
+  
+  input: {
+    width: '100%',
+    padding: '10px',
+    border: '2px solid #002244',
+    borderRadius: '8px',
+    fontSize: '14px',
+    boxSizing: 'border-box'
+  },
+  
+  dayGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(7, 1fr)',
+    gap: '8px'
+  },
+  
+  dayButton: {
+    padding: '10px',
+    border: '2px solid #002244',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '500',
+    transition: 'all 0.2s'
+  },
+  
+  dayButtonActive: {
+    backgroundColor: '#002244',
+    color: 'white'
+  },
+  
+  mealTypeGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '8px'
+  },
+  
+  mealButton: {
+    padding: '10px',
+    border: '2px solid #002244',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'all 0.2s'
+  },
+  
+  mealButtonActive: {
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    borderColor: '#FB4F14'
+  },
+  
+  checkboxGroup: {
+    marginBottom: '20px'
+  },
+  
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: '14px',
+    color: '#002244'
+  },
+  
+  checkbox: {
+    marginRight: '8px'
+  },
+  
+  preview: {
+    backgroundColor: '#FFF5F2',
+    padding: '16px',
+    borderRadius: '8px',
+    border: '1px solid #FB4F14'
+  },
+  
+  previewTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#002244'
+  },
+  
+  previewText: {
+    margin: 0,
+    fontSize: '14px',
+    lineHeight: '1.6',
+    color: '#002244'
+  },
+  
+  modalFooter: {
+    padding: '20px 24px',
+    borderTop: '2px solid #FB4F14',
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    background: 'linear-gradient(135deg, #FFF5F2 0%, #FFFFFF 100%)'
+  },
+  
+  saveButton: {
+    padding: '12px 24px',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.2s'
+  },
+  
+  cancelButton: {
+    padding: '12px 24px',
+    backgroundColor: '#002244',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.2s'
   }
 };
 
