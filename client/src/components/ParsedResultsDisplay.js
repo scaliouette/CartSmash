@@ -58,6 +58,12 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   const [showValidationPage, setShowValidationPage] = useState(false);
   const [validatingAll, setValidatingAll] = useState(false);
 
+  // Track latest items to prevent race conditions in price fetches
+  const latestItemsRef = useRef(items);
+  useEffect(() => { 
+    latestItemsRef.current = items; 
+  }, [items]);
+
 
   // Mobile detection
   useEffect(() => {
@@ -107,11 +113,16 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         const data = await response.json();
         if (isDev) console.debug('Received price response:', data);
 
-        // Only update if items still exist in current state (avoid race conditions)
-        const currentItemIds = new Set(items.map(item => item.id));
-        const updatedItems = items.map(item => {
+        // Use latest items from ref to prevent race conditions with deletes
+        const latest = latestItemsRef.current;
+        const latestIdSet = new Set(latest.map(i => i.id));
+        let touched = false;
+
+        const updatedItems = latest.map(item => {
           const priceData = data.prices?.[item.id];
-          if (priceData && currentItemIds.has(item.id)) {
+          if (priceData && latestIdSet.has(item.id)) {
+            touched = true;
+            
             // Save to price history
             setPriceHistory(prev => ({
               ...prev,
@@ -143,12 +154,8 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
           return item;
         });
 
-        // Only call onItemsChange if we actually have updates to avoid unnecessary re-renders
-        const hasUpdates = updatedItems.some((item, index) => 
-          item.realPrice !== items[index]?.realPrice
-        );
-        
-        if (hasUpdates) {
+        // Only call onItemsChange if we actually touched items that still exist
+        if (touched) {
           onItemsChange(updatedItems);
           // ✅ REMOVED: Direct localStorage write - cart authority handles persistence
           
@@ -171,7 +178,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         return newSet;
       });
     }
-  }, [items, onItemsChange, fetchingPrices, isDev]);
+  }, [onItemsChange, fetchingPrices, isDev]);
 
   // Fetch real-time prices on mount - Fixed dependencies
   // Auto-fetch prices on mount only - removed constant polling to prevent interference
@@ -339,7 +346,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
       }
       
       // Add to current section
-      if (currentSection === 'ingredients' && trimmed.match(/^[-•*]\s*/) || trimmed.match(/^\d+\.\s*/)) {
+      if ((currentSection === 'ingredients' && trimmed.match(/^[-•*]\s*/)) || trimmed.match(/^\d+\.\s*/)) {
         recipe.ingredients.push(trimmed.replace(/^[-•*]\s*/, '').replace(/^\d+\.\s*/, ''));
       } else if (currentSection === 'instructions' && trimmed.match(/^\d+\.\s*/)) {
         recipe.instructions.push(trimmed.replace(/^\d+\.\s*/, ''));

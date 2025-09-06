@@ -298,14 +298,28 @@ class MealPlanParser {
    */
   extractAllRecipes(days) {
     const recipes = [];
+    
+    // Handle null/undefined days
+    if (!days) {
+      return recipes;
+    }
+    
+    // Handle array format (empty days)
+    if (Array.isArray(days)) {
+      return recipes;
+    }
+    
+    // Handle object format (days with data)
     for (const [day, dayData] of Object.entries(days)) {
-      dayData.meals.forEach(meal => {
-        recipes.push({
-          ...meal,
-          dayAssigned: day,
-          slot: meal.mealType
+      if (dayData && dayData.meals) {
+        dayData.meals.forEach(meal => {
+          recipes.push({
+            ...meal,
+            dayAssigned: day,
+            slot: meal.mealType
+          });
         });
-      });
+      }
     }
     return recipes;
   }
@@ -314,10 +328,20 @@ class MealPlanParser {
    * Convert to CARTSMASH recipe format
    */
   toCartsmashFormat(parsedMealPlan) {
+    console.log('🔍 DEBUG toCartsmashFormat input:', {
+      hasMetadata: !!parsedMealPlan?.metadata,
+      hasRecipes: !!parsedMealPlan?.recipes,
+      recipesType: Array.isArray(parsedMealPlan?.recipes) ? 'array' : typeof parsedMealPlan?.recipes,
+      hasDays: !!parsedMealPlan?.days,
+      daysType: parsedMealPlan?.days ? (Array.isArray(parsedMealPlan.days) ? 'array' : typeof parsedMealPlan.days) : 'undefined',
+      hasShoppingList: !!parsedMealPlan?.shoppingList,
+      shoppingListType: parsedMealPlan?.shoppingList ? (Array.isArray(parsedMealPlan.shoppingList) ? 'array' : typeof parsedMealPlan.shoppingList) : 'undefined'
+    });
+    
     return {
       planId: `meal-plan-${Date.now()}`,
       metadata: parsedMealPlan.metadata,
-      recipes: parsedMealPlan.recipes.map(recipe => ({
+      recipes: (parsedMealPlan.recipes || []).map(recipe => ({
         id: recipe.id,
         title: recipe.name,
         description: `Healthy ${recipe.mealType} option`,
@@ -410,6 +434,26 @@ class MealPlanParser {
     const formatted = [];
     let itemId = 1;
     
+    // Handle null/undefined shopping list
+    if (!shoppingList) {
+      return formatted;
+    }
+    
+    // Handle array format (empty shopping list)
+    if (Array.isArray(shoppingList)) {
+      shoppingList.forEach(item => {
+        formatted.push({
+          id: `item-${itemId++}`,
+          ...item,
+          category: item.category || 'other',
+          purchased: false,
+          addedAt: new Date().toISOString()
+        });
+      });
+      return formatted;
+    }
+    
+    // Handle object format (categorized shopping list)
     for (const [category, items] of Object.entries(shoppingList)) {
       items.forEach(item => {
         formatted.push({
@@ -431,16 +475,27 @@ class MealPlanParser {
   generateWeekSchedule(days) {
     const schedule = {};
     
+    // Handle null/undefined days
+    if (!days) {
+      return schedule;
+    }
+    
+    // Handle array format (empty days)
+    if (Array.isArray(days)) {
+      return schedule;
+    }
+    
+    // Handle object format (days with data)
     for (const [day, dayData] of Object.entries(days)) {
       schedule[day] = {
         dayNumber: dayData.dayNumber,
         date: this.getDateForDay(dayData.dayNumber),
         meals: {
-          breakfast: dayData.meals.find(m => m.mealType === 'breakfast')?.id || null,
-          lunch: dayData.meals.find(m => m.mealType === 'lunch')?.id || null,
-          dinner: dayData.meals.find(m => m.mealType === 'dinner')?.id || null,
-          snackAm: dayData.meals.find(m => m.mealType === 'snack-am')?.id || null,
-          snackPm: dayData.meals.find(m => m.mealType === 'snack-pm')?.id || null
+          breakfast: dayData.meals?.find(m => m.mealType === 'breakfast')?.id || null,
+          lunch: dayData.meals?.find(m => m.mealType === 'lunch')?.id || null,
+          dinner: dayData.meals?.find(m => m.mealType === 'dinner')?.id || null,
+          snackAm: dayData.meals?.find(m => m.mealType === 'snack-am')?.id || null,
+          snackPm: dayData.meals?.find(m => m.mealType === 'snack-pm')?.id || null
         }
       };
     }

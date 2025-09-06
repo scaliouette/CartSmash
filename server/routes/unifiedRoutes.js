@@ -1,184 +1,175 @@
 // server/routes/unifiedRoutes.js
-// Main server file with all recipe import integrations
+// Unified Recipe System API - maintains compatibility while standardizing data structure
 
 const express = require('express');
 const router = express.Router();
-const MealPlanParser = require('../services/aiMealPlanParser');
-const RecipeImportService = require('../services/recipeImportService');
-const { saveRecipeToDatabase } = require('../services/databaseService');
+const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
 
-// Unified recipe import endpoint that handles both AI and URLs
+const API_ROOT = process.env.API_ROOT || `http://localhost:${process.env.PORT || 3001}`;
+
+// --- Unified Data Structure Helpers ---
+const toMinutes = (v) => {
+  if (v == null) return null;
+  if (typeof v === 'number') return v;
+  const m = String(v).match(/(\d+)\s*min/gi);
+  return m ? parseInt(m[0]) : null;
+};
+
+const toUnified = (r) => ({
+  id: r.id || `recipe_${Date.now()}_${Math.random().toString(36).slice(2,9)}`,
+  title: r.title || r.name || 'Untitled Recipe',
+  description: r.description || '',
+  icon: r.icon || '🍳',
+  mealType: r.mealType || r.type || 'meal',
+  ingredients: (r.ingredients || []).map(x => {
+    if (typeof x === 'string') {
+      return {
+        quantity: null, unit: null, item: x.replace(/^[-*•]\s*/, ''), original: x
+      };
+    }
+    return x;
+  }),
+  instructions: r.instructions || r.steps || [],
+  prepTime: toMinutes(r.prepTime) ?? r.prepTime ?? null,
+  cookTime: toMinutes(r.cookTime) ?? r.cookTime ?? null,
+  totalTime: toMinutes(r.totalTime) ?? r.totalTime ?? null,
+  servings: r.servings ?? null,
+  difficulty: r.difficulty || null,
+  nutrition: r.nutrition || {},
+  tags: r.tags || [],
+  source: r.source || 'unified',
+  sourceUrl: r.sourceUrl || r.url || null,
+  imageUrl: r.imageUrl || null,
+  dayAssigned: r.dayAssigned || r.day || null,
+  mealTypePlanning: r.mealTypePlanning || r.mealType || null,
+  createdAt: r.createdAt || new Date().toISOString(),
+  updatedAt: new Date().toISOString()
+});
+
+// --- POST /api/unified/import-recipe ---
 router.post('/import-recipe', async (req, res) => {
   try {
-    const { source, data, userId } = req.body;
-    let recipe;
-
-    switch (source) {
-      case 'url':
-        // Import from URL using scraper
-        const importService = new RecipeImportService();
-        const urlResult = await importService.importFromUrl(data.url, {
-          mealType: data.mealType,
-          dayAssigned: data.dayAssigned
-        });
-        recipe = urlResult.recipe;
-        break;
-
-      case 'ai-text':
-        // Parse AI-generated text
-        const parser = new MealPlanParser();
-        const parsed = parser.parseSingleRecipe(data.text);
-        recipe = parser.toCartsmashFormat({ recipes: [parsed] }).recipes[0];
-        break;
-
-      case 'ai-meal-plan':
-        // Parse complete AI meal plan
-        const mealPlanParser = new MealPlanParser();
-        const mealPlan = mealPlanParser.parseMealPlan(data.text);
-        const cartsmashPlan = mealPlanParser.toCartsmashFormat(mealPlan);
-        return res.json({
-          success: true,
-          type: 'meal-plan',
-          mealPlan: cartsmashPlan
-        });
-
-      default:
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid source type'
-        });
+    const { source, data, userId } = req.body || {};
+    
+    if (source === 'url' && data?.url) {
+      const r = await fetch(`${API_ROOT}/api/recipes/import-url`, {
+        method: 'POST', 
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ url: data.url, userId })
+      });
+      const j = await r.json();
+      const unified = Array.isArray(j?.recipes) ? j.recipes.map(toUnified)
+                   : j?.recipe ? [toUnified(j.recipe)] : [];
+      return res.json({ success:true, recipes: unified, raw: j });
     }
-
-    // Save to database (implement your database logic here)
-    // await saveRecipeToDatabase(userId, recipe);
-
-    res.json({
-      success: true,
-      type: 'recipe',
-      recipe: recipe
-    });
-
-  } catch (error) {
-    console.error('Error in unified import:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    
+    if ((source === 'ai-text' || source === 'ai-meal-plan') && data?.text) {
+      const r = await fetch(`${API_ROOT}/api/ai-meal-plan/parse-meal-plan`, {
+        method: 'POST', 
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ aiResponse: data.text })
+      });
+      
+      if (!r.ok) {
+        throw new Error(`AI parsing failed: ${r.statusText}`);
+      }
+      
+      const j = await r.json();
+      
+      if (!j.success || !j.mealPlan) {
+        throw new Error('AI parsing returned no valid meal plan');
+      }
+      
+      const recipes = (j?.mealPlan?.recipes || []).map(toUnified);
+      return res.json({ success:true, recipes, mealPlan: j?.mealPlan || null });
+    }
+    
+    return res.status(400).json({ success:false, error:'Invalid payload' });
+  } catch (e) {
+    console.error('Error in unified import:', e);
+    res.status(500).json({ success:false, error: String(e) });
   }
 });
 
-// Batch import endpoint for multiple sources
+// --- POST /api/unified/batch-import ---
 router.post('/batch-import', async (req, res) => {
   try {
-    const { items, userId } = req.body;
-    const results = {
-      successful: [],
-      failed: [],
-      stats: {
-        urls: 0,
-        aiRecipes: 0,
-        total: items.length
-      }
-    };
-
-    const importService = new RecipeImportService();
-    const parser = new MealPlanParser();
-
-    for (const item of items) {
+    const { items = [], userId } = req.body || {};
+    const results = await Promise.all(items.map(async (it) => {
       try {
-        let recipe;
-
-        if (item.type === 'url') {
-          const result = await importService.importFromUrl(item.url, {
-            mealType: item.mealType,
-            dayAssigned: item.dayAssigned
+        if (it.type === 'url' && it.url) {
+          const r = await fetch(`${API_ROOT}/api/recipes/import-url`, {
+            method: 'POST', 
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ url: it.url, userId })
           });
-          recipe = result.recipe;
-          results.stats.urls++;
-        } else if (item.type === 'ai') {
-          const parsed = parser.parseSingleRecipe(item.text);
-          recipe = parser.toCartsmashFormat({ recipes: [parsed] }).recipes[0];
-          results.stats.aiRecipes++;
+          const j = await r.json();
+          const list = Array.isArray(j?.recipes) ? j.recipes : (j?.recipe ? [j.recipe] : []);
+          return { ok:true, recipes: list.map(toUnified) };
         }
-
-        results.successful.push({
-          source: item.type,
-          recipe: recipe
-        });
-
-      } catch (error) {
-        results.failed.push({
-          source: item.type,
-          data: item.url || item.text?.substring(0, 100),
-          error: error.message
-        });
+        if (it.type === 'ai' && it.text) {
+          const r = await fetch(`${API_ROOT}/api/ai-meal-plan/parse-meal-plan`, {
+            method: 'POST', 
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ aiResponse: it.text })
+          });
+          
+          if (!r.ok) {
+            return { ok:false, error:`AI parsing failed: ${r.statusText}` };
+          }
+          
+          const j = await r.json();
+          
+          if (!j.success || !j.mealPlan) {
+            return { ok:false, error:'AI parsing returned no valid meal plan' };
+          }
+          
+          const list = (j?.mealPlan?.recipes || []).map(toUnified);
+          return { ok:true, recipes: list };
+        }
+        return { ok:false, error:'Skipped: invalid item' };
+      } catch (e) {
+        return { ok:false, error:String(e) };
       }
-    }
-
-    res.json({
-      success: true,
-      results: results
-    });
-
-  } catch (error) {
-    console.error('Error in batch import:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    }));
+    const recipes = results.flatMap(r => r.ok ? r.recipes : []);
+    res.json({ success:true, count: recipes.length, recipes, results });
+  } catch (e) {
+    console.error('Error in batch import:', e);
+    res.status(500).json({ success:false, error: String(e) });
   }
 });
 
-// Recipe validation endpoint
+// --- POST /api/unified/validate ---
 router.post('/validate', async (req, res) => {
   try {
-    const { source, data } = req.body;
-    let valid = false;
-    let details = {};
-
-    if (source === 'url') {
-      // Validate URL can be scraped
-      const { scrapeToCartSmash } = require('../utils/recipeScraper');
-      try {
-        const recipe = await scrapeToCartSmash(data.url);
-        valid = !!(recipe && (recipe.ingredients?.length > 0 || recipe.steps?.length > 0));
-        details = {
-          hasIngredients: recipe.ingredients?.length > 0,
-          hasInstructions: recipe.steps?.length > 0,
-          recipeName: recipe.title
-        };
-      } catch {
-        valid = false;
-        details = { error: 'Could not extract recipe from URL' };
-      }
-    } else if (source === 'ai-text') {
-      // Validate AI text can be parsed
-      const parser = new MealPlanParser();
-      try {
-        const lines = data.text.split('\n');
-        valid = lines.some(line => line.includes('**') || line.includes('Ingredients:'));
-        details = {
-          looksLikeRecipe: valid,
-          lineCount: lines.length
-        };
-      } catch {
-        valid = false;
-        details = { error: 'Invalid text format' };
-      }
+    const { source, data } = req.body || {};
+    
+    if (source === 'url' && data?.url) {
+      const r = await fetch(`${API_ROOT}/api/recipes/validate-url`, {
+        method: 'POST', 
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ url: data.url })
+      });
+      const j = await r.json();
+      return res.json({ success: !!j?.valid, details: j });
     }
-
-    res.json({
-      success: true,
-      valid: valid,
-      details: details
-    });
-
-  } catch (error) {
-    console.error('Error in validation:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    
+    if (source === 'ai-text' && data?.text) {
+      // lightweight parse check
+      const r = await fetch(`${API_ROOT}/api/ai-meal-plan/parse-meal-plan`, {
+        method: 'POST', 
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ aiResponse: data.text, quick: true })
+      });
+      const j = await r.json();
+      return res.json({ success: !!j?.success, details: j?.mealPlan || null });
+    }
+    
+    return res.status(400).json({ success:false, error:'Invalid payload' });
+  } catch (e) {
+    console.error('Error in validation:', e);
+    res.status(500).json({ success:false, error: String(e) });
   }
 });
 
