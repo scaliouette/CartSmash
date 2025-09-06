@@ -5,7 +5,6 @@ import ParsedResultsDisplay from './ParsedResultsDisplay';
 // eslint-disable-next-line no-unused-vars
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
-import RecipeManager from './RecipeManager';
 import InstacartCheckoutFlow from './InstacartCheckoutFlow';
 import { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
@@ -102,7 +101,6 @@ function GroceryListForm({
   const [showResults, setShowResults] = useState(false);
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
-  const [showRecipeManager, setShowRecipeManager] = useState(false);
   const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const [validatingAll, setValidatingAll] = useState(false);
@@ -122,7 +120,7 @@ function GroceryListForm({
   const expandTextarea = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = Math.max(80, Math.min(textareaRef.current.scrollHeight, 400)) + 'px';
+      textareaRef.current.style.height = Math.max(80, textareaRef.current.scrollHeight) + 'px';
     }
   };
 
@@ -274,7 +272,7 @@ function GroceryListForm({
       // If using AI, first generate a response
       if (useAI && selectedAI) {
         try {
-          console.log('Sending to AI:', { prompt: listText.substring(0, 100), ai: selectedAI });
+          console.log('🤖 Starting AI processing:', { prompt: listText.substring(0, 100), ai: selectedAI, useAI, selectedAI });
           
           const aiResponse = await fetch(`${API_URL}/api/ai/${selectedAI}`, {
             method: 'POST',
@@ -363,7 +361,7 @@ function GroceryListForm({
       }
       
       // This part runs when parsing the list (not using AI)
-      console.log('Parsing grocery list...');
+      console.log('🔧 Manual parsing mode - no AI processing:', { useAI, selectedAI, textLength: listText.length });
       
       // Add confetti only when actually parsing items
       confetti({
@@ -551,14 +549,16 @@ function GroceryListForm({
     e.preventDefault();
     
     // Determine if we should use AI or parse directly
+    // Use AI unless we're already waiting for AI response or the text looks like AI-generated content
     const shouldUseAI = !waitingForAIResponse && 
-                       !inputText.includes('•') && 
-                       !inputText.includes('**') &&
-                       !inputText.includes('Here') &&
-                       !inputText.includes('\n-') &&
-                       true;
+                       !inputText.includes('**Grocery List**') && 
+                       !inputText.includes('## Ingredients') &&
+                       !inputText.includes('Here\'s your') &&
+                       !inputText.includes('Shopping List:') &&
+                       inputText.trim().length > 0;
     
-    console.log('Submit clicked. Using AI:', shouldUseAI);
+    console.log('Submit clicked. Using AI:', shouldUseAI, '| Selected AI Model:', selectedAI, '| Waiting for AI Response:', waitingForAIResponse);
+    console.log('Input text preview:', inputText.substring(0, 100));
     
     await submitGroceryList(inputText, shouldUseAI);
   };
@@ -667,45 +667,31 @@ function GroceryListForm({
     const recipes = [];
     const lines = aiResponseText.split('\n');
     let currentRecipe = null;
-
-    // Look for the main recipe title first (usually a heading)
+    
+    // Find the main recipe title - look for lines that aren't numbered steps or ingredient lists
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-
-      // Look for main recipe titles (headings, not instruction steps or metadata)
-      if (line.startsWith('# ') || 
-         (line.includes('**') && 
-          !line.startsWith('*') && 
-          !line.match(/^\d+\.\s/) && 
-          line.length < 100 && 
-          line.length > 5 &&
-          !line.toLowerCase().includes('cook') && 
-          !line.toLowerCase().includes('prepare') && 
-          !line.toLowerCase().includes('step') &&
-          !line.toLowerCase().includes('serves') &&
-          !line.toLowerCase().includes('prep time') &&
-          !line.toLowerCase().includes('cook time') &&
-          !line.toLowerCase().includes('total time') &&
-          !line.toLowerCase().includes('instructions') &&
-          !line.toLowerCase().includes('ingredients') &&
-          !line.toLowerCase().includes('garnish') &&
-          !line.toLowerCase().includes('main components') &&
-          !line.toLowerCase().includes('sauce'))) {
-        // Save previous recipe
-        if (currentRecipe && currentRecipe.title && currentRecipe.ingredients.length > 0) {
-          recipes.push(currentRecipe);
-        }
-        
-        // Start new recipe with proper title
-        let recipeTitle = line;
-        if (line.startsWith('# ')) {
-          recipeTitle = line.substring(2).trim();
-        } else {
-          recipeTitle = line.replace(/\*\*/g, '').trim();
-        }
+      
+      // Skip empty lines and common headers
+      if (!line || line.toLowerCase().includes('grocery list') || 
+          line.toLowerCase().includes('shopping list') || 
+          line.toLowerCase().includes('ingredients:') ||
+          line.toLowerCase().includes('instructions:')) continue;
+          
+      // Look for main recipe title (not numbered steps like "1. Cook Pasta")
+      if (!line.match(/^\d+\./) && // Not a numbered step
+          !line.startsWith('-') && // Not a bullet point
+          !line.startsWith('*') && // Not an asterisk point
+          line.length > 5 && line.length < 80 && // Reasonable title length
+          !line.includes('minutes') && // Not timing info
+          !line.includes('calories') && // Not calorie info
+          !line.toLowerCase().includes('prep') && // Not prep info
+          !line.toLowerCase().includes('cook') && // Not cook info
+          !line.includes('recipe') && // Skip generic "recipe" text
+          line !== line.toUpperCase()) { // Not all caps headers
         
         currentRecipe = {
-          title: recipeTitle,
+          title: line,
           ingredients: [],
           instructions: [],
           prepTime: '',
@@ -713,56 +699,68 @@ function GroceryListForm({
           calories: '',
           tags: []
         };
-      }
-      // Look for ingredient sections
-      else if (line.toLowerCase().includes('ingredients:')) {
-        currentRecipe = currentRecipe || { title: 'Recipe', ingredients: [], instructions: [], prepTime: '', cookTime: '', calories: '', tags: [] };
-        // Parse ingredients from the next few lines
-        for (let j = i + 1; j < lines.length && j < i + 20; j++) {
-          const ingredientLine = lines[j].trim();
-          if (!ingredientLine || 
-              ingredientLine.toLowerCase().includes('instructions:') ||
-              ingredientLine.toLowerCase().includes('directions:') ||
-              ingredientLine.includes('**')) {
+        
+        // Once we find a recipe title, parse the content that follows
+        for (let j = i + 1; j < lines.length; j++) {
+          const contentLine = lines[j].trim();
+          
+          // Stop at next potential recipe title
+          if (contentLine && !contentLine.match(/^\d+\./) && 
+              !contentLine.startsWith('-') && !contentLine.startsWith('*') &&
+              contentLine.length > 5 && contentLine.length < 80 &&
+              !contentLine.includes(':') && 
+              !contentLine.includes('minutes') && 
+              !contentLine.includes('calories') && 
+              j > i + 5) { // Only consider lines after some content
             break;
           }
-          if (ingredientLine.startsWith('*') || ingredientLine.startsWith('-') || ingredientLine.match(/^\d+\./)) {
-            currentRecipe.ingredients.push(ingredientLine.replace(/^[*\-\d\.]\s*/, '').trim());
-          }
-        }
-      }
-      // Look for instructions
-      else if (line.toLowerCase().includes('instructions:') || line.toLowerCase().includes('directions:')) {
-        if (currentRecipe) {
-          for (let j = i + 1; j < lines.length && j < i + 20; j++) {
-            const instructionLine = lines[j].trim();
-            if (!instructionLine || instructionLine.includes('**') || instructionLine.toLowerCase().includes('recipe')) {
-              break;
-            }
-            if (instructionLine.length > 10) {
-              currentRecipe.instructions.push(instructionLine.replace(/^\d+\.\s*/, '').trim());
+          
+          // Parse ingredients
+          if (contentLine.toLowerCase().includes('ingredients:')) {
+            for (let k = j + 1; k < lines.length && k < j + 20; k++) {
+              const ingredientLine = lines[k].trim();
+              if (!ingredientLine || 
+                  ingredientLine.toLowerCase().includes('instructions:') ||
+                  ingredientLine.toLowerCase().includes('directions:')) break;
+              if (ingredientLine.startsWith('-') || ingredientLine.startsWith('*')) {
+                currentRecipe.ingredients.push(ingredientLine.substring(1).trim());
+              }
             }
           }
-        }
-      }
-      // Look for time and nutrition info
-      else if (line.toLowerCase().includes('prep time') || line.toLowerCase().includes('cook time') || line.toLowerCase().includes('calories')) {
-        if (currentRecipe) {
-          const timeMatch = line.match(/prep[^0-9]*(\d+)\s*(min|minutes)/i);
-          if (timeMatch) currentRecipe.prepTime = timeMatch[1];
           
-          const cookMatch = line.match(/cook[^0-9]*(\d+)\s*(min|minutes)/i);
-          if (cookMatch) currentRecipe.cookTime = cookMatch[1];
+          // Parse instructions (but don't mistake them for recipe titles)
+          else if (contentLine.toLowerCase().includes('instructions:') || 
+                   contentLine.toLowerCase().includes('directions:')) {
+            for (let k = j + 1; k < lines.length && k < j + 15; k++) {
+              const instructionLine = lines[k].trim();
+              if (!instructionLine) break;
+              if (instructionLine.match(/^\d+\./) || instructionLine.startsWith('-')) {
+                currentRecipe.instructions.push(instructionLine.replace(/^[\d\-\.\s]*/, '').trim());
+              }
+            }
+          }
           
-          const caloriesMatch = line.match(/calories[^0-9]*(\d+)/i);
-          if (caloriesMatch) currentRecipe.calories = caloriesMatch[1];
+          // Parse timing and nutrition
+          else if (contentLine.toLowerCase().includes('prep') || 
+                   contentLine.toLowerCase().includes('cook') || 
+                   contentLine.toLowerCase().includes('calories')) {
+            const timeMatch = contentLine.match(/prep[^0-9]*(\d+)\s*(min|minutes)/i);
+            if (timeMatch) currentRecipe.prepTime = timeMatch[1];
+            
+            const cookMatch = contentLine.match(/cook[^0-9]*(\d+)\s*(min|minutes)/i);
+            if (cookMatch) currentRecipe.cookTime = cookMatch[1];
+            
+            const caloriesMatch = contentLine.match(/calories[^0-9]*(\d+)/i);
+            if (caloriesMatch) currentRecipe.calories = caloriesMatch[1];
+          }
         }
+        
+        // Add the recipe if it has content
+        if (currentRecipe.title && (currentRecipe.ingredients.length > 0 || currentRecipe.instructions.length > 0)) {
+          recipes.push(currentRecipe);
+        }
+        break; // Only parse the first recipe found
       }
-    }
-
-    // Add the last recipe
-    if (currentRecipe && currentRecipe.title && currentRecipe.ingredients.length > 0) {
-      recipes.push(currentRecipe);
     }
 
     return recipes;
@@ -797,6 +795,13 @@ function GroceryListForm({
   const handleAddToMealPlan = (recipe) => {
     // For now, just show an alert. This could be enhanced to integrate with meal planning
     alert(`📅 "${recipe.title}" would be added to meal plan (feature to be implemented)`);
+  };
+
+  // Handle removing a recipe from the parsed recipes list
+  const handleRemoveRecipe = (recipeIndex) => {
+    const updatedRecipes = parsedRecipes.filter((_, index) => index !== recipeIndex);
+    setParsedRecipes(updatedRecipes);
+    console.log(`🗑️ Removed recipe at index ${recipeIndex}. ${updatedRecipes.length} recipes remaining.`);
   };
 
   const handleItemsChange = (updatedItems) => {
@@ -1028,9 +1033,6 @@ function GroceryListForm({
             <button onClick={handleNewList} style={styles.actionBtn}>
               📝 Clear List
             </button>
-            <button onClick={() => setShowRecipeManager(true)} style={styles.actionBtn}>
-              📖 Recipe Manager
-            </button>
           </div>
 
           {/* Settings */}
@@ -1201,33 +1203,41 @@ Or paste any grocery list directly!"
             <div key={index} style={styles.recipeCard}>
               <div style={styles.recipeHeader}>
                 <h4 style={styles.recipeTitle}>🍳 <strong>{recipe.title}</strong></h4>
+                <button 
+                  onClick={() => handleRemoveRecipe(index)}
+                  style={styles.deleteButton}
+                  title="Remove this recipe"
+                >
+                  🗑️
+                </button>
               </div>
               
               <div style={styles.recipeContent}>
                 {recipe.ingredients.length > 0 && (
                   <div style={styles.recipeIngredients}>
-                    <strong>Ingredients:</strong> {recipe.ingredients.join(', ')}
+                    • <strong>Ingredients:</strong> {recipe.ingredients.join(', ')}
                   </div>
                 )}
                 
                 <div style={styles.recipeMetadata}>
                   {(recipe.prepTime || recipe.cookTime) && (
-                    <span style={styles.recipeTime}>
-                      <strong>Time:</strong> 
+                    <div style={styles.recipeTime}>
+                      • <strong>Time:</strong> 
                       {recipe.prepTime && ` Prep ${recipe.prepTime} min`}
                       {recipe.cookTime && ` | Cook ${recipe.cookTime} min`}
-                    </span>
-                  )}
-                  {recipe.calories && (
-                    <span style={styles.recipeCalories}>
-                      <strong>Calories:</strong> ~{recipe.calories}/serving
-                    </span>
+                      {recipe.calories && ` | `}
+                      {recipe.calories && (
+                        <span style={styles.recipeCalories}>
+                          <strong>Calories:</strong> ~{recipe.calories}/serving
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
                 
                 {recipe.tags && recipe.tags.length > 0 && (
                   <div style={styles.recipeTags}>
-                    <strong>Tags:</strong> {recipe.tags.map(tag => `\`${tag}\``).join(' ')}
+                    • <strong>Tags:</strong> {recipe.tags.map(tag => `\`${tag}\``).join(' ')}
                   </div>
                 )}
               </div>
@@ -1322,17 +1332,6 @@ Or paste any grocery list directly!"
         />
       )}
 
-      {showRecipeManager && (
-        <RecipeManager
-          onClose={() => setShowRecipeManager(false)}
-          savedRecipes={savedRecipes}
-          onRecipeSelect={(recipe) => {
-            setShowRecipeManager(false);
-            const itemsLoaded = loadRecipeToCart(recipe, mergeCart);
-            alert(`✅ Added ${itemsLoaded} items from "${recipe.name}"`);
-          }}
-        />
-      )}
 
       {showInstacartCheckout && (
         <InstacartCheckoutFlow
@@ -1805,14 +1804,32 @@ const styles = {
   recipeHeader: {
     marginBottom: '12px',
     paddingBottom: '8px',
-    borderBottom: '1px solid #FB4F14'
+    borderBottom: '1px solid #FB4F14',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
   },
 
   recipeTitle: {
     color: '#002244',
     margin: '0',
     fontSize: '20px',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    flex: 1
+  },
+
+  deleteButton: {
+    backgroundColor: '#FF6B6B',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '8px 12px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 4px rgba(255,107,107,0.3)',
+    minWidth: '40px',
+    height: '40px'
   },
 
   recipeContent: {
