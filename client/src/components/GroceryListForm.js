@@ -143,6 +143,8 @@ function GroceryListForm({
   setCurrentCart, 
   savedRecipes, 
   setSavedRecipes,
+  parsedRecipes,
+  setParsedRecipes,
   saveRecipe,
   loadRecipeToCart
 }) {
@@ -163,7 +165,6 @@ function GroceryListForm({
   // eslint-disable-next-line no-unused-vars
   const [recipes, setRecipes] = useState([]);
   const [waitingForAIResponse, setWaitingForAIResponse] = useState(false);
-  const [parsedRecipes, setParsedRecipes] = useState([]); // Store parsed AI recipes
   const { currentUser } = useAuth();
   const textareaRef = useRef(null);
 
@@ -1081,26 +1082,38 @@ function GroceryListForm({
 
   // Handle adding recipe to recipe library
   const handleAddToRecipeLibrary = (recipe) => {
+    // Safely handle ingredients and instructions that might be arrays or strings
+    const ingredientsText = Array.isArray(recipe.ingredients) 
+      ? recipe.ingredients.join('\n')
+      : recipe.ingredients || '';
+    
+    const instructionsText = Array.isArray(recipe.instructions)
+      ? recipe.instructions.join('\n') 
+      : recipe.instructions || '';
+
     const savedRecipe = {
       id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: recipe.title,
-      ingredients: recipe.ingredients.join('\n'),
-      instructions: recipe.instructions.join('\n'),
-      prepTime: recipe.prepTime,
-      cookTime: recipe.cookTime,
-      calories: recipe.calories,
-      tags: recipe.tags,
+      name: recipe.title || recipe.name || 'Untitled Recipe',
+      ingredients: ingredientsText,
+      instructions: instructionsText,
+      prepTime: recipe.prepTime || 'Not specified',
+      cookTime: recipe.cookTime || 'Not specified',
+      calories: recipe.calories || null,
+      tags: Array.isArray(recipe.tags) ? recipe.tags : (recipe.tags ? [recipe.tags] : ['ai_generated']),
       createdAt: new Date().toISOString(),
       userId: currentUser?.uid || 'guest',
       source: 'ai_generated'
     };
 
+    console.log('🔲 Adding recipe to library:', savedRecipe);
+
     // Use the existing saveRecipe function
     if (saveRecipe) {
       saveRecipe(savedRecipe);
-      alert(`✅ Recipe "${recipe.title}" added to Recipe Library!`);
+      alert(`✅ Recipe "${savedRecipe.name}" added to Recipe Library!`);
     } else {
       alert('❌ Unable to save recipe. Recipe Library not available.');
+      console.error('❌ saveRecipe function not available');
     }
   };
 
@@ -1585,25 +1598,32 @@ Or paste any grocery list directly!"
                 </h4>
                 <div style={styles.headerButtons}>
                   <button 
-                    onClick={() => handleAddToRecipeLibrary(recipe)}
-                    style={styles.headerButton}
-                    title="Add to Recipe Library"
+                    onClick={() => handleAddRecipeToCart(recipe)}
+                    style={styles.addToCartHeaderButton}
+                    title="Add recipe ingredients to cart"
                   >
-                    🔲
+                    🛒 Add to Cart
+                  </button>
+                  <button 
+                    onClick={() => handleAddToRecipeLibrary(recipe)}
+                    style={styles.wideHeaderButton}
+                    title="ADD RECIPE"
+                  >
+                    🔲 Recipe
                   </button>
                   <button 
                     onClick={() => handleAddToMealPlan(recipe)}
-                    style={styles.headerButton}
-                    title="Add to Meal Plan"
+                    style={styles.wideHeaderButton}
+                    title="ADD MEAL PLAN"
                   >
-                    📅
+                    📅 Meal Plan
                   </button>
                   <button 
                     onClick={() => handleRemoveRecipe(index)}
-                    style={styles.deleteButton}
-                    title="Remove this recipe"
+                    style={styles.wideDeleteButton}
+                    title="REMOVE"
                   >
-                    🗑️
+                    🗑️ Remove
                   </button>
                 </div>
               </div>
@@ -1636,16 +1656,6 @@ Or paste any grocery list directly!"
                     • <strong>Tags:</strong> {recipe.tags.map(tag => `\`${tag}\``).join(' ')}
                   </div>
                 )}
-              </div>
-              
-              <div style={styles.recipeActions}>
-                <button 
-                  onClick={() => handleAddRecipeToCart(recipe)}
-                  style={styles.addToCartButton}
-                  title="Add recipe ingredients to cart"
-                >
-                  🛒 <strong>[Add to Cart]</strong>
-                </button>
               </div>
             </div>
           ))}
@@ -2323,6 +2333,61 @@ const styles = {
     ':hover': {
       background: '#e9ecef',
       borderColor: '#adb5bd'
+    }
+  },
+
+  addToCartHeaderButton: {
+    padding: '8px 16px',
+    background: '#FB4F14', // CartSmash orange
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 4px rgba(251,79,20,0.3)',
+    minWidth: '120px',
+    ':hover': {
+      background: '#E0440F',
+      transform: 'translateY(-1px)',
+      boxShadow: '0 4px 8px rgba(251,79,20,0.4)'
+    }
+  },
+
+  wideHeaderButton: {
+    padding: '8px 16px',
+    background: '#f8f9fa',
+    color: '#002244',
+    border: '1px solid #dee2e6',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'all 0.2s',
+    minWidth: '100px',
+    ':hover': {
+      background: '#e9ecef',
+      borderColor: '#adb5bd',
+      transform: 'translateY(-1px)'
+    }
+  },
+
+  wideDeleteButton: {
+    padding: '8px 16px',
+    background: '#dc3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'all 0.2s',
+    minWidth: '100px',
+    ':hover': {
+      background: '#c82333',
+      transform: 'translateY(-1px)',
+      boxShadow: '0 2px 4px rgba(220,53,69,0.3)'
     }
   }
 };

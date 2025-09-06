@@ -41,6 +41,7 @@ function App() {
   const [currentCart, setCurrentCart] = useState([]);
   const [savedLists, setSavedLists] = useState([]);
   const [savedRecipes, setSavedRecipes] = useState([]);
+  const [parsedRecipes, setParsedRecipes] = useState([]); // Parsed recipes from AI (persists across screens)
   const [mealPlans, setMealPlans] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState('idle'); // idle, syncing, synced, error
@@ -59,6 +60,8 @@ function App() {
           setSavedLists={setSavedLists}
           savedRecipes={savedRecipes}
           setSavedRecipes={setSavedRecipes}
+          parsedRecipes={parsedRecipes}
+          setParsedRecipes={setParsedRecipes}
           mealPlans={mealPlans}
           setMealPlans={setMealPlans}
           isLoading={isLoading}
@@ -76,6 +79,7 @@ function AppContent({
   currentCart, setCurrentCart,
   savedLists, setSavedLists,
   savedRecipes, setSavedRecipes,
+  parsedRecipes, setParsedRecipes,
   mealPlans, setMealPlans,
   isLoading, setIsLoading,
   syncStatus, setSyncStatus
@@ -606,6 +610,8 @@ function AppContent({
               setCurrentCart={setCurrentCart}
               savedRecipes={savedRecipes}
               setSavedRecipes={setSavedRecipes}
+              parsedRecipes={parsedRecipes}
+              setParsedRecipes={setParsedRecipes}
               saveCartAsList={saveCartAsList}
               saveRecipe={saveRecipe}
               loadRecipeToCart={loadRecipeToCart}
@@ -634,6 +640,7 @@ function AppContent({
             deleteRecipe={deleteRecipe}
             onListUpdate={updateList}
             onMealPlanUpdate={setMealPlans}
+            onNavigateHome={() => setCurrentView('home')}
           />
         ) : currentView === 'stores' ? (
           <StoresPage 

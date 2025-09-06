@@ -13,7 +13,8 @@ function MyAccount({
   deleteList,
   deleteRecipe,
   onMealPlanUpdate,
-  onListUpdate
+  onListUpdate,
+  onNavigateHome
 }) {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
@@ -181,7 +182,7 @@ function MyAccount({
       <div style={styles.listsHeader}>
         <h2 style={styles.pageTitle}>Shopping Lists</h2>
         <button 
-          onClick={() => window.location.href = '/'} 
+          onClick={onNavigateHome} 
           style={styles.addListButton}
         >
           ➕ Add Shopping List
@@ -269,12 +270,6 @@ function MyAccount({
             2. Click "+ Add" or "📖 Recipe" buttons for each day/meal<br />
             3. Save your plan to generate a shopping list
           </p>
-          <button 
-            onClick={() => setShowMealPlanModal(true)}
-            style={styles.createFirstPlanButton}
-          >
-            Create Your First Meal Plan
-          </button>
         </div>
       ) : (
         <div style={styles.mealPlanGrid}>

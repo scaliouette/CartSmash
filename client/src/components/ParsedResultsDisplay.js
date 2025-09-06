@@ -273,7 +273,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         break;
 
       case 'delete-selected':
-        if (selectedItems.size > 0 && window.confirm(`Remove ${selectedItems.size} selected items?`)) {
+        if (selectedItems.size > 0) {
           updatedItems = items.filter(item => !selectedItems.has(item.id));
           message = `Removed ${selectedItems.size} items`;
           setSelectedItems(new Set());
