@@ -583,6 +583,7 @@ function MyAccount({
           }}
           editingPlan={editingMealPlan}
           savedRecipes={savedRecipes}
+          onAddRecipeToMealPlan={handleAddRecipeToMealPlan}
           onSave={async (plan) => {
             try {
               // Save to Firebase if user is authenticated
@@ -810,7 +811,7 @@ function ListEditModal({ list, onClose, onSave }) {
   );
 }
 
-function MealPlanModal({ isOpen, onClose, editingPlan, savedRecipes, onSave }) {
+function MealPlanModal({ isOpen, onClose, editingPlan, savedRecipes, onSave, onAddRecipeToMealPlan }) {
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const mealTypes = ['breakfast', 'lunch', 'dinner'];
   
@@ -1032,7 +1033,7 @@ function MealPlanModal({ isOpen, onClose, editingPlan, savedRecipes, onSave }) {
                       ) : (
                         <div style={modalStyles.mealActions}>
                           <button
-                            onClick={() => handleAddRecipeToMealPlan(editingMealPlan, day, mealType)}
+                            onClick={() => onAddRecipeToMealPlan(editingPlan, day, mealType)}
                             style={modalStyles.addMealBtn}
                           >
                             + Add Recipe
