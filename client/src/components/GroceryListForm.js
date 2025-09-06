@@ -420,12 +420,13 @@ function GroceryListForm({
               expandTextarea();
             }, 50);
             
-            // Clear loading states
+            // Clear loading states but keep waitingForAIResponse true for next click
             clearInterval(progressInterval);
+            clearTimeout(overlaySafety);
             setIsLoading(false);
             setShowProgress(false);
             setParsingProgress(0);
-            setWaitingForAIResponse(false);
+            // Keep waitingForAIResponse true so next click will parse to cart
             
             // Show success feedback
             const successMessage = `✅ ${selectedAI === 'claude' ? 'Claude' : 'ChatGPT'} has generated your list! Review it and hit CARTSMASH to add items to cart.`;
@@ -456,6 +457,9 @@ function GroceryListForm({
       
       // This part runs when parsing the list (not using AI)
       console.log('🔧 Manual parsing mode - no AI processing:', { useAI, selectedAI, textLength: listText.length });
+      
+      // Clear AI waiting state since we're now parsing
+      setWaitingForAIResponse(false);
       
       // Add confetti only when actually parsing items
       confetti({
