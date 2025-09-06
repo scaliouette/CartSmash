@@ -233,11 +233,133 @@ Provide recipes with instructions and list each grocery item on a separate line.
     return groceryItems;
   };
 
-  // ✅ NEW: Extract recipe information
+  // ✅ ENHANCED: Extract multiple recipes from meal plan responses
   const extractRecipeInfo = (text) => {
-    console.log('📝 Extracting recipe information...');
-    console.log('📝 Text length:', text.length);
+    console.log('🔍 Extracting recipe(s) from AI response...');
     
+    // Check if this looks like a meal plan with multiple recipes
+    const isMealPlan = /day \d+|monday|tuesday|wednesday|thursday|friday|saturday|sunday|breakfast|lunch|dinner|meal \d+/i.test(text);
+    
+    if (isMealPlan) {
+      console.log('📅 Detected meal plan format - extracting multiple recipes');
+      return extractMealPlanRecipes(text);
+    } else {
+      console.log('📖 Detected single recipe format');
+      return extractSingleRecipe(text);
+    }
+  };
+
+  // Extract multiple recipes from a meal plan
+  const extractMealPlanRecipes = (text) => {
+    const recipes = [];
+    const lines = text.split('\n');
+    let currentRecipe = null;
+    let currentSection = null;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      // Detect new recipe/meal headers
+      const mealMatch = line.match(/(day \d+|monday|tuesday|wednesday|thursday|friday|saturday|sunday).*?(breakfast|lunch|dinner|snack)/i);
+      const recipeMatch = line.match(/^[\*#\-]*\s*(.+?)(recipe|:|\*\*)/i);
+      
+      if (mealMatch || (recipeMatch && line.length < 60)) {
+        // Save previous recipe if exists
+        if (currentRecipe && (currentRecipe.ingredients.length > 0 || currentRecipe.instructions.length > 0)) {
+          recipes.push(currentRecipe);
+        }
+        
+        // Start new recipe
+        let recipeName = mealMatch ? `${mealMatch[1]} ${mealMatch[2]}` : recipeMatch[1];
+        recipeName = recipeName.replace(/[\*#:\-]/g, '').trim();
+        
+        currentRecipe = {
+          title: recipeName,
+          ingredients: [],
+          instructions: [],
+          servings: '',
+          prepTime: '',
+          cookTime: '',
+          mealType: mealMatch ? mealMatch[2] : 'meal',
+          day: mealMatch ? mealMatch[1] : '',
+          id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        };
+        
+        console.log('📍 Found new recipe:', recipeName);
+        currentSection = null;
+        continue;
+      }
+      
+      // Detect section headers within a recipe
+      if (line.match(/^#{1,6}\s/) || line.match(/^\*\*.*\*\*$/) || line.includes('**')) {
+        const headerText = line.toLowerCase();
+        
+        if (headerText.includes('ingredient') || headerText.includes('what you need')) {
+          currentSection = 'ingredients';
+        } else if (headerText.includes('instruction') || headerText.includes('method') || headerText.includes('steps') || headerText.includes('directions')) {
+          currentSection = 'instructions';
+        } else {
+          currentSection = null;
+        }
+        continue;
+      }
+      
+      // Extract content if we have a current recipe
+      if (currentRecipe) {
+        // Extract metadata
+        if (line.toLowerCase().includes('serves') || line.toLowerCase().includes('serving')) {
+          currentRecipe.servings = line;
+        } else if (line.toLowerCase().includes('prep time')) {
+          currentRecipe.prepTime = line;
+        } else if (line.toLowerCase().includes('cook time')) {
+          currentRecipe.cookTime = line;
+        }
+        
+        // Extract ingredients and instructions from bullet points or numbered lists
+        const bulletMatch = line.match(/^[•\-*]\s*(.+)$/) || line.match(/^\d+[\.)]\s*(.+)$/);
+        if (bulletMatch) {
+          const content = bulletMatch[1].trim();
+          
+          // Auto-detect if this looks like ingredient vs instruction
+          if (!currentSection) {
+            // Heuristics to determine content type
+            if (content.match(/\d+\s*(cup|tablespoon|teaspoon|pound|oz|gram|ml|liter|tsp|tbsp|lb)/i) || 
+                content.length < 50) {
+              currentSection = 'ingredients';
+            } else if (content.length > 20) {
+              currentSection = 'instructions';
+            }
+          }
+          
+          if (currentSection === 'ingredients' && content.length > 2) {
+            currentRecipe.ingredients.push(content);
+            console.log('➕ Added ingredient:', content.substring(0, 30));
+          } else if (currentSection === 'instructions' && content.length > 5) {
+            currentRecipe.instructions.push(content);
+            console.log('➕ Added instruction:', content.substring(0, 30));
+          }
+        }
+      }
+    }
+    
+    // Don't forget the last recipe
+    if (currentRecipe && (currentRecipe.ingredients.length > 0 || currentRecipe.instructions.length > 0)) {
+      recipes.push(currentRecipe);
+    }
+    
+    console.log(`✅ Meal plan extraction complete: Found ${recipes.length} recipes`);
+    
+    // Return in meal plan format
+    return {
+      isMealPlan: true,
+      recipes: recipes,
+      totalRecipes: recipes.length
+    };
+  };
+
+  // Extract single recipe (existing logic)
+  const extractSingleRecipe = (text) => {
     const recipeInfo = {
       title: '',
       ingredients: [],
@@ -245,7 +367,8 @@ Provide recipes with instructions and list each grocery item on a separate line.
       servings: '',
       prepTime: '',
       cookTime: '',
-      fullText: text
+      fullText: text,
+      isMealPlan: false
     };
 
     const lines = text.split('\n');
@@ -253,27 +376,19 @@ Provide recipes with instructions and list each grocery item on a separate line.
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
       if (!line) continue;
       
-      // Detect sections - look for headers like "## Ingredients" or "**Ingredients**" or "Ingredients:"
-      if (line.match(/^\*\*.*\*\*$/) || line.match(/^#{1,6}\s/) || line.endsWith(':')) {
-        const cleanLine = line.replace(/[*#:]/g, '').trim().toLowerCase();
+      // Detect headers
+      if (line.match(/^#{1,6}\s/) || line.match(/^\*\*.*\*\*$/) || line.includes('**')) {
+        const headerText = line.toLowerCase();
         
-        if (cleanLine.includes('ingredient')) {
+        if (headerText.includes('ingredient') || headerText.includes('what you need')) {
           currentSection = 'ingredients';
-          console.log('📍 Found ingredients section at line', i + 1);
-        } else if (cleanLine.includes('instruction') || 
-                   cleanLine.includes('direction') ||
-                   cleanLine.includes('step') ||
-                   cleanLine.includes('method')) {
+        } else if (headerText.includes('instruction') || headerText.includes('method') || headerText.includes('steps') || headerText.includes('directions')) {
           currentSection = 'instructions';
-          console.log('📍 Found instructions section at line', i + 1);
-        } else if (cleanLine.includes('recipe') && !recipeInfo.title) {
+        } else if (headerText.includes('recipe') && !recipeInfo.title) {
           recipeInfo.title = line.replace(/[*#:]/g, '').trim();
-          console.log('📍 Found recipe title:', recipeInfo.title);
         } else {
-          // Any other header ends the current section
           currentSection = null;
         }
         continue;
@@ -288,30 +403,27 @@ Provide recipes with instructions and list each grocery item on a separate line.
         recipeInfo.cookTime = line;
       }
       
-      // Extract ingredients and instructions from bullet points or numbered lists
+      // Extract ingredients and instructions
       const bulletMatch = line.match(/^[•\-*]\s*(.+)$/) || line.match(/^\d+[\.)]\s*(.+)$/);
       if (bulletMatch && currentSection) {
         const content = bulletMatch[1].trim();
         if (currentSection === 'ingredients' && content.length > 2) {
           recipeInfo.ingredients.push(content);
-          console.log('➕ Added ingredient:', content.substring(0, 30));
         } else if (currentSection === 'instructions' && content.length > 5) {
           recipeInfo.instructions.push(content);
-          console.log('➕ Added instruction:', content.substring(0, 30));
         }
       }
     }
     
-    // If no title found, try to extract from first substantial line
-    if (!recipeInfo.title && text.length > 50) {
-      const firstLine = lines.find(line => line.trim().length > 10 && !line.trim().startsWith('•') && !line.trim().match(/^\d+[\.)]/));
+    // Try to extract title from first meaningful line if none found
+    if (!recipeInfo.title && lines.length > 0) {
+      const firstLine = lines.find(line => line.trim().length > 5);
       if (firstLine) {
         recipeInfo.title = firstLine.trim().substring(0, 100);
-        console.log('📍 Fallback recipe title:', recipeInfo.title);
       }
     }
     
-    console.log(`✅ Recipe extraction complete: "${recipeInfo.title}" with ${recipeInfo.ingredients.length} ingredients, ${recipeInfo.instructions.length} instructions`);
+    console.log(`✅ Single recipe extraction complete: "${recipeInfo.title}" with ${recipeInfo.ingredients.length} ingredients, ${recipeInfo.instructions.length} instructions`);
     return recipeInfo;
   };
 
@@ -943,9 +1055,85 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
                           />
                         </div>
                         
-                        {/* ✅ ENHANCED: Show both grocery list and recipe info with save option */}
+                        {/* ✅ ENHANCED: Show meal plan with multiple recipes or single recipe with save option */}
                         <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          {message.recipeInfo && (message.recipeInfo.ingredients.length > 0 || message.recipeInfo.instructions.length > 0) && (
+                          {message.recipeInfo && message.recipeInfo.isMealPlan && message.recipeInfo.recipes && message.recipeInfo.recipes.length > 0 && (
+                            <div style={{
+                              fontSize: '12px',
+                              color: '#666',
+                              backgroundColor: '#f0f9ff',
+                              padding: '12px',
+                              borderRadius: '8px',
+                              border: '1px solid #bfdbfe'
+                            }}>
+                              <div style={{ 
+                                fontSize: '14px', 
+                                fontWeight: 'bold', 
+                                marginBottom: '10px',
+                                color: '#1f2937'
+                              }}>
+                                🍽️ Meal Plan Detected ({message.recipeInfo.recipes.length} recipes)
+                              </div>
+                              {message.recipeInfo.recipes.map((recipe, index) => (
+                                <div key={index} style={{
+                                  backgroundColor: 'white',
+                                  padding: '10px',
+                                  marginBottom: '8px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #e5e7eb',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center'
+                                }}>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '2px' }}>
+                                      {recipe.title}
+                                    </div>
+                                    <div style={{ color: '#6b7280', fontSize: '11px' }}>
+                                      📝 {recipe.ingredients?.length || 0} ingredients, {recipe.instructions?.length || 0} steps
+                                      {recipe.day && <span> • {recipe.day}</span>}
+                                      {recipe.mealType && <span> • {recipe.mealType}</span>}
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      const recipeData = {
+                                        name: recipe.title,
+                                        ingredients: recipe.ingredients?.join('\n') || '',
+                                        instructions: recipe.instructions?.join('\n') || '',
+                                        day: recipe.day,
+                                        mealType: recipe.mealType,
+                                        savedFrom: 'ai_meal_plan',
+                                        timestamp: new Date().toISOString()
+                                      };
+                                      
+                                      if (onRecipeGenerated) {
+                                        onRecipeGenerated(recipeData);
+                                      }
+                                      
+                                      alert(`✅ Recipe "${recipe.title}" saved to your account!`);
+                                    }}
+                                    style={{
+                                      padding: '6px 12px',
+                                      backgroundColor: '#FF6B35',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      cursor: 'pointer',
+                                      fontSize: '11px',
+                                      fontWeight: 'bold',
+                                      marginLeft: '10px',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    📖 Save
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {message.recipeInfo && !message.recipeInfo.isMealPlan && (message.recipeInfo.ingredients.length > 0 || message.recipeInfo.instructions.length > 0) && (
                             <div style={{
                               fontSize: '12px',
                               color: '#666',

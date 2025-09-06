@@ -362,7 +362,8 @@
       "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\contexts/**)",
       "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
       "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
-      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)"
+      "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
