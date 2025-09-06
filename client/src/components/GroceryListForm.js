@@ -379,7 +379,6 @@ function GroceryListForm({
           // Check for ingredients section headers
           if (trimmed.match(/^(ingredients?:?\s*$|##?\s*ingredients?|Ingredients?:?\s*$)/i)) {
             inIngredientsSection = true;
-            inInstructionsSection = false;
             continue;
           }
           
