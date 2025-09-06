@@ -366,7 +366,8 @@
       "Bash(npm run build:*)",
       "Bash(sed:*)",
       "Bash(npm run lint)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(start http://localhost:3000)"
     ],
     "deny": [],
     "ask": []

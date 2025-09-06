@@ -19,17 +19,44 @@ const firebaseConfig = {
   measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
 };
 
-// Check if configuration is valid
-const isConfigValid = firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId;
+// Debug: Log what environment variables are being read
+console.log('🔧 Firebase Environment Variables Debug:', {
+  REACT_APP_FIREBASE_API_KEY: process.env.REACT_APP_FIREBASE_API_KEY ? `✅ SET (${process.env.REACT_APP_FIREBASE_API_KEY.substring(0, 10)}...)` : '❌ MISSING',
+  REACT_APP_FIREBASE_AUTH_DOMAIN: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN ? `✅ SET (${process.env.REACT_APP_FIREBASE_AUTH_DOMAIN})` : '❌ MISSING',
+  REACT_APP_FIREBASE_PROJECT_ID: process.env.REACT_APP_FIREBASE_PROJECT_ID ? `✅ SET (${process.env.REACT_APP_FIREBASE_PROJECT_ID})` : '❌ MISSING',
+  REACT_APP_FIREBASE_APP_ID: process.env.REACT_APP_FIREBASE_APP_ID ? `✅ SET (${process.env.REACT_APP_FIREBASE_APP_ID.substring(0, 15)}...)` : '❌ MISSING'
+});
+
+console.log('🔧 Full firebaseConfig object:', firebaseConfig);
+
+// Check if configuration is valid - be more strict about validation
+const isConfigValid = Boolean(
+  firebaseConfig.apiKey && 
+  firebaseConfig.authDomain && 
+  firebaseConfig.projectId && 
+  firebaseConfig.appId &&
+  firebaseConfig.apiKey !== 'undefined' &&
+  firebaseConfig.authDomain !== 'undefined' &&
+  firebaseConfig.projectId !== 'undefined' &&
+  firebaseConfig.appId !== 'undefined'
+);
 
 if (!isConfigValid) {
-  console.warn('⚠️ Firebase configuration is incomplete!');
-  console.warn('Missing environment variables. Check your .env.local file');
-  console.warn('Current config:', {
+  console.error('❌ FIREBASE CONFIGURATION IS INCOMPLETE!');
+  console.error('🔍 Missing environment variables. Check your .env.local file');
+  console.error('🔍 Current working directory:', window.location.origin);
+  console.error('🔍 NODE_ENV:', process.env.NODE_ENV);
+  console.error('🔍 All REACT_APP_ env vars:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_')));
+  console.error('🔍 Current config debug:', {
     hasApiKey: !!firebaseConfig.apiKey,
     hasAuthDomain: !!firebaseConfig.authDomain,
-    hasProjectId: !!firebaseConfig.projectId
+    hasProjectId: !!firebaseConfig.projectId,
+    apiKeyLength: firebaseConfig.apiKey?.length || 0,
+    authDomain: firebaseConfig.authDomain || 'UNDEFINED',
+    projectId: firebaseConfig.projectId || 'UNDEFINED'
   });
+} else {
+  console.log('✅ Firebase configuration appears valid');
 }
 
 // Initialize Firebase only if config is valid
@@ -50,12 +77,17 @@ if (isConfigValid) {
     auth = getAuth(app);
     console.log('✅ Firebase Auth initialized');
     
-    // Initialize Google Auth Provider
-    googleProvider = new GoogleAuthProvider();
-    googleProvider.setCustomParameters({
-      prompt: 'select_account'
-    });
-    console.log('✅ Google Auth Provider configured');
+    // Initialize Google Auth Provider with better error handling
+    try {
+      googleProvider = new GoogleAuthProvider();
+      googleProvider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      console.log('✅ Google Auth Provider configured');
+    } catch (providerError) {
+      console.error('❌ Google Auth Provider setup failed:', providerError);
+      googleProvider = null;
+    }
     
     // Initialize Firestore
     db = getFirestore(app);

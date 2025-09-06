@@ -176,12 +176,17 @@ export function AuthProvider({ children }) {
   const signInWithGoogle = async () => {
     try {
       console.log('🔐 Starting Google sign-in');
+      console.log('🔐 Auth available:', !!auth);
+      console.log('🔐 GoogleProvider available:', !!googleProvider);
       setError('');
       
       if (!auth || !googleProvider) {
-        throw new Error('Firebase Auth or Google Provider not initialized');
+        const errorMsg = `Firebase Auth or Google Provider not initialized. Auth: ${!!auth}, GoogleProvider: ${!!googleProvider}`;
+        console.error('❌ Firebase services not available:', errorMsg);
+        throw new Error(errorMsg);
       }
       
+      console.log('🔐 Calling signInWithPopup...');
       const userCredential = await signInWithPopup(auth, googleProvider);
       console.log('✅ Google sign-in successful:', userCredential.user.email);
       
