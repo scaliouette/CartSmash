@@ -210,7 +210,7 @@ function AppContent({
   }, [currentUser, setIsLoading, setSyncStatus, loadLocalData, loadFirebaseData]);
   
   const saveCartToFirebase = useCallback(async () => {
-    if (!currentUser || currentCart.length === 0) return;
+    if (!currentUser) return;
     
     // ⚠️ Only auto-save if explicitly enabled
     if (!AUTOSAVE_ENABLED) {
