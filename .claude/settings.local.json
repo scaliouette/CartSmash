@@ -365,7 +365,8 @@
       "Read(/C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components/**)",
       "Bash(npm run build:*)",
       "Bash(sed:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(rg:*)"
     ],
     "deny": [],
     "ask": []

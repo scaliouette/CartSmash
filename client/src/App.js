@@ -101,25 +101,14 @@ function AppContent({
 
   const loadLocalData = useCallback(() => {
     try {
-      const loadedCart = JSON.parse(localStorage.getItem('cartsmash-current-cart') || '[]');
-      const loadedLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
-      
-      console.log('🔄 App.js - Loading data from localStorage:', {
-        cartItems: loadedCart.length,
-        cartItemNames: loadedCart.map(item => item.productName),
-        lists: loadedLists.length,
+      // ✅ REMOVED: All localStorage reads - using session state only for unauthenticated users
+      console.log('🔄 App.js - Using session state only (no localStorage persistence):', {
         cartAuthority: CART_AUTHORITY
       });
       
-      // ⛔ Do NOT hydrate the cart from localStorage unless authority = 'local'
-      if (CART_AUTHORITY === 'local') {
-        setCurrentCart(loadedCart);
-        console.log('📱 Using localStorage as cart authority');
-      } else {
-        console.log('🔒 Firestore is cart authority - skipping localStorage cart restoration');
-      }
-      
-      setSavedLists(loadedLists);
+      // No localStorage reads - session state only
+      setCurrentCart([]);
+      setSavedLists([]);
       // ✅ REMOVED: No more localStorage for recipes - will be loaded from Firestore for auth users
       console.log('✅ Recipes will be loaded from Firestore for authenticated users');
       
@@ -245,7 +234,6 @@ function AppContent({
       
       // Also save to localStorage as backup ONLY if localStorage is cart authority
       if (CART_AUTHORITY === 'local') {
-        localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
         console.log('💾 Cart also saved to localStorage (authority)');
       }
       
@@ -254,7 +242,6 @@ function AppContent({
       // Fallback to localStorage on error ONLY if localStorage is cart authority
       if (CART_AUTHORITY === 'local') {
         try {
-          localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
           console.log('💾 Cart saved locally as fallback');
         } catch (localError) {
           console.error('Local save also failed:', localError);
@@ -339,7 +326,6 @@ function AppContent({
         // Only save to localStorage if it's the cart authority
         if (CART_AUTHORITY === 'local') {
           try {
-            localStorage.setItem('cartsmash-current-cart', JSON.stringify(data.cart));
             console.log('💾 Recipe cart saved to localStorage (authority)');
           } catch (error) {
             console.error('Failed to save recipe cart to localStorage:', error);
@@ -381,7 +367,6 @@ function AppContent({
     // Only save to localStorage if it's the cart authority
     if (CART_AUTHORITY === 'local') {
       try {
-        localStorage.setItem('cartsmash-current-cart', JSON.stringify(newCart));
         console.log('💾 Cart saved to localStorage (authority) during list load');
       } catch (error) {
         console.error('Failed to save cart to localStorage:', error);
@@ -419,7 +404,6 @@ function AppContent({
       // Also save locally
       const updatedLists = [...savedLists, newList];
       setSavedLists(updatedLists);
-      localStorage.setItem('cartsmash-lists', JSON.stringify(updatedLists));
       
       console.log('💾 List saved:', newList.name);
       return newList;
@@ -504,7 +488,6 @@ function AppContent({
         list.id === updatedList.id ? updatedList : list
       );
       setSavedLists(updatedLists);
-      localStorage.setItem('cartsmash-lists', JSON.stringify(updatedLists));
       
       console.log('✅ List updated locally');
       return updatedList;
@@ -537,7 +520,6 @@ function AppContent({
   //     }
   //     
   //     setMealPlans(updatedPlans);
-  //     localStorage.setItem('cartsmash-mealplans', JSON.stringify(updatedPlans));
   //     
   //     console.log('📅 Meal plan saved:', mealPlan.name);
   //     return mealPlan;

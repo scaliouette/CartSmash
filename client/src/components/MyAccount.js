@@ -39,7 +39,6 @@ function MyAccount({
       if (mealPlans && mealPlans.length > 0) {
         setLocalMealPlans(mealPlans);
       } else {
-        const savedMealPlans = localStorage.getItem('cartsmash-mealplans');
         if (savedMealPlans) {
           setLocalMealPlans(JSON.parse(savedMealPlans));
         }
@@ -105,7 +104,6 @@ function MyAccount({
         // Update local state
         const updatedPlans = localMealPlans.filter(p => p.id !== planId);
         setLocalMealPlans(updatedPlans);
-        localStorage.setItem('cartsmash-mealplans', JSON.stringify(updatedPlans));
         
         if (onMealPlanUpdate) {
           onMealPlanUpdate(updatedPlans);
@@ -212,7 +210,6 @@ function MyAccount({
         // Update local state
         const updatedPlans = [...localMealPlans, result.meal];
         setLocalMealPlans(updatedPlans);
-        localStorage.setItem('cartsmash-mealplans', JSON.stringify(updatedPlans));
         
         if (onMealPlanUpdate) {
           onMealPlanUpdate(updatedPlans);
@@ -613,7 +610,6 @@ function MyAccount({
                 : [...localMealPlans, plan];
               
               setLocalMealPlans(updatedPlans);
-              localStorage.setItem('cartsmash-mealplans', JSON.stringify(updatedPlans));
               
               if (onMealPlanUpdate) {
                 onMealPlanUpdate(updatedPlans);

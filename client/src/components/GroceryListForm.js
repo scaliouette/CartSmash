@@ -741,12 +741,11 @@ function GroceryListForm({
         },
         // Local Storage debugging
         checkLocalStorage: () => {
-          const savedCart = localStorage.getItem('cartsmash-current-cart');
+          const savedCart = [];
           console.log('💾 Current localStorage cart:', savedCart ? JSON.parse(savedCart) : 'empty');
           return savedCart ? JSON.parse(savedCart) : [];
         },
         clearLocalStorage: () => {
-          localStorage.removeItem('cartsmash-current-cart');
           console.log('🗑️ Cleared localStorage cart - refresh page to see effect');
         },
         updateLocalStorage: () => {
@@ -754,7 +753,7 @@ function GroceryListForm({
           console.log('💡 Cart authority system prevents localStorage cart writes');
         },
         compareWithLocalStorage: () => {
-          const savedCart = localStorage.getItem('cartsmash-current-cart');
+          const savedCart = [];
           const saved = savedCart ? JSON.parse(savedCart) : [];
           console.log('🔍 Comparison between current cart and localStorage:');
           console.log('Current cart items:', currentCart.length);
@@ -771,8 +770,6 @@ function GroceryListForm({
           console.log('💥 NUCLEAR CLEAR: Removing cart from ALL sources...');
           
           // 1. Clear localStorage
-          localStorage.removeItem('cartsmash-current-cart');
-          localStorage.removeItem('cartsmash-lists');
           localStorage.removeItem('cart-smash-draft');
           
           // 2. Clear current cart state

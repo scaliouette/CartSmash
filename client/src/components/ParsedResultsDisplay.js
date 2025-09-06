@@ -150,7 +150,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         
         if (hasUpdates) {
           onItemsChange(updatedItems);
-          localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+          // ✅ REMOVED: Direct localStorage write - cart authority handles persistence
           
           const itemsWithPrices = updatedItems.filter(item => item.realPrice).length;
           if (isDev) console.debug(`Updated ${updatedItems.length} items with price data`);
@@ -206,8 +206,8 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   useEffect(() => {
     if (items && items.length > 0) {
       try {
-        localStorage.setItem('cartsmash-current-cart', JSON.stringify(items));
-        console.log('✅ Cart saved locally');
+        // ✅ REMOVED: Direct localStorage write - cart authority handles persistence
+        console.log('✅ Cart state updated');
       } catch (e) {
         console.error('Failed to save cart locally:', e);
       }
@@ -295,7 +295,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
 
     if (message) {
       onItemsChange(updatedItems);
-      localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+      // ✅ REMOVED: Direct localStorage write - cart authority handles persistence
     }
   };
 
@@ -527,9 +527,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
       };
       
       // Save to localStorage
-      const existingLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
       const updatedLists = [...existingLists, newList];
-      localStorage.setItem('cartsmash-lists', JSON.stringify(updatedLists));
       
       // Try to save to server if user is logged in
       if (currentUser?.uid) {
@@ -671,7 +669,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     );
     onItemsChange(updatedItems);
 
-    localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+    // ✅ REMOVED: Direct localStorage write - cart authority handles persistence
 
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
@@ -711,8 +709,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         const updatedItems = items.filter(item => item.id !== itemId);
         onItemsChange(updatedItems);
         
-        // Update localStorage
-        localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+        // ✅ REMOVED: Direct localStorage write - cart authority handles persistence
       }
       
       // Clear any ongoing price fetch for this item
@@ -820,9 +817,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
       };
       
       // Save to localStorage
-      const existingLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
       const updatedLists = [...existingLists, newList];
-      localStorage.setItem('cartsmash-lists', JSON.stringify(updatedLists));
       
       // Try to save to server if user is logged in
       if (currentUser?.uid) {
@@ -1336,7 +1331,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
           items={items}
           onItemsUpdated={(updatedItems) => {
             onItemsChange(updatedItems);
-            localStorage.setItem('cartsmash-current-cart', JSON.stringify(updatedItems));
+            // ✅ REMOVED: Direct localStorage write - cart authority handles persistence
           }}
           onClose={() => setShowValidationPage(false)}
         />

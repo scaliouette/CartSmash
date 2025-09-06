@@ -58,24 +58,22 @@ export const CartProvider = ({ children }) => {
   };
 
   const loadLocalData = () => {
-    const localCart = JSON.parse(localStorage.getItem('cartsmash-current-cart') || '[]');
-    const localLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
-    // ✅ REMOVED: No more localStorage for recipes
-    const localMeals = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
-    
-    setCurrentCart(localCart);
-    setSavedLists(localLists);
-    // setSavedRecipes(localRecipes); // ✅ REMOVED
-    setMealPlans(localMeals);
+    // ✅ REMOVED: No localStorage persistence - session state only for unauthenticated users
+    console.log('📋 Using session state only (no localStorage persistence)');
+    setCurrentCart([]);
+    setSavedLists([]);
+    setMealPlans([]);
   };
 
-  // Save data to localStorage (backup)
+  // ✅ REMOVED: localStorage backup - using Firestore for authenticated users, session state for unauthenticated
   const saveToLocal = useCallback(() => {
-    localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
-    localStorage.setItem('cartsmash-lists', JSON.stringify(savedLists));
-    // ✅ REMOVED: No more localStorage for recipes
-    localStorage.setItem('cartsmash-mealplans', JSON.stringify(mealPlans));
-  }, [currentCart, savedLists, mealPlans]); // ✅ REMOVED: savedRecipes dependency
+    // No localStorage persistence - handled by proper data service layer
+    console.log('📊 Cart state updated:', {
+      cartItems: currentCart.length,
+      lists: savedLists.length,
+      mealPlans: mealPlans.length
+    });
+  }, [currentCart, savedLists, mealPlans]);
 
   // Auto-save to local storage
   useEffect(() => {

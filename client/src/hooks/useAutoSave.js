@@ -161,10 +161,9 @@ export function useCartAutoSave(cartItems, userId) {
       setSyncError(null);
 
       try {
-        // Only save to localStorage - Firebase sync is handled by App.js
-        localStorage.setItem('cartsmash-current-cart', JSON.stringify(cartItems));
+        // ✅ REMOVED: Direct localStorage write - cart authority in App.js handles persistence
         setLastSync(new Date());
-        console.log('✅ Cart saved locally');
+        console.log('✅ Cart state updated (persistence handled by cart authority)');
       } catch (err) {
         console.error('Cart save failed:', err);
         setSyncError(err);

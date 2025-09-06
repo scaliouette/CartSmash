@@ -35,8 +35,8 @@ class UserDataService {
   async saveShoppingList(list) {
     await this.init();
     if (!this.userId) {
-      console.log('User not authenticated, saving to localStorage only');
-      localStorage.setItem('cartsmash-current-cart', JSON.stringify(list.items || []));
+      console.log('User not authenticated, using session state only (no persistence)');
+      // ✅ REMOVED: No localStorage persistence - session state only for unauthenticated users
       return list;
     }
 
@@ -61,8 +61,7 @@ class UserDataService {
       return list;
     } catch (error) {
       console.error('Error saving to Firestore:', error);
-      // Fallback to localStorage
-      localStorage.setItem('cartsmash-current-cart', JSON.stringify(list.items || []));
+      // ✅ REMOVED: No localStorage fallback - session state only for unauthenticated users
       throw error;
     }
   }
@@ -76,9 +75,9 @@ class UserDataService {
   async getShoppingLists() {
     await this.init();
     if (!this.userId) {
-      // Return from localStorage if not authenticated
-      const localLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
-      return localLists;
+      // ✅ REMOVED: No localStorage - session state only for unauthenticated users
+      console.log('👤 User not authenticated - returning empty lists array');
+      return [];
     }
 
     try {
@@ -91,14 +90,12 @@ class UserDataService {
         ...doc.data()
       }));
 
-      // Save to localStorage as backup
-      localStorage.setItem('cartsmash-lists', JSON.stringify(lists));
-      
+      // ✅ REMOVED: No localStorage backup - using Firestore only
       return lists;
     } catch (error) {
       console.error('Error fetching lists from Firestore:', error);
-      // Fallback to localStorage
-      return JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
+      // ✅ REMOVED: No localStorage fallback - session state only
+      return [];
     }
   }
 
@@ -167,15 +164,8 @@ class UserDataService {
   async saveMealPlan(mealPlan) {
     await this.init();
     if (!this.userId) {
-      // Save to localStorage if not authenticated
-      const localMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
-      const existingIndex = localMealPlans.findIndex(p => p.id === mealPlan.id);
-      if (existingIndex >= 0) {
-        localMealPlans[existingIndex] = mealPlan;
-      } else {
-        localMealPlans.push(mealPlan);
-      }
-      localStorage.setItem('cartsmash-mealplans', JSON.stringify(localMealPlans));
+      // ✅ REMOVED: No localStorage for unauthenticated users - session state only
+      console.log('👤 User not authenticated - meal plan not persisted');
       return mealPlan;
     }
 
@@ -197,28 +187,11 @@ class UserDataService {
 
       console.log('✅ Meal plan saved to Firestore:', mealPlan.id);
       
-      // Also save to localStorage as backup
-      const localMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
-      const existingIndex = localMealPlans.findIndex(p => p.id === mealPlan.id);
-      if (existingIndex >= 0) {
-        localMealPlans[existingIndex] = mealPlan;
-      } else {
-        localMealPlans.push(mealPlan);
-      }
-      localStorage.setItem('cartsmash-mealplans', JSON.stringify(localMealPlans));
-      
+      // ✅ REMOVED: No localStorage backup - using Firestore only
       return mealPlan;
     } catch (error) {
       console.error('Error saving meal plan to Firestore:', error);
-      // Fallback to localStorage
-      const localMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
-      const existingIndex = localMealPlans.findIndex(p => p.id === mealPlan.id);
-      if (existingIndex >= 0) {
-        localMealPlans[existingIndex] = mealPlan;
-      } else {
-        localMealPlans.push(mealPlan);
-      }
-      localStorage.setItem('cartsmash-mealplans', JSON.stringify(localMealPlans));
+      // ✅ REMOVED: No localStorage fallback - session state only
       throw error;
     }
   }
@@ -227,8 +200,9 @@ class UserDataService {
   async getMealPlans() {
     await this.init();
     if (!this.userId) {
-      // Return from localStorage if not authenticated
-      return JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
+      // ✅ REMOVED: No localStorage - session state only for unauthenticated users
+      console.log('👤 User not authenticated - returning empty meal plans array');
+      return [];
     }
 
     try {
@@ -241,14 +215,12 @@ class UserDataService {
         ...doc.data()
       }));
 
-      // Save to localStorage as backup
-      localStorage.setItem('cartsmash-mealplans', JSON.stringify(mealPlans));
-      
+      // ✅ REMOVED: No localStorage backup - using Firestore only
       return mealPlans;
     } catch (error) {
       console.error('Error fetching meal plans from Firestore:', error);
-      // Fallback to localStorage
-      return JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
+      // ✅ REMOVED: No localStorage fallback - session state only
+      return [];
     }
   }
 
@@ -256,10 +228,8 @@ class UserDataService {
   async deleteShoppingList(listId) {
     await this.init();
     if (!this.userId) {
-      // Delete from localStorage if not authenticated
-      const localLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
-      const filtered = localLists.filter(l => l.id !== listId);
-      localStorage.setItem('cartsmash-lists', JSON.stringify(filtered));
+      // ✅ REMOVED: No localStorage for unauthenticated users - session state only
+      console.log('👤 User not authenticated - list deletion not persisted');
       return;
     }
     
@@ -267,10 +237,7 @@ class UserDataService {
       await deleteDoc(doc(this.db, 'users', this.userId, 'lists', listId));
       console.log('✅ List deleted from Firestore:', listId);
       
-      // Also delete from localStorage
-      const localLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
-      const filtered = localLists.filter(l => l.id !== listId);
-      localStorage.setItem('cartsmash-lists', JSON.stringify(filtered));
+      // ✅ REMOVED: No localStorage backup - using Firestore only
     } catch (error) {
       console.error('Error deleting list from Firestore:', error);
       throw error;
@@ -295,10 +262,8 @@ class UserDataService {
   async deleteMealPlan(planId) {
     await this.init();
     if (!this.userId) {
-      // Delete from localStorage if not authenticated
-      const localMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
-      const filtered = localMealPlans.filter(p => p.id !== planId);
-      localStorage.setItem('cartsmash-mealplans', JSON.stringify(filtered));
+      // ✅ REMOVED: No localStorage for unauthenticated users - session state only
+      console.log('👤 User not authenticated - meal plan deletion not persisted');
       return;
     }
     
@@ -306,10 +271,7 @@ class UserDataService {
       await deleteDoc(doc(this.db, 'users', this.userId, 'mealPlans', planId));
       console.log('✅ Meal plan deleted from Firestore:', planId);
       
-      // Also delete from localStorage
-      const localMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
-      const filtered = localMealPlans.filter(p => p.id !== planId);
-      localStorage.setItem('cartsmash-mealplans', JSON.stringify(filtered));
+      // ✅ REMOVED: No localStorage backup - using Firestore only
     } catch (error) {
       console.error('Error deleting meal plan from Firestore:', error);
       throw error;
@@ -320,13 +282,8 @@ class UserDataService {
   async updateShoppingList(listId, updates) {
     await this.init();
     if (!this.userId) {
-      // Update in localStorage if not authenticated
-      const localLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
-      const index = localLists.findIndex(l => l.id === listId);
-      if (index >= 0) {
-        localLists[index] = { ...localLists[index], ...updates };
-        localStorage.setItem('cartsmash-lists', JSON.stringify(localLists));
-      }
+      // ✅ REMOVED: No localStorage for unauthenticated users - session state only
+      console.log('👤 User not authenticated - list update not persisted');
       return updates;
     }
 
@@ -339,14 +296,7 @@ class UserDataService {
 
       console.log('✅ List updated in Firestore:', listId);
       
-      // Also update in localStorage
-      const localLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
-      const index = localLists.findIndex(l => l.id === listId);
-      if (index >= 0) {
-        localLists[index] = { ...localLists[index], ...updates };
-        localStorage.setItem('cartsmash-lists', JSON.stringify(localLists));
-      }
-      
+      // ✅ REMOVED: No localStorage backup - using Firestore only
       return updates;
     } catch (error) {
       console.error('Error updating list in Firestore:', error);
@@ -358,8 +308,9 @@ class UserDataService {
   async getUserPreferences() {
     await this.init();
     if (!this.userId) {
-      // Return from localStorage if not authenticated
-      return JSON.parse(localStorage.getItem('cartsmash-preferences') || '{}');
+      // ✅ REMOVED: No localStorage - session state only for unauthenticated users
+      console.log('👤 User not authenticated - returning empty preferences');
+      return {};
     }
 
     try {
@@ -368,16 +319,15 @@ class UserDataService {
       
       if (prefDoc.exists()) {
         const prefs = prefDoc.data();
-        // Save to localStorage as backup
-        localStorage.setItem('cartsmash-preferences', JSON.stringify(prefs));
+        // ✅ REMOVED: No localStorage backup - using Firestore only
         return prefs;
       }
       
       return {};
     } catch (error) {
       console.error('Error fetching preferences from Firestore:', error);
-      // Fallback to localStorage
-      return JSON.parse(localStorage.getItem('cartsmash-preferences') || '{}');
+      // ✅ REMOVED: No localStorage fallback - session state only
+      return {};
     }
   }
 
@@ -390,8 +340,8 @@ class UserDataService {
   async saveUserPreferences(preferences) {
     await this.init();
     if (!this.userId) {
-      // Save to localStorage if not authenticated
-      localStorage.setItem('cartsmash-preferences', JSON.stringify(preferences));
+      // ✅ REMOVED: No localStorage for unauthenticated users - session state only
+      console.log('👤 User not authenticated - preferences not persisted');
       return preferences;
     }
 
@@ -404,14 +354,11 @@ class UserDataService {
 
       console.log('✅ Preferences saved to Firestore');
       
-      // Also save to localStorage as backup
-      localStorage.setItem('cartsmash-preferences', JSON.stringify(preferences));
-      
+      // ✅ REMOVED: No localStorage backup - using Firestore only
       return preferences;
     } catch (error) {
       console.error('Error saving preferences to Firestore:', error);
-      // Fallback to localStorage
-      localStorage.setItem('cartsmash-preferences', JSON.stringify(preferences));
+      // ✅ REMOVED: No localStorage fallback - session state only
       throw error;
     }
   }

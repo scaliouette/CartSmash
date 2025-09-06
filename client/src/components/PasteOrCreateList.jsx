@@ -135,7 +135,6 @@ const GroceryListForm = ({
   const clearCart = () => {
     if (window.confirm('Clear all items from cart?')) {
       setCurrentCart([]);
-      localStorage.removeItem('cartsmash-current-cart');
     }
   };
 
