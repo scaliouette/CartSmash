@@ -392,6 +392,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
             // Priority 1: Check for meal plan format first
             console.log('🔍 Checking for meal plan format...');
             console.log('📄 AI Response Preview (first 500 chars):', aiResponseText.substring(0, 500));
+            console.log('📄 AI Response Full Length:', aiResponseText.length);
             
             const mealPlanData = extractMealPlanRecipes(aiResponseText);
             console.log('🍽️ Meal plan parsing result:', {
@@ -400,10 +401,45 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
               totalRecipes: mealPlanData.totalRecipes
             });
             
+            // Enhanced debugging for each recipe
+            mealPlanData.recipes.forEach((recipe, index) => {
+              console.log(`🔍 Recipe ${index + 1} Debug:`, {
+                title: recipe.title,
+                ingredients: recipe.ingredients?.length || 0,
+                instructions: recipe.instructions?.length || 0,
+                mealType: recipe.mealType,
+                day: recipe.day,
+                ingredientsPreview: recipe.ingredients?.slice(0, 2),
+                instructionsPreview: recipe.instructions?.slice(0, 1)
+              });
+            });
+            
             if (mealPlanData.recipes.length > 0) {
               console.log(`📝 Found ${mealPlanData.recipes.length} meal plan recipes`);
               console.log('📋 Recipe titles:', mealPlanData.recipes.map(r => r.title));
-              setParsedRecipes(mealPlanData.recipes);
+              
+              // Validate recipes have content before setting
+              const validRecipes = mealPlanData.recipes.filter(recipe => {
+                const hasTitle = recipe.title && recipe.title.trim().length > 0;
+                const hasContent = (recipe.ingredients && recipe.ingredients.length > 0) || 
+                                 (recipe.instructions && recipe.instructions.length > 0);
+                
+                if (!hasContent) {
+                  console.log(`⚠️ Recipe "${recipe.title}" has no content, adding fallback...`);
+                  // Add fallback content
+                  if (!recipe.ingredients || recipe.ingredients.length === 0) {
+                    recipe.ingredients = inferIngredientsFromRecipeName(recipe.title);
+                  }
+                  if (!recipe.instructions || recipe.instructions.length === 0) {
+                    recipe.instructions = [`Prepare ${recipe.title} according to your preferred cooking method.`];
+                  }
+                }
+                
+                return hasTitle;
+              });
+              
+              console.log(`✅ Validated ${validRecipes.length} recipes with content`);
+              setParsedRecipes(validRecipes);
               console.log('✅ Set parsed recipes state with meal plan data');
             } else {
               // Priority 2: Fall back to individual recipe parsing
@@ -414,7 +450,19 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
               if (foundRecipes.length > 0) {
                 console.log(`📝 Found ${foundRecipes.length} individual recipes in AI response`);
                 console.log('📋 Individual recipe titles:', foundRecipes.map(r => r.title || r.name));
-                setParsedRecipes(foundRecipes);
+                
+                // Ensure individual recipes have content too
+                const validIndividualRecipes = foundRecipes.map(recipe => {
+                  if (!recipe.ingredients || recipe.ingredients.length === 0) {
+                    recipe.ingredients = inferIngredientsFromRecipeName(recipe.title || recipe.name);
+                  }
+                  if (!recipe.instructions || recipe.instructions.length === 0) {
+                    recipe.instructions = [`Prepare ${recipe.title || recipe.name} as directed.`];
+                  }
+                  return recipe;
+                });
+                
+                setParsedRecipes(validIndividualRecipes);
                 console.log('✅ Set parsed recipes state with individual recipes');
               } else {
                 console.log('❌ No recipes found in AI response');
@@ -423,8 +471,21 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
                   hasLunch: aiResponseText.toLowerCase().includes('lunch'),
                   hasDinner: aiResponseText.toLowerCase().includes('dinner'),
                   hasDay: aiResponseText.toLowerCase().includes('day '),
-                  hasRecipe: aiResponseText.toLowerCase().includes('recipe')
+                  hasRecipe: aiResponseText.toLowerCase().includes('recipe'),
+                  hasMealPlan: aiResponseText.toLowerCase().includes('meal plan'),
+                  hasIngredients: aiResponseText.toLowerCase().includes('ingredients'),
+                  hasInstructions: aiResponseText.toLowerCase().includes('instructions')
                 });
+                
+                // Emergency fallback - try to create simple recipes from any food-related content
+                console.log('🚨 Attempting emergency recipe extraction...');
+                const emergencyRecipes = createEmergencyRecipes(aiResponseText);
+                if (emergencyRecipes.length > 0) {
+                  console.log(`🆘 Created ${emergencyRecipes.length} emergency recipes`);
+                  setParsedRecipes(emergencyRecipes);
+                } else {
+                  console.log('💀 Complete recipe extraction failure');
+                }
               }
             }
             
@@ -794,6 +855,47 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     }
 
     return { name, ingredients, instructions };
+  };
+
+  // Emergency recipe creation when standard extraction fails
+  const createEmergencyRecipes = (text) => {
+    console.log('🚨 Emergency recipe creation starting...');
+    const recipes = [];
+    const lines = text.split('\n');
+    
+    // Look for any food-related words that could be recipe names
+    const foodKeywords = [
+      'chicken', 'beef', 'pork', 'fish', 'salmon', 'turkey', 'pasta', 'rice', 
+      'salad', 'soup', 'sandwich', 'pizza', 'tacos', 'burrito', 'stir fry',
+      'casserole', 'curry', 'stew', 'omelet', 'pancakes', 'oatmeal', 'smoothie',
+      'burgers', 'chili', 'lasagna', 'spaghetti', 'quinoa', 'vegetables'
+    ];
+    
+    for (const line of lines) {
+      const cleanLine = line.trim();
+      if (cleanLine.length < 5 || cleanLine.length > 60) continue;
+      
+      // Check if line contains food keywords
+      const lowerLine = cleanLine.toLowerCase();
+      const hasFood = foodKeywords.some(keyword => lowerLine.includes(keyword));
+      
+      if (hasFood && !lowerLine.includes('grocery') && !lowerLine.includes('shopping') && !lowerLine.includes('list')) {
+        recipes.push({
+          title: cleanLine,
+          ingredients: inferIngredientsFromRecipeName(cleanLine),
+          instructions: [`Prepare ${cleanLine} according to your preferred cooking method.`],
+          mealType: 'Dinner',
+          tags: ['ai_generated', 'emergency_extracted'],
+          notes: 'This recipe was automatically generated from AI response.',
+          id: `emergency_recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        });
+        
+        if (recipes.length >= 3) break; // Limit emergency recipes
+      }
+    }
+    
+    console.log(`🆘 Emergency extraction created ${recipes.length} recipes`);
+    return recipes;
   };
 
   // Helper function to infer basic ingredients from recipe name
