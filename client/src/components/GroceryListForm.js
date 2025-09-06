@@ -25,16 +25,26 @@ function extractGroceryListOnly(text) {
   const lines = text.split('\n');
   const groceryItems = [];
   let inGrocerySection = false;
+  let inRecipeSection = false;
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     const lowerLine = line.toLowerCase();
+    
+    // Detect recipe sections to avoid parsing them as grocery items
+    if (lowerLine.includes('recipe') || lowerLine.includes('instructions') || 
+        lowerLine.includes('directions') || lowerLine.includes('method')) {
+      inRecipeSection = true;
+      inGrocerySection = false;
+      continue;
+    }
     
     // Detect start of grocery list section
     if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list') || 
         lowerLine === 'produce:' || lowerLine === 'proteins & dairy:' ||
         lowerLine === 'grains & bakery:' || lowerLine === 'pantry:') {
       inGrocerySection = true;
+      inRecipeSection = false;
       if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list')) {
         continue; // Skip the header line
       }
@@ -46,36 +56,65 @@ function extractGroceryListOnly(text) {
       lowerLine.startsWith('money-saving tips:') ||
       lowerLine.startsWith('sample recipe') ||
       lowerLine.startsWith('key recipes:') ||
-      lowerLine.startsWith('instructions:') ||
       lowerLine.includes('this plan emphasizes') ||
       lowerLine.includes('this meal plan')
     )) {
       break;
     }
     
-    // If we're in grocery section, collect items
-    if (inGrocerySection) {
-      if (line.startsWith('- ')) {
-        // Extract item, removing quantity info in parentheses for cleaner display
-        const item = line.substring(2).trim();
-        groceryItems.push(item);
-      } else if (lowerLine.endsWith(':') && (
-        lowerLine.includes('produce') || lowerLine.includes('protein') || 
-        lowerLine.includes('dairy') || lowerLine.includes('grain') ||
-        lowerLine.includes('bakery') || lowerLine.includes('pantry')
-      )) {
-        // Category headers - skip but stay in grocery section
-        continue;
-      } else if (line.length === 0) {
-        // Empty line - continue
-        continue;
+    // If we're in grocery section and not in recipe section, collect items
+    if (inGrocerySection && !inRecipeSection) {
+      // Match items with bullets, dashes, or numbers
+      const itemMatch = line.match(/^[-•*]\s*(.+)$|^\d+\.\s*(.+)$/);
+      if (itemMatch) {
+        const item = (itemMatch[1] || itemMatch[2]).trim();
+        
+        // Skip category headers and empty items
+        if (item && !item.endsWith(':') && item.length > 2) {
+          // Clean up the item text
+          const cleanedItem = item
+            .replace(/\*\*/g, '') // Remove markdown bold
+            .replace(/\*/g, '')   // Remove markdown italic
+            .trim();
+          
+          if (cleanedItem && !groceryItems.includes(cleanedItem)) {
+            groceryItems.push(cleanedItem);
+          }
+        }
+      } else if (line.length > 0 && !line.endsWith(':')) {
+        // Handle items without bullets (some AI responses don't use bullets)
+        const cleanedItem = line
+          .replace(/\*\*/g, '')
+          .replace(/\*/g, '')
+          .trim();
+        
+        // Check if it looks like a grocery item (has quantity or common food words)
+        if (cleanedItem.match(/^\d+/) || 
+            cleanedItem.match(/\b(lb|lbs|oz|cup|cups|tbsp|tsp|dozen|bag|jar|can|bottle)\b/i)) {
+          if (!groceryItems.includes(cleanedItem)) {
+            groceryItems.push(cleanedItem);
+          }
+        }
       }
     }
   }
   
-  // If no grocery section found, fall back to original text
+  // If no grocery section found, try to extract items from the entire text
   if (groceryItems.length === 0) {
-    return text;
+    console.log('No grocery section found, attempting full text extraction...');
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      
+      // Look for lines that look like grocery items
+      if (trimmed.match(/^[-•*]\s*\d+.*(lb|lbs|oz|cup|cups|tbsp|tsp|dozen|bag|jar|can|bottle|bunch|head|clove)/i) ||
+          trimmed.match(/^[-•*]\s*\d+\s+\w+/)) {
+        const item = trimmed.replace(/^[-•*]\s*/, '').trim();
+        if (item && !groceryItems.includes(item)) {
+          groceryItems.push(item);
+        }
+      }
+    }
   }
   
   // Return clean list of items, one per line
@@ -309,10 +348,10 @@ function GroceryListForm({
             } else {
               // If no structured recipes found, try to extract meal plan information for display
               console.log('🔍 No structured recipes found, parsing meal plan content...');
-              const mealPlanRecipes = parseMealPlanContent(aiResponseText);
-              if (mealPlanRecipes.length > 0) {
-                console.log(`📝 Found ${mealPlanRecipes.length} meal plan recipes`);
-                setParsedRecipes(mealPlanRecipes);
+              const mealPlanData = extractMealPlanRecipes(aiResponseText);
+              if (mealPlanData.recipes.length > 0) {
+                console.log(`📝 Found ${mealPlanData.recipes.length} meal plan recipes`);
+                setParsedRecipes(mealPlanData.recipes);
               }
             }
             
@@ -656,67 +695,99 @@ function GroceryListForm({
     return { name, ingredients, instructions };
   };
 
-  // Parse meal plan content for recipe-like information
-  const parseMealPlanContent = (aiResponseText) => {
-    if (!aiResponseText) return [];
-    
+  // Extract multiple recipes from a meal plan
+  const extractMealPlanRecipes = (text) => {
     const recipes = [];
-    const lines = aiResponseText.split('\n');
+    const lines = text.split('\n');
+    let currentDay = '';
+    let currentRecipe = null;
+    let inIngredientsSection = false;
+    let inInstructionsSection = false;
     
     console.log('🔍 Parsing meal plan content for recipe information...');
     
-    // Look for day-by-day meal plans and extract meal ideas
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
+      if (!line) continue;
       
-      // Look for day headers (Day 1, Monday, etc.)
-      if (line.match(/^(Day\s*\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i)) {
-        console.log('📅 Found day header:', line);
+      // Detect day headers
+      const dayMatch = line.match(/^Day\s+(\d+)(?:\s*\(([^)]+)\))?:?/i) ||
+                       line.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday):?/i);
+      if (dayMatch) {
+        currentDay = dayMatch[0].replace(':', '').trim();
+        console.log('📅 Found day header:', currentDay);
+        continue;
+      }
+      
+      // Detect meal entries with better pattern matching
+      const mealMatch = line.match(/^[-*•]?\s*(Breakfast|Lunch|Dinner|Snack[s]?):\s*(.+)$/i);
+      if (mealMatch) {
+        // Save previous recipe if exists
+        if (currentRecipe && currentRecipe.title) {
+          recipes.push(currentRecipe);
+        }
         
-        // Look for meals in the following lines
-        for (let j = i + 1; j < Math.min(i + 20, lines.length); j++) {
-          const mealLine = lines[j].trim();
-          
-          // Stop at next day or major section
-          if (mealLine.match(/^(Day\s*\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Grocery List|Shopping List)/i)) {
-            break;
+        const mealType = mealMatch[1];
+        const recipeName = mealMatch[2].trim();
+        
+        // Create a new recipe
+        currentRecipe = {
+          title: recipeName,
+          ingredients: [],
+          instructions: [],
+          servings: '4 people',
+          prepTime: '15-30 minutes',
+          cookTime: 'Varies',
+          mealType: mealType,
+          day: currentDay,
+          tags: [currentDay.toLowerCase().includes('day') ? currentDay : 'meal plan'],
+          id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        };
+        
+        console.log('🍽️ Found meal:', `${currentDay} ${mealType}: ${recipeName}`);
+        inIngredientsSection = false;
+        inInstructionsSection = false;
+        continue;
+      }
+      
+      // Detect ingredients section
+      if (line.toLowerCase().includes('ingredients:')) {
+        inIngredientsSection = true;
+        inInstructionsSection = false;
+        continue;
+      }
+      
+      // Detect instructions section
+      if (line.toLowerCase().match(/instructions?:|directions?:|method:|steps:/)) {
+        inInstructionsSection = true;
+        inIngredientsSection = false;
+        continue;
+      }
+      
+      // Add content to current recipe
+      if (currentRecipe) {
+        if (inIngredientsSection && line.match(/^[-•*]\s*.+$/)) {
+          const ingredient = line.replace(/^[-•*]\s*/, '').trim();
+          if (ingredient) {
+            currentRecipe.ingredients.push(ingredient);
           }
-          
-          // Look for meal patterns (Breakfast:, Lunch:, Dinner:, or descriptive food names)
-          if (mealLine && (
-            mealLine.match(/^(Breakfast|Lunch|Dinner|Snack):/i) ||
-            mealLine.length > 10 && mealLine.length < 60 &&
-            (mealLine.toLowerCase().includes('with') || 
-             mealLine.toLowerCase().includes('and') ||
-             mealLine.toLowerCase().includes('salad') ||
-             mealLine.toLowerCase().includes('chicken') ||
-             mealLine.toLowerCase().includes('pasta') ||
-             mealLine.toLowerCase().includes('soup'))
-          )) {
-            
-            // Clean up the meal name
-            let mealName = mealLine.replace(/^(Breakfast|Lunch|Dinner|Snack):\s*/i, '').trim();
-            if (mealName && mealName.length > 3) {
-              recipes.push({
-                title: mealName,
-                ingredients: [],
-                instructions: [],
-                prepTime: '',
-                cookTime: '',
-                calories: '',
-                tags: [line.toLowerCase().includes('day') ? line : 'meal plan'],
-                mealType: mealLine.match(/^(Breakfast|Lunch|Dinner|Snack):/i) ? 
-                         mealLine.match(/^(Breakfast|Lunch|Dinner|Snack):/i)[1] : 'meal'
-              });
-            }
+        } else if (inInstructionsSection && line.match(/^\d+\.\s*.+$/)) {
+          const instruction = line.replace(/^\d+\.\s*/, '').trim();
+          if (instruction) {
+            currentRecipe.instructions.push(instruction);
           }
         }
       }
     }
     
-    // If we found too few recipes, try to extract any food-related content
+    // Don't forget the last recipe
+    if (currentRecipe && currentRecipe.title) {
+      recipes.push(currentRecipe);
+    }
+    
+    // If we found too few recipes, try fallback parsing
     if (recipes.length < 3) {
-      console.log('🔍 Found few meal plan recipes, extracting general food content...');
+      console.log('🔍 Found few structured recipes, trying fallback parsing...');
       
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -761,8 +832,13 @@ function GroceryListForm({
       }
     }
     
-    console.log(`📝 Parsed ${recipes.length} meal plan items from content`);
-    return recipes.slice(0, 7); // Limit to 7 recipes max for display
+    console.log(`✅ Meal plan extraction complete: Found ${recipes.length} recipes`);
+    
+    return {
+      isMealPlan: true,
+      recipes: recipes.slice(0, 7), // Limit to 7 recipes max for display
+      totalRecipes: recipes.length
+    };
   };
 
   // Parse AI response for recipes in multiple formats
