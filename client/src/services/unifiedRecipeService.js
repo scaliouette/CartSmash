@@ -16,7 +16,7 @@ export const unified = {
   validate: async (payload) => {
     try {
       console.log('🔍 Validating recipe source:', payload.source);
-      const response = await fetch(`${API_URL}/api/unified/validate`, {
+      const response = await fetch(`${API_URL}/api/recipes/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -43,7 +43,7 @@ export const unified = {
   importOne: async (payload) => {
     try {
       console.log('📥 Importing recipe from:', payload.source);
-      const response = await fetch(`${API_URL}/api/unified/import-recipe`, {
+      const response = await fetch(`${API_URL}/api/recipes/import-recipe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -71,7 +71,7 @@ export const unified = {
   importBatch: async (items, userId) => {
     try {
       console.log('📦 Batch importing', items.length, 'items');
-      const response = await fetch(`${API_URL}/api/unified/batch-import`, {
+      const response = await fetch(`${API_URL}/api/recipes/batch-import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items, userId })
@@ -99,7 +99,7 @@ export const unified = {
   convertFormat: async (recipe, targetFormat) => {
     try {
       console.log('🔄 Converting recipe to format:', targetFormat);
-      const response = await fetch(`${API_URL}/api/unified/convert-format`, {
+      const response = await fetch(`${API_URL}/api/recipes/convert-format`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipe, targetFormat })

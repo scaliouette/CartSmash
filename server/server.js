@@ -1060,8 +1060,7 @@ const routes = [
   { path: '/api/settings', module: './routes/settings' },  // Admin settings management
   { path: '/api/analytics', module: './routes/analytics' },  // Admin dashboard analytics
   { path: '/api/ai-meal-plan', module: './routes/aiMealPlanRoutes' },  // AI meal plan generation
-  { path: '/api/recipes', module: './routes/recipeImportRoutes' },  // Recipe URL import
-  { path: '/api/unified', module: './routes/unifiedRoutes' }  // Unified recipe system
+  { path: '/api/recipes', module: './routes/unifiedRecipeRoutes' }  // Unified recipe management system
 ];
 
 routes.forEach(route => {

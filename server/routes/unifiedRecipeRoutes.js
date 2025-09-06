@@ -320,6 +320,337 @@ router.post('/to-cart', async (req, res) => {
 });
 
 /**
+ * POST /api/recipes/validate
+ * Validate a recipe source before importing
+ */
+router.post('/validate', async (req, res) => {
+  try {
+    const { source, data } = req.body;
+
+    if (!source || !data) {
+      return res.status(400).json({
+        success: false,
+        error: 'Source and data are required'
+      });
+    }
+
+    console.log('🔍 Validating recipe source:', source);
+
+    let validationResult = { success: true, details: {} };
+
+    if (source === 'url' && data.url) {
+      // Validate URL format and accessibility
+      try {
+        new URL(data.url);
+        const response = await fetch(data.url, { method: 'HEAD', timeout: 5000 });
+        validationResult.details = {
+          valid: response.ok,
+          accessible: response.ok,
+          contentType: response.headers.get('content-type')
+        };
+      } catch (error) {
+        validationResult = {
+          success: false,
+          error: 'URL is not accessible',
+          details: { valid: false, accessible: false }
+        };
+      }
+    } else if (source === 'ai-text' && data.text) {
+      // Validate text content
+      validationResult.details = {
+        valid: data.text.trim().length > 10,
+        wordCount: data.text.split(/\s+/).length,
+        hasIngredients: /ingredient/i.test(data.text),
+        hasInstructions: /instruction|step|method/i.test(data.text)
+      };
+    } else {
+      validationResult = {
+        success: false,
+        error: 'Unsupported source type or missing data'
+      };
+    }
+
+    res.json(validationResult);
+
+  } catch (error) {
+    console.error('❌ Error validating recipe source:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Validation failed',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/recipes/import-recipe
+ * Import a single recipe from any source
+ */
+router.post('/import-recipe', async (req, res) => {
+  try {
+    const { source, data, userId } = req.body;
+
+    if (!source || !data) {
+      return res.status(400).json({
+        success: false,
+        error: 'Source and data are required'
+      });
+    }
+
+    console.log('📥 Importing recipe from:', source);
+
+    let recipes = [];
+
+    if (source === 'url' && data.url) {
+      // Use existing URL import logic
+      const scrapedRecipe = await recipeImportService.importFromUrl(data.url);
+      
+      const standardizedRecipe = {
+        id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        title: scrapedRecipe.title || 'Imported Recipe',
+        ingredients: Array.isArray(scrapedRecipe.ingredients) ? scrapedRecipe.ingredients : [],
+        instructions: Array.isArray(scrapedRecipe.instructions) ? scrapedRecipe.instructions : [],
+        prepTime: scrapedRecipe.prepTime || null,
+        cookTime: scrapedRecipe.cookTime || null,
+        servings: scrapedRecipe.servings || null,
+        calories: scrapedRecipe.calories || null,
+        mealType: data.mealType || 'main',
+        day: data.dayAssigned || null,
+        tags: ['url-import'],
+        source: 'url-import',
+        sourceUrl: data.url,
+        createdAt: new Date().toISOString(),
+        userId: userId
+      };
+      
+      recipes = [standardizedRecipe];
+
+    } else if (source === 'ai-text' && data.text) {
+      // Use AI parsing logic
+      const parsedContent = mealPlanParser.parseMealPlan(data.text);
+      const cartsmashRecipes = mealPlanParser.toCartsmashFormat(parsedContent);
+
+      // Handle both array and single recipe results
+      const recipesToProcess = Array.isArray(cartsmashRecipes) ? cartsmashRecipes : 
+                               cartsmashRecipes.recipes ? cartsmashRecipes.recipes : [cartsmashRecipes];
+
+      recipes = recipesToProcess.map(recipe => ({
+        id: recipe.id || `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        title: recipe.title || recipe.name || 'AI Generated Recipe',
+        ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : 
+                     typeof recipe.ingredients === 'string' ? recipe.ingredients.split('\n').filter(i => i.trim()) : [],
+        instructions: Array.isArray(recipe.instructions) ? recipe.instructions :
+                      typeof recipe.instructions === 'string' ? recipe.instructions.split('\n').filter(i => i.trim()) : [],
+        prepTime: recipe.prepTime || '15-30 minutes',
+        cookTime: recipe.cookTime || 'Varies',
+        servings: recipe.servings || '4 people',
+        calories: recipe.calories || null,
+        mealType: recipe.mealType || 'main',
+        day: recipe.day || null,
+        tags: ['ai-generated'],
+        source: 'ai-text',
+        createdAt: new Date().toISOString(),
+        userId: userId
+      }));
+    }
+
+    res.json({
+      success: true,
+      recipes,
+      count: recipes.length,
+      source
+    });
+
+  } catch (error) {
+    console.error('❌ Error importing recipe:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Import failed',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/recipes/batch-import
+ * Import multiple recipes from different sources in batch
+ */
+router.post('/batch-import', async (req, res) => {
+  try {
+    const { items, userId } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Items array is required'
+      });
+    }
+
+    console.log('📦 Batch importing', items.length, 'items');
+
+    const results = [];
+    let totalRecipes = 0;
+
+    for (const item of items) {
+      try {
+        const importResult = await new Promise((resolve) => {
+          // Simulate the import-recipe endpoint call
+          const mockReq = { body: { source: item.type, data: item, userId } };
+          const mockRes = {
+            json: resolve,
+            status: () => ({ json: resolve })
+          };
+          
+          // Call the import logic directly
+          if (item.type === 'url' && item.url) {
+            // Process URL import
+            recipeImportService.importFromUrl(item.url).then(scrapedRecipe => {
+              const recipe = {
+                id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                title: scrapedRecipe.title || 'Imported Recipe',
+                ingredients: scrapedRecipe.ingredients || [],
+                instructions: scrapedRecipe.instructions || [],
+                source: 'url-import',
+                sourceUrl: item.url,
+                createdAt: new Date().toISOString(),
+                userId
+              };
+              resolve({ success: true, recipes: [recipe] });
+            }).catch(error => {
+              resolve({ success: false, error: error.message });
+            });
+          } else if (item.type === 'ai' && item.text) {
+            // Process AI text import
+            try {
+              const parsedContent = mealPlanParser.parseMealPlan(item.text);
+              const recipes = mealPlanParser.toCartsmashFormat(parsedContent);
+              resolve({ success: true, recipes });
+            } catch (error) {
+              resolve({ success: false, error: error.message });
+            }
+          } else {
+            resolve({ success: false, error: 'Invalid item format' });
+          }
+        });
+
+        if (importResult.success) {
+          results.push(...importResult.recipes);
+          totalRecipes += importResult.recipes.length;
+        }
+
+      } catch (error) {
+        console.error('Batch import item failed:', error);
+      }
+    }
+
+    res.json({
+      success: true,
+      count: totalRecipes,
+      recipes: results
+    });
+
+  } catch (error) {
+    console.error('❌ Error in batch import:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Batch import failed',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/recipes/convert-format
+ * Convert recipe to different format
+ */
+router.post('/convert-format', async (req, res) => {
+  try {
+    const { recipe, targetFormat } = req.body;
+
+    if (!recipe || !targetFormat) {
+      return res.status(400).json({
+        success: false,
+        error: 'Recipe and target format are required'
+      });
+    }
+
+    console.log('🔄 Converting recipe to format:', targetFormat);
+
+    let converted;
+
+    switch (targetFormat) {
+      case 'cartsmash':
+        converted = {
+          id: recipe.id || `recipe_${Date.now()}`,
+          title: recipe.title || recipe.name,
+          ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
+          instructions: Array.isArray(recipe.instructions) ? recipe.instructions : [],
+          prepTime: recipe.prepTime,
+          cookTime: recipe.cookTime,
+          servings: recipe.servings,
+          mealType: recipe.mealType || 'main',
+          tags: recipe.tags || [],
+          source: recipe.source || 'converted'
+        };
+        break;
+
+      case 'schema.org':
+        converted = {
+          '@context': 'https://schema.org',
+          '@type': 'Recipe',
+          name: recipe.title || recipe.name,
+          recipeIngredient: recipe.ingredients || [],
+          recipeInstructions: (recipe.instructions || []).map(instruction => ({
+            '@type': 'HowToStep',
+            text: typeof instruction === 'string' ? instruction : instruction.instruction
+          })),
+          prepTime: recipe.prepTime ? `PT${recipe.prepTime}M` : undefined,
+          cookTime: recipe.cookTime ? `PT${recipe.cookTime}M` : undefined,
+          recipeYield: recipe.servings,
+          recipeCategory: recipe.mealType
+        };
+        break;
+
+      case 'markdown':
+        const ingredients = (recipe.ingredients || []).map(ing => `- ${ing}`).join('\n');
+        const instructions = (recipe.instructions || []).map((inst, i) => `${i + 1}. ${inst}`).join('\n');
+        converted = `# ${recipe.title || recipe.name}
+
+## Ingredients
+${ingredients}
+
+## Instructions
+${instructions}
+
+**Prep Time:** ${recipe.prepTime || 'N/A'}
+**Cook Time:** ${recipe.cookTime || 'N/A'}  
+**Servings:** ${recipe.servings || 'N/A'}`;
+        break;
+
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Unsupported target format'
+        });
+    }
+
+    res.json({
+      success: true,
+      format: targetFormat,
+      converted
+    });
+
+  } catch (error) {
+    console.error('❌ Error converting recipe format:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Format conversion failed',
+      details: error.message
+    });
+  }
+});
+
+/**
  * GET /api/recipes/health
  * Health check endpoint
  */
@@ -330,9 +661,11 @@ router.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     features: [
       'AI recipe parsing',
-      'URL recipe import',
+      'URL recipe import', 
       'Recipe library management',
       'Cart integration',
+      'Batch import',
+      'Format conversion',
       'Standardized data format'
     ]
   });

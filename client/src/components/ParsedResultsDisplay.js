@@ -1179,6 +1179,15 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
           >
             {showStats ? '📊 Hide Stats' : '📊 Show Stats'}
           </button>
+          
+          <button
+            onClick={handleSaveList}
+            style={styles.saveListButton}
+            disabled={items.length === 0}
+          >
+            💾 Save List
+          </button>
+          
           <button
             onClick={() => setShowValidationPage(true)}
             style={styles.validateButton}
@@ -1217,13 +1226,6 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
 
       {/* Secondary Actions */}
       <div style={styles.actions}>
-        <button
-          onClick={handleSaveList}
-          style={styles.secondaryBtn}
-        >
-          💾 Save List
-        </button>
-        
         <button
           onClick={copyListToClipboard}
           style={styles.secondaryBtn}
