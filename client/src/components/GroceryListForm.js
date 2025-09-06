@@ -110,11 +110,11 @@ function GroceryListForm({
   const [showProgress, setShowProgress] = useState(false);
   const [ingredientStyle, setIngredientStyle] = useState('basic');
   const [selectedAI, setSelectedAI] = useState('claude');
-  const [messages, setMessages] = useState([]);
   // eslint-disable-next-line no-unused-vars
   const [recipes, setRecipes] = useState([]);
   const [waitingForAIResponse, setWaitingForAIResponse] = useState(false);
   const [currentRecipe, setCurrentRecipe] = useState(''); // Store recipe separately
+  const [parsedRecipes, setParsedRecipes] = useState([]); // Store parsed AI recipes
   const { currentUser } = useAuth();
   const textareaRef = useRef(null);
 
@@ -307,11 +307,12 @@ function GroceryListForm({
           if (aiResponseText) {
             console.log('AI response text found, length:', aiResponseText.length);
             
-            // Add to message history
-            setMessages(prev => [...prev, 
-              { role: 'user', content: listText },
-              { role: 'assistant', content: aiResponseText, model: selectedAI }
-            ]);
+            // Parse and store recipes from AI response
+            const foundRecipes = parseAIRecipes(aiResponseText);
+            if (foundRecipes.length > 0) {
+              console.log(`📝 Found ${foundRecipes.length} recipes in AI response`);
+              setParsedRecipes(foundRecipes);
+            }
             
             // IMPORTANT: Extract only grocery list items for the textarea (not the full meal plan)
             const cleanGroceryList = extractGroceryListOnly(aiResponseText);
@@ -555,7 +556,7 @@ function GroceryListForm({
                        !inputText.includes('**') &&
                        !inputText.includes('Here') &&
                        !inputText.includes('\n-') &&
-                       messages.length === 0;
+                       true;
     
     console.log('Submit clicked. Using AI:', shouldUseAI);
     
@@ -565,13 +566,14 @@ function GroceryListForm({
   const handleNewList = () => {
     setInputText('');
     setError('');
-    setMessages([]);
     setWaitingForAIResponse(false);
     clearDraft();
     // Also clear the current cart and hide results so the list is truly empty
     setCurrentCart([]);
     setShowResults(false);
     setParsingStats(null);
+    // Clear parsed recipes
+    setParsedRecipes([]);
   };
 
   const handleSaveRecipeFromAI = () => {
@@ -658,6 +660,119 @@ function GroceryListForm({
     return { name, ingredients, instructions };
   };
 
+  // Parse AI response for recipes in the new display format
+  const parseAIRecipes = (aiResponseText) => {
+    if (!aiResponseText) return [];
+
+    const recipes = [];
+    const lines = aiResponseText.split('\n');
+    let currentRecipe = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+
+      // Look for recipe titles (format: **Recipe Title** or Recipe Name:)
+      if (line.includes('**') && !line.startsWith('*') && line.length < 100) {
+        // Save previous recipe
+        if (currentRecipe && currentRecipe.title) {
+          recipes.push(currentRecipe);
+        }
+        
+        // Start new recipe
+        currentRecipe = {
+          title: line.replace(/\*\*/g, '').trim(),
+          ingredients: [],
+          instructions: [],
+          prepTime: '',
+          cookTime: '',
+          calories: '',
+          tags: []
+        };
+      }
+      // Look for ingredient sections
+      else if (line.toLowerCase().includes('ingredients:')) {
+        currentRecipe = currentRecipe || { title: 'Recipe', ingredients: [], instructions: [], prepTime: '', cookTime: '', calories: '', tags: [] };
+        // Parse ingredients from the next few lines
+        for (let j = i + 1; j < lines.length && j < i + 20; j++) {
+          const ingredientLine = lines[j].trim();
+          if (!ingredientLine || 
+              ingredientLine.toLowerCase().includes('instructions:') ||
+              ingredientLine.toLowerCase().includes('directions:') ||
+              ingredientLine.includes('**')) {
+            break;
+          }
+          if (ingredientLine.startsWith('*') || ingredientLine.startsWith('-') || ingredientLine.match(/^\d+\./)) {
+            currentRecipe.ingredients.push(ingredientLine.replace(/^[*\-\d\.]\s*/, '').trim());
+          }
+        }
+      }
+      // Look for instructions
+      else if (line.toLowerCase().includes('instructions:') || line.toLowerCase().includes('directions:')) {
+        if (currentRecipe) {
+          for (let j = i + 1; j < lines.length && j < i + 20; j++) {
+            const instructionLine = lines[j].trim();
+            if (!instructionLine || instructionLine.includes('**') || instructionLine.toLowerCase().includes('recipe')) {
+              break;
+            }
+            if (instructionLine.length > 10) {
+              currentRecipe.instructions.push(instructionLine.replace(/^\d+\.\s*/, '').trim());
+            }
+          }
+        }
+      }
+      // Look for time and nutrition info
+      else if (line.toLowerCase().includes('prep time') || line.toLowerCase().includes('cook time') || line.toLowerCase().includes('calories')) {
+        if (currentRecipe) {
+          const timeMatch = line.match(/prep[^0-9]*(\d+)\s*(min|minutes)/i);
+          if (timeMatch) currentRecipe.prepTime = timeMatch[1];
+          
+          const cookMatch = line.match(/cook[^0-9]*(\d+)\s*(min|minutes)/i);
+          if (cookMatch) currentRecipe.cookTime = cookMatch[1];
+          
+          const caloriesMatch = line.match(/calories[^0-9]*(\d+)/i);
+          if (caloriesMatch) currentRecipe.calories = caloriesMatch[1];
+        }
+      }
+    }
+
+    // Add the last recipe
+    if (currentRecipe && currentRecipe.title && currentRecipe.ingredients.length > 0) {
+      recipes.push(currentRecipe);
+    }
+
+    return recipes;
+  };
+
+  // Handle adding recipe to recipe library
+  const handleAddToRecipeLibrary = (recipe) => {
+    const savedRecipe = {
+      id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: recipe.title,
+      ingredients: recipe.ingredients.join('\n'),
+      instructions: recipe.instructions.join('\n'),
+      prepTime: recipe.prepTime,
+      cookTime: recipe.cookTime,
+      calories: recipe.calories,
+      tags: recipe.tags,
+      createdAt: new Date().toISOString(),
+      userId: currentUser?.uid || 'guest',
+      source: 'ai_generated'
+    };
+
+    // Use the existing saveRecipe function
+    if (saveRecipe) {
+      saveRecipe(savedRecipe);
+      alert(`✅ Recipe "${recipe.title}" added to Recipe Library!`);
+    } else {
+      alert('❌ Unable to save recipe. Recipe Library not available.');
+    }
+  };
+
+  // Handle adding recipe to meal plan
+  const handleAddToMealPlan = (recipe) => {
+    // For now, just show an alert. This could be enhanced to integrate with meal planning
+    alert(`📅 "${recipe.title}" would be added to meal plan (feature to be implemented)`);
+  };
 
   const handleItemsChange = (updatedItems) => {
     console.log('🔄 Updating cart items:', {
@@ -1045,35 +1160,71 @@ Or paste any grocery list directly!"
         </div>
 
 
-        {/* Messages/Response Area */}
-        {messages.length > 0 && (
-          <div style={styles.messagesContainer}>
-            <div style={styles.messagesHeader}>
-              <h3 style={styles.messagesTitle}>AI Conversation</h3>
-              <button onClick={() => setMessages([])} style={styles.clearButton}>
-                🗑️ Clear
-              </button>
-            </div>
-            {messages.map((msg, idx) => (
-              <div key={idx} style={{
-                ...styles.message,
-                ...(msg.role === 'user' ? styles.userMessage : styles.assistantMessage)
-              }}>
-                {msg.role === 'assistant' && (
-                  <div style={styles.messageHeader}>
-                    {msg.model === 'claude' ? '🤖 Claude' : '🧠 ChatGPT'}
-                  </div>
-                )}
-                <div style={styles.messageContent}>{msg.content}</div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {error && (
         <div className="error-message" style={styles.errorMessage}>
           ❌ {error}
+        </div>
+      )}
+
+      {/* Display Parsed Recipes */}
+      {parsedRecipes.length > 0 && (
+        <div style={styles.recipesContainer}>
+          <h3 style={styles.recipesTitle}>🍳 Recipes Found</h3>
+          {parsedRecipes.map((recipe, index) => (
+            <div key={index} style={styles.recipeCard}>
+              <div style={styles.recipeHeader}>
+                <h4 style={styles.recipeTitle}>🍳 <strong>{recipe.title}</strong></h4>
+              </div>
+              
+              <div style={styles.recipeContent}>
+                {recipe.ingredients.length > 0 && (
+                  <div style={styles.recipeIngredients}>
+                    <strong>Ingredients:</strong> {recipe.ingredients.join(', ')}
+                  </div>
+                )}
+                
+                <div style={styles.recipeMetadata}>
+                  {(recipe.prepTime || recipe.cookTime) && (
+                    <span style={styles.recipeTime}>
+                      <strong>Time:</strong> 
+                      {recipe.prepTime && ` Prep ${recipe.prepTime} min`}
+                      {recipe.cookTime && ` | Cook ${recipe.cookTime} min`}
+                    </span>
+                  )}
+                  {recipe.calories && (
+                    <span style={styles.recipeCalories}>
+                      <strong>Calories:</strong> ~{recipe.calories}/serving
+                    </span>
+                  )}
+                </div>
+                
+                {recipe.tags && recipe.tags.length > 0 && (
+                  <div style={styles.recipeTags}>
+                    <strong>Tags:</strong> {recipe.tags.map(tag => `\`${tag}\``).join(' ')}
+                  </div>
+                )}
+              </div>
+              
+              <div style={styles.recipeActions}>
+                <button 
+                  onClick={() => handleAddToRecipeLibrary(recipe)}
+                  style={styles.recipeButton}
+                  title="Add to Recipe Library"
+                >
+                  🔲 <strong>[Add to Recipe Library]</strong>
+                </button>
+                <button 
+                  onClick={() => handleAddToMealPlan(recipe)}
+                  style={styles.recipeButton}
+                  title="Add to Meal Plan"
+                >
+                  📅 <strong>[Add to Meal Plan]</strong>
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -1472,66 +1623,6 @@ const styles = {
     lineHeight: '1.4'
   },
   
-  messagesContainer: {
-    padding: '20px 30px 30px',
-    backgroundColor: 'white',
-    borderTop: '2px solid #002244'
-  },
-  
-  messagesHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '16px'
-  },
-  
-  messagesTitle: {
-    margin: 0,
-    fontSize: '18px',
-    fontWeight: 'bold',
-    color: '#002244'
-  },
-  
-  clearButton: {
-    padding: '6px 12px',
-    backgroundColor: '#8B0000',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: '500'
-  },
-  
-  message: {
-    marginBottom: '12px',
-    padding: '12px 16px',
-    borderRadius: '8px'
-  },
-  
-  userMessage: {
-    backgroundColor: '#002244',
-    color: 'white'
-  },
-  
-  assistantMessage: {
-    backgroundColor: '#FFF5F2',
-    color: '#002244',
-    border: '1px solid #FB4F14'
-  },
-  
-  messageHeader: {
-    fontSize: '12px',
-    fontWeight: 'bold',
-    marginBottom: '8px',
-    opacity: 0.8
-  },
-  
-  messageContent: {
-    fontSize: '14px',
-    lineHeight: '1.5',
-    whiteSpace: 'pre-wrap'
-  },
 
   errorMessage: {
     backgroundColor: '#FEE',
@@ -1657,6 +1748,102 @@ const styles = {
     color: '#FB4F14',
     fontWeight: 'bold',
     fontSize: '16px'
+  },
+
+  // Recipe Display Styles
+  recipesContainer: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: '20px',
+    margin: '20px 0',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    border: '2px solid #002244'
+  },
+
+  recipesTitle: {
+    color: '#002244',
+    margin: '0 0 20px 0',
+    fontSize: '24px',
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
+
+  recipeCard: {
+    background: '#FFF5F2',
+    borderRadius: '8px',
+    padding: '20px',
+    marginBottom: '16px',
+    border: '1px solid #FB4F14',
+    boxShadow: '0 2px 8px rgba(251,79,20,0.1)'
+  },
+
+  recipeHeader: {
+    marginBottom: '12px',
+    paddingBottom: '8px',
+    borderBottom: '1px solid #FB4F14'
+  },
+
+  recipeTitle: {
+    color: '#002244',
+    margin: '0',
+    fontSize: '20px',
+    fontWeight: 'bold'
+  },
+
+  recipeContent: {
+    marginBottom: '16px'
+  },
+
+  recipeIngredients: {
+    color: '#002244',
+    fontSize: '14px',
+    lineHeight: '1.5',
+    marginBottom: '8px'
+  },
+
+  recipeMetadata: {
+    display: 'flex',
+    gap: '20px',
+    flexWrap: 'wrap',
+    marginBottom: '8px'
+  },
+
+  recipeTime: {
+    color: '#002244',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  recipeCalories: {
+    color: '#002244',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  recipeTags: {
+    color: '#002244',
+    fontSize: '14px',
+    fontStyle: 'italic'
+  },
+
+  recipeActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'center',
+    flexWrap: 'wrap'
+  },
+
+  recipeButton: {
+    padding: '10px 16px',
+    background: '#002244',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 4px rgba(0,34,68,0.2)'
   }
 };
 

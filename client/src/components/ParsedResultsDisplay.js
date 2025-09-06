@@ -287,7 +287,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
           return {
             ...item,
             unit: item.unit === 'unit' || !item.unit ? detectedUnit : item.unit,
-            confidence: Math.min((item.confidence || 0.7) + 0.2, 1),
+            confidence: Math.max(Math.min((item.confidence || 0.7) + 0.2, 1), 0.65),
             needsReview: false,
             validated: true
           };
