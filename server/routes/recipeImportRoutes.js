@@ -197,10 +197,10 @@ router.post('/validate-url', async (req, res) => {
     }
 
     // Try to validate URL is scrapeable
-    const { scrapeToCartSmash } = require('../utils/recipeScraper');
+    const { extractRecipe } = require('../utils/recipeScraper');
     
     try {
-      const recipe = await scrapeToCartSmash(url);
+      const recipe = await extractRecipe(url);
       const hasContent = recipe && (
         recipe.ingredients?.length > 0 || 
         recipe.steps?.length > 0

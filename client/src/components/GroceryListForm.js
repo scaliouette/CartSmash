@@ -501,6 +501,14 @@ function GroceryListForm({
       }
 
       // Parse the list
+      console.log('🌐 API Request Details:', {
+        url: `${API_URL}/api/cart/parse`,
+        textLength: textToParse.length,
+        textPreview: textToParse.substring(0, 100),
+        action: mergeCart ? 'merge' : 'replace',
+        userId: currentUser?.uid || null
+      });
+
       const response = await fetch(`${API_URL}/api/cart/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -516,11 +524,21 @@ function GroceryListForm({
         }),
       });
 
+      console.log('📡 API Response Status:', response.status, response.statusText);
+
       clearInterval(progressInterval);
       setParsingProgress(100);
 
       const data = await response.json();
       
+      console.log('📊 API Response Data:', {
+        success: data.success,
+        cartLength: data.cart?.length || 0,
+        totalItems: data.totalItems,
+        itemsAdded: data.itemsAdded,
+        errorMessage: data.error || 'none'
+      });
+
       if (data.success && data.cart && data.cart.length > 0) {
         // Attach the recipe to the cart items for persistence and ensure stable IDs/fields
         const cartWithRecipe = data.cart.map((item, index) => {
@@ -609,7 +627,13 @@ function GroceryListForm({
         
         console.log(`✅ Successfully parsed ${data.cart.length} items`);
       } else {
-        setError('No valid grocery items found in the text');
+        console.log('❌ Parsing failed or no items found:', {
+          success: data.success,
+          hasCart: !!data.cart,
+          cartLength: data.cart?.length || 0,
+          errorMessage: data.error || 'Unknown error'
+        });
+        setError(data.error || 'No valid grocery items found in the text');
       }
       
     } catch (err) {

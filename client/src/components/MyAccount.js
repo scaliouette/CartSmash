@@ -1,7 +1,6 @@
 // client/src/components/MyAccount.js - BRONCOS THEMED VERSION
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import RecipeManager from './RecipeManager';
 import userDataService from '../services/userDataService';
 
 function MyAccount({ 
@@ -18,8 +17,6 @@ function MyAccount({
 }) {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
-  const [showRecipeManager, setShowRecipeManager] = useState(false);
-  const [editingRecipe, setEditingRecipe] = useState(null);
   const [showMealPlanModal, setShowMealPlanModal] = useState(false);
   const [editingMealPlan, setEditingMealPlan] = useState(null);
   const [localMealPlans, setLocalMealPlans] = useState([]);
@@ -87,8 +84,8 @@ function MyAccount({
   };
 
   const handleEditRecipe = (recipe) => {
-    setEditingRecipe(recipe);
-    setShowRecipeManager(true);
+    // TODO: Replace with unified recipe editor
+    alert('Recipe editing will be available in the unified recipe system');
   };
 
   const handleDeleteMealPlan = async (planId, planName) => {
@@ -405,10 +402,10 @@ function MyAccount({
       <div style={styles.recipesHeader}>
         <h2 style={styles.pageTitle}>My Recipes</h2>
         <button 
-          onClick={() => setShowRecipeManager(true)}
+          onClick={() => alert('Recipe import from URL and AI will be available soon!')}
           style={styles.addRecipeButton}
         >
-          ➕ Add Recipe
+          ➕ Add Recipe (Coming Soon)
         </button>
       </div>
       
@@ -516,23 +513,6 @@ function MyAccount({
         {activeTab === 'recipes' && renderRecipes()}
       </div>
 
-      {showRecipeManager && (
-        <RecipeManager 
-          onClose={() => {
-            setShowRecipeManager(false);
-            setEditingRecipe(null);
-          }}
-          editingRecipe={editingRecipe}
-          initialTab={editingRecipe ? 'edit' : 'add'}
-          onRecipeSelect={(recipe) => {
-            setShowRecipeManager(false);
-            setEditingRecipe(null);
-            if (onRecipeSelect) {
-              onRecipeSelect(recipe);
-            }
-          }}
-        />
-      )}
 
       {showMealPlanModal && (
         <MealPlanModal

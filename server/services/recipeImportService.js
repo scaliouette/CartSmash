@@ -1,7 +1,7 @@
 // server/services/recipeImportService.js
 // Unified service for importing recipes from URLs and AI
 
-const { scrapeToCartSmash } = require('../utils/recipeScraper');
+const { extractRecipe } = require('../utils/recipeScraper');
 
 class RecipeImportService {
   constructor() {
@@ -22,7 +22,7 @@ class RecipeImportService {
   async importFromUrl(url, options = {}) {
     try {
       // Scrape recipe using existing scraper
-      const scrapedData = await scrapeToCartSmash(url);
+      const scrapedData = await extractRecipe(url);
       
       // Convert to unified format matching AI recipes
       const recipe = await this.convertToUnifiedFormat(scrapedData, url, options);

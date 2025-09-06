@@ -382,15 +382,6 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
             📚 My Recipes ({recipes.length})
           </button>
           <button
-            onClick={() => setActiveTab('add')}
-            style={{
-              ...styles.recipeTab,
-              ...(activeTab === 'add' ? styles.recipeTabActive : {})
-            }}
-          >
-            ➕ Add Recipe
-          </button>
-          <button
             onClick={() => setActiveTab('import')}
             style={{
               ...styles.recipeTab,
@@ -499,10 +490,10 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
             </div>
           )}
 
-          {/* Add/Edit Tab */}
-          {(activeTab === 'add' || activeTab === 'edit') && (
+          {/* Edit Tab */}
+          {activeTab === 'edit' && (
             <div style={styles.recipeForm}>
-              <h3 style={styles.formTitle}>{editingRecipe ? 'Edit Recipe' : 'Add New Recipe'}</h3>
+              <h3 style={styles.formTitle}>Edit Recipe</h3>
               
               <input
                 type="text"
@@ -534,7 +525,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
                   onClick={() => handleSaveRecipe()}
                   style={styles.btnSave}
                 >
-                  💾 {editingRecipe ? 'Update' : 'Save'} Recipe
+                  💾 Update Recipe
                 </button>
                 <button 
                   onClick={() => {
