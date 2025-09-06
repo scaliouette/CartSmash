@@ -341,17 +341,21 @@ function GroceryListForm({
             console.log('AI response text found, length:', aiResponseText.length);
             
             // Parse and store recipes from AI response BEFORE extracting grocery list
-            const foundRecipes = parseAIRecipes(aiResponseText);
-            if (foundRecipes.length > 0) {
-              console.log(`📝 Found ${foundRecipes.length} recipes in AI response`);
-              setParsedRecipes(foundRecipes);
+            // Priority 1: Check for meal plan format first
+            console.log('🔍 Checking for meal plan format...');
+            const mealPlanData = extractMealPlanRecipes(aiResponseText);
+            if (mealPlanData.recipes.length > 0) {
+              console.log(`📝 Found ${mealPlanData.recipes.length} meal plan recipes`);
+              setParsedRecipes(mealPlanData.recipes);
             } else {
-              // If no structured recipes found, try to extract meal plan information for display
-              console.log('🔍 No structured recipes found, parsing meal plan content...');
-              const mealPlanData = extractMealPlanRecipes(aiResponseText);
-              if (mealPlanData.recipes.length > 0) {
-                console.log(`📝 Found ${mealPlanData.recipes.length} meal plan recipes`);
-                setParsedRecipes(mealPlanData.recipes);
+              // Priority 2: Fall back to individual recipe parsing
+              console.log('🔍 No meal plan found, trying individual recipe parsing...');
+              const foundRecipes = parseAIRecipes(aiResponseText);
+              if (foundRecipes.length > 0) {
+                console.log(`📝 Found ${foundRecipes.length} individual recipes in AI response`);
+                setParsedRecipes(foundRecipes);
+              } else {
+                console.log('❌ No recipes found in AI response');
               }
             }
             
