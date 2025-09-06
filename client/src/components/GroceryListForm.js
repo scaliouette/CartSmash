@@ -22,10 +22,15 @@ function getTimeAgo(date) {
 
 // Extract only grocery list items from AI response (not full meal plan)
 function extractGroceryListOnly(text) {
+  console.log('🛒 Extracting grocery list from AI response...');
+  console.log('📄 Text preview:', text.substring(0, 300));
+  
   const lines = text.split('\n');
   const groceryItems = [];
   let inGrocerySection = false;
   let inRecipeSection = false;
+  
+  console.log('📊 Total lines to process:', lines.length);
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -42,7 +47,10 @@ function extractGroceryListOnly(text) {
     // Detect start of grocery list section
     if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list') || 
         lowerLine === 'produce:' || lowerLine === 'proteins & dairy:' ||
-        lowerLine === 'grains & bakery:' || lowerLine === 'pantry:') {
+        lowerLine === 'grains & bakery:' || lowerLine === 'pantry:' ||
+        lowerLine === 'produce' || lowerLine === 'dairy:' || lowerLine === 'meat & seafood:' ||
+        lowerLine === 'pantry items:' || lowerLine === 'frozen:' || lowerLine === 'bakery:') {
+      console.log('🛒 Found grocery section start on line', i, ':', line);
       inGrocerySection = true;
       inRecipeSection = false;
       if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list')) {
@@ -68,6 +76,7 @@ function extractGroceryListOnly(text) {
       const itemMatch = line.match(/^[-•*]\s*(.+)$|^\d+\.\s*(.+)$/);
       if (itemMatch) {
         const item = (itemMatch[1] || itemMatch[2]).trim();
+        console.log('🥕 Found potential grocery item on line', i, ':', item);
         
         // Skip category headers and empty items
         if (item && !item.endsWith(':') && item.length > 2) {
@@ -78,6 +87,7 @@ function extractGroceryListOnly(text) {
             .trim();
           
           if (cleanedItem && !groceryItems.includes(cleanedItem)) {
+            console.log('✅ Added grocery item:', cleanedItem);
             groceryItems.push(cleanedItem);
           }
         }
@@ -118,7 +128,13 @@ function extractGroceryListOnly(text) {
   }
   
   // Return clean list of items, one per line
-  return groceryItems.join('\n');
+  console.log(`🛒 Grocery extraction complete: Found ${groceryItems.length} items`);
+  console.log('📋 Grocery items:', groceryItems);
+  
+  const result = groceryItems.join('\n');
+  console.log('📄 Final grocery list text:', result);
+  
+  return result;
 }
 
 // Main Component
