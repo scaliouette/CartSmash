@@ -39,9 +39,8 @@ function MyAccount({
       if (mealPlans && mealPlans.length > 0) {
         setLocalMealPlans(mealPlans);
       } else {
-        if (savedMealPlans) {
-          setLocalMealPlans(JSON.parse(savedMealPlans));
-        }
+        // ✅ REMOVED: No localStorage fallback - session state only for unauthenticated users
+        setLocalMealPlans([]);
       }
     } catch (error) {
       console.error('❌ MyAccount initialization error:', error);

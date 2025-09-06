@@ -526,8 +526,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         userId: currentUser?.uid || 'guest'
       };
       
-      // Save to localStorage
-      const updatedLists = [...existingLists, newList];
+      // ✅ REMOVED: No localStorage list operations - delegated to parent component
       
       // Try to save to server if user is logged in
       if (currentUser?.uid) {
@@ -816,8 +815,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         userId: currentUser?.uid || 'guest'
       };
       
-      // Save to localStorage
-      const updatedLists = [...existingLists, newList];
+      // ✅ REMOVED: No localStorage list operations - delegated to parent component
       
       // Try to save to server if user is logged in
       if (currentUser?.uid) {
