@@ -561,38 +561,38 @@ function AppContent({
     }
   };
   
-  // const saveMealPlan = async (mealPlan) => {
-  //   try {
-  //     // Save to Firebase if user is authenticated
-  //     if (currentUser) {
-  //       await userDataService.saveMealPlan(mealPlan);
-  //       console.log('✅ Meal plan saved to Firebase');
-  //     }
-  //     
-  //     // Update local state
-  //     const existingIndex = mealPlans.findIndex(p => p.id === mealPlan.id);
-  //     let updatedPlans;
-  //     
-  //     if (existingIndex >= 0) {
-  //       // Update existing
-  //       updatedPlans = [...mealPlans];
-  //       updatedPlans[existingIndex] = mealPlan;
-  //     } else {
-  //       // Add new
-  //       updatedPlans = [...mealPlans, mealPlan];
-  //     }
-  //     
-  //     setMealPlans(updatedPlans);
-  //     
-  //     console.log('📅 Meal plan saved:', mealPlan.name);
-  //     return mealPlan;
-  //     
-  //   } catch (error) {
-  //     console.error('Error saving meal plan:', error);
-  //     alert('Failed to save meal plan to cloud, but saved locally');
-  //     return mealPlan;
-  //   }
-  // };
+  const saveMealPlan = async (mealPlan) => {
+    try {
+      // Save to Firebase if user is authenticated
+      if (currentUser) {
+        await userDataService.saveMealPlan(mealPlan);
+        console.log('✅ Meal plan saved to Firebase');
+      }
+      
+      // Update local state
+      const existingIndex = mealPlans.findIndex(p => p.id === mealPlan.id);
+      let updatedPlans;
+      
+      if (existingIndex >= 0) {
+        // Update existing
+        updatedPlans = [...mealPlans];
+        updatedPlans[existingIndex] = mealPlan;
+      } else {
+        // Add new
+        updatedPlans = [...mealPlans, mealPlan];
+      }
+      
+      setMealPlans(updatedPlans);
+      
+      console.log('📅 Meal plan saved:', mealPlan.name);
+      return mealPlan;
+      
+    } catch (error) {
+      console.error('Error saving meal plan:', error);
+      alert('Failed to save meal plan to cloud, but saved locally');
+      return mealPlan;
+    }
+  };
   
   
   return (
@@ -616,6 +616,7 @@ function AppContent({
               saveCartAsList={saveCartAsList}
               saveRecipe={saveRecipe}
               loadRecipeToCart={loadRecipeToCart}
+              saveMealPlan={saveMealPlan}
               // NOTE: currentUser removed - GroceryListForm gets it from useAuth()
             />
             <FeaturesSection />

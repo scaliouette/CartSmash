@@ -147,7 +147,8 @@ function GroceryListForm({
   setParsedRecipes,
   saveCartAsList,
   saveRecipe,
-  loadRecipeToCart
+  loadRecipeToCart,
+  saveMealPlan
 }) {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -1143,9 +1144,69 @@ function GroceryListForm({
   };
 
   // Handle adding recipe to meal plan
-  const handleAddToMealPlan = (recipe) => {
-    // For now, just show an alert. This could be enhanced to integrate with meal planning
-    alert(`📅 "${recipe.title}" would be added to meal plan (feature to be implemented)`);
+  const handleAddToMealPlan = async (recipe) => {
+    if (!saveMealPlan) {
+      console.error('❌ saveMealPlan function not provided');
+      alert('Unable to save meal plan. Please try again.');
+      return;
+    }
+
+    try {
+      // Create a meal plan from the recipe
+      const mealPlan = {
+        id: `mealplan_${Date.now()}`,
+        name: `${recipe.title} - Meal Plan`,
+        weekOf: new Date().toISOString().split('T')[0], // Today's date
+        days: {
+          [getDayOfWeek()]: {
+            [recipe.mealType || 'Dinner']: [{
+              id: `recipe_${Date.now()}`,
+              title: recipe.title,
+              ingredients: recipe.ingredients || [],
+              instructions: recipe.instructions || [],
+              mealType: recipe.mealType || 'Dinner',
+              source: 'ai_generated'
+            }]
+          }
+        },
+        totalMeals: 1,
+        recipes: [{
+          id: `recipe_${Date.now()}`,
+          title: recipe.title,
+          ingredients: recipe.ingredients || [],
+          instructions: recipe.instructions || [],
+          mealType: recipe.mealType || 'Dinner',
+          source: 'ai_generated'
+        }],
+        shoppingList: {
+          items: recipe.ingredients?.map((ingredient, index) => ({
+            id: `item_${Date.now()}_${index}`,
+            itemName: ingredient,
+            productName: ingredient,
+            quantity: 1,
+            unit: 'item',
+            category: 'Other'
+          })) || [],
+          name: `${recipe.title} - Shopping List`
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const savedPlan = await saveMealPlan(mealPlan);
+      if (savedPlan) {
+        alert(`✅ Created meal plan "${mealPlan.name}" with ${recipe.title}!`);
+      }
+    } catch (error) {
+      console.error('Error creating meal plan:', error);
+      alert('Failed to create meal plan. Please try again.');
+    }
+  };
+
+  // Helper function to get current day of week
+  const getDayOfWeek = () => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[new Date().getDay()];
   };
 
   // Handle adding recipe ingredients to cart
