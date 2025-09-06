@@ -103,15 +103,11 @@ function AppContent({
     try {
       const loadedCart = JSON.parse(localStorage.getItem('cartsmash-current-cart') || '[]');
       const loadedLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
-      const loadedRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
-      const loadedMealPlans = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
       
       console.log('🔄 App.js - Loading data from localStorage:', {
         cartItems: loadedCart.length,
         cartItemNames: loadedCart.map(item => item.productName),
         lists: loadedLists.length,
-        recipes: loadedRecipes.length,
-        mealPlans: loadedMealPlans.length,
         cartAuthority: CART_AUTHORITY
       });
       
@@ -124,8 +120,8 @@ function AppContent({
       }
       
       setSavedLists(loadedLists);
-      setSavedRecipes(loadedRecipes);
-      setMealPlans(loadedMealPlans);
+      // ✅ REMOVED: No more localStorage for recipes - will be loaded from Firestore for auth users
+      console.log('✅ Recipes will be loaded from Firestore for authenticated users');
       
       console.log('✅ Loaded data from localStorage');
     } catch (error) {
@@ -184,6 +180,25 @@ function AppContent({
       console.error('Cart hydration failed:', e);
     }
   }, [CART_AUTHORITY, currentUser, setCurrentCart]);
+  
+  // ✅ NEW: Load recipes from Firestore for authenticated users
+  const loadRecipesFromFirestore = useCallback(async () => {
+    if (!currentUser) {
+      // Clear recipes for unauthenticated users
+      setSavedRecipes([]);
+      console.log('👤 User logged out - cleared recipes');
+      return;
+    }
+
+    try {
+      const recipes = await userDataService.getRecipes();
+      setSavedRecipes(recipes);
+      console.log(`✅ Loaded ${recipes.length} recipes from Firestore for user ${currentUser.uid}`);
+    } catch (error) {
+      console.error('❌ Failed to load recipes from Firestore:', error);
+      // Keep current session recipes on error
+    }
+  }, [currentUser, setSavedRecipes]);
   
   // Load all data from localStorage first, then Firebase
   const loadAllData = useCallback(async () => {
@@ -273,7 +288,9 @@ function AppContent({
     loadAllData();
     // Hydrate the cart once from carts/{uid}
     hydrateCartFromFirestore();
-  }, [loadAllData, hydrateCartFromFirestore]);
+    // Load recipes from Firestore for authenticated users
+    loadRecipesFromFirestore();
+  }, [loadAllData, hydrateCartFromFirestore, loadRecipesFromFirestore]);
   
   // Auto-save cart to Firebase when it changes (debounced)
   useEffect(() => {
@@ -422,18 +439,19 @@ function AppContent({
     };
     
     try {
-      // Save to Firebase if user is authenticated
-      if (currentUser) {
-        await userDataService.saveRecipe(newRecipe);
-        console.log('✅ Recipe saved to Firebase');
-      }
-      
-      // Also save locally
+      // Update session state
       const updatedRecipes = [...savedRecipes, newRecipe];
       setSavedRecipes(updatedRecipes);
-      localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
       
-      console.log('📝 Recipe saved:', newRecipe.name);
+      // Save to Firestore only if user is authenticated
+      if (currentUser) {
+        await userDataService.saveRecipe(newRecipe);
+        console.log('✅ Recipe saved to Firestore');
+      } else {
+        console.log('👤 User not authenticated - recipe saved to session only');
+      }
+      
+      console.log('📝 Recipe saved:', newRecipe.title || newRecipe.name);
       return newRecipe;
       
     } catch (error) {

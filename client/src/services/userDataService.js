@@ -116,11 +116,7 @@ class UserDataService {
     }
     
     if (!this.userId) {
-      // Save to localStorage if not authenticated
-      const localRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
-      localRecipes.push(recipe);
-      localStorage.setItem('cartsmash-recipes', JSON.stringify(localRecipes));
-      return recipe;
+      throw new Error('User not authenticated - cannot save recipe to Firestore');
     }
 
     try {
@@ -133,23 +129,9 @@ class UserDataService {
 
       console.log('✅ Recipe saved to Firestore:', recipe.id);
       
-      // Also save to localStorage as backup
-      const localRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
-      const existingIndex = localRecipes.findIndex(r => r.id === recipe.id);
-      if (existingIndex >= 0) {
-        localRecipes[existingIndex] = recipe;
-      } else {
-        localRecipes.push(recipe);
-      }
-      localStorage.setItem('cartsmash-recipes', JSON.stringify(localRecipes));
-      
       return recipe;
     } catch (error) {
       console.error('Error saving recipe to Firestore:', error);
-      // Fallback to localStorage
-      const localRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
-      localRecipes.push(recipe);
-      localStorage.setItem('cartsmash-recipes', JSON.stringify(localRecipes));
       throw error;
     }
   }
@@ -158,8 +140,9 @@ class UserDataService {
   async getRecipes() {
     await this.init();
     if (!this.userId) {
-      // Return from localStorage if not authenticated
-      return JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
+      // Return empty array for unauthenticated users
+      console.log('👤 User not authenticated - returning empty recipes array');
+      return [];
     }
 
     try {
@@ -172,14 +155,11 @@ class UserDataService {
         ...doc.data()
       }));
 
-      // Save to localStorage as backup
-      localStorage.setItem('cartsmash-recipes', JSON.stringify(recipes));
-      
+      console.log(`✅ Loaded ${recipes.length} recipes from Firestore`);
       return recipes;
     } catch (error) {
       console.error('Error fetching recipes from Firestore:', error);
-      // Fallback to localStorage
-      return JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
+      throw error; // Don't fall back to localStorage anymore
     }
   }
 
@@ -300,21 +280,12 @@ class UserDataService {
   async deleteRecipe(recipeId) {
     await this.init();
     if (!this.userId) {
-      // Delete from localStorage if not authenticated
-      const localRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
-      const filtered = localRecipes.filter(r => r.id !== recipeId);
-      localStorage.setItem('cartsmash-recipes', JSON.stringify(filtered));
-      return;
+      throw new Error('User not authenticated - cannot delete recipe from Firestore');
     }
     
     try {
       await deleteDoc(doc(this.db, 'users', this.userId, 'recipes', recipeId));
       console.log('✅ Recipe deleted from Firestore:', recipeId);
-      
-      // Also delete from localStorage
-      const localRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
-      const filtered = localRecipes.filter(r => r.id !== recipeId);
-      localStorage.setItem('cartsmash-recipes', JSON.stringify(filtered));
     } catch (error) {
       console.error('Error deleting recipe from Firestore:', error);
       throw error;

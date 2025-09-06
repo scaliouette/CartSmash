@@ -12,11 +12,6 @@ function SmartAIAssistant({ onGroceryListGenerated, onRecipeGenerated }) {
   
   // ✅ NEW: Recipe preservation and ingredient choice
   const [ingredientChoice, setIngredientChoice] = useState('basic'); // 'basic' or 'homemade'
-  const [savedRecipes, setSavedRecipes] = useState([]);
-  const [showRecipeManager, setShowRecipeManager] = useState(false);
-  
-  // 🆕 NEW: Loading state for recipes
-  const [loadingRecipes, setLoadingRecipes] = useState(false);
   
   const messagesEndRef = useRef(null);
 
@@ -98,24 +93,7 @@ Provide recipes with instructions and list each grocery item on a separate line.
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
-    // Load saved recipes from localStorage
-    loadSavedRecipes();
-  }, []);
-
-  const loadSavedRecipes = async () => {
-    setLoadingRecipes(true);
-    try {
-      const saved = localStorage.getItem('cart-smash-recipes');
-      if (saved) {
-        setSavedRecipes(JSON.parse(saved));
-      }
-    } catch (error) {
-      console.warn('Failed to load saved recipes:', error);
-    } finally {
-      setLoadingRecipes(false);
-    }
-  };
+  // ✅ REMOVED: No more localStorage loading - recipes managed by parent component only
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -253,99 +231,71 @@ Provide recipes with instructions and list each grocery item on a separate line.
   const extractMealPlanRecipes = (text) => {
     const recipes = [];
     const lines = text.split('\n');
-    let currentRecipe = null;
-    let currentSection = null;
+    let currentDay = '';
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
       
-      // Detect new recipe/meal headers
-      const mealMatch = line.match(/(day \d+|monday|tuesday|wednesday|thursday|friday|saturday|sunday).*?(breakfast|lunch|dinner|snack)/i);
-      const recipeMatch = line.match(/^[\*#\-]*\s*(.+?)(recipe|:|\*\*)/i);
-      
-      if (mealMatch || (recipeMatch && line.length < 60)) {
-        // Save previous recipe if exists
-        if (currentRecipe && (currentRecipe.ingredients.length > 0 || currentRecipe.instructions.length > 0)) {
-          recipes.push(currentRecipe);
+      // Detect day headers: "Day 1 (Monday):" or "Day 1:"
+      const dayMatch = line.match(/^Day\s+(\d+)\s*(?:\(([^)]+)\))?:?/i);
+      if (dayMatch) {
+        currentDay = `Day ${dayMatch[1]}`;
+        if (dayMatch[2]) {
+          currentDay += ` (${dayMatch[2]})`;
         }
+        console.log('📅 Found day header:', currentDay);
+        continue;
+      }
+      
+      // Detect individual meal items: "- Breakfast: Oatmeal with berries and honey"
+      const mealMatch = line.match(/^[-*•]\s*(Breakfast|Lunch|Dinner|Snack[s]?):\s*(.+)$/i);
+      if (mealMatch) {
+        const mealType = mealMatch[1];
+        const recipeName = mealMatch[2].trim();
         
-        // Start new recipe
-        let recipeName = mealMatch ? `${mealMatch[1]} ${mealMatch[2]}` : recipeMatch[1];
-        recipeName = recipeName.replace(/[\*#:\-]/g, '').trim();
-        
-        currentRecipe = {
+        // Create a recipe for this meal
+        const recipe = {
           title: recipeName,
-          ingredients: [],
-          instructions: [],
-          servings: '',
-          prepTime: '',
-          cookTime: '',
-          mealType: mealMatch ? mealMatch[2] : 'meal',
-          day: mealMatch ? mealMatch[1] : '',
+          ingredients: [recipeName], // Use the meal description as a basic ingredient
+          instructions: [`Prepare ${recipeName.toLowerCase()}`],
+          servings: '4 people',
+          prepTime: '15-30 minutes',
+          cookTime: 'Varies',
+          mealType: mealType,
+          day: currentDay,
           id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         };
         
-        console.log('📍 Found new recipe:', recipeName);
-        currentSection = null;
+        recipes.push(recipe);
+        console.log('🍽️ Found meal:', `${currentDay} ${mealType}: ${recipeName}`);
         continue;
       }
       
-      // Detect section headers within a recipe
-      if (line.match(/^#{1,6}\s/) || line.match(/^\*\*.*\*\*$/) || line.includes('**')) {
-        const headerText = line.toLowerCase();
+      // Legacy support for other formats
+      const legacyMealMatch = line.match(/(day \d+|monday|tuesday|wednesday|thursday|friday|saturday|sunday).*?(breakfast|lunch|dinner|snack)/i);
+      const recipeMatch = line.match(/^[\*#\-]*\s*(.+?)(recipe|:|\*\*)/i);
+      
+      if (legacyMealMatch || (recipeMatch && line.length < 60)) {
+        let recipeName = legacyMealMatch ? `${legacyMealMatch[1]} ${legacyMealMatch[2]}` : recipeMatch[1];
+        recipeName = recipeName.replace(/[\*#:\-]/g, '').trim();
         
-        if (headerText.includes('ingredient') || headerText.includes('what you need')) {
-          currentSection = 'ingredients';
-        } else if (headerText.includes('instruction') || headerText.includes('method') || headerText.includes('steps') || headerText.includes('directions')) {
-          currentSection = 'instructions';
-        } else {
-          currentSection = null;
-        }
+        const recipe = {
+          title: recipeName,
+          ingredients: [recipeName],
+          instructions: [`Prepare ${recipeName.toLowerCase()}`],
+          servings: '4 people',
+          prepTime: '15-30 minutes',
+          cookTime: 'Varies',
+          mealType: legacyMealMatch ? legacyMealMatch[2] : 'meal',
+          day: legacyMealMatch ? legacyMealMatch[1] : currentDay,
+          id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        };
+        
+        recipes.push(recipe);
+        console.log('📍 Found legacy recipe:', recipeName);
         continue;
       }
-      
-      // Extract content if we have a current recipe
-      if (currentRecipe) {
-        // Extract metadata
-        if (line.toLowerCase().includes('serves') || line.toLowerCase().includes('serving')) {
-          currentRecipe.servings = line;
-        } else if (line.toLowerCase().includes('prep time')) {
-          currentRecipe.prepTime = line;
-        } else if (line.toLowerCase().includes('cook time')) {
-          currentRecipe.cookTime = line;
-        }
-        
-        // Extract ingredients and instructions from bullet points or numbered lists
-        const bulletMatch = line.match(/^[•\-*]\s*(.+)$/) || line.match(/^\d+[\.)]\s*(.+)$/);
-        if (bulletMatch) {
-          const content = bulletMatch[1].trim();
-          
-          // Auto-detect if this looks like ingredient vs instruction
-          if (!currentSection) {
-            // Heuristics to determine content type
-            if (content.match(/\d+\s*(cup|tablespoon|teaspoon|pound|oz|gram|ml|liter|tsp|tbsp|lb)/i) || 
-                content.length < 50) {
-              currentSection = 'ingredients';
-            } else if (content.length > 20) {
-              currentSection = 'instructions';
-            }
-          }
-          
-          if (currentSection === 'ingredients' && content.length > 2) {
-            currentRecipe.ingredients.push(content);
-            console.log('➕ Added ingredient:', content.substring(0, 30));
-          } else if (currentSection === 'instructions' && content.length > 5) {
-            currentRecipe.instructions.push(content);
-            console.log('➕ Added instruction:', content.substring(0, 30));
-          }
-        }
-      }
-    }
-    
-    // Don't forget the last recipe
-    if (currentRecipe && (currentRecipe.ingredients.length > 0 || currentRecipe.instructions.length > 0)) {
-      recipes.push(currentRecipe);
     }
     
     console.log(`✅ Meal plan extraction complete: Found ${recipes.length} recipes`);
@@ -427,7 +377,7 @@ Provide recipes with instructions and list each grocery item on a separate line.
     return recipeInfo;
   };
 
-  // ✅ NEW: Save recipe information
+  // ✅ SIMPLIFIED: Always delegate recipe saving to parent component
   const saveRecipe = (recipeInfo) => {
     const newRecipe = {
       id: Date.now().toString(),
@@ -437,19 +387,12 @@ Provide recipes with instructions and list each grocery item on a separate line.
       ingredientChoice: ingredientChoice
     };
     
-    const updatedRecipes = [...savedRecipes, newRecipe];
-    setSavedRecipes(updatedRecipes);
-    
-    try {
-      localStorage.setItem('cart-smash-recipes', JSON.stringify(updatedRecipes));
-      console.log('✅ Recipe saved:', newRecipe.title);
-    } catch (error) {
-      console.error('❌ Failed to save recipe:', error);
-    }
-    
-    // Notify parent component if provided
+    // Always delegate to parent component for proper Firestore/state management
     if (onRecipeGenerated) {
       onRecipeGenerated(newRecipe);
+      console.log('✅ Recipe delegated to parent component:', newRecipe.title);
+    } else {
+      console.warn('⚠️ No onRecipeGenerated callback provided - recipe not saved');
     }
   };
 
@@ -526,12 +469,17 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
 
       // ✅ ENHANCED: Auto-offer to add grocery items and ask to save recipe
       setTimeout(() => {
-        // First, ask about saving recipe if one was detected
-        if (recipeInfo && (recipeInfo.ingredients.length > 0 || recipeInfo.instructions.length > 0)) {
+        // First, ask about saving recipe if one was detected (only for single recipes, not meal plans)
+        if (recipeInfo && !recipeInfo.isMealPlan && (recipeInfo.ingredients.length > 0 || recipeInfo.instructions.length > 0)) {
           if (window.confirm(`📖 Recipe detected: "${recipeInfo.title}"\n\nWould you like to save this recipe for future use?`)) {
             saveRecipe(recipeInfo);
             console.log('✅ Recipe saved:', recipeInfo.title);
           }
+        }
+        
+        // For meal plans, let the user save individual recipes via the UI buttons
+        if (recipeInfo && recipeInfo.isMealPlan) {
+          console.log(`✅ Meal plan detected with ${recipeInfo.recipes.length} recipes - use individual save buttons`);
         }
         
         // Then, ask about adding grocery items if found
@@ -819,22 +767,7 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
                   ))}
                 </select>
                 
-                {/* ✅ NEW: Recipe Manager Button */}
-                <button
-                  onClick={() => setShowRecipeManager(true)}
-                  style={{
-                    padding: '8px 12px',
-                    backgroundColor: 'rgba(255,255,255,0.2)',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '14px'
-                  }}
-                  title="View saved recipes"
-                >
-                  📝 Recipes ({savedRecipes.length})
-                </button>
+                {/* ✅ REMOVED: Recipe Manager Button - recipes now managed by parent component */}
                 
                 <button
                   onClick={clearChat}
@@ -1424,8 +1357,9 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
         </div>
       )}
 
-      {/* ✅ NEW: Recipe Manager Modal */}
-      {showRecipeManager && (
+      {/* ✅ DISABLED: Recipe Manager Modal - recipes now managed by parent component */}
+      {/* eslint-disable */}
+      {false && false && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -1532,7 +1466,7 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
                             onClick={() => {
                               const updatedRecipes = savedRecipes.filter(r => r.id !== recipe.id);
                               setSavedRecipes(updatedRecipes);
-                              localStorage.setItem('cart-smash-recipes', JSON.stringify(updatedRecipes));
+                              
                             }}
                             style={{
                               background: '#ef4444',

@@ -25,12 +25,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
   const loadRecipes = useCallback(async () => {
     setLoading(true);
     try {
-      // First check localStorage
-      const localRecipes = localStorage.getItem('cartsmash-recipes');
-      if (localRecipes) {
-        const parsed = JSON.parse(localRecipes);
-        setRecipes(parsed);
-      }
+      // ✅ REMOVED: No more localStorage - use only Firestore for authenticated users
 
       // Then try to fetch from server
       if (currentUser?.uid) {
@@ -47,7 +42,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
           if (data.recipes && data.recipes.length > 0) {
             setRecipes(data.recipes);
             // Sync to localStorage
-            localStorage.setItem('cartsmash-recipes', JSON.stringify(data.recipes));
+            
           }
         }
       }
@@ -102,7 +97,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
     
     // Update state and localStorage immediately
     setRecipes(updatedRecipes);
-    localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
+    
     
     // Call parent save function if provided
     if (onRecipeSave) {
@@ -168,7 +163,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
     if (window.confirm('Delete this recipe?')) {
       const updatedRecipes = recipes.filter(r => r.id !== recipeId);
       setRecipes(updatedRecipes);
-      localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
+      
       
       if (onRecipeDelete) {
         onRecipeDelete(recipeId);
@@ -224,7 +219,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
                 r.id === recipe.id ? finalRecipe : r
               );
               setRecipes(updatedRecipes);
-              localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
+              
             } else {
               console.warn('AI parsing returned no results');
             }

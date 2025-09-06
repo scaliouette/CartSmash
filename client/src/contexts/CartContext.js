@@ -60,12 +60,12 @@ export const CartProvider = ({ children }) => {
   const loadLocalData = () => {
     const localCart = JSON.parse(localStorage.getItem('cartsmash-current-cart') || '[]');
     const localLists = JSON.parse(localStorage.getItem('cartsmash-lists') || '[]');
-    const localRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
+    // ✅ REMOVED: No more localStorage for recipes
     const localMeals = JSON.parse(localStorage.getItem('cartsmash-mealplans') || '[]');
     
     setCurrentCart(localCart);
     setSavedLists(localLists);
-    setSavedRecipes(localRecipes);
+    // setSavedRecipes(localRecipes); // ✅ REMOVED
     setMealPlans(localMeals);
   };
 
@@ -73,9 +73,9 @@ export const CartProvider = ({ children }) => {
   const saveToLocal = useCallback(() => {
     localStorage.setItem('cartsmash-current-cart', JSON.stringify(currentCart));
     localStorage.setItem('cartsmash-lists', JSON.stringify(savedLists));
-    localStorage.setItem('cartsmash-recipes', JSON.stringify(savedRecipes));
+    // ✅ REMOVED: No more localStorage for recipes
     localStorage.setItem('cartsmash-mealplans', JSON.stringify(mealPlans));
-  }, [currentCart, savedLists, savedRecipes, mealPlans]);
+  }, [currentCart, savedLists, mealPlans]); // ✅ REMOVED: savedRecipes dependency
 
   // Auto-save to local storage
   useEffect(() => {

@@ -402,7 +402,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     
     try {
       const recipe = parseRecipeContent(content);
-      const currentSavedRecipes = savedRecipes || JSON.parse(localStorage.getItem('cart-smash-recipes') || '[]');
+      const currentSavedRecipes = savedRecipes || [];
       
       const newRecipe = {
         id: `recipe_${Date.now()}`,
@@ -413,13 +413,13 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
       
       const updatedRecipes = [...currentSavedRecipes, newRecipe];
       
-      // Update parent state if available
+      // Update parent state - parent handles Firestore persistence
       if (setSavedRecipes) {
         setSavedRecipes(updatedRecipes);
+        console.log('✅ Recipe delegated to parent component for Firestore storage');
+      } else {
+        console.warn('⚠️ No setSavedRecipes callback provided - recipe not saved');
       }
-      
-      // Always save to localStorage as backup
-      localStorage.setItem('cart-smash-recipes', JSON.stringify(updatedRecipes));
       
       // Show success message
       alert('✅ Recipe saved successfully!');
@@ -453,8 +453,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
                          content.toLowerCase().includes('lunch') || 
                          content.toLowerCase().includes('dinner'));
       
-      const savedMealPlans = JSON.parse(localStorage.getItem('cart-smash-meal-plans') || '[]');
-      const currentSavedRecipes = savedRecipes || JSON.parse(localStorage.getItem('cart-smash-recipes') || '[]');
+      const currentSavedRecipes = savedRecipes || [];
       
       if (isMealPlan) {
         // Extract individual recipes from meal plan
@@ -471,24 +470,13 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         
         const updatedSavedRecipes = [...currentSavedRecipes, ...newRecipes];
         
-        // Update parent state if available
+        // Update parent state - parent handles Firestore persistence
         if (setSavedRecipes) {
           setSavedRecipes(updatedSavedRecipes);
+          console.log('✅ Meal plan recipes delegated to parent component for Firestore storage');
+        } else {
+          console.warn('⚠️ No setSavedRecipes callback provided - meal plan not saved');
         }
-        
-        // Save the meal plan
-        const newMealPlan = {
-          id: `plan_${Date.now()}`,
-          title: 'Weekly Meal Plan',
-          content: content,
-          recipes: newRecipes.map(r => r.id),
-          savedAt: new Date().toISOString(),
-          source: 'ai_generated'
-        };
-        
-        savedMealPlans.push(newMealPlan);
-        localStorage.setItem('cart-smash-meal-plans', JSON.stringify(savedMealPlans));
-        localStorage.setItem('cart-smash-recipes', JSON.stringify(updatedSavedRecipes));
         
         alert(`✅ Meal plan saved with ${recipes.length} recipes!`);
         
@@ -500,10 +488,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
       
       // Optional: Save to Firebase if user is logged in
       if (currentUser) {
-        const userDataService = (await import('../services/userDataService')).default;
-        const mealPlan = savedMealPlans[savedMealPlans.length - 1];
-        await userDataService.saveMealPlan(currentUser.uid, mealPlan);
-        console.log('Meal plan saved to Firebase');
+        console.log('✅ Meal plan recipes saved to Firestore via parent component');
       }
       
     } catch (error) {

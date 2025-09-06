@@ -582,10 +582,7 @@ function GroceryListForm({
       source: 'ai_generated'
     };
 
-    // Save to localStorage
-    const existingRecipes = JSON.parse(localStorage.getItem('cartsmash-recipes') || '[]');
-    const updatedRecipes = [...existingRecipes, savedRecipe];
-    localStorage.setItem('cartsmash-recipes', JSON.stringify(updatedRecipes));
+    // ✅ REMOVED: No more localStorage - recipes managed by parent component via saveRecipe prop
 
     // Try to save to server if user is logged in
     if (currentUser?.uid) {
