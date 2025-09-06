@@ -301,11 +301,19 @@ function GroceryListForm({
           if (aiResponseText) {
             console.log('AI response text found, length:', aiResponseText.length);
             
-            // Parse and store recipes from AI response
+            // Parse and store recipes from AI response BEFORE extracting grocery list
             const foundRecipes = parseAIRecipes(aiResponseText);
             if (foundRecipes.length > 0) {
               console.log(`📝 Found ${foundRecipes.length} recipes in AI response`);
               setParsedRecipes(foundRecipes);
+            } else {
+              // If no structured recipes found, try to extract meal plan information for display
+              console.log('🔍 No structured recipes found, parsing meal plan content...');
+              const mealPlanRecipes = parseMealPlanContent(aiResponseText);
+              if (mealPlanRecipes.length > 0) {
+                console.log(`📝 Found ${mealPlanRecipes.length} meal plan recipes`);
+                setParsedRecipes(mealPlanRecipes);
+              }
             }
             
             // IMPORTANT: Extract only grocery list items for the textarea (not the full meal plan)
@@ -646,6 +654,115 @@ function GroceryListForm({
     }
 
     return { name, ingredients, instructions };
+  };
+
+  // Parse meal plan content for recipe-like information
+  const parseMealPlanContent = (aiResponseText) => {
+    if (!aiResponseText) return [];
+    
+    const recipes = [];
+    const lines = aiResponseText.split('\n');
+    
+    console.log('🔍 Parsing meal plan content for recipe information...');
+    
+    // Look for day-by-day meal plans and extract meal ideas
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Look for day headers (Day 1, Monday, etc.)
+      if (line.match(/^(Day\s*\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i)) {
+        console.log('📅 Found day header:', line);
+        
+        // Look for meals in the following lines
+        for (let j = i + 1; j < Math.min(i + 20, lines.length); j++) {
+          const mealLine = lines[j].trim();
+          
+          // Stop at next day or major section
+          if (mealLine.match(/^(Day\s*\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Grocery List|Shopping List)/i)) {
+            break;
+          }
+          
+          // Look for meal patterns (Breakfast:, Lunch:, Dinner:, or descriptive food names)
+          if (mealLine && (
+            mealLine.match(/^(Breakfast|Lunch|Dinner|Snack):/i) ||
+            mealLine.length > 10 && mealLine.length < 60 &&
+            (mealLine.toLowerCase().includes('with') || 
+             mealLine.toLowerCase().includes('and') ||
+             mealLine.toLowerCase().includes('salad') ||
+             mealLine.toLowerCase().includes('chicken') ||
+             mealLine.toLowerCase().includes('pasta') ||
+             mealLine.toLowerCase().includes('soup'))
+          )) {
+            
+            // Clean up the meal name
+            let mealName = mealLine.replace(/^(Breakfast|Lunch|Dinner|Snack):\s*/i, '').trim();
+            if (mealName && mealName.length > 3) {
+              recipes.push({
+                title: mealName,
+                ingredients: [],
+                instructions: [],
+                prepTime: '',
+                cookTime: '',
+                calories: '',
+                tags: [line.toLowerCase().includes('day') ? line : 'meal plan'],
+                mealType: mealLine.match(/^(Breakfast|Lunch|Dinner|Snack):/i) ? 
+                         mealLine.match(/^(Breakfast|Lunch|Dinner|Snack):/i)[1] : 'meal'
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    // If we found too few recipes, try to extract any food-related content
+    if (recipes.length < 3) {
+      console.log('🔍 Found few meal plan recipes, extracting general food content...');
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Skip grocery list items and headers
+        if (!line || 
+            line.toLowerCase().includes('grocery') || 
+            line.toLowerCase().includes('shopping') ||
+            line.startsWith('-') || 
+            line.startsWith('•') ||
+            line.match(/^\d+\s*(oz|lb|cups?|tbsp|tsp|bunch|bag|jar|can|container|loaf)/i)) {
+          continue;
+        }
+        
+        // Look for potential meal descriptions
+        if (line.length > 15 && line.length < 80 &&
+            !line.match(/^\d+\./) && // Not numbered steps
+            (line.toLowerCase().includes('chicken') || 
+             line.toLowerCase().includes('salmon') ||
+             line.toLowerCase().includes('pasta') || 
+             line.toLowerCase().includes('salad') ||
+             line.toLowerCase().includes('soup') ||
+             line.toLowerCase().includes('stir') ||
+             line.toLowerCase().includes('grilled') ||
+             line.toLowerCase().includes('baked') ||
+             line.toLowerCase().includes('with') ||
+             line.toLowerCase().includes('recipe'))) {
+          
+          recipes.push({
+            title: line.replace(/[*#-]+/g, '').trim(),
+            ingredients: [],
+            instructions: [],
+            prepTime: '',
+            cookTime: '',
+            calories: '',
+            tags: ['meal idea'],
+            mealType: 'suggested meal'
+          });
+          
+          if (recipes.length >= 5) break; // Limit to reasonable number
+        }
+      }
+    }
+    
+    console.log(`📝 Parsed ${recipes.length} meal plan items from content`);
+    return recipes.slice(0, 7); // Limit to 7 recipes max for display
   };
 
   // Parse AI response for recipes in multiple formats
@@ -1198,11 +1315,23 @@ Or paste any grocery list directly!"
       {/* Display Parsed Recipes */}
       {parsedRecipes.length > 0 && (
         <div style={styles.recipesContainer}>
-          <h3 style={styles.recipesTitle}>🍳 Recipes Found</h3>
+          <h3 style={styles.recipesTitle}>
+            {parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) ? 
+              '📋 Meal Plan Ideas' : '🍳 Recipes Found'}
+          </h3>
           {parsedRecipes.map((recipe, index) => (
             <div key={index} style={styles.recipeCard}>
               <div style={styles.recipeHeader}>
-                <h4 style={styles.recipeTitle}>🍳 <strong>{recipe.title}</strong></h4>
+                <h4 style={styles.recipeTitle}>
+                  {recipe.mealType === 'Breakfast' ? '🍳' : 
+                   recipe.mealType === 'Lunch' ? '🥗' :
+                   recipe.mealType === 'Dinner' ? '🍽️' :
+                   recipe.mealType === 'Snack' ? '🍪' : '🍳'} 
+                  <strong>{recipe.title}</strong>
+                  {recipe.mealType && recipe.mealType !== 'meal' && (
+                    <span style={styles.mealTypeTag}>{recipe.mealType}</span>
+                  )}
+                </h4>
                 <button 
                   onClick={() => handleRemoveRecipe(index)}
                   style={styles.deleteButton}
@@ -1815,6 +1944,17 @@ const styles = {
     fontSize: '20px',
     fontWeight: 'bold',
     flex: 1
+  },
+
+  mealTypeTag: {
+    fontSize: '12px',
+    fontWeight: '500',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    marginLeft: '8px',
+    textTransform: 'uppercase'
   },
 
   deleteButton: {
