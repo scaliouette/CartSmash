@@ -22,6 +22,7 @@ function MyAccount({
   const [localMealPlans, setLocalMealPlans] = useState([]);
   const [editingList, setEditingList] = useState(null);
   const [showListEditModal, setShowListEditModal] = useState(false);
+  const [showAddListModal, setShowAddListModal] = useState(false);
   
   // Load meal plans from props or localStorage with error handling
   useEffect(() => {
@@ -86,6 +87,24 @@ function MyAccount({
   const handleEditRecipe = (recipe) => {
     // TODO: Replace with unified recipe editor
     alert('Recipe editing will be available in the unified recipe system');
+  };
+
+  // Add new shopping list handler
+  const handleAddShoppingList = (newList) => {
+    try {
+      console.log('💾 Adding new shopping list:', newList.name);
+      
+      // Use the existing onListUpdate function to add the new list
+      if (onListUpdate) {
+        onListUpdate(newList, 'add');
+      }
+      
+      console.log('✅ Shopping list added successfully');
+      alert(`✅ Shopping list "${newList.name}" created with ${newList.itemCount || 0} items!`);
+    } catch (error) {
+      console.error('❌ Error adding shopping list:', error);
+      alert('Failed to create shopping list. Please try again.');
+    }
   };
 
   const handleDeleteMealPlan = async (planId, planName) => {
@@ -179,7 +198,7 @@ function MyAccount({
       <div style={styles.listsHeader}>
         <h2 style={styles.pageTitle}>Shopping Lists</h2>
         <button 
-          onClick={onNavigateHome} 
+          onClick={() => setShowAddListModal(true)} 
           style={styles.addListButton}
         >
           ➕ Add Shopping List
@@ -583,6 +602,14 @@ function MyAccount({
               alert('Failed to update list in cloud');
             }
           }}
+        />
+      )}
+
+      {/* Add Shopping List Modal */}
+      {showAddListModal && (
+        <AddShoppingListModal 
+          onClose={() => setShowAddListModal(false)}
+          onSave={handleAddShoppingList}
         />
       )}
 
@@ -1926,6 +1953,170 @@ const modalStyles = {
     fontWeight: 'bold'
   },
 
+  // Add Shopping List Modal specific styles
+  textarea: {
+    width: '100%',
+    padding: '12px',
+    fontSize: '14px',
+    border: '2px solid #e0e0e0',
+    borderRadius: '8px',
+    fontFamily: 'Arial, sans-serif',
+    resize: 'vertical',
+    minHeight: '100px',
+    boxSizing: 'border-box'
+  },
+
+  previewSection: {
+    marginTop: '16px',
+    padding: '12px',
+    backgroundColor: '#f9f9f9',
+    borderRadius: '8px',
+    border: '1px solid #e0e0e0'
+  },
+
+  previewTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '14px',
+    color: '#333',
+    fontWeight: 'bold'
+  },
+
+  itemsList: {
+    maxHeight: '120px',
+    overflowY: 'auto'
+  },
+
+  previewItem: {
+    padding: '4px 0',
+    fontSize: '13px',
+    color: '#666',
+    borderBottom: '1px solid #eee'
+  }
+
 };
+
+// Add Shopping List Modal Component
+function AddShoppingListModal({ onClose, onSave }) {
+  const [listName, setListName] = useState(() => {
+    const today = new Date();
+    return `Shopping List - ${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+  });
+  const [itemsText, setItemsText] = useState('');
+  const [parsedItems, setParsedItems] = useState([]);
+
+  // Parse items preview
+  useEffect(() => {
+    if (itemsText.trim()) {
+      const lines = itemsText.split('\n').filter(line => line.trim());
+      const items = lines.map((line, index) => ({
+        id: `item_${Date.now()}_${index}`,
+        productName: line.trim(),
+        category: 'Uncategorized',
+        checked: false,
+        quantity: 1,
+        unit: 'item'
+      }));
+      setParsedItems(items);
+    } else {
+      setParsedItems([]);
+    }
+  }, [itemsText]);
+
+  const handleSave = () => {
+    if (!listName.trim()) {
+      alert('Please enter a list name');
+      return;
+    }
+
+    const newList = {
+      id: `list_${Date.now()}`,
+      name: listName.trim(),
+      items: parsedItems,
+      itemCount: parsedItems.length,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      completedItems: 0,
+      totalItems: parsedItems.length
+    };
+
+    onSave(newList);
+    onClose();
+  };
+
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
+        <div style={modalStyles.header}>
+          <h2 style={modalStyles.title}>Create New Shopping List</h2>
+          <button style={modalStyles.closeButton} onClick={onClose}>×</button>
+        </div>
+
+        <div style={modalStyles.body}>
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>List Name</label>
+            <input
+              type="text"
+              value={listName}
+              onChange={(e) => setListName(e.target.value)}
+              style={modalStyles.input}
+              placeholder="Enter list name..."
+            />
+          </div>
+
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Items (one per line)</label>
+            <textarea
+              value={itemsText}
+              onChange={(e) => setItemsText(e.target.value)}
+              style={{
+                ...modalStyles.textarea,
+                minHeight: '120px',
+                resize: 'vertical'
+              }}
+              placeholder="Enter grocery items, one per line:&#10;Milk&#10;Bread&#10;Eggs&#10;Apples"
+            />
+          </div>
+
+          {parsedItems.length > 0 && (
+            <div style={modalStyles.previewSection}>
+              <h4 style={modalStyles.previewTitle}>
+                Preview ({parsedItems.length} items)
+              </h4>
+              <div style={modalStyles.itemsList}>
+                {parsedItems.slice(0, 5).map((item, index) => (
+                  <div key={index} style={modalStyles.previewItem}>
+                    • {item.productName}
+                  </div>
+                ))}
+                {parsedItems.length > 5 && (
+                  <div style={modalStyles.previewItem}>
+                    ... and {parsedItems.length - 5} more items
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={modalStyles.footer}>
+          <button style={modalStyles.cancelButton} onClick={onClose}>
+            Cancel
+          </button>
+          <button 
+            style={{
+              ...modalStyles.saveButton,
+              opacity: !listName.trim() ? 0.5 : 1,
+              cursor: !listName.trim() ? 'not-allowed' : 'pointer'
+            }} 
+            onClick={handleSave}
+            disabled={!listName.trim()}
+          >
+            Create List ({parsedItems.length} items)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default MyAccount;
