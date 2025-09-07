@@ -895,11 +895,45 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       const hasFood = foodKeywords.some(keyword => lowerLine.includes(keyword));
       
       if (hasFood && !lowerLine.includes('grocery') && !lowerLine.includes('shopping') && !lowerLine.includes('list')) {
+        // Generate better instructions based on recipe type
+        let instructions = [];
+        if (lowerLine.includes('wrap')) {
+          instructions = [
+            '1. Lay the tortilla flat on a clean surface',
+            '2. Spread mayo or mustard evenly across the tortilla',
+            '3. Layer the protein and cheese in the center',
+            '4. Add fresh vegetables on top',
+            '5. Season with salt and pepper to taste',
+            '6. Fold the bottom edge up, then roll tightly from one side',
+            '7. Cut in half diagonally and serve immediately'
+          ];
+        } else if (lowerLine.includes('sandwich')) {
+          instructions = [
+            '1. Toast the bread slices lightly if desired',
+            '2. Spread mayo or mustard on one or both slices',
+            '3. Layer the protein and cheese',
+            '4. Add vegetables and seasonings',
+            '5. Top with the second bread slice',
+            '6. Cut diagonally and serve'
+          ];
+        } else if (lowerLine.includes('salad')) {
+          instructions = [
+            '1. Wash and dry all vegetables thoroughly',
+            '2. Chop or slice ingredients as needed',
+            '3. Combine all ingredients in a large bowl',
+            '4. Drizzle with dressing and toss gently',
+            '5. Serve immediately'
+          ];
+        } else {
+          instructions = [`Prepare ${cleanLine} according to your preferred cooking method.`];
+        }
+        
         recipes.push({
           title: cleanLine,
           ingredients: inferIngredientsFromRecipeName(cleanLine),
-          instructions: [`Prepare ${cleanLine} according to your preferred cooking method.`],
-          mealType: 'Dinner',
+          instructions: instructions,
+          mealType: lowerLine.includes('breakfast') ? 'Breakfast' : 
+                   lowerLine.includes('lunch') ? 'Lunch' : 'Dinner',
           tags: ['ai_generated', 'emergency_extracted'],
           notes: 'This recipe was automatically generated from AI response.',
           id: `emergency_recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -971,12 +1005,31 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       ingredients.push('Rolled oats', 'Milk', 'Salt');
       if (name.includes('berries')) ingredients.push('Mixed berries');
       if (name.includes('honey')) ingredients.push('Honey');
-    } else if (name.includes('sandwich') || name.includes('sandwiches')) {
-      ingredients.push('Bread');
-      if (name.includes('turkey')) ingredients.push('Turkey slices');
-      if (name.includes('avocado')) ingredients.push('Avocado');
-      if (name.includes('ham')) ingredients.push('Ham slices');
-      if (name.includes('cheese')) ingredients.push('Cheese slices');
+    } else if (name.includes('sandwich') || name.includes('sandwiches') || name.includes('wrap') || name.includes('wraps')) {
+      // Base wrap/sandwich ingredients
+      if (name.includes('wrap')) {
+        ingredients.push('Large flour tortilla', 'Lettuce leaves');
+      } else {
+        ingredients.push('Whole wheat bread', 'Lettuce');
+      }
+      
+      // Protein additions
+      if (name.includes('turkey')) ingredients.push('Sliced turkey breast', 'Mayo or mustard');
+      if (name.includes('ham')) ingredients.push('Ham slices', 'Swiss cheese');
+      if (name.includes('chicken')) ingredients.push('Grilled chicken breast', 'Mayo');
+      
+      // Vegetable additions
+      if (name.includes('avocado')) ingredients.push('Fresh avocado', 'Lime juice', 'Salt', 'Pepper');
+      if (name.includes('tomato')) ingredients.push('Tomato slices');
+      if (name.includes('cucumber')) ingredients.push('Cucumber slices');
+      if (name.includes('vegetables') || name.includes('fresh')) {
+        ingredients.push('Cucumber slices', 'Tomato slices', 'Red onion', 'Bell pepper strips');
+      }
+      
+      // Cheese additions
+      if (name.includes('cheese') && !ingredients.some(ing => ing.includes('cheese'))) {
+        ingredients.push('Cheese slices');
+      }
     } else if (name.includes('yogurt')) {
       ingredients.push('Greek yogurt');
       if (name.includes('granola')) ingredients.push('Granola');
@@ -1168,7 +1221,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       // If no current recipe, check if this line could be a standalone recipe name
       if (!currentRecipe && !line.match(/^[-•*]/) && !line.match(/^\d+[.\)]/) && 
           line.length > 5 && line.length < 100 &&
-          !line.match(/^(Grocery|Shopping|Estimated|Total|Tips|Notes)/i)) {
+          !line.match(/^(Grocery|Shopping|Estimated|Total|Tips|Notes|Ingredients?|Instructions?)/i)) {
         
         // This might be a recipe name without a prefix
         const lowerLine = line.toLowerCase();
@@ -1177,7 +1230,13 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
             lowerLine.includes('salmon') || lowerLine.includes('pasta') ||
             lowerLine.includes('salad') || lowerLine.includes('soup') ||
             lowerLine.includes('sandwich') || lowerLine.includes('oatmeal') ||
-            lowerLine.includes('eggs') || lowerLine.includes('pancakes')) {
+            lowerLine.includes('eggs') || lowerLine.includes('pancakes') ||
+            lowerLine.includes('wrap') || lowerLine.includes('turkey') ||
+            lowerLine.includes('avocado') || lowerLine.includes('vegetables') ||
+            lowerLine.includes('fresh') || lowerLine.includes('grilled') ||
+            lowerLine.includes('baked') || lowerLine.includes('roasted') ||
+            lowerLine.includes('stir') || lowerLine.includes('rice') ||
+            lowerLine.includes('quinoa') || lowerLine.includes('beans')) {
           
           currentRecipe = {
             title: line,
