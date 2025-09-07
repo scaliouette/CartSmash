@@ -9,6 +9,7 @@ import InstacartCheckoutFlow from './InstacartCheckoutFlow';
 import { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
 import confetti from 'canvas-confetti';
+import { unified as unifiedRecipeService } from '../services/unifiedRecipeService';
 
 // Helper functions
 // eslint-disable-next-line no-unused-vars
@@ -439,8 +440,13 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
               });
               
               console.log(`✅ Validated ${validRecipes.length} recipes with content`);
-              setParsedRecipes(validRecipes);
-              console.log('✅ Set parsed recipes state with meal plan data');
+              
+              // Transform to unified format for compatibility
+              const unifiedRecipes = transformToUnifiedFormat(validRecipes);
+              console.log('🔄 Transformed recipes to unified format:', unifiedRecipes.length);
+              
+              setParsedRecipes(unifiedRecipes);
+              console.log('✅ Set parsed recipes state with meal plan data in unified format');
             } else {
               // Priority 2: Fall back to individual recipe parsing
               console.log('🔍 No meal plan found, trying individual recipe parsing...');
@@ -462,8 +468,12 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
                   return recipe;
                 });
                 
-                setParsedRecipes(validIndividualRecipes);
-                console.log('✅ Set parsed recipes state with individual recipes');
+                // Transform individual recipes to unified format
+                const unifiedIndividualRecipes = transformToUnifiedFormat(validIndividualRecipes);
+                console.log('🔄 Transformed individual recipes to unified format:', unifiedIndividualRecipes.length);
+                
+                setParsedRecipes(unifiedIndividualRecipes);
+                console.log('✅ Set parsed recipes state with individual recipes in unified format');
               } else {
                 console.log('❌ No recipes found in AI response');
                 console.log('🔍 Response contains keywords check:', {
@@ -482,7 +492,12 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
                 const emergencyRecipes = createEmergencyRecipes(aiResponseText);
                 if (emergencyRecipes.length > 0) {
                   console.log(`🆘 Created ${emergencyRecipes.length} emergency recipes`);
-                  setParsedRecipes(emergencyRecipes);
+                  
+                  // Transform emergency recipes to unified format  
+                  const unifiedEmergencyRecipes = transformToUnifiedFormat(emergencyRecipes);
+                  console.log('🔄 Transformed emergency recipes to unified format:', unifiedEmergencyRecipes.length);
+                  
+                  setParsedRecipes(unifiedEmergencyRecipes);
                 } else {
                   console.log('💀 Complete recipe extraction failure');
                 }
@@ -896,6 +911,54 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     
     console.log(`🆘 Emergency extraction created ${recipes.length} recipes`);
     return recipes;
+  };
+
+  // Transform recipes to unified format
+  const transformToUnifiedFormat = (recipes) => {
+    return recipes.map(recipe => ({
+      id: recipe.id || `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      title: recipe.title || recipe.name || 'Untitled Recipe',
+      description: recipe.description || recipe.notes || '',
+      icon: getMealTypeIcon(recipe.mealType || 'Dinner'),
+      mealType: recipe.mealType || 'Dinner',
+      ingredients: (recipe.ingredients || []).map(ing => ({
+        quantity: null,
+        unit: null,
+        item: typeof ing === 'string' ? ing : ing.item || ing.name || ing,
+        original: typeof ing === 'string' ? ing : ing.original || ing.item || ing.name || ing
+      })),
+      instructions: (recipe.instructions || []).map(inst => ({
+        instruction: typeof inst === 'string' ? inst : inst.instruction || inst.step || inst
+      })),
+      prepTime: recipe.prepTime || null,
+      cookTime: recipe.cookTime || null,
+      totalTime: recipe.totalTime || null,
+      servings: recipe.servings || null,
+      difficulty: recipe.difficulty || null,
+      nutrition: recipe.nutrition || {},
+      tags: recipe.tags || ['ai_generated'],
+      source: 'AI Generated',
+      sourceUrl: recipe.sourceUrl || null,
+      imageUrl: recipe.imageUrl || null,
+      dayAssigned: recipe.day || recipe.dayAssigned || null,
+      mealTypePlanning: recipe.mealType || null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      // Keep original fields for backward compatibility
+      day: recipe.day,
+      notes: recipe.notes
+    }));
+  };
+
+  // Get meal type icon
+  const getMealTypeIcon = (mealType) => {
+    switch(mealType?.toLowerCase()) {
+      case 'breakfast': return '🍳';
+      case 'lunch': return '🥗';
+      case 'dinner': return '🍽️';
+      case 'snack': return '🍪';
+      default: return '🍳';
+    }
   };
 
   // Helper function to infer basic ingredients from recipe name
@@ -1838,24 +1901,42 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     );
   };
 
-  // Enhanced Recipe Card Component
+  // Enhanced Recipe Card Component - supports both old and unified formats
   const RecipeCard = ({ recipe, index, onAddToCart, onAddToLibrary, onAddToMealPlan, onRemove }) => {
     const [expanded, setExpanded] = useState(false);
+    
+    // Extract data with fallbacks for both formats
+    const title = recipe.title || recipe.name || 'Untitled Recipe';
+    const mealType = recipe.mealType || 'Dinner';
+    const icon = recipe.icon || getMealTypeIcon(mealType);
+    const day = recipe.day || recipe.dayAssigned;
+    const ingredients = recipe.ingredients || [];
+    const instructions = recipe.instructions || [];
+    const servings = recipe.servings;
+    const prepTime = recipe.prepTime;
+    const cookTime = recipe.cookTime;
+    
+    // Handle both string arrays and object arrays for ingredients
+    const displayIngredients = ingredients.map(ing => 
+      typeof ing === 'string' ? ing : ing.item || ing.original || ing.name || ing
+    );
+    
+    // Handle both string arrays and object arrays for instructions  
+    const displayInstructions = instructions.map(inst =>
+      typeof inst === 'string' ? inst : inst.instruction || inst.step || inst
+    );
     
     return (
       <div style={styles.enhancedRecipeCard}>
         <div style={styles.recipeHeader}>
           <h4 style={styles.recipeTitle}>
-            {recipe.mealType === 'Breakfast' ? '🍳' : 
-             recipe.mealType === 'Lunch' ? '🥗' :
-             recipe.mealType === 'Dinner' ? '🍽️' :
-             recipe.mealType === 'Snack' ? '🍪' : '🍳'} 
-            <strong>{recipe.title}</strong>
-            {recipe.mealType && (
-              <span style={styles.mealTypeTag}>{recipe.mealType}</span>
+            {icon} 
+            <strong>{title}</strong>
+            {mealType && (
+              <span style={styles.mealTypeTag}>{mealType}</span>
             )}
-            {recipe.day && (
-              <span style={styles.dayTag}>{recipe.day}</span>
+            {day && (
+              <span style={styles.dayTag}>{day}</span>
             )}
           </h4>
           <div style={styles.headerButtons}>
@@ -1896,42 +1977,42 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
         <div style={styles.recipeContent}>
           {/* Recipe Metadata */}
           <div style={styles.recipeMetadata}>
-            {recipe.servings && (
-              <span style={styles.metaItem}>👥 Servings: {recipe.servings}</span>
+            {servings && (
+              <span style={styles.metaItem}>👥 Servings: {servings}</span>
             )}
-            {recipe.prepTime && (
-              <span style={styles.metaItem}>⏱️ Prep: {recipe.prepTime}</span>
+            {prepTime && (
+              <span style={styles.metaItem}>⏱️ Prep: {prepTime}</span>
             )}
-            {recipe.cookTime && (
-              <span style={styles.metaItem}>🔥 Cook: {recipe.cookTime}</span>
+            {cookTime && (
+              <span style={styles.metaItem}>🔥 Cook: {cookTime}</span>
             )}
           </div>
           
           {/* Ingredients */}
-          {recipe.ingredients && recipe.ingredients.length > 0 && (
+          {displayIngredients && displayIngredients.length > 0 && (
             <div style={styles.recipeSection}>
               <h5 style={styles.sectionTitle}>📝 Ingredients:</h5>
               {expanded ? (
                 <ul style={styles.ingredientsList}>
-                  {recipe.ingredients.map((ingredient, idx) => (
+                  {displayIngredients.map((ingredient, idx) => (
                     <li key={idx} style={styles.ingredientItem}>{ingredient}</li>
                   ))}
                 </ul>
               ) : (
                 <p style={styles.collapsedText}>
-                  {recipe.ingredients.slice(0, 3).join(', ')}
-                  {recipe.ingredients.length > 3 && ` ... +${recipe.ingredients.length - 3} more`}
+                  {displayIngredients.slice(0, 3).join(', ')}
+                  {displayIngredients.length > 3 && ` ... +${displayIngredients.length - 3} more`}
                 </p>
               )}
             </div>
           )}
           
           {/* Instructions */}
-          {expanded && recipe.instructions && recipe.instructions.length > 0 && (
+          {expanded && displayInstructions && displayInstructions.length > 0 && (
             <div style={styles.recipeSection}>
               <h5 style={styles.sectionTitle}>👨‍🍳 Instructions:</h5>
               <ol style={styles.instructionsList}>
-                {recipe.instructions.map((step, idx) => (
+                {displayInstructions.map((step, idx) => (
                   <li key={idx} style={styles.instructionItem}>{step}</li>
                 ))}
               </ol>
