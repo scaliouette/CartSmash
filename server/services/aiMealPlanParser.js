@@ -18,6 +18,15 @@ class MealPlanParser {
    */
   parseMealPlan(aiResponse) {
     const lines = aiResponse.split('\n');
+    
+    // Check if this looks like a single recipe vs a full meal plan
+    const dayHeaders = lines.filter(line => line.match(/^##\s+Day\s+\d+/i));
+    const recipeHeaders = lines.filter(line => line.match(/^###.*\*\*(.+)\*\*/) && !line.match(/\*\*(Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?)\*\*/i));
+    const isSingleRecipe = dayHeaders.length === 0 && recipeHeaders.length <= 1;
+    
+    if (isSingleRecipe) {
+      return this.parseSingleRecipeContent(aiResponse);
+    }
     const mealPlan = {
       metadata: {
         title: '7-Day Healthy Meal Plan',
@@ -62,8 +71,8 @@ class MealPlanParser {
       }
 
       // Detect recipe headers (e.g., "### 🍳 **Overnight Oats with Berries**")
-      // Simplified pattern to match ### followed by ** recipe name **
-      if (line.match(/^###.*\*\*(.+)\*\*/)) {
+      // Avoid matching common section headers like **Ingredients** or **Instructions**
+      if (line.match(/^###.*\*\*(.+)\*\*/) && !line.match(/\*\*(Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?)\*\*/i)) {
         if (currentRecipe && currentDay) {
           // Save previous recipe before starting new one
           this.addRecipeToDay(mealPlan, currentDay, currentRecipe);
@@ -158,6 +167,33 @@ class MealPlanParser {
   }
 
   /**
+   * Parse content as a single recipe and return in meal plan format
+   */
+  parseSingleRecipeContent(aiResponse) {
+    const recipe = this.parseSingleRecipe(aiResponse);
+    
+    // Return in same format as meal plan parsing
+    return {
+      metadata: {
+        title: 'Single Recipe',
+        familySize: 4,
+        generatedAt: new Date().toISOString(),
+        source: 'ai-generated'
+      },
+      days: {},
+      recipes: [recipe], // Single recipe in array
+      shoppingList: {
+        proteins: [],
+        dairy: [],
+        grains: [],
+        produce: [],
+        pantry: [],
+        herbs: []
+      }
+    };
+  }
+
+  /**
    * Parse single recipe from AI text
    */
   parseSingleRecipe(aiResponse) {
@@ -177,18 +213,18 @@ class MealPlanParser {
     for (const line of lines) {
       const trimmed = line.trim();
       
-      // Detect recipe name
-      if (trimmed.match(/^#\s*(.+)|^\*\*(.+)\*\*/)) {
-        const nameMatch = trimmed.match(/^#\s*(.+)|^\*\*(.+)\*\*/);
-        recipe.name = nameMatch[1] || nameMatch[2] || recipe.name;
+      // Detect recipe name (but not section headers)
+      if (trimmed.match(/^#\s*(.+)/) && !trimmed.match(/(ingredients?|instructions?|directions?)/i)) {
+        const nameMatch = trimmed.match(/^#\s*(.+)/);
+        recipe.name = nameMatch[1] || recipe.name;
         continue;
       }
 
       // Detect sections
-      if (trimmed.toLowerCase().includes('ingredients')) {
+      if (trimmed.match(/\*\*.*ingredients?.*\*\*|^ingredients?[:.]?\s*$/i)) {
         currentSection = 'ingredients';
         continue;
-      } else if (trimmed.toLowerCase().includes('instructions') || trimmed.toLowerCase().includes('directions')) {
+      } else if (trimmed.match(/\*\*.*(instructions?|directions?|method|steps).*\*\*|^(instructions?|directions?|method|steps)[:.]?\s*$/i)) {
         currentSection = 'instructions';
         continue;
       }
