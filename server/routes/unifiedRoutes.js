@@ -64,7 +64,7 @@ router.post('/import-recipe', async (req, res) => {
     }
     
     if ((source === 'ai-text' || source === 'ai-meal-plan') && data?.text) {
-      const r = await fetch(`${API_ROOT}/api/ai-meal-plan/parse-meal-plan`, {
+      const r = await fetch(`${API_ROOT}/api/ai/parse-meal-plan`, {
         method: 'POST', 
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ aiResponse: data.text })
@@ -108,7 +108,7 @@ router.post('/batch-import', async (req, res) => {
           return { ok:true, recipes: list.map(toUnified) };
         }
         if (it.type === 'ai' && it.text) {
-          const r = await fetch(`${API_ROOT}/api/ai-meal-plan/parse-meal-plan`, {
+          const r = await fetch(`${API_ROOT}/api/ai/parse-meal-plan`, {
             method: 'POST', 
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ aiResponse: it.text })
@@ -157,7 +157,7 @@ router.post('/validate', async (req, res) => {
     
     if (source === 'ai-text' && data?.text) {
       // lightweight parse check
-      const r = await fetch(`${API_ROOT}/api/ai-meal-plan/parse-meal-plan`, {
+      const r = await fetch(`${API_ROOT}/api/ai/parse-meal-plan`, {
         method: 'POST', 
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ aiResponse: data.text, quick: true })
