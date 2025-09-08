@@ -943,7 +943,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
           id: `emergency_recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         });
         
-        if (recipes.length >= 3) break; // Limit emergency recipes
+        // Remove artificial limit - parse all recipes found
       }
     }
     
@@ -1174,29 +1174,38 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       // Skip empty lines but don't reset section
       if (!line) continue;
       
-      // Detect day headers
-      const dayMatch = line.match(/^(Day\s+\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[\s:]*$/i);
+      // Detect day headers (enhanced patterns)
+      const dayMatch = line.match(/^(Day\s+\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Week\s+\d+)[\s:]*(-.*)?$/i) ||
+                       line.match(/^##\s+(Day\s+\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
       if (dayMatch) {
         currentDay = dayMatch[1].replace(':', '').trim();
         console.log('📅 Found day header:', currentDay);
         continue;
       }
       
-      // Detect meal type headers (these often precede recipe names)
-      const mealTypeMatch = line.match(/^(Breakfast|Lunch|Dinner|Snack)[\s:]*$/i);
+      // Detect meal type headers (enhanced patterns)
+      const mealTypeMatch = line.match(/^(Breakfast|Lunch|Dinner|Snack|Snacks)[\s:]*$/i) ||
+                           line.match(/^###?\s+(Breakfast|Lunch|Dinner|Snack|Snacks)/i) ||
+                           line.match(/^\*\*(Breakfast|Lunch|Dinner|Snack|Snacks)\*\*/i);
       if (mealTypeMatch) {
         captureNextAsRecipeName = true;
         currentSection = ''; // Reset section when new meal starts
+        console.log('🍽️ Found meal type header:', mealTypeMatch[1]);
         continue;
       }
       
-      // Detect recipe patterns (exclude section headers)
+      // Detect recipe patterns (exclude section headers) - enhanced for AI responses
       const recipeStartPatterns = [
         /^(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i,  // "Breakfast: Oatmeal"
+        /^-\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i, // "- Breakfast: Oatmeal with berries"
+        /^\*\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i, // "* Lunch: Turkey sandwich"
         /^Recipe Name:\s*(.+)/i,                       // "Recipe Name: Chicken Stir-fry"
         /^Recipe:\s*(.+)/i,                           // "Recipe: Pasta"
         /^##\s+(?!(?:Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?|Grocery|Shopping)\s*$)(.+)/i, // "## Recipe Title" but not section headers
-        /^Day\s+\d+\s*[-–]\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i // "Day 1 - Breakfast: Oatmeal"
+        /^###\s+(?!(?:Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?|Grocery|Shopping)\s*$)(.+)/i, // "### Recipe Title" but not section headers  
+        /^Day\s+\d+\s*[-–]\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i, // "Day 1 - Breakfast: Oatmeal"
+        /^\d+\.\s+(.+(?:recipe|meal|dish).*)/i,       // "1. Chicken stir-fry recipe"
+        /^[🍳🥗🍽️🥪🍎🥞🥙🍲🍝🥘]\s*(.+)/i           // Emoji-prefixed meals
       ];
       
       let foundRecipe = false;
@@ -1585,7 +1594,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       }
       
       console.log('🔍 Found potential recipes:', potentialRecipes.length);
-      recipes.push(...potentialRecipes.slice(0, 3)); // Limit to 3 recipes
+      recipes.push(...potentialRecipes); // Include all found recipes (removed 3-recipe limit)
     }
     
     console.log(`📝 Parsed ${recipes.length} recipes from AI response`);
