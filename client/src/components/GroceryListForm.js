@@ -175,6 +175,10 @@ function GroceryListForm({
   // eslint-disable-next-line no-unused-vars
   const [recipes, setRecipes] = useState([]);
   const [waitingForAIResponse, setWaitingForAIResponse] = useState(false);
+  const [recipeUrl, setRecipeUrl] = useState('');
+  const [aiRecipeText, setAiRecipeText] = useState('');
+  const [showRecipeImport, setShowRecipeImport] = useState(false);
+  const [importingRecipe, setImportingRecipe] = useState(false);
   const { currentUser } = useAuth();
   const textareaRef = useRef(null);
 
@@ -2274,6 +2278,87 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     }
   };
 
+  // Recipe import handlers
+  const handleImportFromUrl = async () => {
+    if (!recipeUrl.trim()) {
+      alert('Please enter a recipe URL');
+      return;
+    }
+
+    setImportingRecipe(true);
+    try {
+      console.log('🔗 Importing recipe from URL:', recipeUrl);
+      
+      const result = await unifiedRecipeService.importOne({
+        source: 'url',
+        data: { url: recipeUrl.trim() },
+        userId: currentUser?.uid || null
+      });
+
+      if (result.success && result.recipes?.length > 0) {
+        const importedRecipes = result.recipes;
+        console.log('✅ Successfully imported recipes:', importedRecipes);
+        
+        // Add to parsed recipes to display them
+        setParsedRecipes(prev => [...prev, ...importedRecipes]);
+        
+        // Clear the URL input
+        setRecipeUrl('');
+        setShowRecipeImport(false);
+        
+        alert(`✅ Successfully imported ${importedRecipes.length} recipe(s) from URL!`);
+      } else {
+        console.error('❌ Recipe import failed:', result.error);
+        alert(`❌ Failed to import recipe: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('❌ Recipe import error:', error);
+      alert(`❌ Error importing recipe: ${error.message}`);
+    } finally {
+      setImportingRecipe(false);
+    }
+  };
+
+  const handleImportFromAI = async () => {
+    if (!aiRecipeText.trim()) {
+      alert('Please enter some recipe text for AI to parse');
+      return;
+    }
+
+    setImportingRecipe(true);
+    try {
+      console.log('🤖 Importing recipe from AI text:', aiRecipeText.substring(0, 100) + '...');
+      
+      const result = await unifiedRecipeService.importOne({
+        source: 'ai-text',
+        data: { text: aiRecipeText.trim() },
+        userId: currentUser?.uid || null
+      });
+
+      if (result.success && result.recipes?.length > 0) {
+        const importedRecipes = result.recipes;
+        console.log('✅ Successfully imported recipes from AI:', importedRecipes);
+        
+        // Add to parsed recipes to display them
+        setParsedRecipes(prev => [...prev, ...importedRecipes]);
+        
+        // Clear the text input
+        setAiRecipeText('');
+        setShowRecipeImport(false);
+        
+        alert(`✅ Successfully imported ${importedRecipes.length} recipe(s) from AI text!`);
+      } else {
+        console.error('❌ AI recipe import failed:', result.error);
+        alert(`❌ Failed to import recipe: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('❌ AI recipe import error:', error);
+      alert(`❌ Error importing recipe: ${error.message}`);
+    } finally {
+      setImportingRecipe(false);
+    }
+  };
+
   // Debug useEffect to expose cart debugging functions
   useEffect(() => {
     // Expose debug function to window for testing
@@ -2465,6 +2550,76 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Recipe Import Section */}
+        <div style={styles.recipeImportSection}>
+          <div style={styles.recipeImportHeader}>
+            <h3 style={styles.recipeImportTitle}>
+              🍳 Recipe Import
+              <span style={styles.recipeImportSubtitle}>Import recipes from URLs or AI-generated text</span>
+            </h3>
+            <button
+              onClick={() => setShowRecipeImport(!showRecipeImport)}
+              style={styles.recipeToggleBtn}
+            >
+              {showRecipeImport ? '▼' : '▶'} {showRecipeImport ? 'Hide' : 'Show'} Recipe Import
+            </button>
+          </div>
+
+          {showRecipeImport && (
+            <div style={styles.recipeImportContent}>
+              {/* URL Import */}
+              <div style={styles.importMethod}>
+                <h4 style={styles.importMethodTitle}>🔗 Import from URL</h4>
+                <div style={styles.importInputGroup}>
+                  <input
+                    type="url"
+                    placeholder="Paste recipe URL (e.g., from AllRecipes, Food Network, etc.)"
+                    value={recipeUrl}
+                    onChange={(e) => setRecipeUrl(e.target.value)}
+                    style={styles.importInput}
+                    disabled={importingRecipe}
+                  />
+                  <button
+                    onClick={handleImportFromUrl}
+                    disabled={importingRecipe || !recipeUrl.trim()}
+                    style={{
+                      ...styles.importButton,
+                      ...(importingRecipe || !recipeUrl.trim() ? styles.importButtonDisabled : {})
+                    }}
+                  >
+                    {importingRecipe ? '⏳ Importing...' : '📥 Import'}
+                  </button>
+                </div>
+              </div>
+
+              {/* AI Text Import */}
+              <div style={styles.importMethod}>
+                <h4 style={styles.importMethodTitle}>🤖 Import from AI Text</h4>
+                <div style={styles.importInputGroup}>
+                  <textarea
+                    placeholder="Paste recipe text or meal plan generated by AI..."
+                    value={aiRecipeText}
+                    onChange={(e) => setAiRecipeText(e.target.value)}
+                    style={styles.importTextarea}
+                    disabled={importingRecipe}
+                    rows={4}
+                  />
+                  <button
+                    onClick={handleImportFromAI}
+                    disabled={importingRecipe || !aiRecipeText.trim()}
+                    style={{
+                      ...styles.importButton,
+                      ...(importingRecipe || !aiRecipeText.trim() ? styles.importButtonDisabled : {})
+                    }}
+                  >
+                    {importingRecipe ? '⏳ Importing...' : '🧠 Parse with AI'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Controls Bar */}
@@ -3958,6 +4113,119 @@ const styles = {
     fontSize: '11px',
     fontWeight: '500',
     border: '1px solid #dee2e6'
+  },
+
+  // Recipe Import Styles
+  recipeImportSection: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: '12px',
+    padding: '16px',
+    marginBottom: '20px',
+    border: '1px solid #e9ecef'
+  },
+
+  recipeImportHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '16px'
+  },
+
+  recipeImportTitle: {
+    margin: 0,
+    color: '#002244',
+    fontSize: '18px',
+    fontWeight: '600',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+
+  recipeImportSubtitle: {
+    fontSize: '12px',
+    fontWeight: '400',
+    color: '#666',
+    fontStyle: 'italic'
+  },
+
+  recipeToggleBtn: {
+    padding: '8px 16px',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.2s'
+  },
+
+  recipeImportContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px'
+  },
+
+  importMethod: {
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    padding: '16px',
+    border: '1px solid #e9ecef'
+  },
+
+  importMethodTitle: {
+    margin: '0 0 12px 0',
+    color: '#002244',
+    fontSize: '16px',
+    fontWeight: '600'
+  },
+
+  importInputGroup: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'flex-start'
+  },
+
+  importInput: {
+    flex: 1,
+    padding: '12px',
+    border: '2px solid #e9ecef',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontFamily: 'inherit',
+    transition: 'border-color 0.2s',
+    outline: 'none'
+  },
+
+  importTextarea: {
+    flex: 1,
+    padding: '12px',
+    border: '2px solid #e9ecef',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontFamily: 'inherit',
+    transition: 'border-color 0.2s',
+    outline: 'none',
+    resize: 'vertical',
+    minHeight: '100px'
+  },
+
+  importButton: {
+    padding: '12px 20px',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap'
+  },
+
+  importButtonDisabled: {
+    backgroundColor: '#ccc',
+    cursor: 'not-allowed'
   }
 };
 
