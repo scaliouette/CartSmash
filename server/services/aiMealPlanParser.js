@@ -19,26 +19,14 @@ class MealPlanParser {
   parseMealPlan(aiResponse) {
     const lines = aiResponse.split('\n');
     
-    // DEBUG: Log parsing attempt
-    console.log('🔍 [DEBUG] AiMealPlanParser.parseMealPlan called');
-    console.log('🔍 [DEBUG] Input length:', aiResponse.length);
-    console.log('🔍 [DEBUG] First 100 chars:', aiResponse.substring(0, 100));
-    
     // Check if this looks like a single recipe vs a full meal plan
     const dayHeaders = lines.filter(line => line.match(/^##\s+Day\s+\d+/i));
     const recipeHeaders = lines.filter(line => line.match(/^###.*\*\*(.+)\*\*/) && !line.match(/\*\*(Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?)\*\*/i));
     const isSingleRecipe = dayHeaders.length === 0 && recipeHeaders.length <= 1;
     
-    console.log('🔍 [DEBUG] Day headers found:', dayHeaders.length);
-    console.log('🔍 [DEBUG] Recipe headers found:', recipeHeaders.length);
-    console.log('🔍 [DEBUG] Is single recipe?', isSingleRecipe);
-    
     if (isSingleRecipe) {
-      console.log('🔍 [DEBUG] Taking SINGLE RECIPE path');
       return this.parseSingleRecipeContent(aiResponse);
     }
-    
-    console.log('🔍 [DEBUG] Taking MEAL PLAN path');
     const mealPlan = {
       metadata: {
         title: '7-Day Healthy Meal Plan',

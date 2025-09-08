@@ -1190,12 +1190,12 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
         continue;
       }
       
-      // Detect recipe patterns
+      // Detect recipe patterns (exclude section headers)
       const recipeStartPatterns = [
         /^(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i,  // "Breakfast: Oatmeal"
         /^Recipe Name:\s*(.+)/i,                       // "Recipe Name: Chicken Stir-fry"
         /^Recipe:\s*(.+)/i,                           // "Recipe: Pasta"
-        /^##\s+(.+)/i,                                // "## Recipe Title"
+        /^##\s+(?!(?:Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?|Grocery|Shopping)\s*$)(.+)/i, // "## Recipe Title" but not section headers
         /^Day\s+\d+\s*[-–]\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i // "Day 1 - Breakfast: Oatmeal"
       ];
       
