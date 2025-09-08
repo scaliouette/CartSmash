@@ -463,7 +463,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
                     recipe.ingredients = inferIngredientsFromRecipeName(recipe.title || recipe.name);
                   }
                   if (!recipe.instructions || recipe.instructions.length === 0) {
-                    recipe.instructions = [`Prepare ${recipe.title || recipe.name} as directed.`];
+                    recipe.instructions = generateInstructionsFromRecipeName(recipe.title || recipe.name);
                   }
                   return recipe;
                 });
@@ -995,6 +995,78 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     }
   };
 
+  // Helper function to generate detailed instructions from recipe name
+  const generateInstructionsFromRecipeName = (recipeName) => {
+    const name = recipeName.toLowerCase();
+    
+    if (name.includes('oatmeal') || name.includes('oats')) {
+      return [
+        '1. Bring 1 cup water and pinch of salt to boil in a small saucepan',
+        '2. Stir in 1/2 cup rolled oats and reduce heat to medium-low',
+        '3. Cook for 5-7 minutes, stirring occasionally until creamy',
+        '4. Remove from heat and stir in milk to desired consistency',
+        '5. Top with berries and drizzle with honey',
+        '6. Serve hot and enjoy'
+      ];
+    } else if (name.includes('wrap')) {
+      return [
+        '1. Lay the tortilla flat on a clean surface',
+        '2. Spread mayo or mustard evenly across the tortilla',
+        '3. Layer the protein and cheese in the center',
+        '4. Add fresh vegetables on top',
+        '5. Season with salt and pepper to taste',
+        '6. Fold the bottom edge up, then roll tightly from one side',
+        '7. Cut in half diagonally and serve immediately'
+      ];
+    } else if (name.includes('sandwich')) {
+      return [
+        '1. Toast the bread slices lightly if desired',
+        '2. Spread mayo or mustard on one or both slices',
+        '3. Layer the protein and cheese',
+        '4. Add vegetables and seasonings',
+        '5. Top with the second bread slice',
+        '6. Cut diagonally and serve'
+      ];
+    } else if (name.includes('salad')) {
+      return [
+        '1. Wash and dry all vegetables thoroughly',
+        '2. Chop or slice ingredients as needed',
+        '3. Combine all ingredients in a large bowl',
+        '4. Drizzle with dressing and toss gently',
+        '5. Serve immediately'
+      ];
+    } else if (name.includes('scrambled') && name.includes('eggs')) {
+      return [
+        '1. Crack eggs into a bowl and whisk with salt and pepper',
+        '2. Heat butter in a non-stick pan over medium-low heat',
+        '3. Pour in eggs and let sit for 20 seconds',
+        '4. Gently stir with a spatula, pushing eggs from edges to center',
+        '5. Continue stirring gently until eggs are just set',
+        '6. Remove from heat and serve immediately'
+      ];
+    } else if (name.includes('smoothie')) {
+      return [
+        '1. Add frozen fruits to blender first',
+        '2. Pour in liquid (milk, yogurt, or juice)',
+        '3. Add any sweeteners or protein powder',
+        '4. Blend on high for 60-90 seconds until smooth',
+        '5. Add ice if needed for consistency',
+        '6. Pour into glass and serve immediately'
+      ];
+    } else if (name.includes('stir') && name.includes('fry')) {
+      return [
+        '1. Heat oil in a large wok or skillet over high heat',
+        '2. Add protein and cook until nearly done, remove',
+        '3. Add aromatics (garlic, ginger) and stir for 30 seconds',
+        '4. Add vegetables and stir-fry for 2-3 minutes',
+        '5. Return protein to pan and add sauce',
+        '6. Toss everything together for 1 minute and serve'
+      ];
+    } else {
+      return [`Prepare ${recipeName} according to your preferred cooking method.`];
+    }
+  };
+
   // Helper function to infer basic ingredients from recipe name
   const inferIngredientsFromRecipeName = (recipeName) => {
     const name = recipeName.toLowerCase();
@@ -1135,7 +1207,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
               currentRecipe.ingredients = inferIngredientsFromRecipeName(currentRecipe.title);
             }
             if (currentRecipe.instructions.length === 0) {
-              currentRecipe.instructions = [`Prepare ${currentRecipe.title} as directed.`];
+              currentRecipe.instructions = generateInstructionsFromRecipeName(currentRecipe.title);
             }
             console.log('💾 Saving recipe:', currentRecipe.title, 
                        `(${currentRecipe.ingredients.length} ingredients)`);
@@ -1192,7 +1264,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
             currentRecipe.ingredients = inferIngredientsFromRecipeName(currentRecipe.title);
           }
           if (currentRecipe.instructions.length === 0) {
-            currentRecipe.instructions = [`Prepare ${currentRecipe.title} as directed.`];
+            currentRecipe.instructions = generateInstructionsFromRecipeName(currentRecipe.title);
           }
           recipes.push(currentRecipe);
         }
@@ -1365,7 +1437,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       }
       
       if (currentRecipe.instructions.length === 0) {
-        currentRecipe.instructions = [`Prepare ${currentRecipe.title} according to your preferred method.`];
+        currentRecipe.instructions = generateInstructionsFromRecipeName(currentRecipe.title);
       }
       
       console.log('💾 Saving final recipe:', currentRecipe.title, 
@@ -1373,16 +1445,28 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       recipes.push(currentRecipe);
     }
     
-    console.log(`✅ Extraction complete: Found ${recipes.length} recipes`);
-    recipes.forEach(r => {
+    // Deduplicate recipes by title
+    const seen = new Set();
+    const uniqueRecipes = recipes.filter(recipe => {
+      const key = recipe.title.toLowerCase().trim();
+      if (seen.has(key)) {
+        console.log(`🚫 Skipping duplicate recipe: ${recipe.title}`);
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+    
+    console.log(`✅ Extraction complete: Found ${uniqueRecipes.length} unique recipes (${recipes.length} total, ${recipes.length - uniqueRecipes.length} duplicates removed)`);
+    uniqueRecipes.forEach(r => {
       console.log(`  - ${r.day || 'No day'} ${r.mealType}: ${r.title}`);
       console.log(`    Ingredients: ${r.ingredients.length}, Instructions: ${r.instructions.length}`);
     });
     
     return {
-      isMealPlan: recipes.length > 0,
-      recipes: recipes,
-      totalRecipes: recipes.length
+      isMealPlan: uniqueRecipes.length > 0,
+      recipes: uniqueRecipes,
+      totalRecipes: uniqueRecipes.length
     };
   };
 
