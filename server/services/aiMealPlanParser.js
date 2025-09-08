@@ -62,7 +62,8 @@ class MealPlanParser {
       }
 
       // Detect recipe headers (e.g., "### 🍳 **Overnight Oats with Berries**")
-      if (line.match(/^###\s+[🍳🥙🍗🍎🥕🥤🥗🍲🧀🥒🥞🥪🥢🍌🍠🌯🍜🐟🥜🍊🍞🍕🍿🍓🥩🥛]?\s*\*\*(.+)\*\*/)) {
+      // Simplified pattern to match ### followed by ** recipe name **
+      if (line.match(/^###.*\*\*(.+)\*\*/)) {
         if (currentRecipe && currentDay) {
           // Save previous recipe before starting new one
           this.addRecipeToDay(mealPlan, currentDay, currentRecipe);

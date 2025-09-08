@@ -122,6 +122,7 @@ router.post('/import-url', async (req, res) => {
     res.json({
       success: true,
       recipe: standardizedRecipe,
+      recipes: [standardizedRecipe], // Ensure unified format compatibility
       source: 'url-import'
     });
 

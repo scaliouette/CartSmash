@@ -375,7 +375,8 @@
       "Bash(PORT=3003 npm start)",
       "Bash(PORT=3004 npm start)",
       "Bash(grep:*)",
-      "WebFetch(domain:kitchenswagger.com)"
+      "WebFetch(domain:kitchenswagger.com)",
+      "Bash(del debug-meal-plan-parsing.js debug-parser-detailed.js test-regex-pattern.js test-import-flow.js)"
     ],
     "deny": [],
     "ask": []
