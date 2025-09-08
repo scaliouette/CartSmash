@@ -88,14 +88,17 @@ router.post('/import-url', async (req, res) => {
     // Validate URL
     try {
       new URL(url);
+      console.log('✅ [DEBUG] URL validation passed');
     } catch {
+      console.log('❌ [DEBUG] URL validation FAILED - not a valid URL format');
       return res.status(400).json({
         success: false,
         error: 'Invalid URL format'
       });
     }
 
-    console.log('🌐 Importing recipe from URL:', url);
+    console.log('🌐 [DEBUG] URL import triggered for:', url);
+    console.log('🔍 [DEBUG] URL validation will be attempted...');
 
     // Use RecipeImportService to scrape the recipe
     const scrapedRecipe = await recipeImportService.importFromUrl(url);
