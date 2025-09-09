@@ -173,6 +173,7 @@ function GroceryListForm({
   const [ingredientStyle, setIngredientStyle] = useState('basic');
   const [selectedAI] = useState('claude');
   const [mealPlanExpanded, setMealPlanExpanded] = useState(true);
+  const [individualExpansionStates, setIndividualExpansionStates] = useState({});
   // eslint-disable-next-line no-unused-vars
   const [recipes, setRecipes] = useState([]);
   const [waitingForAIResponse, setWaitingForAIResponse] = useState(false);
@@ -2343,9 +2344,34 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     );
   };
 
+  // Helper functions for individual recipe expansion
+  const toggleIndividualRecipeExpansion = (index) => {
+    setIndividualExpansionStates(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
+
+  const handleCollapseExpandAll = () => {
+    const allRecipes = [...parsedRecipes, ...recipes];
+    const newExpandedState = !mealPlanExpanded;
+    setMealPlanExpanded(newExpandedState);
+    
+    // Set all individual states to match the new expanded state
+    const newIndividualStates = {};
+    allRecipes.forEach((_, index) => {
+      newIndividualStates[index] = newExpandedState;
+    });
+    setIndividualExpansionStates(newIndividualStates);
+  };
+
   // Enhanced Recipe Card Component - supports both old and unified formats
-  const RecipeCard = ({ recipe, index, onAddToCart, onAddToLibrary, onAddToMealPlan, onRemove }) => {
-    const [expanded, setExpanded] = useState(false);
+  const RecipeCard = ({ recipe, index, onAddToCart, onAddToLibrary, onAddToMealPlan, onRemove, externalExpanded, onToggleExpanded }) => {
+    const [internalExpanded, setInternalExpanded] = useState(false);
+    
+    // Use external expanded state if provided, otherwise use internal state
+    const expanded = externalExpanded !== undefined ? externalExpanded : internalExpanded;
+    const setExpanded = externalExpanded !== undefined ? onToggleExpanded : setInternalExpanded;
     
     // Extract data with fallbacks for both formats
     const title = recipe.title || recipe.name || 'Untitled Recipe';
@@ -3110,51 +3136,28 @@ Or paste any grocery list directly!"
             {(parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) || recipes.some(r => r.mealType || r.tags?.includes('meal plan'))) && (
               <button
                 style={styles.collapseButton}
-                onClick={() => setMealPlanExpanded(!mealPlanExpanded)}
-                title={mealPlanExpanded ? "Collapse to recipe list" : "Expand to show full recipes"}
+                onClick={handleCollapseExpandAll}
+                title={mealPlanExpanded ? "Collapse all recipe details" : "Expand all recipe details"}
               >
                 {mealPlanExpanded ? '▼ Collapse All' : '▶ Expand All'}
               </button>
             )}
           </div>
           
-          {mealPlanExpanded ? (
-            // Full recipe cards when expanded
-            [...parsedRecipes, ...recipes].map((recipe, index) => (
-              <RecipeCard 
-                key={index} 
-                recipe={recipe} 
-                index={index}
-                onAddToCart={handleAddRecipeToCart}
-                onAddToLibrary={handleAddToRecipeLibrary}
-                onAddToMealPlan={handleAddToMealPlan}
-                onRemove={handleRemoveRecipe}
-              />
-            ))
-          ) : (
-            // Compact recipe list when collapsed
-            <div style={styles.compactRecipeList}>
-              {[...parsedRecipes, ...recipes].map((recipe, index) => (
-                <div 
-                  key={index} 
-                  style={styles.compactRecipeItem}
-                  onClick={() => setMealPlanExpanded(true)}
-                >
-                  <span style={styles.recipeIcon}>{recipe.icon || '🍽️'}</span>
-                  <span style={styles.recipeName}>{recipe.name || recipe.title || `Recipe ${index + 1}`}</span>
-                  {recipe.dayAssigned && (
-                    <span style={styles.recipeDay}>({recipe.dayAssigned})</span>
-                  )}
-                  {recipe.mealTypePlanning && (
-                    <span style={styles.recipeMealType}>- {recipe.mealTypePlanning}</span>
-                  )}
-                </div>
-              ))}
-              <div style={styles.expandHint}>
-                Click any recipe or "Expand All" to see full details
-              </div>
-            </div>
-          )}
+          {/* Always show recipe cards with individual expansion control */}
+          {[...parsedRecipes, ...recipes].map((recipe, index) => (
+            <RecipeCard 
+              key={index} 
+              recipe={recipe} 
+              index={index}
+              externalExpanded={individualExpansionStates[index] || false}
+              onToggleExpanded={() => toggleIndividualRecipeExpansion(index)}
+              onAddToCart={handleAddRecipeToCart}
+              onAddToLibrary={handleAddToRecipeLibrary}
+              onAddToMealPlan={handleAddToMealPlan}
+              onRemove={handleRemoveRecipe}
+            />
+          ))}
         </div>
       )}
 
