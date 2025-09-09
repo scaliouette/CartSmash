@@ -2539,9 +2539,22 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
 
   // Handle removing a recipe from the parsed recipes list
   const handleRemoveRecipe = (recipeIndex) => {
-    const updatedRecipes = parsedRecipes.filter((_, index) => index !== recipeIndex);
-    setParsedRecipes(updatedRecipes);
-    console.log(`🗑️ Removed recipe at index ${recipeIndex}. ${updatedRecipes.length} recipes remaining.`);
+    // Combined array for display, but need to remove from the correct source array
+    const combinedRecipes = [...parsedRecipes, ...recipes];
+    const parsedRecipesCount = parsedRecipes.length;
+    
+    if (recipeIndex < parsedRecipesCount) {
+      // Recipe is from parsedRecipes array
+      const updatedRecipes = parsedRecipes.filter((_, index) => index !== recipeIndex);
+      setParsedRecipes(updatedRecipes);
+      console.log(`🗑️ Removed parsed recipe at index ${recipeIndex}. ${updatedRecipes.length} parsed recipes remaining.`);
+    } else {
+      // Recipe is from recipes array (AI-generated)
+      const aiRecipeIndex = recipeIndex - parsedRecipesCount;
+      const updatedRecipes = recipes.filter((_, index) => index !== aiRecipeIndex);
+      setRecipes(updatedRecipes);
+      console.log(`🗑️ Removed AI recipe at index ${aiRecipeIndex}. ${updatedRecipes.length} AI recipes remaining.`);
+    }
   };
 
   const handleItemsChange = (updatedItems) => {
@@ -3087,14 +3100,14 @@ Or paste any grocery list directly!"
       )}
 
       {/* Display Parsed Recipes */}
-      {parsedRecipes.length > 0 && (
+      {(parsedRecipes.length > 0 || recipes.length > 0) && (
         <div style={styles.recipesContainer}>
           <div style={styles.recipesHeader}>
             <h3 style={styles.recipesTitle}>
-              {parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) ? 
+              {(parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) || recipes.some(r => r.mealType || r.tags?.includes('meal plan'))) ? 
                 '📋 Meal Plan Ideas' : '🍳 Recipes Found'}
             </h3>
-            {parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) && (
+            {(parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) || recipes.some(r => r.mealType || r.tags?.includes('meal plan'))) && (
               <button
                 style={styles.collapseButton}
                 onClick={() => setMealPlanExpanded(!mealPlanExpanded)}
@@ -3107,7 +3120,7 @@ Or paste any grocery list directly!"
           
           {mealPlanExpanded ? (
             // Full recipe cards when expanded
-            parsedRecipes.map((recipe, index) => (
+            [...parsedRecipes, ...recipes].map((recipe, index) => (
               <RecipeCard 
                 key={index} 
                 recipe={recipe} 
@@ -3121,7 +3134,7 @@ Or paste any grocery list directly!"
           ) : (
             // Compact recipe list when collapsed
             <div style={styles.compactRecipeList}>
-              {parsedRecipes.map((recipe, index) => (
+              {[...parsedRecipes, ...recipes].map((recipe, index) => (
                 <div 
                   key={index} 
                   style={styles.compactRecipeItem}
