@@ -223,8 +223,12 @@ class MealPlanParser {
     const lines = aiResponse.split('\n');
     const recipes = [];
     let currentRecipe = null;
-    let currentDay = null;
+    let currentDay = 'monday'; // Default to monday if no day headers found
     let mealIndex = 0;
+    let recipeCount = 0;
+    
+    // Days for cycling through when no explicit day headers
+    const daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -248,7 +252,15 @@ class MealPlanParser {
         }
 
         // Extract recipe name (remove emoji and clean up)
-        const recipeName = line.replace(/^[^\w\s]+/, '').trim();
+        const recipeName = line.replace(/^[^\w\s]+/, '').replace(/meal_plan_item/g, '').trim();
+        
+        // Auto-assign days if no explicit day headers (cycle through 7 days, 4 meals per day = 28 total)
+        const mealsPerDay = 4; // breakfast, lunch, dinner, snack
+        const dayIndex = Math.floor(recipeCount / mealsPerDay) % 7;
+        const mealInDay = recipeCount % mealsPerDay;
+        
+        // If no explicit day was set, use calculated day
+        const assignedDay = currentDay === 'monday' && recipeCount > 0 ? daysOrder[dayIndex] : currentDay;
         
         currentRecipe = {
           id: `ai-recipe-${this.recipeIdCounter++}`,
@@ -258,9 +270,11 @@ class MealPlanParser {
           nutrition: {},
           time: {},
           tags: [],
-          dayAssigned: currentDay,
-          mealType: this.detectMealType(mealIndex++)
+          dayAssigned: assignedDay,
+          mealType: this.detectMealType(mealInDay)
         };
+        
+        recipeCount++;
         continue;
       }
 
@@ -292,14 +306,14 @@ class MealPlanParser {
       recipes.push(currentRecipe);
     }
 
-    console.log(`🎯 Simple format parsing found ${recipes.length} recipes:`, recipes.map(r => r.name));
+    console.log(`🎯 Simple format parsing found ${recipes.length} recipes:`, recipes.map(r => `${r.name} (${r.dayAssigned}, ${r.mealType})`));
 
     // Convert recipes to proper format and organize by days
     for (const recipe of recipes) {
-      if (recipe.dayAssigned && recipe.dayAssigned !== null) {
+      if (recipe.dayAssigned) {
         if (!mealPlan.days[recipe.dayAssigned]) {
           mealPlan.days[recipe.dayAssigned] = {
-            dayNumber: this.dayMapping[recipe.dayAssigned],
+            dayNumber: this.dayMapping[recipe.dayAssigned] || 1,
             meals: []
           };
         }

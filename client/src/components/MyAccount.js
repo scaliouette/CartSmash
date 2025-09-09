@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import userDataService from '../services/userDataService';
+import RecipeImporter from './RecipeImporter';
 
 function MyAccount({ 
   savedLists, 
@@ -24,6 +25,9 @@ function MyAccount({
   const [showListEditModal, setShowListEditModal] = useState(false);
   const [showAddListModal, setShowAddListModal] = useState(false);
   const [showAddRecipeModal, setShowAddRecipeModal] = useState(false);
+  const [showRecipeImportModal, setShowRecipeImportModal] = useState(false);
+  const [showRecipeEditModal, setShowRecipeEditModal] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState(null);
   const [selectedMealPlanForRecipe, setSelectedMealPlanForRecipe] = useState(null);
   const [selectedDayForRecipe, setSelectedDayForRecipe] = useState(null);
   const [selectedMealTypeForRecipe, setSelectedMealTypeForRecipe] = useState(null);
@@ -89,8 +93,8 @@ function MyAccount({
   };
 
   const handleEditRecipe = (recipe) => {
-    // TODO: Replace with unified recipe editor
-    alert('Recipe editing will be available in the unified recipe system');
+    setEditingRecipe(recipe);
+    setShowRecipeEditModal(true);
   };
 
   // Add new shopping list handler
@@ -462,10 +466,10 @@ function MyAccount({
       <div style={styles.recipesHeader}>
         <h2 style={styles.pageTitle}>My Recipes</h2>
         <button 
-          onClick={() => alert('Recipe import from URL and AI will be available soon!')}
+          onClick={() => setShowRecipeImportModal(true)}
           style={styles.addRecipeButton}
         >
-          ➕ Add Recipe (Coming Soon)
+          ➕ Import Recipe
         </button>
       </div>
       
@@ -687,6 +691,45 @@ function MyAccount({
             setSelectedMealPlanForRecipe(null);
             setSelectedDayForRecipe(null);
             setSelectedMealTypeForRecipe(null);
+          }}
+        />
+      )}
+
+      {/* Recipe Import Modal */}
+      {showRecipeImportModal && (
+        <div style={modalStyles.overlay} onClick={() => setShowRecipeImportModal(false)}>
+          <div style={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={modalStyles.header}>
+              <h2 style={modalStyles.title}>Import Recipe</h2>
+              <button onClick={() => setShowRecipeImportModal(false)} style={modalStyles.closeButton}>×</button>
+            </div>
+            <div style={modalStyles.content}>
+              <RecipeImporter 
+                onRecipeImported={(recipe) => {
+                  setShowRecipeImportModal(false);
+                  alert(`✅ Recipe "${recipe.name || recipe.title}" imported successfully!`);
+                  // Optionally reload recipes or update state
+                }}
+                onCancel={() => setShowRecipeImportModal(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recipe Edit Modal */}
+      {showRecipeEditModal && editingRecipe && (
+        <RecipeEditModal
+          recipe={editingRecipe}
+          onClose={() => {
+            setShowRecipeEditModal(false);
+            setEditingRecipe(null);
+          }}
+          onSave={(updatedRecipe) => {
+            // Update recipe in the parent component
+            setShowRecipeEditModal(false);
+            setEditingRecipe(null);
+            alert(`✅ Recipe "${updatedRecipe.name}" updated successfully!`);
           }}
         />
       )}
@@ -2381,6 +2424,132 @@ function AddRecipeToMealPlanModal({ mealPlan, day, mealType, onSave, onClose }) 
           <button onClick={onClose} style={modalStyles.cancelButton}>
             Cancel
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Recipe Edit Modal Component
+function RecipeEditModal({ recipe, onClose, onSave }) {
+  const [editedRecipe, setEditedRecipe] = useState({
+    ...recipe,
+    name: recipe.name || recipe.title || '',
+    ingredients: typeof recipe.ingredients === 'string' 
+      ? recipe.ingredients 
+      : Array.isArray(recipe.ingredients)
+        ? recipe.ingredients.map(ing => ing.original || ing.item || `${ing.quantity || ''} ${ing.unit || ''} ${ing.item || ''}`.trim()).join('\n')
+        : '',
+    instructions: recipe.instructions || '',
+    prepTime: recipe.prepTime || '',
+    cookTime: recipe.cookTime || '',
+    servings: recipe.servings || '4'
+  });
+
+  const handleSave = () => {
+    if (!editedRecipe.name.trim()) {
+      alert('Please enter a recipe name');
+      return;
+    }
+    
+    if (!editedRecipe.ingredients.trim()) {
+      alert('Please enter ingredients');
+      return;
+    }
+    
+    const updatedRecipe = {
+      ...recipe,
+      ...editedRecipe,
+      updatedAt: new Date().toISOString()
+    };
+    
+    onSave(updatedRecipe);
+  };
+
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
+        <div style={modalStyles.header}>
+          <h2 style={modalStyles.title}>✏️ Edit Recipe</h2>
+          <button onClick={onClose} style={modalStyles.closeButton}>×</button>
+        </div>
+
+        <div style={modalStyles.content}>
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Recipe Name *</label>
+            <input
+              type="text"
+              value={editedRecipe.name}
+              onChange={(e) => setEditedRecipe({ ...editedRecipe, name: e.target.value })}
+              style={modalStyles.input}
+              placeholder="Enter recipe name..."
+            />
+          </div>
+
+          <div style={modalStyles.formRow}>
+            <div style={modalStyles.formGroupHalf}>
+              <label style={modalStyles.label}>Servings</label>
+              <input
+                type="text"
+                value={editedRecipe.servings}
+                onChange={(e) => setEditedRecipe({ ...editedRecipe, servings: e.target.value })}
+                style={modalStyles.input}
+                placeholder="e.g., 4"
+              />
+            </div>
+            <div style={modalStyles.formGroupHalf}>
+              <label style={modalStyles.label}>Prep Time</label>
+              <input
+                type="text"
+                value={editedRecipe.prepTime}
+                onChange={(e) => setEditedRecipe({ ...editedRecipe, prepTime: e.target.value })}
+                style={modalStyles.input}
+                placeholder="e.g., 15 min"
+              />
+            </div>
+          </div>
+
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Cook Time</label>
+            <input
+              type="text"
+              value={editedRecipe.cookTime}
+              onChange={(e) => setEditedRecipe({ ...editedRecipe, cookTime: e.target.value })}
+              style={modalStyles.input}
+              placeholder="e.g., 30 min"
+            />
+          </div>
+
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Ingredients * (one per line)</label>
+            <textarea
+              value={editedRecipe.ingredients}
+              onChange={(e) => setEditedRecipe({ ...editedRecipe, ingredients: e.target.value })}
+              style={modalStyles.textarea}
+              rows={6}
+              placeholder="Enter ingredients, one per line..."
+            />
+          </div>
+
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Instructions</label>
+            <textarea
+              value={editedRecipe.instructions}
+              onChange={(e) => setEditedRecipe({ ...editedRecipe, instructions: e.target.value })}
+              style={modalStyles.textarea}
+              rows={5}
+              placeholder="Enter cooking instructions..."
+            />
+          </div>
+
+          <div style={modalStyles.actions}>
+            <button onClick={handleSave} style={modalStyles.saveButton}>
+              💾 Save Changes
+            </button>
+            <button onClick={onClose} style={modalStyles.cancelButton}>
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
