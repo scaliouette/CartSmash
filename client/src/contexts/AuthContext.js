@@ -1,7 +1,7 @@
 // client/src/contexts/AuthContext.js
 // COMPLETE WORKING VERSION - NO CIRCULAR IMPORTS
 
-import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,

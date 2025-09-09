@@ -1,5 +1,5 @@
 // client/src/components/GroceryListForm.js - FIXED VERSION
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import ParsedResultsDisplay from './ParsedResultsDisplay';
 // eslint-disable-next-line no-unused-vars
@@ -2383,7 +2383,7 @@ Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instru
   const toggleIndividualRecipeExpansion = (index) => {
     setIndividualExpansionStates(prev => ({
       ...prev,
-      [index]: !prev[index]
+      [index]: !(prev[index] ?? false) // Handle undefined properly
     }));
   };
 
