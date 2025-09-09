@@ -25,6 +25,7 @@ function MyAccount({
   const [showListEditModal, setShowListEditModal] = useState(false);
   const [showAddListModal, setShowAddListModal] = useState(false);
   const [showAddRecipeModal, setShowAddRecipeModal] = useState(false);
+  const [showCreateRecipeModal, setShowCreateRecipeModal] = useState(false);
   const [showRecipeImportModal, setShowRecipeImportModal] = useState(false);
   const [showRecipeEditModal, setShowRecipeEditModal] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(null);
@@ -93,8 +94,11 @@ function MyAccount({
   };
 
   const handleEditRecipe = (recipe) => {
+    console.log('🔧 Opening recipe editor for:', recipe);
+    console.log('🔧 Current modal state - showRecipeEditModal:', showRecipeEditModal);
     setEditingRecipe(recipe);
     setShowRecipeEditModal(true);
+    console.log('🔧 Modal should now be visible');
   };
 
   // Add new shopping list handler
@@ -465,12 +469,20 @@ function MyAccount({
     <div style={styles.recipesContainer}>
       <div style={styles.recipesHeader}>
         <h2 style={styles.pageTitle}>My Recipes</h2>
-        <button 
-          onClick={() => setShowRecipeImportModal(true)}
-          style={styles.addRecipeButton}
-        >
-          ➕ Import Recipe
-        </button>
+        <div style={styles.headerButtons}>
+          <button 
+            onClick={() => setShowCreateRecipeModal(true)}
+            style={styles.addRecipeButton}
+          >
+            ➕ Create Recipe
+          </button>
+          <button 
+            onClick={() => setShowRecipeImportModal(true)}
+            style={styles.importRecipeButton}
+          >
+            🔗 Import Recipe
+          </button>
+        </div>
       </div>
       
       {!savedRecipes || savedRecipes.length === 0 ? (
@@ -525,8 +537,14 @@ function MyAccount({
                   🛒 Add to Cart
                 </button>
                 <button 
-                  onClick={() => handleEditRecipe(recipe)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🔧 Edit button clicked for recipe:', recipe.name, recipe.id);
+                    handleEditRecipe(recipe);
+                  }}
                   style={styles.editRecipeButton}
+                  title="Edit this recipe"
                 >
                   ✏️
                 </button>
@@ -725,11 +743,51 @@ function MyAccount({
             setShowRecipeEditModal(false);
             setEditingRecipe(null);
           }}
-          onSave={(updatedRecipe) => {
-            // Update recipe in the parent component
-            setShowRecipeEditModal(false);
-            setEditingRecipe(null);
-            alert(`✅ Recipe "${updatedRecipe.name}" updated successfully!`);
+          onSave={async (updatedRecipe) => {
+            try {
+              // Update the recipe in local state
+              setSavedRecipes(prev => prev.map(r => 
+                r.id === updatedRecipe.id ? updatedRecipe : r
+              ));
+
+              // Save to Firebase if user is authenticated
+              if (currentUser) {
+                await userDataService.saveRecipe(updatedRecipe);
+                console.log('✅ Recipe saved to Firebase');
+              }
+
+              setShowRecipeEditModal(false);
+              setEditingRecipe(null);
+              alert(`✅ Recipe "${updatedRecipe.name}" updated successfully!`);
+            } catch (error) {
+              console.error('❌ Failed to save recipe:', error);
+              alert('❌ Failed to save recipe. Please try again.');
+            }
+          }}
+        />
+      )}
+
+      {/* Create Recipe Modal */}
+      {showCreateRecipeModal && (
+        <CreateRecipeModal
+          onClose={() => setShowCreateRecipeModal(false)}
+          onSave={async (newRecipe) => {
+            try {
+              // Add the recipe to local state
+              setSavedRecipes(prev => [...prev, newRecipe]);
+
+              // Save to Firebase if user is authenticated
+              if (currentUser) {
+                await userDataService.saveRecipe(newRecipe);
+                console.log('✅ Recipe saved to Firebase');
+              }
+
+              setShowCreateRecipeModal(false);
+              alert(`✅ Recipe "${newRecipe.name}" created successfully!`);
+            } catch (error) {
+              console.error('❌ Failed to save recipe:', error);
+              alert('❌ Failed to save recipe. Please try again.');
+            }
           }}
         />
       )}
@@ -1601,9 +1659,24 @@ const styles = {
     alignItems: 'center'
   },
 
+  headerButtons: {
+    display: 'flex',
+    gap: '12px'
+  },
+
   addRecipeButton: {
     padding: '10px 20px',
     backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold'
+  },
+
+  importRecipeButton: {
+    padding: '10px 20px',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -1713,7 +1786,7 @@ const modalStyles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000
+    zIndex: 10000
   },
 
   modal: {
@@ -2545,6 +2618,128 @@ function RecipeEditModal({ recipe, onClose, onSave }) {
           <div style={modalStyles.actions}>
             <button onClick={handleSave} style={modalStyles.saveButton}>
               💾 Save Changes
+            </button>
+            <button onClick={onClose} style={modalStyles.cancelButton}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Create Recipe Modal Component
+function CreateRecipeModal({ onClose, onSave }) {
+  const [newRecipe, setNewRecipe] = useState({
+    name: '',
+    servings: '4',
+    prepTime: '',
+    cookTime: '',
+    ingredients: '',
+    instructions: ''
+  });
+
+  const handleSave = () => {
+    if (!newRecipe.name.trim()) {
+      alert('Please enter a recipe name');
+      return;
+    }
+    
+    if (!newRecipe.ingredients.trim()) {
+      alert('Please enter ingredients');
+      return;
+    }
+    
+    const createdRecipe = {
+      id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      ...newRecipe,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    onSave(createdRecipe);
+  };
+
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
+        <div style={modalStyles.header}>
+          <h2 style={modalStyles.title}>➕ Create New Recipe</h2>
+          <button onClick={onClose} style={modalStyles.closeButton}>×</button>
+        </div>
+
+        <div style={modalStyles.content}>
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Recipe Name *</label>
+            <input
+              type="text"
+              value={newRecipe.name}
+              onChange={(e) => setNewRecipe({ ...newRecipe, name: e.target.value })}
+              style={modalStyles.input}
+              placeholder="Enter recipe name..."
+            />
+          </div>
+
+          <div style={modalStyles.formRow}>
+            <div style={modalStyles.formGroupHalf}>
+              <label style={modalStyles.label}>Servings</label>
+              <input
+                type="text"
+                value={newRecipe.servings}
+                onChange={(e) => setNewRecipe({ ...newRecipe, servings: e.target.value })}
+                style={modalStyles.input}
+                placeholder="e.g., 4"
+              />
+            </div>
+            <div style={modalStyles.formGroupHalf}>
+              <label style={modalStyles.label}>Prep Time</label>
+              <input
+                type="text"
+                value={newRecipe.prepTime}
+                onChange={(e) => setNewRecipe({ ...newRecipe, prepTime: e.target.value })}
+                style={modalStyles.input}
+                placeholder="e.g., 15 min"
+              />
+            </div>
+          </div>
+
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Cook Time</label>
+            <input
+              type="text"
+              value={newRecipe.cookTime}
+              onChange={(e) => setNewRecipe({ ...newRecipe, cookTime: e.target.value })}
+              style={modalStyles.input}
+              placeholder="e.g., 30 min"
+            />
+          </div>
+
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Ingredients * (one per line)</label>
+            <textarea
+              value={newRecipe.ingredients}
+              onChange={(e) => setNewRecipe({ ...newRecipe, ingredients: e.target.value })}
+              style={modalStyles.textarea}
+              rows={6}
+              placeholder="2 cups flour&#10;1 cup sugar&#10;3 eggs&#10;1 cup milk"
+            />
+          </div>
+
+          <div style={modalStyles.formGroup}>
+            <label style={modalStyles.label}>Instructions</label>
+            <textarea
+              value={newRecipe.instructions}
+              onChange={(e) => setNewRecipe({ ...newRecipe, instructions: e.target.value })}
+              style={modalStyles.textarea}
+              rows={5}
+              placeholder="1. Mix dry ingredients...&#10;2. Add wet ingredients...&#10;3. Bake at 350°F for 30 minutes..."
+            />
+          </div>
+
+          <div style={modalStyles.actions}>
+            <button onClick={handleSave} style={modalStyles.saveButton}>
+              💾 Create Recipe
             </button>
             <button onClick={onClose} style={modalStyles.cancelButton}>
               Cancel

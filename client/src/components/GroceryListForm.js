@@ -2366,7 +2366,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
   };
 
   // Enhanced Recipe Card Component - supports both old and unified formats
-  const RecipeCard = ({ recipe, index, onAddToCart, onAddToLibrary, onAddToMealPlan, onRemove, externalExpanded, onToggleExpanded }) => {
+  const RecipeCard = ({ recipe, index, onAddToCart, onAddToLibrary, onAddToMealPlan, onRemove, onEdit, externalExpanded, onToggleExpanded }) => {
     const [internalExpanded, setInternalExpanded] = useState(false);
     
     // Use external expanded state if provided, otherwise use internal state
@@ -2427,6 +2427,15 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
             >
               📖 Save Recipe
             </button>
+            {onEdit && (
+              <button 
+                onClick={() => onEdit(recipe, index)}
+                style={styles.wideHeaderButton}
+                title="Edit this recipe"
+              >
+                ✏️ Edit Recipe
+              </button>
+            )}
             <button 
               onClick={() => onAddToMealPlan(recipe)}
               style={styles.wideHeaderButton}
