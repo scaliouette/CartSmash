@@ -210,6 +210,24 @@ function GroceryListForm({
     setShowResults(currentCart.length > 0);
   }, [currentCart]);
 
+  // Initialize expansion states when recipes change
+  useEffect(() => {
+    const allRecipes = [...parsedRecipes, ...recipes];
+    if (allRecipes.length > 0) {
+      // Initialize states for new recipes that don't have a state yet
+      setIndividualExpansionStates(prev => {
+        const newStates = { ...prev };
+        allRecipes.forEach((_, index) => {
+          if (newStates[index] === undefined) {
+            // Set initial state based on mealPlanExpanded
+            newStates[index] = mealPlanExpanded;
+          }
+        });
+        return newStates;
+      });
+    }
+  }, [parsedRecipes, recipes, mealPlanExpanded]);
+
   const templates = [
     {
       id: 'weekly-meal',
@@ -2392,21 +2410,29 @@ Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instru
     const newExpandedState = !mealPlanExpanded;
     setMealPlanExpanded(newExpandedState);
     
-    // Set all individual states to match the new expanded state
+    // Create a completely new state object for ALL recipes
     const newIndividualStates = {};
     allRecipes.forEach((_, index) => {
       newIndividualStates[index] = newExpandedState;
     });
+    
+    // Replace the entire state object to force re-render
     setIndividualExpansionStates(newIndividualStates);
+    
+    console.log(`Setting all ${allRecipes.length} recipes to ${newExpandedState ? 'expanded' : 'collapsed'}`);
   };
 
   // Enhanced Recipe Card Component - supports both old and unified formats
   const RecipeCard = ({ recipe, index, onAddToCart, onAddToLibrary, onAddToMealPlan, onRemove, onEdit, externalExpanded, onToggleExpanded }) => {
-    const [internalExpanded, setInternalExpanded] = useState(false);
+    // Use external expanded state directly - no internal state needed
+    const expanded = externalExpanded ?? false; // Default to false if undefined
     
-    // Use external expanded state if provided, otherwise use internal state
-    const expanded = externalExpanded !== undefined ? externalExpanded : internalExpanded;
-    const setExpanded = externalExpanded !== undefined ? onToggleExpanded : setInternalExpanded;
+    // When clicking expand button, use the external toggle function
+    const handleToggle = () => {
+      if (onToggleExpanded) {
+        onToggleExpanded();
+      }
+    };
     
     // Extract data with fallbacks for both formats
     const title = recipe.title || recipe.name || 'Untitled Recipe';
@@ -2444,7 +2470,7 @@ Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instru
           </h4>
           <div style={styles.headerButtons}>
             <button 
-              onClick={() => setExpanded(!expanded)}
+              onClick={handleToggle}
               style={styles.expandButton}
               title={expanded ? "Show less" : "Show full recipe"}
             >
