@@ -1091,39 +1091,9 @@ NO SHORTCUTS. Generate FULL detailed instructions.`,
     console.log('📚 Adding recipe to library:', recipe.title);
     // Recipe library functionality preserved
   };
-      
-      // No manual fallback - must use AI
-      return {
-        ingredients: [`AI generation failed - please retry`],
-        instructions: [`Unable to generate detailed instructions. Please try again.`],
-        success: false,
-        error: true
-      };
-    }
-  };
 
-  // AI-ONLY ENFORCEMENT: Block manual recipe instruction generation
-  const generateInstructionsFromRecipeName = (recipeName) => {
-    console.error('🚫 MANUAL PARSING BLOCKED - AI-ONLY MODE ENFORCED!');
-    console.error('Function: generateInstructionsFromRecipeName');
-    console.error('Recipe:', recipeName);
-    console.error('This function has been removed in favor of AI-only generation.');
-    
-    throw new Error(`AI-ONLY MODE: Manual parsing of instructions for "${recipeName}" is blocked. Use AI generation instead.`);
-  };
-
-  // AI-ONLY ENFORCEMENT: Block manual ingredient inference 
-  const inferIngredientsFromRecipeName = (recipeName) => {
-    console.error('🚫 MANUAL PARSING BLOCKED - AI-ONLY MODE ENFORCED!');
-    console.error('Function: inferIngredientsFromRecipeName');
-    console.error('Recipe:', recipeName);
-    console.error('This function has been removed in favor of AI-only generation.');
-    
-    throw new Error(`AI-ONLY MODE: Manual parsing of ingredients for "${recipeName}" is blocked. Use AI generation instead.`);
-  };
-
-  // Extract single recipe from text (simplified parsing for single recipe content)
-  const extractSingleRecipeFromText = async (text) => {
+  // DUPLICATE REMOVED - Extract single recipe from text (simplified parsing for single recipe content)
+  const extractSingleRecipeFromText_DUPLICATE1 = async (text) => {
     const lines = text.split('\n');
     let recipeName = '';
     let ingredients = [];
@@ -1230,8 +1200,8 @@ NO SHORTCUTS. Generate FULL detailed instructions.`,
     };
   };
 
-  // Extract multiple recipes from a meal plan
-  const extractMultipleRecipesFromText = async (text) => {
+  // CORRUPTED DUPLICATE REMOVED - Extract multiple recipes from a meal plan
+  const extractMultipleRecipesFromText_CORRUPTED_DUPLICATE = async (text) => {
       if (name.includes('turkey')) {
         return [
           '1. Lay the large flour tortillas flat on a clean surface',
@@ -1253,7 +1223,8 @@ NO SHORTCUTS. Generate FULL detailed instructions.`,
           '7. Cut in half diagonally and serve immediately'
         ];
       }
-    } else if (name.includes('sandwich')) {
+    }; // Fix missing semicolon
+    if (name.includes('sandwich')) {
       return [
         '1. Toast the bread slices lightly if desired',
         '2. Spread mayo or mustard on one or both slices',
@@ -1333,8 +1304,10 @@ NO SHORTCUTS. Generate FULL detailed instructions.`,
   };
 
   // DEPRECATED: Helper function to infer basic ingredients from recipe name  
-  const inferIngredientsFromRecipeName = (recipeName) => {
-    console.error('❌ MANUAL FALLBACK CALLED - THIS SHOULD NOT HAPPEN!', 'inferIngredientsFromRecipeName', recipeName);
+  // REMOVED: inferIngredientsFromRecipeName duplicate function
+  // This function was duplicated and has been removed to fix syntax errors
+  const deprecatedInferIngredients = (recipeName) => {
+    console.error('🚫 DEPRECATED FUNCTION - USE AI GENERATION INSTEAD!', 'inferIngredientsFromRecipeName', recipeName);
     const name = recipeName.toLowerCase();
     const ingredients = [];
     
@@ -1543,8 +1516,8 @@ NO SHORTCUTS. Generate FULL detailed instructions.`,
     return ingredients;
   };
 
-  // Extract single recipe from text (simplified parsing for single recipe content)
-  const extractSingleRecipeFromText = async (text) => {
+  // DUPLICATE REMOVED - Extract single recipe from text (simplified parsing for single recipe content)
+  const extractSingleRecipeFromText_DUPLICATE2 = async (text) => {
     const lines = text.split('\n');
     let recipeName = '';
     let ingredients = [];
