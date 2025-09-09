@@ -407,35 +407,23 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
           const aiData = await aiResponse.json();
           console.log('AI response received, checking structure...');
           
-          // 🎯 NEW: Use structured data directly from AI instead of manual parsing
+          let groceryListProcessed = false;
+          
+          // Handle structured data response
           if (aiData.structuredData && aiData.recipes) {
             console.log('🎉 Using AI-generated structured data:', aiData.structuredData.type);
             console.log(`📊 Found ${aiData.recipes.length} recipes and ${aiData.products.length} products`);
             
-            // Store structured recipes directly (no parsing needed!)
+            // Store structured recipes
             if (aiData.recipes.length > 0) {
               console.log('📝 Setting structured recipes from AI:', aiData.recipes.map(r => r.name));
               setRecipes(aiData.recipes);
-              
-              // Enhanced debugging for each recipe
-              aiData.recipes.forEach((recipe, index) => {
-                console.log(`🔍 Recipe ${index + 1} Debug:`, {
-                  name: recipe.name,
-                  ingredients: recipe.ingredients?.length || 0,
-                  instructions: recipe.instructions?.length || 0,
-                  servings: recipe.servings,
-                  prepTime: recipe.prepTime,
-                  ingredientsPreview: recipe.ingredients?.slice(0, 2),
-                  instructionsPreview: recipe.instructions?.slice(0, 1)
-                });
-              });
             }
             
-            // 🎯 Use structured products directly from AI (no manual parsing!)
+            // Use structured products
             if (aiData.products && aiData.products.length > 0) {
               console.log(`📦 Using ${aiData.products.length} AI-generated products directly`);
               
-              // Convert structured products to grocery list format
               const groceryItems = aiData.products.map(product => {
                 const quantity = product.quantity || '1';
                 const unit = product.unit ? ` ${product.unit}` : '';
@@ -446,27 +434,48 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
               const groceryListText = groceryItems.join('\n');
               setInputText(groceryListText);
               
-              // Also update via ref as a backup
               if (textareaRef.current) {
                 textareaRef.current.value = groceryListText;
               }
               
+              groceryListProcessed = true;
               console.log('✅ Set grocery list from structured AI data');
-            } else {
-              console.log('⚠️ No products found in structured data, checking fallback...');
-              
-              // Fallback to legacy groceryList format if available
-              if (aiData.groceryList && aiData.groceryList.length > 0) {
-                const fallbackList = aiData.groceryList.map(item => `• ${item}`).join('\n');
-                setInputText(fallbackList);
-                if (textareaRef.current) {
-                  textareaRef.current.value = fallbackList;
-                }
-                console.log('✅ Used fallback grocery list format');
+            } else if (aiData.groceryList && aiData.groceryList.length > 0) {
+              // Fallback to legacy groceryList format
+              const fallbackList = aiData.groceryList.map(item => `• ${item}`).join('\n');
+              setInputText(fallbackList);
+              if (textareaRef.current) {
+                textareaRef.current.value = fallbackList;
               }
+              groceryListProcessed = true;
+              console.log('✅ Used fallback grocery list format');
             }
+          }
+          
+          // Only use legacy parsing if structured data wasn't available
+          if (!groceryListProcessed) {
+            console.log('⚠️ No structured data found, using legacy text parsing...');
             
-            // Trigger textarea auto-expansion after content is loaded
+            const aiResponseText = extractAIResponseText(aiData);
+            
+            if (aiResponseText) {
+              const cleanGroceryList = extractGroceryListOnly(aiResponseText);
+              setInputText(cleanGroceryList);
+              
+              if (textareaRef.current) {
+                textareaRef.current.value = cleanGroceryList;
+              }
+              groceryListProcessed = true;
+              console.log('✅ Used legacy text parsing fallback');
+            } else {
+              console.error('No usable response found in AI data:', Object.keys(aiData));
+              throw new Error('AI response was empty');
+            }
+          }
+          
+          // Single place for cleanup and success messaging
+          if (groceryListProcessed) {
+            // Trigger textarea auto-expansion
             setTimeout(() => {
               expandTextarea();
             }, 50);
@@ -479,56 +488,19 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
             setParsingProgress(0);
             // Keep waitingForAIResponse true so next click will parse to cart
             
-            // Show success feedback
+            // Single success message
             const successMessage = `✅ ${selectedAI === 'claude' ? 'Claude' : 'ChatGPT'} has generated your list! Review it and hit CARTSMASH to add items to cart.`;
             console.log(successMessage);
             
-            // Small delay to ensure state updates
+            // Single input text update log
             setTimeout(() => {
               console.log('Input text updated to:', inputText.substring(0, 50) + '...');
             }, 100);
-            
-          } else {
-            // Fallback for non-structured responses (legacy support)
-            console.log('⚠️ No structured data found, using legacy text parsing...');
-            
-            // Extract the response text using our helper function
-            const aiResponseText = extractAIResponseText(aiData);
-            
-            if (aiResponseText) {
-              // Basic text extraction for grocery list
-              const cleanGroceryList = extractGroceryListOnly(aiResponseText);
-              setInputText(cleanGroceryList);
-              
-              if (textareaRef.current) {
-                textareaRef.current.value = cleanGroceryList;
-              }
-              console.log('✅ Used legacy text parsing fallback');
-            } else {
-              console.error('No usable response found in AI data:', Object.keys(aiData));
-              throw new Error('AI response was empty');
-            }
           }
-          
-          // Clear loading states but keep waitingForAIResponse true for next click
-          clearInterval(progressInterval);
-          clearTimeout(overlaySafety);
-          setIsLoading(false);
-          setShowProgress(false);
-          setParsingProgress(0);
-          // Keep waitingForAIResponse true so next click will parse to cart
-          
-          // Show success feedback
-          const successMessage = `✅ ${selectedAI === 'claude' ? 'Claude' : 'ChatGPT'} has generated your list! Review it and hit CARTSMASH to add items to cart.`;
-          console.log(successMessage);
-          
-          // Small delay to ensure state updates
-          setTimeout(() => {
-            console.log('Input text updated to:', inputText.substring(0, 50) + '...');
-          }, 100);
           
           // Exit here - user needs to review and hit CARTSMASH again
           return;
+          
         } catch (aiError) {
           console.error('AI request failed:', aiError);
           setError(`AI request failed: ${aiError.message}`);
@@ -876,32 +848,54 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
   };
 
   // AI-powered recipe generation function
-  const generateDetailedRecipeWithAI = async (recipeName) => {
+  const generateDetailedRecipeWithAI = async (recipeName, retryCount = 0) => {
+    const MAX_RETRIES = 2;
+    
     try {
-      console.log('🤖 Generating detailed recipe with AI for:', recipeName);
+      console.log('🤖 Generating comprehensive recipe with AI for:', recipeName);
       
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-      const response = await fetch(`${API_URL}/api/ai/anthropic`, {
+      const response = await fetch(`${API_URL}/api/ai/${selectedAI || 'anthropic'}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: `Create a detailed recipe for "${recipeName}". Include:
-1. A comprehensive ingredients list with exact quantities and measurements
-2. Step-by-step cooking instructions that are clear and detailed
-3. Cooking times and temperatures where relevant
-4. Serving suggestions
+          prompt: `Create a DETAILED, comprehensive recipe for "${recipeName}". 
 
-Format the response as:
-INGREDIENTS:
-- [quantity] [unit] [ingredient]
+IMPORTANT: Provide a COMPLETE, restaurant-quality recipe with:
 
-INSTRUCTIONS:
-1. [detailed step]
-2. [detailed step]
+INGREDIENTS (with exact measurements):
+- List every single ingredient with precise measurements (cups, tablespoons, ounces, etc.)
+- Include all seasonings, oils, and garnishes
+- Specify brands or types when relevant (e.g., "extra-virgin olive oil", "kosher salt")
+- Include optional ingredients marked as (optional)
+- List ingredients in order of use
 
-Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instructions are thorough and professional.`,
-          context: 'recipe_generation',
-          userId: currentUser?.uid || null
+INSTRUCTIONS (detailed step-by-step):
+- Number each step clearly
+- Include specific cooking times and temperatures
+- Describe techniques in detail (e.g., "julienne", "dice into 1/4-inch cubes")
+- Include visual cues for doneness (e.g., "until golden brown", "until internal temp reaches 165°F")
+- Add tips for success and common mistakes to avoid
+- Include prep steps and timing
+- Specify cookware needed (e.g., "12-inch skillet", "6-quart pot")
+
+ADDITIONAL DETAILS:
+- Prep time: [exact minutes]
+- Cook time: [exact minutes]
+- Total time: [exact minutes]
+- Servings: [number]
+- Difficulty level: [Easy/Medium/Hard]
+- Tips and variations
+- Storage instructions
+
+Make this recipe comprehensive enough that a beginner cook could successfully make it.`,
+          context: 'detailed_recipe_generation',
+          userId: currentUser?.uid || null,
+          options: {
+            temperature: 0.7,
+            max_tokens: 2000,
+            format: 'structured'
+          }
         }),
       });
 
@@ -911,53 +905,133 @@ Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instru
 
       const data = await response.json();
       
-      if (data.success && data.response) {
-        // Parse the AI response to extract ingredients and instructions
-        const aiText = data.response;
+      if (data.success && (data.response || data.structuredData)) {
+        // Parse the comprehensive AI response
+        const aiText = data.response || data.structuredData?.text || '';
         const ingredients = [];
         const instructions = [];
         
-        // Split by sections
-        const sections = aiText.split(/(?:INGREDIENTS:|INSTRUCTIONS:)/i);
+        // Enhanced parsing for ingredients and instructions
+        const lines = aiText.split('\n');
+        let currentSection = '';
         
-        if (sections.length >= 2) {
-          // Extract ingredients
-          const ingredientsSection = sections[1];
-          const ingredientLines = ingredientsSection.split('\n')
-            .filter(line => line.trim() && (line.trim().startsWith('-') || line.trim().startsWith('•')))
-            .map(line => line.replace(/^[-•]\s*/, '').trim())
-            .filter(line => line.length > 0);
+        for (const line of lines) {
+          const trimmedLine = line.trim();
           
-          ingredients.push(...ingredientLines);
+          // Detect sections
+          if (trimmedLine.match(/^INGREDIENTS/i) || trimmedLine.match(/^Ingredients:/i)) {
+            currentSection = 'ingredients';
+            continue;
+          } else if (trimmedLine.match(/^INSTRUCTIONS/i) || trimmedLine.match(/^Instructions:/i) || trimmedLine.match(/^Directions:/i)) {
+            currentSection = 'instructions';
+            continue;
+          } else if (trimmedLine.match(/^(ADDITIONAL|NOTES|TIPS|STORAGE)/i)) {
+            currentSection = 'other';
+            continue;
+          }
+          
+          // Parse content based on section
+          if (currentSection === 'ingredients' && trimmedLine) {
+            // Clean up bullet points and add to ingredients
+            const ingredient = trimmedLine.replace(/^[-•*]\s*/, '').trim();
+            if (ingredient && !ingredient.match(/^(Instructions|Directions|Method)/i)) {
+              ingredients.push(ingredient);
+            }
+          } else if (currentSection === 'instructions' && trimmedLine) {
+            // Clean up numbered steps and add to instructions
+            const instruction = trimmedLine.replace(/^\d+[\.)]\s*/, '').trim();
+            if (instruction && instruction.length > 10) { // Filter out very short non-instructions
+              instructions.push(instruction);
+            }
+          }
         }
         
-        if (sections.length >= 3) {
-          // Extract instructions
-          const instructionsSection = sections[2];
-          const instructionLines = instructionsSection.split('\n')
-            .filter(line => line.trim() && /^\d+\./.test(line.trim()))
-            .map(line => line.trim())
-            .filter(line => line.length > 0);
+        // Ensure we got substantial content
+        if (ingredients.length >= 3 && instructions.length >= 3) {
+          console.log('✅ AI generated comprehensive recipe:', { 
+            name: recipeName,
+            ingredients: ingredients.length, 
+            instructions: instructions.length 
+          });
           
-          instructions.push(...instructionLines);
+          return {
+            ingredients: ingredients,
+            instructions: instructions,
+            success: true
+          };
+        } else {
+          throw new Error('AI response was not comprehensive enough');
         }
-        
-        console.log('✅ AI generated recipe:', { ingredients: ingredients.length, instructions: instructions.length });
-        
-        return {
-          ingredients: ingredients.length > 0 ? ingredients : [`2 cups main ingredient for ${recipeName}`],
-          instructions: instructions.length > 0 ? instructions : [`Prepare ${recipeName} according to standard cooking methods.`]
-        };
       }
       
-      throw new Error('AI response was not successful');
+      throw new Error('Invalid AI response structure');
       
     } catch (error) {
-      console.error('❌ AI recipe generation failed:', error);
-      // Return minimal fallback
+      console.error(`❌ AI recipe generation attempt ${retryCount + 1} failed:`, error);
+      
+      // Retry with different AI if first attempt fails
+      if (retryCount < MAX_RETRIES) {
+        console.log(`🔄 Retrying AI generation (attempt ${retryCount + 2}/${MAX_RETRIES + 1})...`);
+        
+        // Add a small delay before retry
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Retry with same or alternate AI
+        return await generateDetailedRecipeWithAI(recipeName, retryCount + 1);
+      }
+      
+      // After all retries failed, try one more time with a simpler prompt
+      if (retryCount === MAX_RETRIES) {
+        console.log('🆘 Final attempt with simplified prompt...');
+        
+        try {
+          const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+          const response = await fetch(`${API_URL}/api/ai/${selectedAI || 'anthropic'}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: `List ingredients and cooking steps for ${recipeName}. Be very detailed and specific with measurements and instructions.`,
+              context: 'recipe_generation_simple',
+              userId: currentUser?.uid || null
+            }),
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            // Parse simple response
+            const text = data.response || '';
+            const allLines = text.split('\n').filter(line => line.trim());
+            
+            // Take first half as ingredients, second half as instructions
+            const midPoint = Math.floor(allLines.length / 2);
+            const ingredients = allLines.slice(0, midPoint).map(line => 
+              line.replace(/^[-•*\d.]\s*/, '').trim()
+            ).filter(line => line.length > 0);
+            
+            const instructions = allLines.slice(midPoint).map(line => 
+              line.replace(/^[-•*\d.]\s*/, '').trim()
+            ).filter(line => line.length > 0);
+            
+            if (ingredients.length > 0 && instructions.length > 0) {
+              return {
+                ingredients: ingredients,
+                instructions: instructions,
+                success: true
+              };
+            }
+          }
+        } catch (finalError) {
+          console.error('🚫 Final AI attempt failed:', finalError);
+        }
+      }
+      
+      // CRITICAL: Never fall back to manual methods - show error to user instead
+      console.error('⚠️ AI generation failed completely. User should retry or check their connection.');
       return {
-        ingredients: [`Main ingredients for ${recipeName}`],
-        instructions: [`Prepare ${recipeName} using standard cooking methods.`]
+        ingredients: [`AI generation failed - please retry or check your internet connection`],
+        instructions: [`Unable to generate recipe details. Please try again.`],
+        success: false,
+        error: true
       };
     }
   };
@@ -1390,10 +1464,16 @@ Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instru
     
     // If still no ingredients found, use AI to generate them
     if (ingredients.length === 0 && recipeName) {
-      console.log('🤖 Using AI to generate ingredients for:', recipeName);
+      console.log('🤖 AI generation required for:', recipeName);
       const aiRecipe = await generateDetailedRecipeWithAI(recipeName);
-      ingredients = aiRecipe.ingredients;
-      console.log('🔍 AI generated ingredients:', ingredients);
+      
+      if (aiRecipe.success) {
+        ingredients = aiRecipe.ingredients;
+        console.log('✅ AI generated ingredients:', ingredients);
+      } else if (aiRecipe.error) {
+        console.error('❌ AI ingredient generation failed for:', recipeName);
+        ingredients = ['⚠️ Failed to generate ingredients - please retry'];
+      }
     }
     
     // If instructions are too brief (only headers), scan for detailed steps
@@ -1547,13 +1627,23 @@ Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instru
           // Save previous recipe if exists
           if (currentRecipe && currentRecipe.title) {
             if (currentRecipe.ingredients.length === 0 || currentRecipe.instructions.length === 0) {
-              console.log('🤖 Generating AI recipe for:', currentRecipe.title);
+              console.log('🤖 AI generation required for:', currentRecipe.title);
+              
               const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
-              if (currentRecipe.ingredients.length === 0) {
-                currentRecipe.ingredients = aiRecipe.ingredients;
-              }
-              if (currentRecipe.instructions.length === 0) {
-                currentRecipe.instructions = aiRecipe.instructions;
+              
+              if (aiRecipe.success) {
+                if (currentRecipe.ingredients.length === 0) {
+                  currentRecipe.ingredients = aiRecipe.ingredients;
+                }
+                if (currentRecipe.instructions.length === 0) {
+                  currentRecipe.instructions = aiRecipe.instructions;
+                }
+              } else if (aiRecipe.error) {
+                // Show error to user instead of using fallbacks
+                console.error('❌ Recipe generation failed for:', currentRecipe.title);
+                currentRecipe.ingredients = currentRecipe.ingredients.length === 0 ? ['⚠️ Failed to generate ingredients - please retry'] : currentRecipe.ingredients;
+                currentRecipe.instructions = currentRecipe.instructions.length === 0 ? ['⚠️ Failed to generate instructions - please retry'] : currentRecipe.instructions;
+                currentRecipe.error = true;
               }
             }
             console.log('💾 Saving recipe:', currentRecipe.title, 
@@ -1608,13 +1698,23 @@ Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instru
         // Save previous recipe
         if (currentRecipe && currentRecipe.title) {
           if (currentRecipe.ingredients.length === 0 || currentRecipe.instructions.length === 0) {
-            console.log('🤖 Generating AI recipe for:', currentRecipe.title);
+            console.log('🤖 AI generation required for:', currentRecipe.title);
+            
             const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
-            if (currentRecipe.ingredients.length === 0) {
-              currentRecipe.ingredients = aiRecipe.ingredients;
-            }
-            if (currentRecipe.instructions.length === 0) {
-              currentRecipe.instructions = aiRecipe.instructions;
+            
+            if (aiRecipe.success) {
+              if (currentRecipe.ingredients.length === 0) {
+                currentRecipe.ingredients = aiRecipe.ingredients;
+              }
+              if (currentRecipe.instructions.length === 0) {
+                currentRecipe.instructions = aiRecipe.instructions;
+              }
+            } else if (aiRecipe.error) {
+              // Show error to user instead of using fallbacks
+              console.error('❌ Recipe generation failed for:', currentRecipe.title);
+              currentRecipe.ingredients = currentRecipe.ingredients.length === 0 ? ['⚠️ Failed to generate ingredients - please retry'] : currentRecipe.ingredients;
+              currentRecipe.instructions = currentRecipe.instructions.length === 0 ? ['⚠️ Failed to generate instructions - please retry'] : currentRecipe.instructions;
+              currentRecipe.error = true;
             }
           }
           recipes.push(currentRecipe);
@@ -1783,13 +1883,23 @@ Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instru
     if (currentRecipe && currentRecipe.title) {
       // Add AI-generated content if missing
       if (currentRecipe.ingredients.length === 0 || currentRecipe.instructions.length === 0) {
-        console.log('🤖 Generating AI recipe for final recipe:', currentRecipe.title);
+        console.log('🤖 AI generation required for final recipe:', currentRecipe.title);
+        
         const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
-        if (currentRecipe.ingredients.length === 0) {
-          currentRecipe.ingredients = aiRecipe.ingredients;
-        }
-        if (currentRecipe.instructions.length === 0) {
-          currentRecipe.instructions = aiRecipe.instructions;
+        
+        if (aiRecipe.success) {
+          if (currentRecipe.ingredients.length === 0) {
+            currentRecipe.ingredients = aiRecipe.ingredients;
+          }
+          if (currentRecipe.instructions.length === 0) {
+            currentRecipe.instructions = aiRecipe.instructions;
+          }
+        } else if (aiRecipe.error) {
+          // Show error to user instead of using fallbacks
+          console.error('❌ Recipe generation failed for final recipe:', currentRecipe.title);
+          currentRecipe.ingredients = currentRecipe.ingredients.length === 0 ? ['⚠️ Failed to generate ingredients - please retry'] : currentRecipe.ingredients;
+          currentRecipe.instructions = currentRecipe.instructions.length === 0 ? ['⚠️ Failed to generate instructions - please retry'] : currentRecipe.instructions;
+          currentRecipe.error = true;
         }
       }
       
@@ -2420,6 +2530,17 @@ Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instru
     setIndividualExpansionStates(newIndividualStates);
     
     console.log(`Setting all ${allRecipes.length} recipes to ${newExpandedState ? 'expanded' : 'collapsed'}`);
+  };
+
+  // Clear all recipes function with confirmation
+  const handleClearAllRecipes = () => {
+    // Confirm before clearing
+    if (window.confirm('Are you sure you want to clear all recipes? This cannot be undone.')) {
+      setParsedRecipes([]);
+      setRecipes([]);
+      setIndividualExpansionStates({});
+      console.log('✨ Cleared all recipes');
+    }
   };
 
   // Enhanced Recipe Card Component - supports both old and unified formats
@@ -3217,17 +3338,31 @@ Or paste any grocery list directly!"
       {(parsedRecipes.length > 0 || recipes.length > 0) && (
         <div style={styles.recipesContainer}>
           <div style={styles.recipesHeader}>
-            <h3 style={styles.recipesTitle}>
-              {(parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) || recipes.some(r => r.mealType || r.tags?.includes('meal plan'))) ? 
-                '📋 Meal Plan Ideas' : '🍳 Recipes Found'}
-            </h3>
-            <button
-              style={styles.collapseButton}
-              onClick={handleCollapseExpandAll}
-              title={mealPlanExpanded ? "Collapse all recipe details" : "Expand all recipe details"}
-            >
-              {mealPlanExpanded ? '▼ Collapse All' : '▶ Expand All'}
-            </button>
+            <div style={styles.headerLeft}>
+              <h3 style={styles.recipesTitle}>
+                {(parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) || recipes.some(r => r.mealType || r.tags?.includes('meal plan'))) ? 
+                  '📋 Meal Plan Ideas' : '🍳 Recipes Found'}
+              </h3>
+              <span style={styles.recipeCounter}>
+                ({parsedRecipes.length + recipes.length} recipe{parsedRecipes.length + recipes.length !== 1 ? 's' : ''})
+              </span>
+            </div>
+            <div style={styles.headerButtonGroup}>
+              <button
+                style={styles.collapseButton}
+                onClick={handleCollapseExpandAll}
+                title={mealPlanExpanded ? "Collapse all recipe details" : "Expand all recipe details"}
+              >
+                {mealPlanExpanded ? '▼ Collapse All' : '▶ Expand All'}
+              </button>
+              <button
+                style={styles.clearRecipesButton}
+                onClick={handleClearAllRecipes}
+                title="Clear all recipes from the list"
+              >
+                🗑️ Clear Recipes
+              </button>
+            </div>
           </div>
           
           {/* Always show recipe cards with individual expansion control */}
@@ -3837,6 +3972,25 @@ const styles = {
     gap: '10px'
   },
 
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    flex: '1'
+  },
+
+  recipeCounter: {
+    color: '#666',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  headerButtonGroup: {
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'center'
+  },
+
   collapseButton: {
     background: 'linear-gradient(135deg, #4A90E2 0%, #2171b5 100%)',
     color: 'white',
@@ -3848,6 +4002,22 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.3s ease',
     boxShadow: '0 2px 6px rgba(74, 144, 226, 0.3)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
+
+  clearRecipesButton: {
+    background: 'linear-gradient(135deg, #E74C3C 0%, #c0392b 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '8px 16px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 2px 6px rgba(231, 76, 60, 0.3)',
     display: 'flex',
     alignItems: 'center',
     gap: '6px'
