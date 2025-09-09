@@ -247,10 +247,24 @@ export default function AIMealPlanReview({ aiGeneratedPlan }) {
 
                       {/* Ingredients */}
                       <div className="mb-3">
-                        <p className="text-sm text-gray-600">
-                          <strong>Ingredients:</strong>{' '}
-                          {recipe.ingredients.map(ing => ing.item).join(', ')}
+                        <p className="text-sm text-gray-600 mb-1">
+                          <strong>Ingredients:</strong>
                         </p>
+                        <div className="text-sm text-gray-600 ml-2">
+                          {recipe.ingredients.slice(0, 5).map((ing, idx) => (
+                            <div key={idx}>
+                              {typeof ing === 'string' ? `• ${ing}` : 
+                               ing.original ? `• ${ing.original}` :
+                               ing.quantity && ing.unit && ing.item ? `• ${ing.quantity} ${ing.unit} ${ing.item}` :
+                               `• ${ing.item || ''}`}
+                            </div>
+                          ))}
+                          {recipe.ingredients.length > 5 && (
+                            <div className="text-gray-500 text-xs mt-1">
+                              + {recipe.ingredients.length - 5} more
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Time and Nutrition */}

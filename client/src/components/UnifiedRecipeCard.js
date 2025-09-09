@@ -47,11 +47,25 @@ export default function UnifiedRecipeCard({
     
     return displayIngredients
       .map(ing => {
-        if (typeof ing === 'string') return ing;
-        return ing.item || ing.original || ing.raw || '';
+        if (typeof ing === 'string') return `• ${ing}`;
+        
+        // If it's a structured ingredient, format it with quantity, unit, and item
+        if (ing.quantity && ing.unit && ing.item) {
+          const quantity = typeof ing.quantity === 'object' ? 
+            (ing.quantity.min && ing.quantity.max ? `${ing.quantity.min}-${ing.quantity.max}` : ing.quantity.min || ing.quantity.max || ing.quantity.text) :
+            ing.quantity;
+          return `• ${quantity} ${ing.unit} ${ing.item}`;
+        }
+        
+        // If it has original text, use that
+        if (ing.original) return `• ${ing.original}`;
+        if (ing.raw) return `• ${ing.raw}`;
+        
+        // Fallback to just the item name
+        return `• ${ing.item || ''}`;
       })
       .filter(Boolean)
-      .join(', ');
+      .join('\n');
   };
 
   // Handle adding to library
@@ -160,15 +174,15 @@ export default function UnifiedRecipeCard({
 
           {/* Ingredients */}
           <div className="mb-3">
-            <p className="text-sm text-gray-700">
-              <strong>Ingredients:</strong>{' '}
+            <p className="text-sm text-gray-700 font-semibold mb-2">Ingredients:</p>
+            <div className="text-sm text-gray-700 whitespace-pre-line">
               {formatIngredientDisplay()}
               {recipe.ingredients?.length > 5 && (
-                <span className="text-gray-500">
-                  {' '}+ {recipe.ingredients.length - 5} more
-                </span>
+                <div className="text-gray-500 mt-1">
+                  + {recipe.ingredients.length - 5} more
+                </div>
               )}
-            </p>
+            </div>
           </div>
 
           {/* Time and Nutrition Info */}
