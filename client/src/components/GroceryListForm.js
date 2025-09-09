@@ -2598,7 +2598,7 @@ Make this recipe so detailed that someone who has never cooked could successfull
     );
     
     return (
-      <div style={styles.enhancedRecipeCard}>
+      <div style={expanded ? styles.enhancedRecipeCard : styles.enhancedRecipeCardCollapsed}>
         <div style={styles.recipeHeader}>
           <h4 style={styles.recipeTitle}>
             {icon} 
@@ -2654,7 +2654,9 @@ Make this recipe so detailed that someone who has never cooked could successfull
           </div>
         </div>
         
-        <div style={styles.recipeContent}>
+        {/* CRITICAL CHANGE: Only show content when expanded */}
+        {expanded && (
+          <div style={styles.recipeContent}>
           {/* Recipe Metadata */}
           <div style={styles.recipeMetadataOriginal}>
             {servings && (
@@ -2668,27 +2670,20 @@ Make this recipe so detailed that someone who has never cooked could successfull
             )}
           </div>
           
-          {/* Ingredients */}
+          {/* Ingredients - Now always fully expanded when visible */}
           {displayIngredients && displayIngredients.length > 0 && (
             <div style={styles.recipeSection}>
               <h5 style={styles.sectionTitle}>📝 Ingredients:</h5>
-              {expanded ? (
-                <ul style={styles.ingredientsList}>
-                  {displayIngredients.map((ingredient, idx) => (
-                    <li key={idx} style={styles.ingredientItem}>{ingredient}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p style={styles.collapsedText}>
-                  {displayIngredients.slice(0, 3).join(', ')}
-                  {displayIngredients.length > 3 && ` ... +${displayIngredients.length - 3} more`}
-                </p>
-              )}
+              <ul style={styles.ingredientsList}>
+                {displayIngredients.map((ingredient, idx) => (
+                  <li key={idx} style={styles.ingredientItem}>{ingredient}</li>
+                ))}
+              </ul>
             </div>
           )}
           
           {/* Enhanced Instructions Section */}
-          {expanded && displayInstructions && displayInstructions.length > 0 && (
+          {displayInstructions && displayInstructions.length > 0 && (
             <div style={styles.instructionsSection}>
               <h5 style={styles.instructionsSectionTitle}>
                 👨‍🍳 Detailed Cooking Instructions:
@@ -2745,7 +2740,7 @@ Make this recipe so detailed that someone who has never cooked could successfull
           )}
           
           {/* Notes */}
-          {expanded && recipe.notes && (
+          {recipe.notes && (
             <div style={styles.recipeSection}>
               <h5 style={styles.sectionTitle}>💡 Notes:</h5>
               <p style={styles.notesText}>{recipe.notes}</p>
@@ -2760,7 +2755,8 @@ Make this recipe so detailed that someone who has never cooked could successfull
               ))}
             </div>
           )}
-        </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -5057,6 +5053,17 @@ const styles = {
     fontSize: '14px',
     color: '#856404',
     lineHeight: '1.6'
+  },
+
+  // Collapsed recipe card style for compact display
+  enhancedRecipeCardCollapsed: {
+    background: '#FFF5F2',
+    borderRadius: '12px',
+    padding: '16px', // Less padding when collapsed
+    marginBottom: '12px', // Less margin when collapsed
+    border: '2px solid #FB4F14',
+    boxShadow: '0 2px 8px rgba(251,79,20,0.1)',
+    transition: 'all 0.3s ease'
   }
 };
 
