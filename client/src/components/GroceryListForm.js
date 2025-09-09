@@ -854,6 +854,93 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     }
   };
 
+  // AI-powered recipe generation function
+  const generateDetailedRecipeWithAI = async (recipeName) => {
+    try {
+      console.log('🤖 Generating detailed recipe with AI for:', recipeName);
+      
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3014';
+      const response = await fetch(`${API_URL}/api/ai/anthropic`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `Create a detailed recipe for "${recipeName}". Include:
+1. A comprehensive ingredients list with exact quantities and measurements
+2. Step-by-step cooking instructions that are clear and detailed
+3. Cooking times and temperatures where relevant
+4. Serving suggestions
+
+Format the response as:
+INGREDIENTS:
+- [quantity] [unit] [ingredient]
+
+INSTRUCTIONS:
+1. [detailed step]
+2. [detailed step]
+
+Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instructions are thorough and professional.`,
+          context: 'recipe_generation',
+          userId: currentUser?.uid || null
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.response) {
+        // Parse the AI response to extract ingredients and instructions
+        const aiText = data.response;
+        const ingredients = [];
+        const instructions = [];
+        
+        // Split by sections
+        const sections = aiText.split(/(?:INGREDIENTS:|INSTRUCTIONS:)/i);
+        
+        if (sections.length >= 2) {
+          // Extract ingredients
+          const ingredientsSection = sections[1];
+          const ingredientLines = ingredientsSection.split('\n')
+            .filter(line => line.trim() && (line.trim().startsWith('-') || line.trim().startsWith('•')))
+            .map(line => line.replace(/^[-•]\s*/, '').trim())
+            .filter(line => line.length > 0);
+          
+          ingredients.push(...ingredientLines);
+        }
+        
+        if (sections.length >= 3) {
+          // Extract instructions
+          const instructionsSection = sections[2];
+          const instructionLines = instructionsSection.split('\n')
+            .filter(line => line.trim() && /^\d+\./.test(line.trim()))
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+          
+          instructions.push(...instructionLines);
+        }
+        
+        console.log('✅ AI generated recipe:', { ingredients: ingredients.length, instructions: instructions.length });
+        
+        return {
+          ingredients: ingredients.length > 0 ? ingredients : [`2 cups main ingredient for ${recipeName}`],
+          instructions: instructions.length > 0 ? instructions : [`Prepare ${recipeName} according to standard cooking methods.`]
+        };
+      }
+      
+      throw new Error('AI response was not successful');
+      
+    } catch (error) {
+      console.error('❌ AI recipe generation failed:', error);
+      // Return minimal fallback
+      return {
+        ingredients: [`Main ingredients for ${recipeName}`],
+        instructions: [`Prepare ${recipeName} using standard cooking methods.`]
+      };
+    }
+  };
+
   // Helper function to generate detailed instructions from recipe name
   const generateInstructionsFromRecipeName = (recipeName) => {
     const name = recipeName.toLowerCase();
@@ -868,15 +955,27 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
         '6. Serve hot and enjoy'
       ];
     } else if (name.includes('wrap')) {
-      return [
-        '1. Lay the tortilla flat on a clean surface',
-        '2. Spread mayo or mustard evenly across the tortilla',
-        '3. Layer the protein and cheese in the center',
-        '4. Add fresh vegetables on top',
-        '5. Season with salt and pepper to taste',
-        '6. Fold the bottom edge up, then roll tightly from one side',
-        '7. Cut in half diagonally and serve immediately'
-      ];
+      if (name.includes('turkey')) {
+        return [
+          '1. Lay the large flour tortillas flat on a clean surface',
+          '2. Spread 1 tbsp mayo or mustard evenly across each tortilla, leaving a 1-inch border',
+          '3. Layer 3 oz sliced turkey breast in the center of each tortilla',
+          '4. Add 2 lettuce leaves and any other fresh vegetables',
+          '5. Season lightly with salt and pepper',
+          '6. Fold the bottom edge up about 2 inches, then roll tightly from one side',
+          '7. Cut in half diagonally with a sharp knife and serve immediately'
+        ];
+      } else {
+        return [
+          '1. Lay the tortilla flat on a clean surface',
+          '2. Spread mayo or mustard evenly across the tortilla',
+          '3. Layer the protein and cheese in the center',
+          '4. Add fresh vegetables on top',
+          '5. Season with salt and pepper to taste',
+          '6. Fold the bottom edge up, then roll tightly from one side',
+          '7. Cut in half diagonally and serve immediately'
+        ];
+      }
     } else if (name.includes('sandwich')) {
       return [
         '1. Toast the bread slices lightly if desired',
@@ -912,6 +1011,36 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
         '5. Add ice if needed for consistency',
         '6. Pour into glass and serve immediately'
       ];
+    } else if (name.includes('salmon')) {
+      if (name.includes('baked')) {
+        return [
+          '1. Preheat oven to 400°F (200°C)',
+          '2. Pat salmon fillets dry and place on parchment-lined baking sheet',
+          '3. Drizzle with olive oil and season with salt and pepper',
+          '4. Squeeze fresh lemon juice over fillets',
+          '5. Bake for 12-15 minutes until fish flakes easily with a fork',
+          '6. If serving with quinoa: Rinse quinoa and cook in 2:1 ratio with water for 15 minutes',
+          '7. Steam broccoli for 5-7 minutes until tender-crisp',
+          '8. Serve salmon over quinoa with steamed broccoli on the side'
+        ];
+      } else {
+        return [
+          '1. Season salmon fillets with salt and pepper',
+          '2. Heat oil in a pan over medium-high heat',
+          '3. Cook salmon for 4-5 minutes per side',
+          '4. Serve with your choice of sides'
+        ];
+      }
+    } else if (name.includes('parfait') && name.includes('yogurt')) {
+      return [
+        '1. In tall glasses or bowls, start with a layer of Greek yogurt (about 1/3 cup)',
+        '2. Add a layer of granola (about 2 tbsp)',
+        '3. Add a layer of mixed berries (about 2 tbsp)',
+        '4. Repeat layering: yogurt, granola, berries',
+        '5. Top with a final layer of yogurt',
+        '6. Drizzle with honey and garnish with fresh berries',
+        '7. Serve immediately for best texture'
+      ];
     } else if (name.includes('stir') && name.includes('fry')) {
       return [
         '1. Heat oil in a large wok or skillet over high heat',
@@ -933,38 +1062,39 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     
     // Common ingredients based on recipe name patterns
     if (name.includes('oatmeal') || name.includes('oats')) {
-      ingredients.push('Rolled oats', 'Milk', 'Salt');
-      if (name.includes('berries')) ingredients.push('Mixed berries');
-      if (name.includes('honey')) ingredients.push('Honey');
+      ingredients.push('1/2 cup rolled oats', '1 cup milk', '1 pinch salt');
+      if (name.includes('berries')) ingredients.push('1/2 cup mixed berries');
+      if (name.includes('honey')) ingredients.push('2 tbsp honey');
     } else if (name.includes('sandwich') || name.includes('sandwiches') || name.includes('wrap') || name.includes('wraps')) {
       // Base wrap/sandwich ingredients
       if (name.includes('wrap')) {
-        ingredients.push('Large flour tortilla', 'Lettuce leaves');
+        ingredients.push('2 large flour tortillas', '4 leaves lettuce');
       } else {
-        ingredients.push('Whole wheat bread', 'Lettuce');
+        ingredients.push('2 slices whole wheat bread', '2 leaves lettuce');
       }
       
       // Protein additions
-      if (name.includes('turkey')) ingredients.push('Sliced turkey breast', 'Mayo or mustard');
-      if (name.includes('ham')) ingredients.push('Ham slices', 'Swiss cheese');
-      if (name.includes('chicken')) ingredients.push('Grilled chicken breast', 'Mayo');
+      if (name.includes('turkey')) ingredients.push('6 oz sliced turkey breast', '2 tbsp mayo or mustard');
+      if (name.includes('ham')) ingredients.push('4 oz ham slices', '2 slices Swiss cheese');
+      if (name.includes('chicken')) ingredients.push('1 grilled chicken breast', '2 tbsp mayo');
       
       // Vegetable additions
-      if (name.includes('avocado')) ingredients.push('Fresh avocado', 'Lime juice', 'Salt', 'Pepper');
-      if (name.includes('tomato')) ingredients.push('Tomato slices');
-      if (name.includes('cucumber')) ingredients.push('Cucumber slices');
+      if (name.includes('avocado')) ingredients.push('1 fresh avocado', '1 tsp lime juice', '1 pinch salt', '1 pinch pepper');
+      if (name.includes('tomato')) ingredients.push('2 tomato slices');
+      if (name.includes('cucumber')) ingredients.push('4 cucumber slices');
       if (name.includes('vegetables') || name.includes('fresh')) {
-        ingredients.push('Cucumber slices', 'Tomato slices', 'Red onion', 'Bell pepper strips');
+        ingredients.push('4 cucumber slices', '2 tomato slices', '2 red onion slices', '1/4 cup bell pepper strips');
       }
       
       // Cheese additions
       if (name.includes('cheese') && !ingredients.some(ing => ing.includes('cheese'))) {
-        ingredients.push('Cheese slices');
+        ingredients.push('2 slices cheese');
       }
     } else if (name.includes('yogurt')) {
-      ingredients.push('Greek yogurt');
-      if (name.includes('granola')) ingredients.push('Granola');
-      if (name.includes('berries')) ingredients.push('Mixed berries');
+      ingredients.push('1 cup Greek yogurt');
+      if (name.includes('granola')) ingredients.push('1/2 cup granola');
+      if (name.includes('berries')) ingredients.push('1/2 cup mixed berries');
+      if (name.includes('honey')) ingredients.push('2 tbsp honey');
     } else if (name.includes('toast')) {
       // Toast-based dishes
       if (name.includes('whole grain') || name.includes('wholegrain')) {
@@ -992,13 +1122,14 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       if (name.includes('baked')) ingredients.push('Olive oil', 'Salt', 'Pepper');
       if (name.includes('caesar')) ingredients.push('Romaine lettuce', 'Caesar dressing');
     } else if (name.includes('salmon')) {
-      ingredients.push('Salmon fillet', 'Olive oil', 'Lemon');
-      if (name.includes('rice')) ingredients.push('Brown rice');
-      if (name.includes('broccoli')) ingredients.push('Fresh broccoli');
+      ingredients.push('4 salmon fillets (6 oz each)', '2 tbsp olive oil', '1 lemon', '1 tsp salt', '1/2 tsp black pepper');
+      if (name.includes('rice')) ingredients.push('1 cup brown rice');
+      if (name.includes('broccoli')) ingredients.push('2 cups fresh broccoli florets');
+      if (name.includes('quinoa')) ingredients.push('1 cup quinoa');
     } else if (name.includes('quinoa')) {
-      ingredients.push('Quinoa');
-      if (name.includes('chickpeas')) ingredients.push('Chickpeas');
-      if (name.includes('bowls')) ingredients.push('Mixed vegetables');
+      ingredients.push('1 cup quinoa', '2 cups water');
+      if (name.includes('chickpeas')) ingredients.push('1 can chickpeas (15 oz)');
+      if (name.includes('bowls')) ingredients.push('2 cups mixed vegetables');
     } else if (name.includes('stir') && name.includes('fry')) {
       ingredients.push('Mixed vegetables', 'Soy sauce', 'Garlic', 'Ginger');
       if (name.includes('beef')) ingredients.push('Beef strips');
@@ -1137,7 +1268,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
   };
 
   // Extract single recipe from text (simplified parsing for single recipe content)
-  const extractSingleRecipeFromText = (text) => {
+  const extractSingleRecipeFromText = async (text) => {
     const lines = text.split('\n');
     let recipeName = '';
     let ingredients = [];
@@ -1236,10 +1367,12 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       }
     }
     
-    // If still no ingredients found, try to infer from recipe name
+    // If still no ingredients found, use AI to generate them
     if (ingredients.length === 0 && recipeName) {
-      ingredients = inferIngredientsFromRecipeName(recipeName);
-      console.log('🔍 Inferred ingredients from recipe name:', ingredients);
+      console.log('🤖 Using AI to generate ingredients for:', recipeName);
+      const aiRecipe = await generateDetailedRecipeWithAI(recipeName);
+      ingredients = aiRecipe.ingredients;
+      console.log('🔍 AI generated ingredients:', ingredients);
     }
     
     // If instructions are too brief (only headers), scan for detailed steps
@@ -1297,7 +1430,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
   };
 
   // Extract multiple recipes from a meal plan
-  const extractMealPlanRecipes = (text) => {
+  const extractMealPlanRecipes = async (text) => {
     const recipes = [];
     const lines = text.split('\n');
     let currentRecipe = null;
@@ -1339,7 +1472,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     // If this looks like a single recipe, use simpler parsing
     if (!isTrueMealPlan) {
       console.log('📝 Content appears to be a single recipe, using simplified parsing...');
-      return extractSingleRecipeFromText(text);
+      return await extractSingleRecipeFromText(text);
     }
     
     console.log('📅 Content appears to be a multi-day meal plan, using full parsing...');
@@ -1392,11 +1525,15 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
         if (match) {
           // Save previous recipe if exists
           if (currentRecipe && currentRecipe.title) {
-            if (currentRecipe.ingredients.length === 0) {
-              currentRecipe.ingredients = inferIngredientsFromRecipeName(currentRecipe.title);
-            }
-            if (currentRecipe.instructions.length === 0) {
-              currentRecipe.instructions = generateInstructionsFromRecipeName(currentRecipe.title);
+            if (currentRecipe.ingredients.length === 0 || currentRecipe.instructions.length === 0) {
+              console.log('🤖 Generating AI recipe for:', currentRecipe.title);
+              const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
+              if (currentRecipe.ingredients.length === 0) {
+                currentRecipe.ingredients = aiRecipe.ingredients;
+              }
+              if (currentRecipe.instructions.length === 0) {
+                currentRecipe.instructions = aiRecipe.instructions;
+              }
             }
             console.log('💾 Saving recipe:', currentRecipe.title, 
                        `(${currentRecipe.ingredients.length} ingredients)`);
@@ -1449,11 +1586,15 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       if (captureNextAsRecipeName && line && !line.match(/^(Ingredients?|Instructions?|Directions?|Method|Grocery|Shopping)/i)) {
         // Save previous recipe
         if (currentRecipe && currentRecipe.title) {
-          if (currentRecipe.ingredients.length === 0) {
-            currentRecipe.ingredients = inferIngredientsFromRecipeName(currentRecipe.title);
-          }
-          if (currentRecipe.instructions.length === 0) {
-            currentRecipe.instructions = generateInstructionsFromRecipeName(currentRecipe.title);
+          if (currentRecipe.ingredients.length === 0 || currentRecipe.instructions.length === 0) {
+            console.log('🤖 Generating AI recipe for:', currentRecipe.title);
+            const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
+            if (currentRecipe.ingredients.length === 0) {
+              currentRecipe.ingredients = aiRecipe.ingredients;
+            }
+            if (currentRecipe.instructions.length === 0) {
+              currentRecipe.instructions = aiRecipe.instructions;
+            }
           }
           recipes.push(currentRecipe);
         }
@@ -1619,14 +1760,16 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     
     // Save the last recipe
     if (currentRecipe && currentRecipe.title) {
-      // Add default content if missing
-      if (currentRecipe.ingredients.length === 0) {
-        console.log('⚠️ No ingredients found for:', currentRecipe.title, '- using inference');
-        currentRecipe.ingredients = inferIngredientsFromRecipeName(currentRecipe.title);
-      }
-      
-      if (currentRecipe.instructions.length === 0) {
-        currentRecipe.instructions = generateInstructionsFromRecipeName(currentRecipe.title);
+      // Add AI-generated content if missing
+      if (currentRecipe.ingredients.length === 0 || currentRecipe.instructions.length === 0) {
+        console.log('🤖 Generating AI recipe for final recipe:', currentRecipe.title);
+        const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
+        if (currentRecipe.ingredients.length === 0) {
+          currentRecipe.ingredients = aiRecipe.ingredients;
+        }
+        if (currentRecipe.instructions.length === 0) {
+          currentRecipe.instructions = aiRecipe.instructions;
+        }
       }
       
       console.log('💾 Saving final recipe:', currentRecipe.title, 
@@ -2415,10 +2558,30 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
 
     console.log('🛒 Adding recipe to cart:', recipe.title);
     console.log('🥕 Recipe ingredients:', recipe.ingredients);
+    
+    // Debug: Check if ingredients need conversion
+    const hasObjectIngredients = recipe.ingredients.some(ing => typeof ing === 'object');
+    console.log('🔍 Has object ingredients:', hasObjectIngredients);
 
     try {
-      // Convert ingredients array to text format
-      const ingredientsText = recipe.ingredients.join('\n');
+      // Convert ingredients array to text format, handling both string and object formats
+      const ingredientsText = recipe.ingredients.map(ingredient => {
+        if (typeof ingredient === 'string') {
+          return ingredient;
+        }
+        // Handle structured ingredient objects
+        if (ingredient.original) {
+          return ingredient.original;
+        }
+        if (ingredient.quantity && ingredient.unit && ingredient.item) {
+          return `${ingredient.quantity} ${ingredient.unit} ${ingredient.item}`;
+        }
+        if (ingredient.item) {
+          return ingredient.item;
+        }
+        // Fallback to string representation
+        return String(ingredient);
+      }).join('\n');
       
       // Use the same API endpoint as regular grocery list parsing
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
@@ -2443,17 +2606,15 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
         // Update the cart with new items
         setCurrentCart(data.cart);
         
-        const addedCount = data.cart.filter(item => 
-          recipe.ingredients.some(ingredient => 
-            ingredient.toLowerCase().includes(item.productName.toLowerCase().split(' ')[0])
-          )
-        ).length;
+        // Count added items - use the parsed count from the API response if available
+        const addedCount = data.parsedCount || recipe.ingredients.length;
         
         alert(`✅ Added ${addedCount} ingredients from "${recipe.title}" to your cart!`);
         
         console.log(`✅ Successfully added ${addedCount} items to cart from recipe:`, recipe.title);
       } else {
-        throw new Error('Failed to parse recipe ingredients');
+        console.error('API Response:', data);
+        throw new Error(data.error || 'Failed to parse recipe ingredients');
       }
     } catch (error) {
       console.error('❌ Error adding recipe to cart:', error);
@@ -3031,15 +3192,13 @@ Or paste any grocery list directly!"
               {(parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) || recipes.some(r => r.mealType || r.tags?.includes('meal plan'))) ? 
                 '📋 Meal Plan Ideas' : '🍳 Recipes Found'}
             </h3>
-            {(parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) || recipes.some(r => r.mealType || r.tags?.includes('meal plan'))) && (
-              <button
-                style={styles.collapseButton}
-                onClick={handleCollapseExpandAll}
-                title={mealPlanExpanded ? "Collapse all recipe details" : "Expand all recipe details"}
-              >
-                {mealPlanExpanded ? '▼ Collapse All' : '▶ Expand All'}
-              </button>
-            )}
+            <button
+              style={styles.collapseButton}
+              onClick={handleCollapseExpandAll}
+              title={mealPlanExpanded ? "Collapse all recipe details" : "Expand all recipe details"}
+            >
+              {mealPlanExpanded ? '▼ Collapse All' : '▶ Expand All'}
+            </button>
           </div>
           
           {/* Always show recipe cards with individual expansion control */}
