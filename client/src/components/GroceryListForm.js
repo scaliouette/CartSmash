@@ -172,6 +172,7 @@ function GroceryListForm({
   const [showProgress, setShowProgress] = useState(false);
   const [ingredientStyle, setIngredientStyle] = useState('basic');
   const [selectedAI] = useState('claude');
+  const [mealPlanExpanded, setMealPlanExpanded] = useState(true);
   // eslint-disable-next-line no-unused-vars
   const [recipes, setRecipes] = useState([]);
   const [waitingForAIResponse, setWaitingForAIResponse] = useState(false);
@@ -387,134 +388,63 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
           const aiData = await aiResponse.json();
           console.log('AI response received, checking structure...');
           
-          // Extract the response text using our helper function
-          const aiResponseText = extractAIResponseText(aiData);
-          
-          if (aiResponseText) {
-            console.log('AI response text found, length:', aiResponseText.length);
+          // 🎯 NEW: Use structured data directly from AI instead of manual parsing
+          if (aiData.structuredData && aiData.recipes) {
+            console.log('🎉 Using AI-generated structured data:', aiData.structuredData.type);
+            console.log(`📊 Found ${aiData.recipes.length} recipes and ${aiData.products.length} products`);
             
-            // Parse and store recipes from AI response BEFORE extracting grocery list
-            // Priority 1: Check for meal plan format first
-            console.log('🔍 Checking for meal plan format...');
-            console.log('📄 AI Response Preview (first 500 chars):', aiResponseText.substring(0, 500));
-            console.log('📄 AI Response Full Length:', aiResponseText.length);
-            
-            const mealPlanData = extractMealPlanRecipes(aiResponseText);
-            console.log('🍽️ Meal plan parsing result:', {
-              isMealPlan: mealPlanData.isMealPlan,
-              recipeCount: mealPlanData.recipes.length,
-              totalRecipes: mealPlanData.totalRecipes
-            });
-            
-            // Enhanced debugging for each recipe
-            mealPlanData.recipes.forEach((recipe, index) => {
-              console.log(`🔍 Recipe ${index + 1} Debug:`, {
-                title: recipe.title,
-                ingredients: recipe.ingredients?.length || 0,
-                instructions: recipe.instructions?.length || 0,
-                mealType: recipe.mealType,
-                day: recipe.day,
-                ingredientsPreview: recipe.ingredients?.slice(0, 2),
-                instructionsPreview: recipe.instructions?.slice(0, 1)
-              });
-            });
-            
-            if (mealPlanData.recipes.length > 0) {
-              console.log(`📝 Found ${mealPlanData.recipes.length} meal plan recipes`);
-              console.log('📋 Recipe titles:', mealPlanData.recipes.map(r => r.title));
+            // Store structured recipes directly (no parsing needed!)
+            if (aiData.recipes.length > 0) {
+              console.log('📝 Setting structured recipes from AI:', aiData.recipes.map(r => r.name));
+              setRecipes(aiData.recipes);
               
-              // Validate recipes have content before setting
-              const validRecipes = mealPlanData.recipes.filter(recipe => {
-                const hasTitle = recipe.title && recipe.title.trim().length > 0;
-                const hasContent = (recipe.ingredients && recipe.ingredients.length > 0) || 
-                                 (recipe.instructions && recipe.instructions.length > 0);
-                
-                if (!hasContent) {
-                  console.log(`⚠️ Recipe "${recipe.title}" has no content, adding fallback...`);
-                  // Add fallback content
-                  if (!recipe.ingredients || recipe.ingredients.length === 0) {
-                    recipe.ingredients = inferIngredientsFromRecipeName(recipe.title);
-                  }
-                  if (!recipe.instructions || recipe.instructions.length === 0) {
-                    recipe.instructions = [`Prepare ${recipe.title} according to your preferred cooking method.`];
-                  }
-                }
-                
-                return hasTitle;
-              });
-              
-              console.log(`✅ Validated ${validRecipes.length} recipes with content`);
-              
-              // Transform to unified format for compatibility
-              const unifiedRecipes = transformToUnifiedFormat(validRecipes);
-              console.log('🔄 Transformed recipes to unified format:', unifiedRecipes.length);
-              
-              setParsedRecipes(unifiedRecipes);
-              console.log('✅ Set parsed recipes state with meal plan data in unified format');
-            } else {
-              // Priority 2: Fall back to individual recipe parsing
-              console.log('🔍 No meal plan found, trying individual recipe parsing...');
-              const foundRecipes = parseAIRecipes(aiResponseText);
-              console.log('🍲 Individual recipe parsing result:', foundRecipes.length);
-              
-              if (foundRecipes.length > 0) {
-                console.log(`📝 Found ${foundRecipes.length} individual recipes in AI response`);
-                console.log('📋 Individual recipe titles:', foundRecipes.map(r => r.title || r.name));
-                
-                // Ensure individual recipes have content too
-                const validIndividualRecipes = foundRecipes.map(recipe => {
-                  if (!recipe.ingredients || recipe.ingredients.length === 0) {
-                    recipe.ingredients = inferIngredientsFromRecipeName(recipe.title || recipe.name);
-                  }
-                  if (!recipe.instructions || recipe.instructions.length === 0) {
-                    recipe.instructions = generateInstructionsFromRecipeName(recipe.title || recipe.name);
-                  }
-                  return recipe;
+              // Enhanced debugging for each recipe
+              aiData.recipes.forEach((recipe, index) => {
+                console.log(`🔍 Recipe ${index + 1} Debug:`, {
+                  name: recipe.name,
+                  ingredients: recipe.ingredients?.length || 0,
+                  instructions: recipe.instructions?.length || 0,
+                  servings: recipe.servings,
+                  prepTime: recipe.prepTime,
+                  ingredientsPreview: recipe.ingredients?.slice(0, 2),
+                  instructionsPreview: recipe.instructions?.slice(0, 1)
                 });
-                
-                // Transform individual recipes to unified format
-                const unifiedIndividualRecipes = transformToUnifiedFormat(validIndividualRecipes);
-                console.log('🔄 Transformed individual recipes to unified format:', unifiedIndividualRecipes.length);
-                
-                setParsedRecipes(unifiedIndividualRecipes);
-                console.log('✅ Set parsed recipes state with individual recipes in unified format');
-              } else {
-                console.log('❌ No recipes found in AI response');
-                console.log('🔍 Response contains keywords check:', {
-                  hasBreakfast: aiResponseText.toLowerCase().includes('breakfast'),
-                  hasLunch: aiResponseText.toLowerCase().includes('lunch'),
-                  hasDinner: aiResponseText.toLowerCase().includes('dinner'),
-                  hasDay: aiResponseText.toLowerCase().includes('day '),
-                  hasRecipe: aiResponseText.toLowerCase().includes('recipe'),
-                  hasMealPlan: aiResponseText.toLowerCase().includes('meal plan'),
-                  hasIngredients: aiResponseText.toLowerCase().includes('ingredients'),
-                  hasInstructions: aiResponseText.toLowerCase().includes('instructions')
-                });
-                
-                // Emergency fallback - try to create simple recipes from any food-related content
-                console.log('🚨 Attempting emergency recipe extraction...');
-                const emergencyRecipes = createEmergencyRecipes(aiResponseText);
-                if (emergencyRecipes.length > 0) {
-                  console.log(`🆘 Created ${emergencyRecipes.length} emergency recipes`);
-                  
-                  // Transform emergency recipes to unified format  
-                  const unifiedEmergencyRecipes = transformToUnifiedFormat(emergencyRecipes);
-                  console.log('🔄 Transformed emergency recipes to unified format:', unifiedEmergencyRecipes.length);
-                  
-                  setParsedRecipes(unifiedEmergencyRecipes);
-                } else {
-                  console.log('💀 Complete recipe extraction failure');
-                }
-              }
+              });
             }
             
-            // IMPORTANT: Extract only grocery list items for the textarea (not the full meal plan)
-            const cleanGroceryList = extractGroceryListOnly(aiResponseText);
-            setInputText(cleanGroceryList);
-            
-            // Also update via ref as a backup
-            if (textareaRef.current) {
-              textareaRef.current.value = cleanGroceryList;
+            // 🎯 Use structured products directly from AI (no manual parsing!)
+            if (aiData.products && aiData.products.length > 0) {
+              console.log(`📦 Using ${aiData.products.length} AI-generated products directly`);
+              
+              // Convert structured products to grocery list format
+              const groceryItems = aiData.products.map(product => {
+                const quantity = product.quantity || '1';
+                const unit = product.unit ? ` ${product.unit}` : '';
+                const name = product.productName || product.name;
+                return `• ${quantity}${unit} ${name}`;
+              });
+              
+              const groceryListText = groceryItems.join('\n');
+              setInputText(groceryListText);
+              
+              // Also update via ref as a backup
+              if (textareaRef.current) {
+                textareaRef.current.value = groceryListText;
+              }
+              
+              console.log('✅ Set grocery list from structured AI data');
+            } else {
+              console.log('⚠️ No products found in structured data, checking fallback...');
+              
+              // Fallback to legacy groceryList format if available
+              if (aiData.groceryList && aiData.groceryList.length > 0) {
+                const fallbackList = aiData.groceryList.map(item => `• ${item}`).join('\n');
+                setInputText(fallbackList);
+                if (textareaRef.current) {
+                  textareaRef.current.value = fallbackList;
+                }
+                console.log('✅ Used fallback grocery list format');
+              }
             }
             
             // Trigger textarea auto-expansion after content is loaded
@@ -539,12 +469,47 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
               console.log('Input text updated to:', inputText.substring(0, 50) + '...');
             }, 100);
             
-            // Exit here - user needs to review and hit CARTSMASH again
-            return;
           } else {
-            console.error('No response text found in AI data:', Object.keys(aiData));
-            throw new Error('AI response was empty');
+            // Fallback for non-structured responses (legacy support)
+            console.log('⚠️ No structured data found, using legacy text parsing...');
+            
+            // Extract the response text using our helper function
+            const aiResponseText = extractAIResponseText(aiData);
+            
+            if (aiResponseText) {
+              // Basic text extraction for grocery list
+              const cleanGroceryList = extractGroceryListOnly(aiResponseText);
+              setInputText(cleanGroceryList);
+              
+              if (textareaRef.current) {
+                textareaRef.current.value = cleanGroceryList;
+              }
+              console.log('✅ Used legacy text parsing fallback');
+            } else {
+              console.error('No usable response found in AI data:', Object.keys(aiData));
+              throw new Error('AI response was empty');
+            }
           }
+          
+          // Clear loading states but keep waitingForAIResponse true for next click
+          clearInterval(progressInterval);
+          clearTimeout(overlaySafety);
+          setIsLoading(false);
+          setShowProgress(false);
+          setParsingProgress(0);
+          // Keep waitingForAIResponse true so next click will parse to cart
+          
+          // Show success feedback
+          const successMessage = `✅ ${selectedAI === 'claude' ? 'Claude' : 'ChatGPT'} has generated your list! Review it and hit CARTSMASH to add items to cart.`;
+          console.log(successMessage);
+          
+          // Small delay to ensure state updates
+          setTimeout(() => {
+            console.log('Input text updated to:', inputText.substring(0, 50) + '...');
+          }, 100);
+          
+          // Exit here - user needs to review and hit CARTSMASH again
+          return;
         } catch (aiError) {
           console.error('AI request failed:', aiError);
           setError(`AI request failed: ${aiError.message}`);
@@ -2364,7 +2329,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
               }}
             >
               {isSaving ? (
-                <div style={styles.buttonContent}>
+                <div style={styles.buttonContentOriginal}>
                   <ButtonSpinner size={16} />
                   <span style={{ marginLeft: '8px' }}>Saving...</span>
                 </div>
@@ -2453,7 +2418,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
         
         <div style={styles.recipeContent}>
           {/* Recipe Metadata */}
-          <div style={styles.recipeMetadata}>
+          <div style={styles.recipeMetadataOriginal}>
             {servings && (
               <span style={styles.metaItem}>👥 Servings: {servings}</span>
             )}
@@ -2506,7 +2471,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
           
           {/* Tags */}
           {recipe.tags && recipe.tags.length > 0 && (
-            <div style={styles.recipeTags}>
+            <div style={styles.recipeTagsOriginal}>
               {recipe.tags.map((tag, idx) => (
                 <span key={idx} style={styles.tag}>{tag}</span>
               ))}
@@ -3124,21 +3089,59 @@ Or paste any grocery list directly!"
       {/* Display Parsed Recipes */}
       {parsedRecipes.length > 0 && (
         <div style={styles.recipesContainer}>
-          <h3 style={styles.recipesTitle}>
-            {parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) ? 
-              '📋 Meal Plan Ideas' : '🍳 Recipes Found'}
-          </h3>
-          {parsedRecipes.map((recipe, index) => (
-            <RecipeCard 
-              key={index} 
-              recipe={recipe} 
-              index={index}
-              onAddToCart={handleAddRecipeToCart}
-              onAddToLibrary={handleAddToRecipeLibrary}
-              onAddToMealPlan={handleAddToMealPlan}
-              onRemove={handleRemoveRecipe}
-            />
-          ))}
+          <div style={styles.recipesHeader}>
+            <h3 style={styles.recipesTitle}>
+              {parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) ? 
+                '📋 Meal Plan Ideas' : '🍳 Recipes Found'}
+            </h3>
+            {parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) && (
+              <button
+                style={styles.collapseButton}
+                onClick={() => setMealPlanExpanded(!mealPlanExpanded)}
+                title={mealPlanExpanded ? "Collapse to recipe list" : "Expand to show full recipes"}
+              >
+                {mealPlanExpanded ? '▼ Collapse All' : '▶ Expand All'}
+              </button>
+            )}
+          </div>
+          
+          {mealPlanExpanded ? (
+            // Full recipe cards when expanded
+            parsedRecipes.map((recipe, index) => (
+              <RecipeCard 
+                key={index} 
+                recipe={recipe} 
+                index={index}
+                onAddToCart={handleAddRecipeToCart}
+                onAddToLibrary={handleAddToRecipeLibrary}
+                onAddToMealPlan={handleAddToMealPlan}
+                onRemove={handleRemoveRecipe}
+              />
+            ))
+          ) : (
+            // Compact recipe list when collapsed
+            <div style={styles.compactRecipeList}>
+              {parsedRecipes.map((recipe, index) => (
+                <div 
+                  key={index} 
+                  style={styles.compactRecipeItem}
+                  onClick={() => setMealPlanExpanded(true)}
+                >
+                  <span style={styles.recipeIcon}>{recipe.icon || '🍽️'}</span>
+                  <span style={styles.recipeName}>{recipe.name || recipe.title || `Recipe ${index + 1}`}</span>
+                  {recipe.dayAssigned && (
+                    <span style={styles.recipeDay}>({recipe.dayAssigned})</span>
+                  )}
+                  {recipe.mealTypePlanning && (
+                    <span style={styles.recipeMealType}>- {recipe.mealTypePlanning}</span>
+                  )}
+                </div>
+              ))}
+              <div style={styles.expandHint}>
+                Click any recipe or "Expand All" to see full details
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -3209,7 +3212,7 @@ Or paste any grocery list directly!"
                   <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" fill="currentColor"/>
                 </svg>
               </div>
-              <div style={styles.buttonContent}>
+              <div style={styles.buttonContentOriginal}>
                 <div style={styles.buttonTitle}>CARTSMASH to Instacart</div>
                 <div style={styles.buttonSubtitle}>
                   Send {currentCart.length} items to your Instacart cart
@@ -3647,7 +3650,7 @@ const styles = {
     flexShrink: 0
   },
 
-  buttonContent: {
+  buttonContentOriginal: {
     flex: 1,
     textAlign: 'left'
   },
@@ -3723,6 +3726,89 @@ const styles = {
     textAlign: 'center'
   },
 
+  recipesHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+    flexWrap: 'wrap',
+    gap: '10px'
+  },
+
+  collapseButton: {
+    background: 'linear-gradient(135deg, #4A90E2 0%, #2171b5 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '8px 16px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 2px 6px rgba(74, 144, 226, 0.3)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
+
+  compactRecipeList: {
+    background: '#f8f9fa',
+    borderRadius: '8px',
+    padding: '16px',
+    border: '1px solid #e9ecef'
+  },
+
+  compactRecipeItem: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '12px 16px',
+    marginBottom: '8px',
+    backgroundColor: 'white',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    border: '1px solid #e9ecef',
+    gap: '8px',
+    ':hover': {
+      backgroundColor: '#f0f7ff',
+      borderColor: '#4A90E2',
+      transform: 'translateX(4px)',
+      boxShadow: '0 2px 8px rgba(74, 144, 226, 0.2)'
+    }
+  },
+
+  recipeIcon: {
+    fontSize: '18px',
+    minWidth: '24px'
+  },
+
+  recipeName: {
+    fontWeight: '600',
+    color: '#002244',
+    flex: 1
+  },
+
+  recipeDay: {
+    fontSize: '12px',
+    color: '#6c757d',
+    fontWeight: '500'
+  },
+
+  recipeMealType: {
+    fontSize: '12px',
+    color: '#28a745',
+    fontWeight: '500'
+  },
+
+  expandHint: {
+    textAlign: 'center',
+    color: '#6c757d',
+    fontSize: '14px',
+    fontStyle: 'italic',
+    marginTop: '12px',
+    padding: '8px'
+  },
+
   recipeCard: {
     background: '#FFF5F2',
     borderRadius: '8px',
@@ -3785,7 +3871,7 @@ const styles = {
     marginBottom: '8px'
   },
 
-  recipeMetadata: {
+  recipeMetadataOriginal: {
     display: 'flex',
     gap: '20px',
     flexWrap: 'wrap',
@@ -3804,7 +3890,7 @@ const styles = {
     fontWeight: '500'
   },
 
-  recipeTags: {
+  recipeTagsOriginal: {
     color: '#002244',
     fontSize: '14px',
     fontStyle: 'italic'
@@ -4300,7 +4386,7 @@ const styles = {
     color: '#666'
   },
 
-  buttonContent: {
+  buttonContentExpanded: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px'
@@ -4354,7 +4440,7 @@ const styles = {
     color: '#002244'
   },
   
-  recipeMetadata: {
+  recipeMetadataExpanded: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: '12px',
@@ -4425,7 +4511,7 @@ const styles = {
     border: '1px solid #ffeaa7'
   },
   
-  recipeTags: {
+  recipeTagsExpanded: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: '6px',

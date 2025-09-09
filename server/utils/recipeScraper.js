@@ -71,24 +71,50 @@ function flattenInstructions(instr) {
 }
 
 // Prefer the most complete of multiple candidates
-function pickBestRecipe(candidates) {
+function pickBestRecipe(candidates, url = '') {
   if (!candidates.length) return null;
-  return candidates
-    .map((r) => ({
-      score:
+  
+  // Extract key terms from URL for context matching
+  const urlTerms = url.toLowerCase()
+    .replace(/[^\w\s-]/g, ' ')
+    .split(/[\s-]+/)
+    .filter(term => term.length > 2 && !['com', 'www', 'recipe', 'http', 'https'].includes(term));
+  
+  const scored = candidates
+    .map((r) => {
+      const recipeName = (r.name || '').toLowerCase();
+      
+      // URL context score - boost significantly if recipe name contains URL terms
+      const urlContextScore = urlTerms.reduce((score, term) => 
+        recipeName.includes(term) ? score + 50 : score, 0);
+      
+      const baseScore = 
         (r.recipeIngredient?.length || 0) * 2 +
         (flattenInstructions(r.recipeInstructions).length || 0) * 2 +
         (r.name ? 1 : 0) +
-        (r.totalTime ? 1 : 0),
-      r,
-    }))
-    .sort((a, b) => b.score - a.score)[0].r;
+        (r.totalTime ? 1 : 0);
+      
+      return {
+        score: baseScore + urlContextScore,
+        r,
+        debug: { recipeName, urlTerms, urlContextScore, baseScore }
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+    
+  // Debug logging to understand scoring
+  console.log(`📊 Recipe scoring for ${candidates.length} candidates:`);
+  scored.slice(0, 3).forEach((item, i) => {
+    console.log(`  ${i + 1}. "${item.debug.recipeName}" - Score: ${item.score} (base: ${item.debug.baseScore}, url: ${item.debug.urlContextScore})`);
+  });
+  
+  return scored[0].r;
 }
 
 // --- Extractors --------------------------------------------------------------
 
-// 1) JSON-LD (schema.org Recipe)
-function extractFromJSONLD($) {
+// 1) JSON-LD (schema.org Recipe)  
+function extractFromJSONLD($, url = '') {
   const candidates = [];
   $('script[type="application/ld+json"]').each((_, el) => {
     const json = tryParseJSON($(el).contents().text());
@@ -118,7 +144,7 @@ function extractFromJSONLD($) {
     });
   });
 
-  const chosen = pickBestRecipe(candidates);
+  const chosen = pickBestRecipe(candidates, url);
   if (!chosen) return null;
 
   const ingredients = uniq(
@@ -279,7 +305,7 @@ async function extractRecipe(url) {
     const html = await res.text();
     const $ = cheerio.load(html);
 
-    const byJSON = extractFromJSONLD($);
+    const byJSON = extractFromJSONLD($, url);
     if (byJSON?.ingredients?.length && byJSON?.steps?.length) {
       console.log(`✅ Recipe extracted via JSON-LD: ${byJSON.title}`);
       return byJSON;

@@ -196,55 +196,152 @@ router.post('/claude', async (req, res) => {
     let enhancedPrompt;
     
     if (wasRecipeScraped) {
-      // Full recipe display for scraped URLs
+      // Full recipe display for scraped URLs - structured JSON format
       enhancedPrompt = `${processedPrompt}
 
-Please display this recipe in a clear, organized format with:
-1. Recipe title and description
-2. Ingredients list with quantities
-3. Step-by-step instructions
-4. Cooking time, prep time, and servings if available
+Return a structured JSON response with complete recipe information:
 
-Format it nicely for easy reading and cooking.`;
+{
+  "recipes": [
+    {
+      "name": "Recipe Name",
+      "description": "Brief description",
+      "servings": 4,
+      "prepTime": "15 minutes",
+      "cookTime": "30 minutes",
+      "totalTime": "45 minutes",
+      "ingredients": [
+        {
+          "name": "ingredient name",
+          "quantity": "2",
+          "unit": "cups",
+          "notes": "optional preparation notes"
+        }
+      ],
+      "instructions": [
+        "Step 1: Detailed instruction",
+        "Step 2: Next step with timing and technique",
+        "Step 3: Continue with specific details"
+      ],
+      "tags": ["dinner", "italian", "pasta"],
+      "difficulty": "Easy"
+    }
+  ],
+  "type": "single_recipe"
+}
+
+IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
     } else if (isMealPlanning || isBudgetPlanning) {
-      // Detailed meal planning format
+      // Detailed meal planning format - structured JSON
       enhancedPrompt = `${processedPrompt}
 
-IMPORTANT: Provide a complete, detailed response without asking any questions or requesting clarification. You must deliver a full meal plan immediately.
+Return a structured JSON response with complete meal plan information:
 
-Create a comprehensive meal plan with:
+{
+  "type": "meal_plan",
+  "title": "7-Day Family Meal Plan",
+  "description": "Complete weekly meal plan with recipes and shopping list",
+  "servings": 4,
+  "days": [
+    {
+      "day": "Monday",
+      "date": "2024-01-01",
+      "meals": {
+        "breakfast": {
+          "name": "Scrambled Eggs with Toast",
+          "ingredients": [
+            {"name": "eggs", "quantity": "6", "unit": "large"},
+            {"name": "bread", "quantity": "4", "unit": "slices"},
+            {"name": "butter", "quantity": "2", "unit": "tablespoons"}
+          ],
+          "instructions": [
+            "Heat butter in pan",
+            "Scramble eggs until fluffy",
+            "Toast bread until golden"
+          ]
+        },
+        "lunch": {
+          "name": "Greek Salad",
+          "ingredients": [
+            {"name": "lettuce", "quantity": "1", "unit": "head"},
+            {"name": "tomatoes", "quantity": "2", "unit": "large"},
+            {"name": "feta cheese", "quantity": "4", "unit": "oz"}
+          ],
+          "instructions": [
+            "Chop vegetables",
+            "Add feta cheese",
+            "Dress with olive oil"
+          ]
+        },
+        "dinner": {
+          "name": "Grilled Chicken with Vegetables",
+          "ingredients": [
+            {"name": "chicken breast", "quantity": "4", "unit": "pieces"},
+            {"name": "bell peppers", "quantity": "2", "unit": "large"},
+            {"name": "zucchini", "quantity": "1", "unit": "medium"}
+          ],
+          "instructions": [
+            "Season chicken with salt and pepper",
+            "Grill chicken 6-8 minutes per side",
+            "Grill vegetables until tender"
+          ]
+        }
+      }
+    }
+  ],
+  "shoppingList": {
+    "produce": [
+      {"name": "lettuce", "quantity": "1", "unit": "head"},
+      {"name": "tomatoes", "quantity": "14", "unit": "large"}
+    ],
+    "proteins": [
+      {"name": "chicken breast", "quantity": "28", "unit": "pieces"},
+      {"name": "eggs", "quantity": "2", "unit": "dozen"}
+    ],
+    "dairy": [
+      {"name": "feta cheese", "quantity": "1", "unit": "container"},
+      {"name": "butter", "quantity": "1", "unit": "stick"}
+    ],
+    "pantry": [
+      {"name": "bread", "quantity": "2", "unit": "loaves"},
+      {"name": "olive oil", "quantity": "1", "unit": "bottle"}
+    ]
+  },
+  "totalEstimatedCost": "$85-95"
+}
 
-1. **COMPLETE DAILY MEAL PLAN** - List every day requested with specific meals:
-   - Day 1 (Monday): Breakfast: [specific meal], Lunch: [specific meal], Dinner: [specific meal], Snacks: [items]
-   - Day 2 (Tuesday): Breakfast: [specific meal], Lunch: [specific meal], Dinner: [specific meal], Snacks: [items]
-   - Continue for all requested days
-
-2. **DETAILED RECIPES** for each meal with:
-   - Ingredients list with exact quantities
-   - Step-by-step cooking instructions
-   - Prep/cook times and servings
-
-3. **COMPLETE GROCERY SHOPPING LIST** organized by store sections:
-   - Produce: [specific items with quantities]
-   - Proteins & Dairy: [specific items with quantities]
-   - Grains & Bakery: [specific items with quantities]
-   - Pantry Items: [specific items with quantities]
-
-4. **TOTAL ESTIMATED COST** and money-saving tips
-
-DO NOT ask what the user wants to prioritize. DO NOT ask for clarification. Provide the complete meal plan immediately with all details included.`;
+IMPORTANT: Return ONLY the JSON object, no additional text. Generate complete details for ALL requested days with specific ingredients and quantities.`;
     } else {
-      // Regular grocery list format
+      // Regular grocery list or simple recipe format - structured JSON
       enhancedPrompt = `${processedPrompt}
 
-Please provide a detailed response and then include a clear, specific grocery shopping list with quantities. Format grocery items as bulleted list with specific quantities:
+Return a structured JSON response. If this is a recipe request, return:
 
-• 2 lbs boneless chicken breast
-• 1 gallon whole milk  
-• 3 large bell peppers
-• 1 bag (16 oz) quinoa
+{
+  "type": "recipe_list",
+  "recipes": [
+    {
+      "name": "Recipe Name",
+      "ingredients": [
+        {"name": "ingredient", "quantity": "2", "unit": "cups"}
+      ],
+      "instructions": ["Step 1", "Step 2"]
+    }
+  ]
+}
 
-Focus on specific, measurable items that can be purchased at a grocery store. Avoid meal descriptions, cooking instructions, or generic terms.`;
+If this is a grocery list request, return:
+
+{
+  "type": "grocery_list",
+  "items": [
+    {"name": "boneless chicken breast", "quantity": "2", "unit": "lbs"},
+    {"name": "whole milk", "quantity": "1", "unit": "gallon"},
+    {"name": "bell peppers", "quantity": "3", "unit": "large"}
+  ]
+}
+
+IMPORTANT: Return ONLY the JSON object with specific, measurable items and quantities.`;
     }
     
     let responseText, usage, model;
@@ -289,60 +386,138 @@ Focus on specific, measurable items that can be purchased at a grocery store. Av
       }
     }
     
-    // 🚀 INTELLIGENT PARSING with caching and token limits
-    const MAX_PARSING_CHARS = 10000; // Skip AI parsing for extremely long inputs
-    let parsingResults;
+    // 🚀 STRUCTURED JSON PARSING - AI generates complete structured data
+    console.log('🎯 Processing AI-generated structured response...');
     
-    if (responseText.length > MAX_PARSING_CHARS) {
-      console.log(`🚫 Skipping AI parsing - text too long (${responseText.length} chars > ${MAX_PARSING_CHARS})`);
-      parsingResults = {
-        products: [],
-        totalCandidates: 0,
-        validProducts: 0,
-        averageConfidence: 0
-      };
-    } else {
-      console.log('🎯 Starting intelligent product parsing...');
-      
-      // Check cache first
-      const cacheKey = getCacheKey(responseText + (context || '') + String(isMealPlanning || isBudgetPlanning));
-      const cachedResult = getCachedResult(cacheKey);
-      
-      if (cachedResult) {
-        console.log('💾 Using cached parsing results');
-        parsingResults = cachedResult;
-      } else {
-        // Determine parsing mode based on content complexity and confidence requirements
-        const shouldUseLiteMode = responseText.length > 5000 || options.liteMode === true;
+    let structuredData = null;
+    let products = [];
+    let recipes = [];
+    
+    try {
+      // Try to parse JSON response from AI
+      const trimmedResponse = responseText.trim();
+      if (trimmedResponse.startsWith('{') && trimmedResponse.endsWith('}')) {
+        structuredData = JSON.parse(trimmedResponse);
+        console.log(`✅ Successfully parsed structured JSON response: ${structuredData.type}`);
         
-        // Parse with AI and cache the result
-        parsingResults = await productParser.parseGroceryProducts(responseText, {
-          context: context,
-          strictMode: (isMealPlanning || isBudgetPlanning) ? false : (options.strictMode !== false),
-          liteMode: shouldUseLiteMode,
-          confidenceThreshold: shouldUseLiteMode ? 0.3 : 0.2 // Lower thresholds to preserve more items
-        });
-        setCacheResult(cacheKey, parsingResults);
-        console.log(`💾 Cached parsing results (${shouldUseLiteMode ? 'lite' : 'full'} mode)`);
+        // Extract products/ingredients based on response type
+        if (structuredData.type === 'single_recipe' && structuredData.recipes) {
+          recipes = structuredData.recipes;
+          // Convert recipe ingredients to products for cart
+          structuredData.recipes.forEach(recipe => {
+            recipe.ingredients.forEach(ingredient => {
+              products.push({
+                productName: ingredient.name,
+                quantity: ingredient.quantity || '1',
+                unit: ingredient.unit || '',
+                notes: ingredient.notes || '',
+                confidence: 1.0,
+                source: 'ai_recipe'
+              });
+            });
+          });
+        } else if (structuredData.type === 'meal_plan' && structuredData.shoppingList) {
+          recipes = []; // Extract recipes from days
+          structuredData.days?.forEach(day => {
+            Object.values(day.meals || {}).forEach(meal => {
+              if (meal.name && meal.ingredients) {
+                recipes.push({
+                  name: meal.name,
+                  ingredients: meal.ingredients,
+                  instructions: meal.instructions || [],
+                  mealType: 'meal_plan_item'
+                });
+              }
+            });
+          });
+          
+          // Convert shopping list to products
+          Object.values(structuredData.shoppingList || {}).forEach(category => {
+            if (Array.isArray(category)) {
+              category.forEach(item => {
+                products.push({
+                  productName: item.name,
+                  quantity: item.quantity || '1',
+                  unit: item.unit || '',
+                  confidence: 1.0,
+                  source: 'ai_meal_plan'
+                });
+              });
+            }
+          });
+        } else if (structuredData.type === 'recipe_list' && structuredData.recipes) {
+          recipes = structuredData.recipes;
+          // Convert recipe ingredients to products
+          structuredData.recipes.forEach(recipe => {
+            recipe.ingredients?.forEach(ingredient => {
+              products.push({
+                productName: ingredient.name,
+                quantity: ingredient.quantity || '1',
+                unit: ingredient.unit || '',
+                confidence: 1.0,
+                source: 'ai_recipe_list'
+              });
+            });
+          });
+        } else if (structuredData.type === 'grocery_list' && structuredData.items) {
+          // Direct grocery list
+          structuredData.items.forEach(item => {
+            products.push({
+              productName: item.name,
+              quantity: item.quantity || '1',
+              unit: item.unit || '',
+              confidence: 1.0,
+              source: 'ai_grocery_list'
+            });
+          });
+        }
+        
+        console.log(`✅ Extracted ${products.length} products and ${recipes.length} recipes from structured data`);
+        
+      } else {
+        throw new Error('Response is not valid JSON format');
       }
+    } catch (parseError) {
+      console.log(`⚠️ JSON parsing failed: ${parseError.message}, falling back to text response`);
+      
+      // Fallback: treat as unstructured text (but this shouldn't happen with new prompts)
+      structuredData = {
+        type: 'text_fallback',
+        content: responseText
+      };
+      
+      // Basic text parsing for legacy support
+      const lines = responseText.split('\n');
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed.match(/^[•\-*]\s*(.+)/) || trimmed.match(/^\d+\.?\s*(.+)/)) {
+          const item = trimmed.replace(/^[•\-*\d\.]\s*/, '');
+          if (item.length > 3) {
+            products.push({
+              productName: item,
+              quantity: '1',
+              unit: '',
+              confidence: 0.8,
+              source: 'text_fallback'
+            });
+          }
+        }
+      });
     }
-    
-    // Generate parsing statistics
-    const parsingStats = productParser.getParsingStats(parsingResults);
-    
-    console.log(`✅ Intelligent parsing complete: ${parsingResults.products.length} validated products extracted`);
-    console.log(`📊 Parsing efficiency: ${parsingStats.processingMetrics.filteringEfficiency}`);
     
     res.json({
       success: true,
       response: responseText,
       
-      // 🎯 Enhanced Results
-      products: parsingResults.products,  // Only validated grocery products
-      parsingStats: parsingStats,
+      // 🎯 NEW: Direct structured data from AI
+      structuredData: structuredData,
+      recipes: recipes,
+      
+      // Products for cart (compatible with existing format)
+      products: products,
       
       // Legacy support
-      groceryList: parsingResults.products.map(p => 
+      groceryList: products.map(p => 
         `${p.quantity}${p.unit ? ' ' + p.unit : ''} ${p.productName}`
       ),
       
@@ -354,10 +529,10 @@ Focus on specific, measurable items that can be purchased at a grocery store. Av
       
       // Intelligence metrics
       intelligence: {
-        totalCandidates: parsingResults.totalCandidates,
-        validProducts: parsingResults.validProducts,
-        averageConfidence: parsingResults.averageConfidence,
-        filteringEfficiency: parsingStats.processingMetrics.filteringEfficiency
+        totalCandidates: products.length,
+        validProducts: products.length,
+        averageConfidence: products.reduce((sum, p) => sum + p.confidence, 0) / (products.length || 1),
+        structuredParsing: structuredData !== null
       }
     });
     
@@ -462,43 +637,121 @@ router.post('/chatgpt', async (req, res) => {
     let enhancedPrompt;
     
     if (wasRecipeScraped) {
-      // Full recipe display for scraped URLs
+      // Full recipe display for scraped URLs - structured JSON format
       enhancedPrompt = `${processedPrompt}
 
-Please display this recipe in a clear, organized format with:
-1. Recipe title and description
-2. Ingredients list with quantities
-3. Step-by-step instructions
-4. Cooking time, prep time, and servings if available
+Return a structured JSON response with complete recipe information:
 
-Format it nicely for easy reading and cooking.`;
+{
+  "recipes": [
+    {
+      "name": "Recipe Name",
+      "description": "Brief description",
+      "servings": 4,
+      "prepTime": "15 minutes",
+      "cookTime": "30 minutes",
+      "totalTime": "45 minutes",
+      "ingredients": [
+        {
+          "name": "ingredient name",
+          "quantity": "2",
+          "unit": "cups",
+          "notes": "optional preparation notes"
+        }
+      ],
+      "instructions": [
+        "Step 1: Detailed instruction",
+        "Step 2: Next step with timing and technique",
+        "Step 3: Continue with specific details"
+      ],
+      "tags": ["dinner", "italian", "pasta"],
+      "difficulty": "Easy"
+    }
+  ],
+  "type": "single_recipe"
+}
+
+IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
     } else if (isMealPlanning || isBudgetPlanning) {
-      // Detailed meal planning format
+      // Detailed meal planning format - structured JSON
       enhancedPrompt = `${processedPrompt}
 
-IMPORTANT: Provide a complete, detailed response without asking any questions or requesting clarification. You must deliver a full meal plan immediately.
+Return a structured JSON response with complete meal plan information:
 
-Create a comprehensive meal plan with:
+{
+  "type": "meal_plan",
+  "title": "7-Day Family Meal Plan",
+  "description": "Complete weekly meal plan with recipes and shopping list",
+  "servings": 4,
+  "days": [
+    {
+      "day": "Monday",
+      "date": "2024-01-01",
+      "meals": {
+        "breakfast": {
+          "name": "Scrambled Eggs with Toast",
+          "ingredients": [
+            {"name": "eggs", "quantity": "6", "unit": "large"},
+            {"name": "bread", "quantity": "4", "unit": "slices"},
+            {"name": "butter", "quantity": "2", "unit": "tablespoons"}
+          ],
+          "instructions": [
+            "Heat butter in pan",
+            "Scramble eggs until fluffy",
+            "Toast bread until golden"
+          ]
+        },
+        "lunch": {
+          "name": "Greek Salad",
+          "ingredients": [
+            {"name": "lettuce", "quantity": "1", "unit": "head"},
+            {"name": "tomatoes", "quantity": "2", "unit": "large"},
+            {"name": "feta cheese", "quantity": "4", "unit": "oz"}
+          ],
+          "instructions": [
+            "Chop vegetables",
+            "Add feta cheese",
+            "Dress with olive oil"
+          ]
+        },
+        "dinner": {
+          "name": "Grilled Chicken with Vegetables",
+          "ingredients": [
+            {"name": "chicken breast", "quantity": "4", "unit": "pieces"},
+            {"name": "bell peppers", "quantity": "2", "unit": "large"},
+            {"name": "zucchini", "quantity": "1", "unit": "medium"}
+          ],
+          "instructions": [
+            "Season chicken with salt and pepper",
+            "Grill chicken 6-8 minutes per side",
+            "Grill vegetables until tender"
+          ]
+        }
+      }
+    }
+  ],
+  "shoppingList": {
+    "produce": [
+      {"name": "lettuce", "quantity": "1", "unit": "head"},
+      {"name": "tomatoes", "quantity": "14", "unit": "large"}
+    ],
+    "proteins": [
+      {"name": "chicken breast", "quantity": "28", "unit": "pieces"},
+      {"name": "eggs", "quantity": "2", "unit": "dozen"}
+    ],
+    "dairy": [
+      {"name": "feta cheese", "quantity": "1", "unit": "container"},
+      {"name": "butter", "quantity": "1", "unit": "stick"}
+    ],
+    "pantry": [
+      {"name": "bread", "quantity": "2", "unit": "loaves"},
+      {"name": "olive oil", "quantity": "1", "unit": "bottle"}
+    ]
+  },
+  "totalEstimatedCost": "$85-95"
+}
 
-1. **COMPLETE DAILY MEAL PLAN** - List every day requested with specific meals:
-   - Day 1 (Monday): Breakfast: [specific meal], Lunch: [specific meal], Dinner: [specific meal], Snacks: [items]
-   - Day 2 (Tuesday): Breakfast: [specific meal], Lunch: [specific meal], Dinner: [specific meal], Snacks: [items]
-   - Continue for all requested days
-
-2. **DETAILED RECIPES** for each meal with:
-   - Ingredients list with exact quantities
-   - Step-by-step cooking instructions
-   - Prep/cook times and servings
-
-3. **COMPLETE GROCERY SHOPPING LIST** organized by store sections:
-   - Produce: [specific items with quantities]
-   - Proteins & Dairy: [specific items with quantities]
-   - Grains & Bakery: [specific items with quantities]
-   - Pantry Items: [specific items with quantities]
-
-4. **TOTAL ESTIMATED COST** and money-saving tips
-
-DO NOT ask what the user wants to prioritize. DO NOT ask for clarification. Provide the complete meal plan immediately with all details included.`;
+IMPORTANT: Return ONLY the JSON object, no additional text. Generate complete details for ALL requested days with specific ingredients and quantities.`;
     } else {
       // Regular grocery list format
       enhancedPrompt = `${processedPrompt}

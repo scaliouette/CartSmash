@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const { authMiddleware } = require('../middleware/authMiddleware');
+const { authenticateUser } = require('../middleware/auth');
 
 // Instacart API configuration
 const INSTACART_API_BASE = process.env.INSTACART_API_BASE || 'https://connect.instacart.com';
@@ -266,7 +266,7 @@ router.post('/search', async (req, res) => {
 });
 
 // POST /api/instacart/cart/create - Create cart and add items
-router.post('/cart/create', authMiddleware, async (req, res) => {
+router.post('/cart/create', authenticateUser, async (req, res) => {
   try {
     const { retailerId, zipCode, items, userId, metadata } = req.body;
     
@@ -518,7 +518,7 @@ function generateMockProducts(query, originalItem, retailerId) {
 }
 
 // GET /api/instacart/cart/:cartId/status - Get cart status (for webhook/polling)
-router.get('/cart/:cartId/status', authMiddleware, async (req, res) => {
+router.get('/cart/:cartId/status', authenticateUser, async (req, res) => {
   try {
     const { cartId } = req.params;
     

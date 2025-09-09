@@ -2039,7 +2039,7 @@ const modalStyles = {
     fontWeight: 'bold'
   },
 
-  itemsList: {
+  itemsListPreview: {
     maxHeight: '120px',
     overflowY: 'auto'
   },
@@ -2168,7 +2168,7 @@ function AddShoppingListModal({ onClose, onSave }) {
               <h4 style={modalStyles.previewTitle}>
                 Preview ({parsedItems.length} items)
               </h4>
-              <div style={modalStyles.itemsList}>
+              <div style={modalStyles.itemsListPreview}>
                 {parsedItems.slice(0, 5).map((item, index) => (
                   <div key={index} style={modalStyles.previewItem}>
                     • {item.productName}

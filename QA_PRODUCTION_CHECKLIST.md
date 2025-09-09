@@ -249,21 +249,47 @@
 
 ---
 
-## 9. 🧪 Specific Bug Regression Tests
+## 9. 🧪 AI-Driven Recipe Generation Standards
 **Status**: ⬜ Pass ⬜ Fail ⬜ N/A
 
-### Recipe Parsing Fix (Recent)
-- [ ] **Single Recipe Import** creates exactly 1 recipe (not 3)
-- [ ] **Section Headers** "Ingredients" and "Instructions" not treated as recipe names  
-- [ ] **Recipe Structure** ingredients and instructions properly organized
-- [ ] **URL Fallback** when URL import fails, AI processing works correctly
+### ⚡ NEW: Structured AI Integration (v2.0)
+- [ ] **No Manual Parsing** - AI generates complete structured JSON responses
+- [ ] **Complete Ingredient Lists** with quantities, units, and measurements
+- [ ] **Detailed Instructions** with step-by-step cooking methods
+- [ ] **Recipe Metadata** includes prep time, cook time, servings, difficulty
+- [ ] **Structured Data Validation** - JSON format parsing works correctly
 
-### Test Cases:
-- [ ] Import URL: `https://kitchenswagger.com/creamy-chicken-carbonara-recipe/`
-- [ ] Verify result: 1 recipe named "Creamy Chicken Carbonara"
-- [ ] Verify ingredients list populated correctly  
-- [ ] Verify instructions list populated correctly
-- [ ] Test with other single recipe content
+### Critical AI Quality Standards:
+- [ ] **"Black bean and sweet potato tacos"** generates 8+ ingredients (not just "Black", "Bean", "Sweet")
+- [ ] **"Greek yogurt parfait"** includes granola, berries, honey, nuts (not just "Greek yogurt")
+- [ ] **"Veggie omelet with toast"** includes eggs, vegetables, bread, butter (not just "Bread")
+- [ ] **Instructions** are detailed cooking steps (not generic "prepare according to method")
+- [ ] **Quantities** are specific (e.g., "2 cups", "1 tablespoon", "4 pieces")
+
+### Recipe Parsing Architecture:
+- [ ] **AI Prompt Design** requests structured JSON format
+- [ ] **Server Processing** parses JSON and extracts structured data
+- [ ] **Client Integration** uses structured data directly (no text parsing)
+- [ ] **Fallback Handling** graceful degradation for non-JSON responses
+- [ ] **Legacy Compatibility** maintains backwards compatibility with existing data
+
+### Test Cases - AI Quality Verification:
+- [ ] Generate recipe: "Chicken carbonara with pasta"
+  - Expected: 10+ ingredients including pasta, chicken, eggs, parmesan, bacon
+  - Expected: 8+ detailed cooking instructions
+  - Expected: Proper prep/cook times and servings
+- [ ] Generate meal plan: "7-day vegetarian meal plan for family of 4"
+  - Expected: 21+ complete recipes (3 meals × 7 days)
+  - Expected: Comprehensive shopping list with quantities
+  - Expected: Structured by meal type and day
+- [ ] Test ingredient quality: Each recipe should include ALL necessary ingredients
+  - ✅ PASS: Complete, cookable recipes
+  - ❌ FAIL: Missing ingredients or generic instructions
+
+### Legacy Bug Fixes (Maintained):
+- [ ] **Single Recipe Import** creates exactly 1 recipe (not 3)
+- [ ] **Section Headers** properly handled in structured format
+- [ ] **URL Fallback** works with AI processing when URL import fails
 
 **Notes**: ___________________
 

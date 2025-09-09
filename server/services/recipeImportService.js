@@ -62,11 +62,11 @@ class RecipeImportService {
       id: recipeId,
       title: scrapedData.title || 'Untitled Recipe',
       description: scrapedData.description || `Imported from ${new URL(sourceUrl).hostname}`,
-      servings: scrapedData.yield?.servings || 4,
-      prepTime: scrapedData.time?.prep_min || 0,
-      cookTime: scrapedData.time?.cook_min || 0,
-      totalTime: scrapedData.time?.total_min || 
-                 (scrapedData.time?.prep_min || 0) + (scrapedData.time?.cook_min || 0),
+      servings: this.parseServings(scrapedData.yields) || 4,
+      prepTime: this.parseTimeMinutes(scrapedData.prepTime) || 0,
+      cookTime: this.parseTimeMinutes(scrapedData.cookTime) || 0,
+      totalTime: this.parseTimeMinutes(scrapedData.totalTime) || 
+                 (this.parseTimeMinutes(scrapedData.prepTime) || 0) + (this.parseTimeMinutes(scrapedData.cookTime) || 0),
       difficulty: this.calculateDifficulty(scrapedData),
       ingredients: parsedIngredients,
       instructions: this.formatInstructions(scrapedData.steps),
@@ -107,7 +107,9 @@ class RecipeImportService {
     const parsed = [];
     
     for (const ingredient of rawIngredients) {
-      if (ingredient.raw) {
+      if (typeof ingredient === 'string') {
+        parsed.push(this.basicIngredientParse(ingredient));
+      } else if (ingredient.raw) {
         parsed.push(this.basicIngredientParse(ingredient.raw));
       }
     }
@@ -244,9 +246,9 @@ class RecipeImportService {
   formatInstructions(steps) {
     if (!steps || !Array.isArray(steps)) return [];
     
-    return steps.map(step => ({
-      step: step.number || 1,
-      instruction: step.instruction || '',
+    return steps.map((step, index) => ({
+      step: typeof step === 'object' ? (step.number || index + 1) : index + 1,
+      instruction: typeof step === 'string' ? step : (step.instruction || ''),
       time: null // Could be enhanced with AI to extract time from instruction text
     }));
   }
@@ -271,6 +273,50 @@ class RecipeImportService {
       sugar_g: 8,
       fiber_g: 5
     };
+  }
+
+  /**
+   * Parse servings from yields string (e.g., "24 cookies" -> 24)
+   */
+  parseServings(yieldsStr) {
+    if (!yieldsStr) return null;
+    const match = String(yieldsStr).match(/\d+/);
+    return match ? parseInt(match[0]) : null;
+  }
+
+  /**
+   * Parse time strings to minutes (e.g., "1 hr 30 min" -> 90)
+   */
+  parseTimeMinutes(timeStr) {
+    if (!timeStr) return null;
+    
+    // If it's already a number, return it
+    if (typeof timeStr === 'number') return timeStr;
+    
+    const str = String(timeStr).toLowerCase();
+    let totalMinutes = 0;
+    
+    // Extract hours
+    const hourMatch = str.match(/(\d+)\s*(?:hr|hour|hours)/);
+    if (hourMatch) {
+      totalMinutes += parseInt(hourMatch[1]) * 60;
+    }
+    
+    // Extract minutes
+    const minMatch = str.match(/(\d+)\s*(?:min|minute|minutes)/);
+    if (minMatch) {
+      totalMinutes += parseInt(minMatch[1]);
+    }
+    
+    // If no time units found, try to extract just a number (assume minutes)
+    if (totalMinutes === 0) {
+      const numberMatch = str.match(/(\d+)/);
+      if (numberMatch) {
+        totalMinutes = parseInt(numberMatch[1]);
+      }
+    }
+    
+    return totalMinutes || null;
   }
 }
 
