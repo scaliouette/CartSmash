@@ -231,4 +231,37 @@ router.post('/validate-url', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/recipes/user/:userId
+ * Get all recipes for a user
+ */
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'User ID is required'
+      });
+    }
+
+    // Use the database service to get user recipes
+    const { getUserRecipes } = require('../services/databaseService');
+    const recipes = await getUserRecipes(userId);
+
+    res.json({
+      success: true,
+      recipes: recipes
+    });
+
+  } catch (error) {
+    console.error('Error fetching user recipes:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

@@ -16,6 +16,7 @@ const getDB = () => {
  */
 async function saveRecipeToDatabase(userId, recipe) {
   try {
+    console.log('💾 Saving recipe to database:', { userId, recipeId: recipe.id, title: recipe.title });
     const db = getDB();
     const recipeRef = db.collection('users').doc(userId).collection('recipes').doc(recipe.id);
     await recipeRef.set({
@@ -23,9 +24,10 @@ async function saveRecipeToDatabase(userId, recipe) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
+    console.log('✅ Recipe saved successfully to database:', recipe.id);
     return recipe.id;
   } catch (error) {
-    console.error('Error saving recipe to database:', error);
+    console.error('❌ Error saving recipe to database:', error);
     throw error;
   }
 }

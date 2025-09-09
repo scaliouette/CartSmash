@@ -146,11 +146,13 @@ router.get('/user/:userId', async (req, res) => {
   const { userId } = req.params;
   
   try {
-    // In a real implementation, you would fetch from database
-    // For now, return empty array
+    // Use the database service to get user recipes
+    const { getUserRecipes } = require('../services/databaseService');
+    const recipes = await getUserRecipes(userId);
+    
     res.json({
       success: true,
-      recipes: []
+      recipes: recipes
     });
   } catch (error) {
     console.error('Error fetching recipes:', error);
