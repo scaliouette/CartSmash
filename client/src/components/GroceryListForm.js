@@ -852,49 +852,55 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     const MAX_RETRIES = 2;
     
     try {
-      console.log('🤖 Generating comprehensive recipe with AI for:', recipeName);
+      console.log('🤖 Generating professional recipe with detailed instructions for:', recipeName);
       
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${API_URL}/api/ai/${selectedAI || 'anthropic'}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: `Create a DETAILED, comprehensive recipe for "${recipeName}". 
+          prompt: `Create a PROFESSIONAL, restaurant-quality recipe for "${recipeName}". 
 
-IMPORTANT: Provide a COMPLETE, restaurant-quality recipe with:
+CRITICAL: Provide COMPLETE, DETAILED instructions as if teaching a beginner cook.
 
-INGREDIENTS (with exact measurements):
-- List every single ingredient with precise measurements (cups, tablespoons, ounces, etc.)
-- Include all seasonings, oils, and garnishes
-- Specify brands or types when relevant (e.g., "extra-virgin olive oil", "kosher salt")
-- Include optional ingredients marked as (optional)
-- List ingredients in order of use
+INGREDIENTS (exact measurements):
+- List EVERY ingredient with precise measurements
+- Include prep notes (e.g., "diced", "room temperature", "divided")
+- Specify brands or types when relevant
+- Group by category if many ingredients
 
-INSTRUCTIONS (detailed step-by-step):
-- Number each step clearly
-- Include specific cooking times and temperatures
-- Describe techniques in detail (e.g., "julienne", "dice into 1/4-inch cubes")
-- Include visual cues for doneness (e.g., "until golden brown", "until internal temp reaches 165°F")
-- Add tips for success and common mistakes to avoid
-- Include prep steps and timing
-- Specify cookware needed (e.g., "12-inch skillet", "6-quart pot")
+INSTRUCTIONS (comprehensive step-by-step):
+EACH step must include:
+- Specific technique details (not just "cook chicken" but "Heat 2 tbsp olive oil in a 12-inch skillet over medium-high heat until shimmering")
+- Exact times and temperatures
+- Visual/sensory cues ("until golden brown and edges are crispy", "until internal temp reaches 165°F")
+- Equipment needed for that step
+- Why you're doing it (brief explanation when helpful)
+- Common mistakes to avoid
 
-ADDITIONAL DETAILS:
-- Prep time: [exact minutes]
-- Cook time: [exact minutes]
-- Total time: [exact minutes]
-- Servings: [number]
-- Difficulty level: [Easy/Medium/Hard]
-- Tips and variations
-- Storage instructions
+Example of good instruction:
+"Heat 2 tablespoons olive oil in a large skillet over medium-high heat until shimmering (about 2 minutes). Season chicken breasts with salt and pepper on both sides. Place chicken in skillet and cook without moving for 6-7 minutes until golden brown crust forms. Flip and continue cooking 6-7 minutes until internal temperature reaches 165°F. Transfer to plate and rest 5 minutes before slicing."
 
-Make this recipe comprehensive enough that a beginner cook could successfully make it.`,
-          context: 'detailed_recipe_generation',
+NOT acceptable: "Cook chicken until done"
+
+ADDITIONAL REQUIREMENTS:
+- Include prep steps (mise en place)
+- Specify pan sizes and types
+- Include resting/cooling times
+- Add serving suggestions
+- Include storage instructions
+- Mention variations or substitutions
+
+Make this recipe so detailed that someone who has never cooked could successfully make it.`,
+          context: 'professional_recipe_generation',
           userId: currentUser?.uid || null,
           options: {
             temperature: 0.7,
-            max_tokens: 2000,
-            format: 'structured'
+            max_tokens: 3000,
+            format: 'structured',
+            requireProfessionalQuality: true,
+            minInstructionSteps: 8,
+            instructionDetailLevel: 'expert'
           }
         }),
       });
@@ -905,54 +911,60 @@ Make this recipe comprehensive enough that a beginner cook could successfully ma
 
       const data = await response.json();
       
+      // Validate instruction quality
+      const validateInstructions = (instructions) => {
+        if (!instructions || instructions.length < 5) return false;
+        
+        // Check for quality indicators
+        const hasTemperatures = instructions.some(i => /\d+°[FC]/.test(i));
+        const hasTimes = instructions.some(i => /\d+\s*(minutes?|hours?|seconds?)/.test(i));
+        const hasDetails = instructions.every(i => i.length > 50);
+        
+        return hasTemperatures && hasTimes && hasDetails;
+      };
+      
       if (data.success && (data.response || data.structuredData)) {
-        // Parse the comprehensive AI response
         const aiText = data.response || data.structuredData?.text || '';
         const ingredients = [];
         const instructions = [];
         
-        // Enhanced parsing for ingredients and instructions
+        // Enhanced parsing for professional instructions
         const lines = aiText.split('\n');
         let currentSection = '';
+        let stepNumber = 1;
         
         for (const line of lines) {
           const trimmedLine = line.trim();
           
-          // Detect sections
           if (trimmedLine.match(/^INGREDIENTS/i) || trimmedLine.match(/^Ingredients:/i)) {
             currentSection = 'ingredients';
             continue;
-          } else if (trimmedLine.match(/^INSTRUCTIONS/i) || trimmedLine.match(/^Instructions:/i) || trimmedLine.match(/^Directions:/i)) {
+          } else if (trimmedLine.match(/^INSTRUCTIONS/i) || trimmedLine.match(/^Instructions:/i)) {
             currentSection = 'instructions';
-            continue;
-          } else if (trimmedLine.match(/^(ADDITIONAL|NOTES|TIPS|STORAGE)/i)) {
-            currentSection = 'other';
             continue;
           }
           
-          // Parse content based on section
           if (currentSection === 'ingredients' && trimmedLine) {
-            // Clean up bullet points and add to ingredients
             const ingredient = trimmedLine.replace(/^[-•*]\s*/, '').trim();
-            if (ingredient && !ingredient.match(/^(Instructions|Directions|Method)/i)) {
+            if (ingredient && !ingredient.match(/^(Instructions|Directions)/i)) {
               ingredients.push(ingredient);
             }
           } else if (currentSection === 'instructions' && trimmedLine) {
-            // Clean up numbered steps and add to instructions
-            const instruction = trimmedLine.replace(/^\d+[\.)]\s*/, '').trim();
-            if (instruction && instruction.length > 10) { // Filter out very short non-instructions
-              instructions.push(instruction);
+            // Clean and enhance instruction text
+            let instruction = trimmedLine.replace(/^\d+[\.)]\s*/, '').trim();
+            
+            // Ensure instruction has proper detail
+            if (instruction && instruction.length > 20) {
+              // Add step numbering for clarity
+              instructions.push(`Step ${stepNumber}: ${instruction}`);
+              stepNumber++;
             }
           }
         }
         
-        // Ensure we got substantial content
-        if (ingredients.length >= 3 && instructions.length >= 3) {
-          console.log('✅ AI generated comprehensive recipe:', { 
-            name: recipeName,
-            ingredients: ingredients.length, 
-            instructions: instructions.length 
-          });
+        // Validate we got quality instructions
+        if (validateInstructions(instructions)) {
+          console.log('✅ AI generated professional recipe with detailed instructions');
           
           return {
             ingredients: ingredients,
@@ -960,76 +972,25 @@ Make this recipe comprehensive enough that a beginner cook could successfully ma
             success: true
           };
         } else {
-          throw new Error('AI response was not comprehensive enough');
+          throw new Error('Instructions lack sufficient detail');
         }
       }
       
       throw new Error('Invalid AI response structure');
       
     } catch (error) {
-      console.error(`❌ AI recipe generation attempt ${retryCount + 1} failed:`, error);
+      console.error(`❌ Recipe generation attempt ${retryCount + 1} failed:`, error);
       
-      // Retry with different AI if first attempt fails
       if (retryCount < MAX_RETRIES) {
-        console.log(`🔄 Retrying AI generation (attempt ${retryCount + 2}/${MAX_RETRIES + 1})...`);
-        
-        // Add a small delay before retry
+        console.log(`🔄 Retrying with enhanced requirements...`);
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Retry with same or alternate AI
         return await generateDetailedRecipeWithAI(recipeName, retryCount + 1);
       }
       
-      // After all retries failed, try one more time with a simpler prompt
-      if (retryCount === MAX_RETRIES) {
-        console.log('🆘 Final attempt with simplified prompt...');
-        
-        try {
-          const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-          const response = await fetch(`${API_URL}/api/ai/${selectedAI || 'anthropic'}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt: `List ingredients and cooking steps for ${recipeName}. Be very detailed and specific with measurements and instructions.`,
-              context: 'recipe_generation_simple',
-              userId: currentUser?.uid || null
-            }),
-          });
-          
-          const data = await response.json();
-          if (data.success) {
-            // Parse simple response
-            const text = data.response || '';
-            const allLines = text.split('\n').filter(line => line.trim());
-            
-            // Take first half as ingredients, second half as instructions
-            const midPoint = Math.floor(allLines.length / 2);
-            const ingredients = allLines.slice(0, midPoint).map(line => 
-              line.replace(/^[-•*\d.]\s*/, '').trim()
-            ).filter(line => line.length > 0);
-            
-            const instructions = allLines.slice(midPoint).map(line => 
-              line.replace(/^[-•*\d.]\s*/, '').trim()
-            ).filter(line => line.length > 0);
-            
-            if (ingredients.length > 0 && instructions.length > 0) {
-              return {
-                ingredients: ingredients,
-                instructions: instructions,
-                success: true
-              };
-            }
-          }
-        } catch (finalError) {
-          console.error('🚫 Final AI attempt failed:', finalError);
-        }
-      }
-      
-      // CRITICAL: Never fall back to manual methods - show error to user instead
-      console.error('⚠️ AI generation failed completely. User should retry or check their connection.');
+      // No manual fallback - must use AI
       return {
-        ingredients: [`AI generation failed - please retry or check your internet connection`],
-        instructions: [`Unable to generate recipe details. Please try again.`],
+        ingredients: [`AI generation failed - please retry`],
+        instructions: [`Unable to generate detailed instructions. Please try again.`],
         success: false,
         error: true
       };
@@ -2726,15 +2687,60 @@ Make this recipe comprehensive enough that a beginner cook could successfully ma
             </div>
           )}
           
-          {/* Instructions */}
+          {/* Enhanced Instructions Section */}
           {expanded && displayInstructions && displayInstructions.length > 0 && (
-            <div style={styles.recipeSection}>
-              <h5 style={styles.sectionTitle}>👨‍🍳 Instructions:</h5>
-              <ol style={styles.instructionsList}>
-                {displayInstructions.map((step, idx) => (
-                  <li key={idx} style={styles.instructionItem}>{step}</li>
-                ))}
+            <div style={styles.instructionsSection}>
+              <h5 style={styles.instructionsSectionTitle}>
+                👨‍🍳 Detailed Cooking Instructions:
+              </h5>
+              
+              {/* Show cooking metadata if available */}
+              {(recipe.prepTime || recipe.cookTime || recipe.totalTime || recipe.difficulty) && (
+                <div style={styles.cookingMetadata}>
+                  {recipe.prepTime && (
+                    <span style={styles.metaBadge}>⏱️ Prep: {recipe.prepTime}</span>
+                  )}
+                  {recipe.cookTime && (
+                    <span style={styles.metaBadge}>🔥 Cook: {recipe.cookTime}</span>
+                  )}
+                  {recipe.totalTime && (
+                    <span style={styles.metaBadge}>⏰ Total: {recipe.totalTime}</span>
+                  )}
+                  {recipe.difficulty && (
+                    <span style={styles.metaBadge}>📊 {recipe.difficulty}</span>
+                  )}
+                </div>
+              )}
+              
+              <ol style={styles.professionalInstructionsList}>
+                {displayInstructions.map((step, idx) => {
+                  // Highlight key information in instructions
+                  const highlightKeyInfo = (text) => {
+                    // Highlight temperatures
+                    let highlighted = text.replace(/(\d+°[FC])/g, '<strong style="color: #FB4F14;">$1</strong>');
+                    // Highlight times
+                    highlighted = highlighted.replace(/(\d+\s*(?:minutes?|hours?|seconds?))/g, '<strong style="color: #002244;">$1</strong>');
+                    // Highlight visual cues
+                    highlighted = highlighted.replace(/(until\s+[^,.]+)/g, '<em style="color: #666;">$1</em>');
+                    
+                    return highlighted;
+                  };
+                  
+                  return (
+                    <li key={idx} style={styles.detailedInstructionItem}>
+                      <div dangerouslySetInnerHTML={{ __html: highlightKeyInfo(step) }} />
+                    </li>
+                  );
+                })}
               </ol>
+              
+              {/* Tips Section if available */}
+              {recipe.tips && (
+                <div style={styles.tipsSection}>
+                  <h6 style={styles.tipsTitle}>💡 Pro Tips:</h6>
+                  <p style={styles.tipsText}>{recipe.tips}</p>
+                </div>
+              )}
             </div>
           )}
           
@@ -4974,6 +4980,83 @@ const styles = {
   importButtonDisabled: {
     backgroundColor: '#ccc',
     cursor: 'not-allowed'
+  },
+
+  // Enhanced Professional Recipe Instruction Styles
+  instructionsSection: {
+    marginTop: '20px',
+    padding: '20px',
+    backgroundColor: '#FAFAFA',
+    borderRadius: '12px',
+    border: '2px solid #002244'
+  },
+  
+  instructionsSectionTitle: {
+    margin: '0 0 16px 0',
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#002244',
+    borderBottom: '2px solid #FB4F14',
+    paddingBottom: '8px'
+  },
+  
+  cookingMetadata: {
+    display: 'flex',
+    gap: '12px',
+    marginBottom: '16px',
+    flexWrap: 'wrap'
+  },
+  
+  metaBadge: {
+    display: 'inline-block',
+    padding: '6px 12px',
+    backgroundColor: '#002244',
+    color: 'white',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '600'
+  },
+  
+  professionalInstructionsList: {
+    margin: '0',
+    padding: '0 0 0 20px',
+    counterReset: 'step-counter'
+  },
+  
+  detailedInstructionItem: {
+    fontSize: '15px',
+    lineHeight: '1.8',
+    color: '#333',
+    marginBottom: '16px',
+    paddingLeft: '12px',
+    position: 'relative',
+    backgroundColor: 'white',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    border: '1px solid #E0E0E0',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+  },
+  
+  tipsSection: {
+    marginTop: '20px',
+    padding: '16px',
+    backgroundColor: '#FFF3CD',
+    borderRadius: '8px',
+    border: '1px solid #FFC107'
+  },
+  
+  tipsTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#856404'
+  },
+  
+  tipsText: {
+    margin: 0,
+    fontSize: '14px',
+    color: '#856404',
+    lineHeight: '1.6'
   }
 };
 
