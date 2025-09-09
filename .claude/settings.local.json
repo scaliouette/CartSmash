@@ -391,7 +391,8 @@
       "Bash(del test-simple-parser.js)",
       "Bash(PORT=3014 npm start)",
       "Bash(PORT=3015 npm start)",
-      "Bash(start http://localhost:3015)"
+      "Bash(start http://localhost:3015)",
+      "Bash(PORT=3016 npm start)"
     ],
     "deny": [],
     "ask": []

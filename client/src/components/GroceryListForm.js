@@ -859,7 +859,7 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     try {
       console.log('🤖 Generating detailed recipe with AI for:', recipeName);
       
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3014';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${API_URL}/api/ai/anthropic`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
