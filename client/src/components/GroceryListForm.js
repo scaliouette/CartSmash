@@ -1156,6 +1156,96 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     return ingredients;
   };
 
+  // Extract single recipe from text (simplified parsing for single recipe content)
+  const extractSingleRecipeFromText = (text) => {
+    const lines = text.split('\n');
+    let recipeName = '';
+    let ingredients = [];
+    let instructions = [];
+    let currentSection = '';
+    
+    console.log('🔍 Single recipe extraction starting...');
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      // Get recipe name from first significant header
+      if (!recipeName && line.match(/^#\s*(.+)/)) {
+        recipeName = line.replace(/^#\s*/, '').trim();
+        console.log('📝 Found recipe name:', recipeName);
+        continue;
+      }
+      
+      // Detect ingredient sections (but don't treat as recipe names)
+      if (line.match(/^##?\s*(Ingredients?|Main Components?|Sauce|Garnish|Protein|Dairy|Vegetables?|Spices?|Seasonings?)\s*$/i)) {
+        currentSection = 'ingredients';
+        console.log('📝 Found ingredients section:', line);
+        continue;
+      }
+      
+      // Detect instruction sections
+      if (line.match(/^##?\s*(Instructions?|Directions?|Method|Steps|Preparation)\s*$/i)) {
+        currentSection = 'instructions';
+        console.log('👨‍🍳 Found instructions section:', line);
+        continue;
+      }
+      
+      // Parse content based on current section
+      if (currentSection === 'ingredients' && line.match(/^[-*•]\s*(.+)/)) {
+        const ingredient = line.replace(/^[-*•]\s*/, '').trim();
+        if (ingredient) {
+          ingredients.push(ingredient);
+          console.log('🥕 Added ingredient:', ingredient);
+        }
+      } else if (currentSection === 'instructions' && line.match(/^\d+\.\s*(.+)/)) {
+        const instruction = line.replace(/^\d+\.\s*/, '').trim();
+        if (instruction) {
+          instructions.push(instruction);
+          console.log('📋 Added instruction:', instruction);
+        }
+      }
+    }
+    
+    // If no structured ingredients found, try to infer from recipe name
+    if (ingredients.length === 0 && recipeName) {
+      ingredients = inferIngredientsFromRecipeName(recipeName);
+      console.log('🔍 Inferred ingredients from recipe name:', ingredients);
+    }
+    
+    // If no structured instructions found, generate basic ones
+    if (instructions.length === 0 && recipeName) {
+      instructions = [`Prepare ${recipeName} according to your preferred cooking method.`];
+      console.log('🔍 Generated basic instruction');
+    }
+    
+    const recipe = {
+      title: recipeName || 'Untitled Recipe',
+      ingredients: ingredients,
+      instructions: instructions.map((inst, index) => ({ step: index + 1, instruction: inst })),
+      servings: '',
+      prepTime: '',
+      cookTime: '',
+      mealType: 'Dinner',
+      day: '',
+      tags: ['ai_generated', 'single_recipe'],
+      notes: '',
+      id: `single_recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    };
+    
+    console.log('✅ Single recipe extraction complete:', {
+      name: recipe.title,
+      ingredients: recipe.ingredients.length,
+      instructions: recipe.instructions.length
+    });
+    
+    return {
+      isMealPlan: true, // Still return as meal plan format for compatibility
+      recipes: [recipe], // Single recipe in array
+      totalRecipes: 1
+    };
+  };
+
   // Extract multiple recipes from a meal plan
   const extractMealPlanRecipes = (text) => {
     const recipes = [];
@@ -1167,6 +1257,28 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     
     console.log('🔍 Enhanced recipe extraction starting...');
     console.log('📊 Total lines to process:', lines.length);
+    
+    // Smart detection: Is this a single recipe or a meal plan?
+    const dayIndicators = text.match(/\b(Day\s+\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi) || [];
+    const mealTypeCount = (text.match(/\b(Breakfast|Lunch|Dinner|Snack)\b/gi) || []).length;
+    const recipeHeaders = text.match(/^(##?\s+)?(Day\s+\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/gmi) || [];
+    
+    const isTrueMealPlan = dayIndicators.length >= 2 || mealTypeCount >= 6 || recipeHeaders.length >= 2;
+    
+    console.log('🔍 Content analysis:', {
+      dayIndicators: dayIndicators.length,
+      mealTypeCount: mealTypeCount,
+      recipeHeaders: recipeHeaders.length,
+      isTrueMealPlan: isTrueMealPlan
+    });
+    
+    // If this looks like a single recipe, use simpler parsing
+    if (!isTrueMealPlan) {
+      console.log('📝 Content appears to be a single recipe, using simplified parsing...');
+      return extractSingleRecipeFromText(text);
+    }
+    
+    console.log('📅 Content appears to be a multi-day meal plan, using full parsing...');
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -1201,8 +1313,8 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
         /^\*\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i, // "* Lunch: Turkey sandwich"
         /^Recipe Name:\s*(.+)/i,                       // "Recipe Name: Chicken Stir-fry"
         /^Recipe:\s*(.+)/i,                           // "Recipe: Pasta"
-        /^##\s+(?!(?:Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?|Grocery|Shopping)\s*$)(.+)/i, // "## Recipe Title" but not section headers
-        /^###\s+(?!(?:Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?|Grocery|Shopping)\s*$)(.+)/i, // "### Recipe Title" but not section headers  
+        /^##\s+(?!(?:Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?|Grocery|Shopping|Main Components?|Sauce|Garnish|Protein|Dairy|Vegetables?|Spices?|Seasonings?)\s*$)(.+)/i, // "## Recipe Title" but not section headers
+        /^###\s+(?!(?:Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?|Grocery|Shopping|Main Components?|Sauce|Garnish|Protein|Dairy|Vegetables?|Spices?|Seasonings?)\s*$)(.+)/i, // "### Recipe Title" but not section headers  
         /^Day\s+\d+\s*[-–]\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i, // "Day 1 - Breakfast: Oatmeal"
         /^\d+\.\s+(.+(?:recipe|meal|dish).*)/i,       // "1. Chicken stir-fry recipe"
         /^[🍳🥗🍽️🥪🍎🥞🥙🍲🍝🥘]\s*(.+)/i           // Emoji-prefixed meals
