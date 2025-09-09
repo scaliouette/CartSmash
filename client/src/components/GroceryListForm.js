@@ -523,11 +523,14 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
         }
       }
       
-      // This part runs when parsing the list (not using AI)
-      console.log('🔧 Manual parsing mode - no AI processing:', { useAI, selectedAI, textLength: listText.length });
+      // AI-ONLY MODE: No manual parsing fallback allowed
+      console.log('❌ Manual parsing blocked - AI processing required:', { useAI, selectedAI, textLength: listText.length });
       
-      // Clear AI waiting state since we're now parsing
+      // Force error instead of manual parsing
+      setError('AI processing is required. Please ensure an AI model is selected.');
       setWaitingForAIResponse(false);
+      setShowProgress(false);
+      return;
       
       // Add confetti only when actually parsing items
       confetti({
@@ -735,9 +738,9 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Always use AI on the first submission unless we're already waiting for a response
-    // The key insight: if waitingForAIResponse is true, it means AI has already processed this and we should parse
-    const shouldUseAI = !waitingForAIResponse && selectedAI && inputText.trim().length > 0;
+    // Force AI usage - NEVER use manual parsing fallback for recipes
+    // Only skip AI if no AI model is selected or no input text
+    const shouldUseAI = selectedAI && inputText.trim().length > 0;
     
     console.log('Submit clicked. Using AI:', shouldUseAI, '| Selected AI Model:', selectedAI, '| Waiting for AI Response:', waitingForAIResponse);
     console.log('Input text preview:', inputText.substring(0, 100));
