@@ -1202,29 +1202,15 @@ NO SHORTCUTS. Generate FULL detailed instructions.`,
 
   // CORRUPTED DUPLICATE REMOVED - Extract multiple recipes from a meal plan
   const extractMultipleRecipesFromText_CORRUPTED_DUPLICATE = async (text) => {
-      if (name.includes('turkey')) {
-        return [
-          '1. Lay the large flour tortillas flat on a clean surface',
-          '2. Spread 1 tbsp mayo or mustard evenly across each tortilla, leaving a 1-inch border',
-          '3. Layer 3 oz sliced turkey breast in the center of each tortilla',
-          '4. Add 2 lettuce leaves and any other fresh vegetables',
-          '5. Season lightly with salt and pepper',
-          '6. Fold the bottom edge up about 2 inches, then roll tightly from one side',
-          '7. Cut in half diagonally with a sharp knife and serve immediately'
-        ];
-      } else {
-        return [
-          '1. Lay the tortilla flat on a clean surface',
-          '2. Spread mayo or mustard evenly across the tortilla',
-          '3. Layer the protein and cheese in the center',
-          '4. Add fresh vegetables on top',
-          '5. Season with salt and pepper to taste',
-          '6. Fold the bottom edge up, then roll tightly from one side',
-          '7. Cut in half diagonally and serve immediately'
-        ];
-      }
-    }; // Fix missing semicolon
-    if (name.includes('sandwich')) {
+    console.error('🚫 CORRUPTED DUPLICATE FUNCTION REMOVED - USE ORIGINAL FUNCTION INSTEAD');
+    return { recipes: [], totalRecipes: 0 };
+  };
+
+  // REMOVED CORRUPTED CODE BLOCK - This was orphaned code not inside any function
+  // The following was part of the corrupted function above and has been cleaned up
+  const removedCorruptedCode = () => {
+    // This code was floating outside functions after corruption
+    // if (name.includes('sandwich')) {
       return [
         '1. Toast the bread slices lightly if desired',
         '2. Spread mayo or mustard on one or both slices',
@@ -3299,6 +3285,7 @@ NO SHORTCUTS. Generate FULL detailed instructions.`,
     });
   };
 
+  // Main component return (this should be inside the main GroceryListForm function)
   return (
     <div className="container">
       {isLoading && (
@@ -3769,7 +3756,7 @@ Or paste any grocery list directly!"
 
     </div>
   );
-}
+  // REMOVED EXTRA CLOSING BRACE - This was incorrectly ending the main function
 
 // Styles
 const styles = {
