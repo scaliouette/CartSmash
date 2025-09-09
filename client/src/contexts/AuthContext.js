@@ -71,10 +71,10 @@ export function AuthProvider({ children }) {
   console.log('✅ Firebase Auth loaded successfully');
 
   // Define admin emails - REPLACE WITH YOUR ACTUAL EMAIL
-  const ADMIN_EMAILS = [
+  const ADMIN_EMAILS = useMemo(() => [
     'scaliouette@gmail.com',  // ← CHANGE THIS TO YOUR ACTUAL EMAIL!
     // Add more admin emails as needed
-  ];
+  ], []);
 
   // Check admin status function
   const checkAdminStatus = useCallback(async (user) => {

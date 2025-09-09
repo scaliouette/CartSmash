@@ -13,10 +13,6 @@ const NearbyStores = ({ onStoreSelect }) => {
   const [selectedStore, setSelectedStore] = useState(null);
   const [gettingLocation, setGettingLocation] = useState(false);
 
-  useEffect(() => {
-    getCurrentLocation();
-  }, [getCurrentLocation]);
-
   // Get user's current location
   const getCurrentLocation = useCallback(() => {
     setGettingLocation(true);
@@ -58,7 +54,11 @@ const NearbyStores = ({ onStoreSelect }) => {
         maximumAge: 300000 // 5 minutes
       }
     );
-  }, []);
+  }, [searchStores]);
+
+  useEffect(() => {
+    getCurrentLocation();
+  }, [getCurrentLocation]);
 
   // Search for nearby Kroger stores
   const searchStores = async (location, zipCode = null) => {

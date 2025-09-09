@@ -2657,7 +2657,7 @@ Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instru
   };
 
   // Debug delete function to test individual item removal
-  const debugDeleteItem = (itemId) => {
+  const debugDeleteItem = useCallback((itemId) => {
     console.log('🗑️ Attempting to delete item:', itemId);
     const itemToDelete = currentCart.find(item => item.id === itemId);
     console.log('Item found:', itemToDelete);
@@ -2669,7 +2669,7 @@ Make sure ingredients have proper measurements (cups, tbsp, oz, etc.) and instru
     } else {
       console.error('❌ Item not found in cart!');
     }
-  };
+  }, [currentCart, setCurrentCart]);
 
   // Recipe import handlers
   const handleImportFromUrl = async () => {

@@ -146,7 +146,7 @@ function AppContent({
     } catch (error) {
       console.error('Error loading from localStorage:', error);
     }
-  }, [setCurrentCartWithTracking, CART_AUTHORITY]);
+  }, [setCurrentCartWithTracking, setSavedLists, CART_AUTHORITY]);
 
   const loadFirebaseData = useCallback(async () => {
     try {

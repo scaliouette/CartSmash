@@ -10,12 +10,6 @@ const KrogerAuth = ({ onAuthSuccess }) => {
   const [authError, setAuthError] = useState(null);
   const [authStatus, setAuthStatus] = useState('checking'); // checking, needed, authenticating, success, error
 
-  useEffect(() => {
-    if (currentUser) {
-      checkKrogerAuthStatus();
-    }
-  }, [currentUser, checkKrogerAuthStatus]);
-
   // Check if user already has Kroger authentication
   const checkKrogerAuthStatus = useCallback(async () => {
     if (!currentUser || typeof currentUser.getIdToken !== 'function') {
@@ -49,7 +43,13 @@ const KrogerAuth = ({ onAuthSuccess }) => {
       console.error('Error checking Kroger auth status:', error);
       setAuthStatus('needed');
     }
-  }, [currentUser]);
+  }, [currentUser, onAuthSuccess]);
+
+  useEffect(() => {
+    if (currentUser) {
+      checkKrogerAuthStatus();
+    }
+  }, [currentUser, checkKrogerAuthStatus]);
 
   // Start Kroger OAuth flow
   const initiateKrogerAuth = async () => {

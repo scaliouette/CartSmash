@@ -394,7 +394,8 @@
       "Bash(start http://localhost:3015)",
       "Bash(PORT=3016 npm start)",
       "Bash(git checkout:*)",
-      "Bash(del remove_functions.js)"
+      "Bash(del remove_functions.js)",
+      "Bash(PORT=3017 npm start)"
     ],
     "deny": [],
     "ask": []
