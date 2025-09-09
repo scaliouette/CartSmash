@@ -2147,14 +2147,17 @@ Make this recipe comprehensive enough that a beginner cook could successfully ma
             source: 'ai_generated'
           }],
           shoppingList: {
-            items: recipe.ingredients?.map((ingredient, index) => ({
-              id: `item_${Date.now()}_${index}`,
-              itemName: ingredient,
-              productName: ingredient,
-              quantity: 1,
-              unit: 'item',
-              category: 'Other'
-            })) || [],
+            items: recipe.ingredients?.map((ingredient, index) => {
+              const parsed = parseIngredientForShoppingList(ingredient);
+              return {
+                id: `item_${Date.now()}_${index}`,
+                itemName: parsed.itemName,
+                productName: parsed.productName,
+                quantity: parsed.quantity,
+                unit: parsed.unit,
+                category: 'Other'
+              };
+            }) || [],
             name: `${customName || recipe.title} - Shopping List`
           },
           createdAt: new Date().toISOString(),
@@ -2546,6 +2549,62 @@ Make this recipe comprehensive enough that a beginner cook could successfully ma
     }
   };
 
+  // Helper function to format ingredients with quantities
+  const formatIngredientWithQuantity = (item) => {
+    if (typeof item === 'string') {
+      // Try to parse if it's a string with quantity pattern
+      const match = item.match(/^(\d+(?:\.\d+)?)\s*([\w\s]+?)\s+(.+)$/);
+      if (match) {
+        return `${match[1]} ${match[2]} ${match[3]}`;
+      }
+      // If no quantity found, add default serving
+      return item.includes('1 ') || item.includes('2 ') || item.includes('cup') || item.includes('tsp') || item.includes('tbsp') || item.includes('lb') || item.includes('oz') 
+        ? item 
+        : `1 serving ${item}`;
+    }
+    
+    // If it's an object with quantity and unit
+    const qty = item.quantity || 1;
+    const unit = item.unit || 'each';
+    const name = item.productName || item.name || item.original || item.item || '';
+    
+    return `${qty} ${unit} ${name}`.trim();
+  };
+
+  // Helper function to parse ingredients for shopping list
+  const parseIngredientForShoppingList = (ingredient) => {
+    if (typeof ingredient === 'string') {
+      // Try to parse quantity and unit from string
+      const match = ingredient.match(/^(\d+(?:\.\d+)?)\s*([\w\s]*?)\s*(.+)$/);
+      if (match) {
+        const quantity = parseFloat(match[1]) || 1;
+        const unit = match[2].trim() || 'each';
+        const productName = match[3].trim();
+        return {
+          quantity,
+          unit,
+          productName: productName || ingredient,
+          itemName: productName || ingredient
+        };
+      }
+      // Default parsing if no quantity found
+      return {
+        quantity: 1,
+        unit: 'serving',
+        productName: ingredient,
+        itemName: ingredient
+      };
+    }
+    
+    // If it's already an object, extract the needed properties
+    return {
+      quantity: ingredient.quantity || 1,
+      unit: ingredient.unit || 'each',
+      productName: ingredient.productName || ingredient.name || ingredient.original || ingredient.item || ingredient,
+      itemName: ingredient.itemName || ingredient.name || ingredient.original || ingredient.item || ingredient
+    };
+  };
+
   // Enhanced Recipe Card Component - supports both old and unified formats
   const RecipeCard = ({ recipe, index, onAddToCart, onAddToLibrary, onAddToMealPlan, onRemove, onEdit, externalExpanded, onToggleExpanded }) => {
     // Use external expanded state directly - no internal state needed
@@ -2569,10 +2628,8 @@ Make this recipe comprehensive enough that a beginner cook could successfully ma
     const prepTime = recipe.prepTime;
     const cookTime = recipe.cookTime;
     
-    // Handle both string arrays and object arrays for ingredients
-    const displayIngredients = ingredients.map(ing => 
-      typeof ing === 'string' ? ing : ing.item || ing.original || ing.name || ing
-    );
+    // Handle both string arrays and object arrays for ingredients with proper quantity formatting
+    const displayIngredients = ingredients.map(ing => formatIngredientWithQuantity(ing));
     
     // Handle both string arrays and object arrays for instructions  
     const displayInstructions = instructions.map(inst =>
