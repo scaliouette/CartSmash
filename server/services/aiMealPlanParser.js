@@ -21,12 +21,38 @@ class MealPlanParser {
     
     // Check if this looks like a single recipe vs a full meal plan
     const dayHeaders = lines.filter(line => line.match(/^##\s+Day\s+\d+/i));
-    const recipeHeaders = lines.filter(line => line.match(/^###.*\*\*(.+)\*\*/) && !line.match(/\*\*(Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?)\*\*/i));
-    const isSingleRecipe = dayHeaders.length === 0 && recipeHeaders.length <= 1;
+    const structuredRecipeHeaders = lines.filter(line => line.match(/^###.*\*\*(.+)\*\*/) && !line.match(/\*\*(Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?)\*\*/i));
+    const simpleRecipeHeaders = lines.filter(line => line.match(/^[🍳🥗🍽️🥙🌮🍲🥘🍚🍜🍕🥞🧇🥓🍔🌭🥪🍖🍗🥩🐟🦐🍤🥚🧀🥜🌰🍞🥖🥐🥨🥯🍯]/));
+    
+    const isSingleRecipe = dayHeaders.length === 0 && structuredRecipeHeaders.length <= 1 && simpleRecipeHeaders.length <= 1;
     
     if (isSingleRecipe) {
       return this.parseSingleRecipeContent(aiResponse);
     }
+
+    // Try different parsing formats
+    let result = this.parseStructuredMealPlan(aiResponse);
+    
+    // If structured parsing didn't find many recipes, try simple format parsing
+    if (result.recipes.length < 10) {
+      console.log(`🔄 Structured parsing found ${result.recipes.length} recipes, trying simple format...`);
+      const simpleResult = this.parseSimpleFormatMealPlan(aiResponse);
+      if (simpleResult.recipes.length > result.recipes.length) {
+        console.log(`✅ Simple format found ${simpleResult.recipes.length} recipes, using that instead`);
+        result = simpleResult;
+      }
+    }
+    
+    return result;
+  }
+
+  /**
+   * Parse structured meal plan format (original method)
+   * @param {string} aiResponse 
+   * @returns {Object} Parsed meal plan
+   */
+  parseStructuredMealPlan(aiResponse) {
+    const lines = aiResponse.split('\n');
     const mealPlan = {
       metadata: {
         title: '7-Day Healthy Meal Plan',
@@ -164,6 +190,162 @@ class MealPlanParser {
     mealPlan.recipes = this.extractAllRecipes(mealPlan.days);
 
     return mealPlan;
+  }
+
+  /**
+   * Parse simple format meal plan (handles emoji + text format)
+   * Example: "🍳Baked Salmon with Quinoa" followed by "📝 Ingredients: ..." and "👨‍🍳 Instructions: ..."
+   * @param {string} aiResponse 
+   * @returns {Object} Parsed meal plan
+   */
+  parseSimpleFormatMealPlan(aiResponse) {
+    console.log('🔍 DEBUG parseSimpleFormatMealPlan input preview:', aiResponse.substring(0, 500));
+    
+    const mealPlan = {
+      metadata: {
+        title: '7-Day Healthy Meal Plan',
+        familySize: 4,
+        generatedAt: new Date().toISOString(),
+        source: 'ai-generated-simple'
+      },
+      days: {},
+      recipes: [],
+      shoppingList: {
+        proteins: [],
+        dairy: [],
+        grains: [],
+        produce: [],
+        pantry: [],
+        herbs: []
+      }
+    };
+
+    const lines = aiResponse.split('\n');
+    const recipes = [];
+    let currentRecipe = null;
+    let currentDay = null;
+    let mealIndex = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      // Detect day headers in various formats
+      if (line.match(/day\s*\d+/i) || line.match(/(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i)) {
+        const dayMatch = line.match(/(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
+        if (dayMatch) {
+          currentDay = dayMatch[1].toLowerCase();
+          mealIndex = 0; // Reset meal index for new day
+        }
+        continue;
+      }
+
+      // Detect recipe headers with emojis (e.g., "🍳Baked Salmon with Quinoa")
+      if (line.match(/^[🍳🥗🍽️🥙🌮🍲🥘🍚🍜🍕🥞🧇🥓🍔🌭🥪🍖🍗🥩🐟🦐🍤🥚🧀🥜🌰🍞🥖🥐🥨🥯🍯]/)) {
+        // Save previous recipe if exists
+        if (currentRecipe) {
+          recipes.push(currentRecipe);
+        }
+
+        // Extract recipe name (remove emoji and clean up)
+        const recipeName = line.replace(/^[^\w\s]+/, '').trim();
+        
+        currentRecipe = {
+          id: `ai-recipe-${this.recipeIdCounter++}`,
+          name: recipeName || 'Unnamed Recipe',
+          ingredients: [],
+          instructions: [],
+          nutrition: {},
+          time: {},
+          tags: [],
+          dayAssigned: currentDay,
+          mealType: this.detectMealType(mealIndex++)
+        };
+        continue;
+      }
+
+      // Parse ingredients line (e.g., "📝 Ingredients: salmon fillets, quinoa, broccoli")
+      if (line.match(/^[📝📋🥘]/) || line.toLowerCase().includes('ingredients:')) {
+        if (currentRecipe) {
+          const ingredientsText = line.replace(/^[📝📋🥘]/, '').replace(/ingredients?:?/i, '').trim();
+          if (ingredientsText) {
+            currentRecipe.ingredients = this.parseSimpleIngredients(ingredientsText);
+          }
+        }
+        continue;
+      }
+
+      // Parse instructions line (e.g., "👨‍🍳 Instructions: Bake salmon at 400°F, Cook quinoa, Steam broccoli")
+      if (line.match(/^[👨‍🍳👩‍🍳🔥]/) || line.toLowerCase().includes('instructions:')) {
+        if (currentRecipe) {
+          const instructionsText = line.replace(/^[👨‍🍳👩‍🍳🔥]/, '').replace(/instructions?:?/i, '').trim();
+          if (instructionsText) {
+            currentRecipe.instructions = this.parseSimpleInstructions(instructionsText);
+          }
+        }
+        continue;
+      }
+    }
+
+    // Add last recipe
+    if (currentRecipe) {
+      recipes.push(currentRecipe);
+    }
+
+    console.log(`🎯 Simple format parsing found ${recipes.length} recipes:`, recipes.map(r => r.name));
+
+    // Convert recipes to proper format and organize by days
+    for (const recipe of recipes) {
+      if (recipe.dayAssigned && recipe.dayAssigned !== null) {
+        if (!mealPlan.days[recipe.dayAssigned]) {
+          mealPlan.days[recipe.dayAssigned] = {
+            dayNumber: this.dayMapping[recipe.dayAssigned],
+            meals: []
+          };
+        }
+        mealPlan.days[recipe.dayAssigned].meals.push(recipe);
+      }
+    }
+
+    mealPlan.recipes = recipes;
+    return mealPlan;
+  }
+
+  /**
+   * Parse simple comma-separated ingredients
+   */
+  parseSimpleIngredients(ingredientsText) {
+    const ingredients = [];
+    const items = ingredientsText.split(',').map(item => item.trim());
+    
+    for (const item of items) {
+      if (item) {
+        const parsed = this.parseIngredientItem(item);
+        if (parsed) ingredients.push(parsed);
+      }
+    }
+    
+    return ingredients;
+  }
+
+  /**
+   * Parse simple comma-separated instructions
+   */
+  parseSimpleInstructions(instructionsText) {
+    const instructions = [];
+    const steps = instructionsText.split(',').map(step => step.trim());
+    
+    for (let i = 0; i < steps.length; i++) {
+      if (steps[i]) {
+        instructions.push({
+          step: i + 1,
+          instruction: steps[i],
+          time: null
+        });
+      }
+    }
+    
+    return instructions;
   }
 
   /**

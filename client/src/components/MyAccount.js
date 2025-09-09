@@ -484,12 +484,32 @@ function MyAccount({
               <div style={styles.recipeIngredients}>
                 <strong>Ingredients:</strong>
                 <div style={styles.ingredientsList}>
-                  {(recipe.ingredients || '').split('\n').slice(0, 4).map((ing, idx) => (
-                    <div key={idx} style={styles.ingredient}>• {ing}</div>
-                  ))}
-                  {(recipe.ingredients || '').split('\n').length > 4 && (
-                    <div style={styles.moreItems}>...and more</div>
-                  )}
+                  {(() => {
+                    // Handle both string and array formats for ingredients
+                    let ingredientsList = [];
+                    if (typeof recipe.ingredients === 'string') {
+                      ingredientsList = recipe.ingredients.split('\n');
+                    } else if (Array.isArray(recipe.ingredients)) {
+                      ingredientsList = recipe.ingredients.map(ing => 
+                        ing.original || ing.item || `${ing.quantity || ''} ${ing.unit || ''} ${ing.item || ''}`.trim()
+                      );
+                    }
+                    return ingredientsList.slice(0, 4).map((ing, idx) => (
+                      <div key={idx} style={styles.ingredient}>• {ing}</div>
+                    ));
+                  })()}
+                  {(() => {
+                    // Handle count for "...and more" 
+                    let totalCount = 0;
+                    if (typeof recipe.ingredients === 'string') {
+                      totalCount = recipe.ingredients.split('\n').length;
+                    } else if (Array.isArray(recipe.ingredients)) {
+                      totalCount = recipe.ingredients.length;
+                    }
+                    return totalCount > 4 && (
+                      <div style={styles.moreItems}>...and more</div>
+                    );
+                  })()}
                 </div>
               </div>
               
