@@ -1110,10 +1110,28 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       ingredients.push('Greek yogurt');
       if (name.includes('granola')) ingredients.push('Granola');
       if (name.includes('berries')) ingredients.push('Mixed berries');
+    } else if (name.includes('toast')) {
+      // Toast-based dishes
+      if (name.includes('whole grain') || name.includes('wholegrain')) {
+        ingredients.push('Whole grain bread');
+      } else if (name.includes('sourdough')) {
+        ingredients.push('Sourdough bread');
+      } else {
+        ingredients.push('Bread');
+      }
+      
+      // Common toast toppings
+      if (name.includes('eggs') || name.includes('scrambled')) {
+        ingredients.push('Eggs', 'Butter', 'Salt', 'Pepper');
+      }
+      if (name.includes('avocado')) ingredients.push('Avocado', 'Lime juice', 'Salt');
+      if (name.includes('butter')) ingredients.push('Butter');
+      if (name.includes('jam') || name.includes('jelly')) ingredients.push('Jam');
     } else if (name.includes('eggs')) {
       ingredients.push('Eggs');
       if (name.includes('scrambled')) ingredients.push('Butter', 'Salt', 'Pepper');
       if (name.includes('spinach')) ingredients.push('Fresh spinach');
+      if (name.includes('cheese')) ingredients.push('Cheese');
     } else if (name.includes('chicken')) {
       ingredients.push('Chicken breast');
       if (name.includes('baked')) ingredients.push('Olive oil', 'Salt', 'Pepper');
@@ -1131,20 +1149,127 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       if (name.includes('beef')) ingredients.push('Beef strips');
       if (name.includes('chicken')) ingredients.push('Chicken strips');
     } else if (name.includes('salad')) {
-      ingredients.push('Mixed greens', 'Olive oil', 'Vinegar');
-      if (name.includes('chicken')) ingredients.push('Chicken breast');
+      // Base salad ingredients
+      ingredients.push('Mixed greens');
+      
+      // Specific salad types
+      if (name.includes('greek')) {
+        ingredients.push('Tomatoes', 'Cucumbers', 'Red onion', 'Kalamata olives', 'Feta cheese', 'Olive oil', 'Red wine vinegar', 'Oregano');
+      } else if (name.includes('caesar')) {
+        ingredients.push('Romaine lettuce', 'Parmesan cheese', 'Caesar dressing', 'Croutons');
+      } else if (name.includes('garden')) {
+        ingredients.push('Tomatoes', 'Cucumbers', 'Carrots', 'Bell peppers', 'Red onion');
+      } else {
+        ingredients.push('Olive oil', 'Vinegar');
+      }
+      
+      // Protein additions
+      if (name.includes('chicken')) ingredients.push('Grilled chicken breast');
+      if (name.includes('salmon')) ingredients.push('Grilled salmon');
+      if (name.includes('shrimp')) ingredients.push('Cooked shrimp');
+      
     } else if (name.includes('pasta')) {
-      ingredients.push('Pasta', 'Olive oil');
-      if (name.includes('tomato')) ingredients.push('Tomato sauce');
+      // Base pasta
+      if (name.includes('whole wheat') || name.includes('wholemeal')) {
+        ingredients.push('Whole wheat pasta');
+      } else if (name.includes('penne')) {
+        ingredients.push('Penne pasta');
+      } else if (name.includes('spaghetti')) {
+        ingredients.push('Spaghetti');
+      } else if (name.includes('linguine')) {
+        ingredients.push('Linguine');
+      } else {
+        ingredients.push('Pasta');
+      }
+      
+      // Sauces
+      if (name.includes('marinara')) {
+        ingredients.push('Marinara sauce', 'Garlic', 'Onion');
+      } else if (name.includes('tomato')) {
+        ingredients.push('Tomato sauce');
+      } else if (name.includes('pesto')) {
+        ingredients.push('Pesto sauce');
+      } else if (name.includes('alfredo')) {
+        ingredients.push('Alfredo sauce');
+      } else if (name.includes('carbonara')) {
+        ingredients.push('Eggs', 'Parmesan cheese', 'Bacon', 'Black pepper');
+      } else {
+        ingredients.push('Olive oil');
+      }
+      
+      // Protein additions
+      if (name.includes('meatballs')) ingredients.push('Ground beef', 'Breadcrumbs', 'Egg', 'Italian seasoning');
+      if (name.includes('chicken')) ingredients.push('Chicken breast');
+      if (name.includes('shrimp')) ingredients.push('Shrimp');
     } else if (name.includes('nuts')) {
       ingredients.push('Mixed nuts');
     } else if (name.includes('cheese') && name.includes('crackers')) {
       ingredients.push('String cheese', 'Crackers');
     } else {
-      // Generic fallback - extract key food words
-      const foodWords = name.match(/\b(chicken|beef|fish|salmon|turkey|pork|rice|pasta|bread|cheese|eggs|milk|butter|olive oil|onion|garlic|tomato|lettuce|spinach|broccoli|carrots|potatoes)\b/g);
-      if (foodWords) {
-        ingredients.push(...foodWords.map(word => word.charAt(0).toUpperCase() + word.slice(1)));
+      // Generic fallback - extract key food words and expand them
+      const name_processed = name.replace(/\b(with|and|&)\b/g, ' '); // Remove connecting words
+      
+      // Common ingredients mapping
+      const ingredientMap = {
+        'chicken': ['Chicken breast'],
+        'beef': ['Beef'],
+        'fish': ['Fish fillet'],
+        'salmon': ['Salmon fillet'],
+        'turkey': ['Turkey'],
+        'pork': ['Pork'],
+        'rice': ['Rice'],
+        'bread': ['Bread'],
+        'cheese': ['Cheese'],
+        'eggs': ['Eggs'],
+        'milk': ['Milk'],
+        'butter': ['Butter'],
+        'onion': ['Onion'],
+        'garlic': ['Garlic'],
+        'tomato': ['Tomatoes'],
+        'lettuce': ['Lettuce'],
+        'spinach': ['Spinach'],
+        'broccoli': ['Broccoli'],
+        'carrots': ['Carrots'],
+        'potatoes': ['Potatoes'],
+        'mushrooms': ['Mushrooms'],
+        'peppers': ['Bell peppers'],
+        'beans': ['Beans'],
+        'avocado': ['Avocado'],
+        'bacon': ['Bacon'],
+        'ham': ['Ham'],
+        'sausage': ['Sausage'],
+        'shrimp': ['Shrimp'],
+        'meatballs': ['Ground beef', 'Breadcrumbs', 'Egg'],
+        'marinara': ['Marinara sauce'],
+        'alfredo': ['Alfredo sauce'],
+        'pesto': ['Pesto sauce'],
+        'parmesan': ['Parmesan cheese'],
+        'mozzarella': ['Mozzarella cheese'],
+        'basil': ['Fresh basil'],
+        'oregano': ['Oregano'],
+        'thyme': ['Thyme']
+      };
+      
+      // Find all matching ingredients
+      Object.keys(ingredientMap).forEach(key => {
+        if (name_processed.includes(key)) {
+          ingredients.push(...ingredientMap[key]);
+        }
+      });
+      
+      // If still no ingredients found, add basic ones based on common patterns
+      if (ingredients.length === 0) {
+        // Try to extract any food-sounding words
+        const foodWords = name.match(/\b[a-z]{4,}(s)?\b/g) || [];
+        const likelyFoods = foodWords.filter(word => 
+          !['with', 'and', 'the', 'for', 'this', 'that', 'from', 'your', 'some', 'very', 'much', 'good', 'best', 'easy', 'quick', 'fresh', 'healthy'].includes(word)
+        );
+        
+        if (likelyFoods.length > 0) {
+          ingredients.push(...likelyFoods.slice(0, 3).map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ));
+        }
       }
     }
     
@@ -1191,29 +1316,99 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
         continue;
       }
       
-      // Parse content based on current section
-      if (currentSection === 'ingredients' && line.match(/^[-*•]\s*(.+)/)) {
-        const ingredient = line.replace(/^[-*•]\s*/, '').trim();
-        if (ingredient) {
-          ingredients.push(ingredient);
-          console.log('🥕 Added ingredient:', ingredient);
+      // Parse content based on current section  
+      if (currentSection === 'ingredients') {
+        // Handle bulleted ingredients
+        if (line.match(/^[-*•]\s*(.+)/)) {
+          const ingredient = line.replace(/^[-*•]\s*/, '').trim();
+          if (ingredient) {
+            ingredients.push(ingredient);
+            console.log('🥕 Added ingredient:', ingredient);
+          }
         }
-      } else if (currentSection === 'instructions' && line.match(/^\d+\.\s*(.+)/)) {
-        const instruction = line.replace(/^\d+\.\s*/, '').trim();
-        if (instruction) {
-          instructions.push(instruction);
-          console.log('📋 Added instruction:', instruction);
+        // Handle plain text ingredients (lines that look like ingredients)
+        else if (line.match(/^\d+.*\b(cups?|tbsp|tsp|oz|lbs?|g|kg|ml|l|cloves?|pieces?)\b/i) || 
+                 line.match(/^[A-Z][a-z]+.*\b(salt|pepper|oil|butter|cheese|garlic|onion)\b/i)) {
+          ingredients.push(line);
+          console.log('🥕 Added plain ingredient:', line);
+        }
+      } else if (currentSection === 'instructions') {
+        // Handle numbered instructions (1. 2. 3.)
+        if (line.match(/^\d+\.\s*(.+)/)) {
+          const instruction = line.replace(/^\d+\.\s*/, '').trim();
+          if (instruction) {
+            instructions.push(instruction);
+            console.log('📋 Added numbered instruction:', instruction);
+          }
+        }
+        // Handle bold instruction headers (**Header**)
+        else if (line.match(/^\*\*(.+)\*\*$/)) {
+          const header = line.replace(/^\*\*(.+)\*\*$/, '$1').trim();
+          if (header) {
+            instructions.push(header);
+            console.log('📋 Added instruction header:', header);
+          }
+        }
+        // Handle detailed instruction text (longer lines that aren't headers)
+        else if (line.length > 15 && 
+                 !line.match(/^(##?|Serves?|Prep|Cook|Total|\*\*)/i) &&
+                 !line.match(/^[-*•]/) && // Not bullet points
+                 line.match(/[a-z]/) && // Contains lowercase letters (likely descriptive text)
+                 (line.includes(' and ') || line.includes(' until ') || line.includes(' for ') || 
+                  line.includes(' with ') || line.includes(' over ') || line.includes(' in ') ||
+                  line.match(/\b(cook|add|mix|stir|heat|place|remove|season|serve|garnish)\b/i))) {
+          instructions.push(line);
+          console.log('📋 Added detailed instruction:', line);
         }
       }
     }
     
-    // If no structured ingredients found, try to infer from recipe name
+    // If very few ingredients found, scan entire text for ingredient-like lines
+    if (ingredients.length <= 2) {
+      console.log('🔍 Scanning entire text for additional ingredients...');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed && 
+            !trimmed.match(/^#/) && // Not headers
+            !trimmed.match(/^(Instructions?|Directions?|Method|Steps|Preparation)/i) && // Not instruction headers
+            (trimmed.match(/^\d+.*\b(cups?|tbsp|tsp|oz|lbs?|g|kg|ml|l|cloves?|pieces?|strips?|slices?)\b/i) || 
+             trimmed.match(/\b(chicken|beef|pork|salmon|pasta|rice|garlic|onion|salt|pepper|oil|butter|cheese|eggs?|milk|flour|sugar)\b/i))) {
+          if (!ingredients.includes(trimmed)) {
+            ingredients.push(trimmed);
+            console.log('🥕 Scanned ingredient:', trimmed);
+          }
+        }
+      }
+    }
+    
+    // If still no ingredients found, try to infer from recipe name
     if (ingredients.length === 0 && recipeName) {
       ingredients = inferIngredientsFromRecipeName(recipeName);
       console.log('🔍 Inferred ingredients from recipe name:', ingredients);
     }
     
-    // If no structured instructions found, generate basic ones
+    // If instructions are too brief (only headers), scan for detailed steps
+    if (instructions.length <= 6 && instructions.every(inst => inst.length < 30)) {
+      console.log('🔍 Instructions appear to be headers only, scanning for detailed steps...');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line && 
+            line.length > 20 && // Longer lines likely to be detailed instructions
+            !line.match(/^(#|##|###|\*\*.*\*\*|Ingredients?|Instructions?|Serves?|Prep|Cook|Total)/i) &&
+            (line.match(/\b(cook|add|mix|stir|heat|place|remove|season|serve|garnish|combine|drain|slice|chop|dice|sauté|boil|simmer|bake|roast)\b/i) ||
+             line.includes(' until ') || line.includes(' for ') || line.includes(' with ') || 
+             line.includes(' over ') || line.includes(' in ') || line.includes(' and '))) {
+          
+          // Don't add if it's already included
+          if (!instructions.some(existing => existing.includes(line.substring(0, 20)))) {
+            instructions.push(line);
+            console.log('🔍 Scanned detailed instruction:', line);
+          }
+        }
+      }
+    }
+    
+    // If still no detailed instructions found, generate basic ones
     if (instructions.length === 0 && recipeName) {
       instructions = [`Prepare ${recipeName} according to your preferred cooking method.`];
       console.log('🔍 Generated basic instruction');
@@ -1259,16 +1454,30 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     console.log('📊 Total lines to process:', lines.length);
     
     // Smart detection: Is this a single recipe or a meal plan?
-    const dayIndicators = text.match(/\b(Day\s+\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi) || [];
+    const dayIndicators = text.match(/\b(Day\s+[1-7]|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi) || [];
     const mealTypeCount = (text.match(/\b(Breakfast|Lunch|Dinner|Snack)\b/gi) || []).length;
     const recipeHeaders = text.match(/^(##?\s+)?(Day\s+\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/gmi) || [];
+    const multipleRecipeIndicators = text.match(/^(##?\s+)?[-*]\s*(Breakfast|Lunch|Dinner):\s*/gmi) || [];
+    const singleRecipeIndicators = text.match(/^#\s+[^(Day|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)]/gmi) || [];
     
-    const isTrueMealPlan = dayIndicators.length >= 2 || mealTypeCount >= 6 || recipeHeaders.length >= 2;
+    // More sophisticated detection
+    const hasMultipleDays = dayIndicators.length >= 3;
+    const hasMultipleMealTypes = mealTypeCount >= 8; // 7-day plan would have ~21-28 meal types
+    const hasMultipleRecipeHeaders = recipeHeaders.length >= 3;
+    const hasListedMeals = multipleRecipeIndicators.length >= 3;
+    const appearsToBeRecipe = singleRecipeIndicators.length >= 1 && !hasMultipleDays;
+    
+    const isTrueMealPlan = (hasMultipleDays || hasMultipleMealTypes || hasMultipleRecipeHeaders || hasListedMeals) && !appearsToBeRecipe;
     
     console.log('🔍 Content analysis:', {
       dayIndicators: dayIndicators.length,
       mealTypeCount: mealTypeCount,
       recipeHeaders: recipeHeaders.length,
+      multipleRecipeIndicators: multipleRecipeIndicators.length,
+      singleRecipeIndicators: singleRecipeIndicators.length,
+      hasMultipleDays: hasMultipleDays,
+      hasMultipleMealTypes: hasMultipleMealTypes,
+      appearsToBeRecipe: appearsToBeRecipe,
       isTrueMealPlan: isTrueMealPlan
     });
     
