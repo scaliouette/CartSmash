@@ -847,98 +847,208 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
     }
   };
 
-  // AI-powered recipe generation function
+  // PURE AI-ONLY recipe generation - NO MANUAL FALLBACKS
   const generateDetailedRecipeWithAI = async (recipeName, retryCount = 0) => {
-    const MAX_RETRIES = 2;
+    const MAX_RETRIES = 3;
     
+    console.log('🤖 PURE AI-ONLY generation for:', recipeName);
+    console.log('🚫 NO MANUAL FALLBACKS - AI REQUIRED');
+    
+    if (retryCount >= MAX_RETRIES) {
+      console.error(`❌ PURE AI FAILED after ${MAX_RETRIES} attempts for: ${recipeName}`);
+      return {
+        ingredients: [],
+        instructions: [],
+        success: false,
+        error: 'PURE AI generation failed. No manual fallback available.'
+      };
+    }
+
     try {
-      console.log('🤖 Generating professional recipe with detailed instructions for:', recipeName);
+      console.log(`🤖 PURE AI attempt ${retryCount + 1}/${MAX_RETRIES}: "${recipeName}"`);
       
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${API_URL}/api/ai/${selectedAI || 'anthropic'}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: `Create a PROFESSIONAL, restaurant-quality recipe for "${recipeName}". 
+          prompt: `Create a DETAILED recipe for "${recipeName}".
 
-CRITICAL: Provide COMPLETE, DETAILED instructions as if teaching a beginner cook.
+STRICT REQUIREMENTS:
+- Each instruction MUST be 50+ words minimum
+- Include exact temperatures, times, equipment specifications
+- Include visual cues for doneness ("golden brown", "bubbling", "165°F internal temp")
+- Professional cookbook quality - NO shortcuts or vague instructions
+- Equipment details ("12-inch cast iron skillet", "instant-read thermometer")
 
-INGREDIENTS (exact measurements):
-- List EVERY ingredient with precise measurements
-- Include prep notes (e.g., "diced", "room temperature", "divided")
-- Specify brands or types when relevant
-- Group by category if many ingredients
+INGREDIENTS (precise measurements):
+- List EVERY ingredient with exact measurements
+- Include prep notes ("diced", "room temperature", "divided")
 
 INSTRUCTIONS (comprehensive step-by-step):
-EACH step must include:
-- Specific technique details (not just "cook chicken" but "Heat 2 tbsp olive oil in a 12-inch skillet over medium-high heat until shimmering")
-- Exact times and temperatures
-- Visual/sensory cues ("until golden brown and edges are crispy", "until internal temp reaches 165°F")
-- Equipment needed for that step
-- Why you're doing it (brief explanation when helpful)
-- Common mistakes to avoid
+Each step MUST include:
+- Specific technique details 
+- Exact cooking times and temperatures
+- Visual/sensory doneness cues
+- Equipment specifications
 
-Example of good instruction:
-"Heat 2 tablespoons olive oil in a large skillet over medium-high heat until shimmering (about 2 minutes). Season chicken breasts with salt and pepper on both sides. Place chicken in skillet and cook without moving for 6-7 minutes until golden brown crust forms. Flip and continue cooking 6-7 minutes until internal temperature reaches 165°F. Transfer to plate and rest 5 minutes before slicing."
+FORMAT: JSON with "ingredients" array and "instructions" array.
 
-NOT acceptable: "Cook chicken until done"
+QUALITY EXAMPLE:
+"Heat 2 tablespoons olive oil in a 12-inch cast iron skillet over medium-high heat until the oil shimmers and moves freely, about 2-3 minutes. Season chicken breast with 1 teaspoon kosher salt and 1/2 teaspoon black pepper. Carefully place skin-side down in hot oil - you should hear immediate sizzling. Cook undisturbed for 5-7 minutes until skin releases easily and has deep golden-brown color with crispy edges. Check internal temperature reaches 165°F with instant-read thermometer."
 
-ADDITIONAL REQUIREMENTS:
-- Include prep steps (mise en place)
-- Specify pan sizes and types
-- Include resting/cooling times
-- Add serving suggestions
-- Include storage instructions
-- Mention variations or substitutions
-
-Make this recipe so detailed that someone who has never cooked could successfully make it.`,
-          context: 'professional_recipe_generation',
-          userId: currentUser?.uid || null,
+NO SHORTCUTS. Generate FULL detailed instructions.`,
+          context: 'pure_ai_recipe_generation',
           options: {
-            temperature: 0.7,
-            max_tokens: 3000,
-            format: 'structured',
-            requireProfessionalQuality: true,
-            minInstructionSteps: 8,
-            instructionDetailLevel: 'expert'
-          }
+            enforceAI: true,
+            noManualFallback: true,
+            minInstructionLength: 50,
+            requireTemperatures: true,
+            requireTimes: true,
+            minQuality: 'professional'
+          },
+          maxTokens: 2000
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`AI request failed: ${response.status}`);
+        throw new Error(`PURE AI request failed: ${response.status} - ${response.statusText}`);
       }
 
       const data = await response.json();
-      
-      // Validate instruction quality
-      const validateInstructions = (instructions) => {
-        if (!instructions || instructions.length < 5) return false;
+      console.log('🤖 PURE AI raw response:', data);
+
+      // STRICT validation for professional quality
+      const validatePureAIQuality = (instructions) => {
+        if (!Array.isArray(instructions) || instructions.length === 0) {
+          console.log('❌ PURE AI: No instructions array');
+          return false;
+        }
         
-        // Check for quality indicators
-        const hasTemperatures = instructions.some(i => /\d+°[FC]/.test(i));
-        const hasTimes = instructions.some(i => /\d+\s*(minutes?|hours?|seconds?)/.test(i));
-        const hasDetails = instructions.every(i => i.length > 50);
+        // Each instruction must be 50+ words
+        const hasMinLength = instructions.every(inst => {
+          const wordCount = inst.split(' ').length;
+          console.log(`📏 Instruction length: ${wordCount} words`);
+          return wordCount >= 50;
+        });
         
-        return hasTemperatures && hasTimes && hasDetails;
+        // Must have temperatures
+        const hasTemperatures = instructions.some(inst => 
+          /\d+°[CF]|\d+\s*degrees?/i.test(inst)
+        );
+        
+        // Must have times
+        const hasTimes = instructions.some(inst => 
+          /\d+\s*(?:minute|min|second|sec|hour|hr)s?/i.test(inst)
+        );
+        
+        // Must have detailed techniques
+        const hasDetails = instructions.every(inst => 
+          inst.length >= 200 && // Very detailed instructions
+          (inst.includes('until') || inst.includes('cook') || inst.includes('heat'))
+        );
+        
+        console.log('🔍 PURE AI Quality Check:', {
+          hasMinLength,
+          hasTemperatures,
+          hasTimes,
+          hasDetails,
+          instructionCount: instructions.length
+        });
+        
+        return hasMinLength && hasTemperatures && hasTimes && hasDetails;
       };
       
       if (data.success && (data.response || data.structuredData)) {
-        const aiText = data.response || data.structuredData?.text || '';
-        const ingredients = [];
-        const instructions = [];
+        let parsedData;
         
-        // Enhanced parsing for professional instructions
-        const lines = aiText.split('\n');
-        let currentSection = '';
-        let stepNumber = 1;
-        
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          
-          if (trimmedLine.match(/^INGREDIENTS/i) || trimmedLine.match(/^Ingredients:/i)) {
-            currentSection = 'ingredients';
-            continue;
+        // Try structured data first
+        if (data.structuredData) {
+          parsedData = data.structuredData;
+        } else {
+          // Parse response text
+          try {
+            parsedData = JSON.parse(data.response);
+          } catch (e) {
+            console.log('📝 Parsing non-JSON AI response...');
+            // Extract from text format with better parsing
+            const text = data.response;
+            const ingredientMatch = text.match(/ingredients?\s*:?\s*\[(.*?)\]/is) || text.match(/ingredients?\s*:?\s*((?:[-•]\s*.*(?:\n|$))+)/i);
+            const instructionMatch = text.match(/instructions?\s*:?\s*\[(.*?)\]/is) || text.match(/instructions?\s*:?\s*((?:[-•]\s*.*(?:\n|$)|\d+\.\s*.*(?:\n|$))+)/i);
+            
+            parsedData = {
+              ingredients: ingredientMatch ? ingredientMatch[1].split(/[,\n]/).map(s => s.trim().replace(/^[-•"']\s*/, '').replace(/["']$/, '')).filter(Boolean) : [],
+              instructions: instructionMatch ? instructionMatch[1].split(/\n/).map(s => s.trim().replace(/^\d+\.\s*/, '').replace(/^[-•]\s*/, '')).filter(Boolean) : []
+            };
+          }
+        }
+
+        const ingredients = Array.isArray(parsedData.ingredients) ? parsedData.ingredients : [];
+        const instructions = Array.isArray(parsedData.instructions) ? parsedData.instructions : [];
+
+        console.log('🧪 PURE AI parsed:', {
+          ingredientCount: ingredients.length,
+          instructionCount: instructions.length,
+          sampleInstruction: instructions[0]?.substring(0, 100)
+        });
+
+        // STRICT quality validation - retry if insufficient
+        if (validatePureAIQuality(instructions) && ingredients.length > 0) {
+          console.log(`✅ PURE AI SUCCESS: Professional quality recipe for "${recipeName}"`);
+          return {
+            ingredients: ingredients,
+            instructions: instructions,
+            success: true,
+            source: 'pure_ai',
+            quality: 'professional'
+          };
+        } else {
+          console.log(`🔄 PURE AI quality insufficient, retry ${retryCount + 1}`);
+          return await generateDetailedRecipeWithAI(recipeName, retryCount + 1);
+        }
+      } else {
+        throw new Error(data.error || 'PURE AI response structure invalid');
+      }
+    } catch (error) {
+      console.error(`❌ PURE AI attempt ${retryCount + 1} failed:`, error);
+      
+      // Retry with different approach
+      if (retryCount < MAX_RETRIES) {
+        console.log(`🔄 PURE AI retry ${retryCount + 1}/${MAX_RETRIES}...`);
+        return await generateDetailedRecipeWithAI(recipeName, retryCount + 1);
+      }
+      
+      // FINAL FAILURE - NO MANUAL FALLBACK
+      console.error('🚫 PURE AI SYSTEM FAILURE - NO MANUAL FALLBACK AVAILABLE');
+      return {
+        ingredients: [],
+        instructions: [],
+        success: false,
+        error: 'PURE AI generation failed. No manual data available.',
+        source: 'ai_failure'
+      };
+    }
+  };
+
+  // AI-ONLY ENFORCEMENT: Block manual recipe instruction generation
+  const generateInstructionsFromRecipeName = (recipeName) => {
+    console.error('🚫 MANUAL PARSING BLOCKED - AI-ONLY MODE ENFORCED!');
+    console.error('Function: generateInstructionsFromRecipeName');
+    console.error('Recipe:', recipeName);
+    console.error('This function has been removed in favor of AI-only generation.');
+    
+    throw new Error(`AI-ONLY MODE: Manual parsing of instructions for "${recipeName}" is blocked. Use AI generation instead.`);
+  };
+
+  // AI-ONLY ENFORCEMENT: Block manual ingredient inference 
+  const inferIngredientsFromRecipeName = (recipeName) => {
+    console.error('🚫 MANUAL PARSING BLOCKED - AI-ONLY MODE ENFORCED!');
+    console.error('Function: inferIngredientsFromRecipeName');
+    console.error('Recipe:', recipeName);
+    console.error('This function has been removed in favor of AI-only generation.');
+    
+    throw new Error(`AI-ONLY MODE: Manual parsing of ingredients for "${recipeName}" is blocked. Use AI generation instead.`);
+  };
           } else if (trimmedLine.match(/^INSTRUCTIONS/i) || trimmedLine.match(/^Instructions:/i)) {
             currentSection = 'instructions';
             continue;
@@ -997,21 +1107,136 @@ Make this recipe so detailed that someone who has never cooked could successfull
     }
   };
 
-  // DEPRECATED: Helper function to generate detailed instructions from recipe name
+  // AI-ONLY ENFORCEMENT: Block manual recipe instruction generation
   const generateInstructionsFromRecipeName = (recipeName) => {
-    console.error('❌ MANUAL FALLBACK CALLED - THIS SHOULD NOT HAPPEN!', 'generateInstructionsFromRecipeName', recipeName);
-    const name = recipeName.toLowerCase();
+    console.error('🚫 MANUAL PARSING BLOCKED - AI-ONLY MODE ENFORCED!');
+    console.error('Function: generateInstructionsFromRecipeName');
+    console.error('Recipe:', recipeName);
+    console.error('This function has been removed in favor of AI-only generation.');
     
-    if (name.includes('oatmeal') || name.includes('oats')) {
-      return [
-        '1. Bring 1 cup water and pinch of salt to boil in a small saucepan',
-        '2. Stir in 1/2 cup rolled oats and reduce heat to medium-low',
-        '3. Cook for 5-7 minutes, stirring occasionally until creamy',
-        '4. Remove from heat and stir in milk to desired consistency',
-        '5. Top with berries and drizzle with honey',
-        '6. Serve hot and enjoy'
-      ];
-    } else if (name.includes('wrap')) {
+    throw new Error(`AI-ONLY MODE: Manual parsing of instructions for "${recipeName}" is blocked. Use AI generation instead.`);
+  };
+
+  // AI-ONLY ENFORCEMENT: Block manual ingredient inference 
+  const inferIngredientsFromRecipeName = (recipeName) => {
+    console.error('🚫 MANUAL PARSING BLOCKED - AI-ONLY MODE ENFORCED!');
+    console.error('Function: inferIngredientsFromRecipeName');
+    console.error('Recipe:', recipeName);
+    console.error('This function has been removed in favor of AI-only generation.');
+    
+    throw new Error(`AI-ONLY MODE: Manual parsing of ingredients for "${recipeName}" is blocked. Use AI generation instead.`);
+  };
+
+  // Extract single recipe from text (simplified parsing for single recipe content)
+  const extractSingleRecipeFromText = async (text) => {
+    const lines = text.split('\n');
+    let recipeName = '';
+    let ingredients = [];
+    let instructions = [];
+    let currentSection = '';
+    
+    console.log('🔍 Single recipe extraction starting...');
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      // Get recipe name from first significant header
+      if (!recipeName && line.match(/^#\s*(.+)/)) {
+        recipeName = line.replace(/^#\s*/, '').trim();
+        console.log('📝 Found recipe name:', recipeName);
+        continue;
+      }
+      
+      // Detect ingredient sections (but don't treat as recipe names)
+      if (line.match(/^##?\s*(Ingredients?|Main Components?|Sauce|Garnish|Protein|Dairy|Vegetables?|Spices?|Seasonings?)\s*$/i)) {
+        currentSection = 'ingredients';
+        continue;
+      }
+      
+      // Detect instruction sections
+      if (line.match(/^##?\s*(Instructions?|Directions?|Method|Steps?|Preparation)\s*$/i)) {
+        currentSection = 'instructions';
+        continue;
+      }
+      
+      // Process ingredients (lines starting with - or numbers)
+      if (currentSection === 'ingredients' && (line.match(/^[-*]\s+/) || line.match(/^\d+\.?\s+/))) {
+        const cleanIngredient = line.replace(/^[-*]\s*/, '').replace(/^\d+\.?\s*/, '').trim();
+        if (cleanIngredient) {
+          ingredients.push(cleanIngredient);
+        }
+        continue;
+      }
+      
+      // Process instructions (lines starting with - or numbers)
+      if (currentSection === 'instructions' && (line.match(/^[-*]\s+/) || line.match(/^\d+\.?\s+/))) {
+        const cleanInstruction = line.replace(/^[-*]\s*/, '').replace(/^\d+\.?\s*/, '').trim();
+        if (cleanInstruction) {
+          instructions.push(cleanInstruction);
+        }
+        continue;
+      }
+      
+      // If no recipe name yet and this looks like a title, use it
+      if (!recipeName && line.length > 3 && !line.includes(':') && !line.match(/^[-*]\s+/)) {
+        recipeName = line;
+        console.log('📝 Using as recipe name:', recipeName);
+        continue;
+      }
+    }
+    
+    // Generate missing parts using AI if recipe name exists
+    if (!recipeName) {
+      recipeName = 'Single Recipe';
+    }
+    
+    // Use AI to fill in missing ingredients and instructions
+    if (ingredients.length === 0 || instructions.length === 0) {
+      try {
+        const aiResult = await generateDetailedRecipeWithAI(recipeName);
+        if (aiResult.success) {
+          if (ingredients.length === 0) {
+            ingredients = Array.isArray(aiResult.ingredients) ? aiResult.ingredients : [aiResult.ingredients].filter(Boolean);
+          }
+          if (instructions.length === 0) {
+            instructions = Array.isArray(aiResult.instructions) ? aiResult.instructions : [aiResult.instructions].filter(Boolean);
+          }
+        }
+      } catch (error) {
+        console.error('AI generation failed for single recipe:', error);
+      }
+    }
+    
+    const recipe = {
+      title: recipeName,
+      ingredients: ingredients.length > 0 ? ingredients : [`Ingredients for ${recipeName}`],
+      instructions: instructions.length > 0 ? instructions : [`Prepare ${recipeName} according to standard methods`],
+      prepTime: '',
+      cookTime: '',
+      servings: '',
+      difficulty: '',
+      cuisine: '',
+      tags: [],
+      calories: '',
+      notes: '',
+      id: `single_recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    };
+    
+    console.log('✅ Single recipe extraction complete:', {
+      recipeName: recipe.title,
+      ingredientCount: recipe.ingredients.length,
+      instructionCount: recipe.instructions.length
+    });
+    
+    return {
+      recipes: [recipe], // Single recipe in array
+      totalRecipes: 1
+    };
+  };
+
+  // Extract multiple recipes from a meal plan
+  const extractMultipleRecipesFromText = async (text) => {
       if (name.includes('turkey')) {
         return [
           '1. Lay the large flour tortillas flat on a clean surface',
