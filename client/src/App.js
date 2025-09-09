@@ -146,7 +146,7 @@ function AppContent({
     } catch (error) {
       console.error('Error loading from localStorage:', error);
     }
-  }, [setCurrentCart, setSavedLists, setSavedRecipes, setMealPlans, CART_AUTHORITY]);
+  }, [setCurrentCartWithTracking, CART_AUTHORITY]);
 
   const loadFirebaseData = useCallback(async () => {
     try {
@@ -259,7 +259,7 @@ function AppContent({
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, setIsLoading, setSyncStatus, loadLocalData, loadFirebaseData, setCurrentCartWithTracking]);
+  }, [currentUser, setIsLoading, setSyncStatus, loadLocalData, loadFirebaseData]);
   
   const saveCartToFirebase = useCallback(async (forceImmediate = false) => {
     if (!currentUser) return;
@@ -321,7 +321,7 @@ function AppContent({
     return () => {
       delete window.refreshAccountData;
     };
-  }, [loadAllData, currentUser, setCurrentCart]);
+  }, [loadAllData, currentUser, setCurrentCart, setCurrentCartWithTracking]);
   
   // Load all data on mount and when user changes
   useEffect(() => {
@@ -629,6 +629,7 @@ function AppContent({
           <MyAccount 
             savedLists={savedLists}
             savedRecipes={savedRecipes}
+            setSavedRecipes={setSavedRecipes}
             mealPlans={mealPlans}
             onRecipeSelect={(recipe) => {
               const itemsLoaded = loadRecipeToCart(recipe, false);

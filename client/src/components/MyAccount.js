@@ -6,7 +6,8 @@ import RecipeImporter from './RecipeImporter';
 
 function MyAccount({ 
   savedLists, 
-  savedRecipes, 
+  savedRecipes,
+  setSavedRecipes,
   mealPlans,
   onRecipeSelect, 
   onListSelect,

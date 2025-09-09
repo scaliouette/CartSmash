@@ -9,7 +9,7 @@ const NearbyStores = ({ onStoreSelect }) => {
   const [stores, setStores] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [userLocation, setUserLocation] = useState(null);
+  const [, setUserLocation] = useState(null);
   const [selectedStore, setSelectedStore] = useState(null);
   const [gettingLocation, setGettingLocation] = useState(false);
 

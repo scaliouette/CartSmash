@@ -10,9 +10,6 @@ const Terms = () => {
     background: 'linear-gradient(45deg, #FF6B35, #F7931E)'
   };
 
-  const sectionStyle = {
-    marginBottom: '40px'
-  };
 
   const headingStyle = {
     color: '#1f2937', 

@@ -6,7 +6,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   const [selectedStore, setSelectedStore] = useState(null);
   const [zipCode, setZipCode] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [matchedProducts, setMatchedProducts] = useState([]);
+  const [, setMatchedProducts] = useState([]);
   const [stores, setStores] = useState([]);
   const [searchingStores, setSearchingStores] = useState(false);
   const [showDebug, setShowDebug] = useState(false);

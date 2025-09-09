@@ -489,7 +489,7 @@ export const previewRecipeFromUrl = async (url) => {
   }
 };
 
-export default {
+const RecipeService = {
   fetchRecipeSuggestions,
   parseRecipeWithAI,
   generateRecipeVariations,
@@ -506,3 +506,5 @@ export default {
   validateRecipeUrl,
   previewRecipeFromUrl
 };
+
+export default RecipeService;

@@ -274,11 +274,11 @@ Provide recipes with instructions and list each grocery item on a separate line.
       
       // Legacy support for other formats
       const legacyMealMatch = line.match(/(day \d+|monday|tuesday|wednesday|thursday|friday|saturday|sunday).*?(breakfast|lunch|dinner|snack)/i);
-      const recipeMatch = line.match(/^[\*#\-]*\s*(.+?)(recipe|:|\*\*)/i);
+      const recipeMatch = line.match(/^[*#-]*\s*(.+?)(recipe|:|[*][*])/i);
       
       if (legacyMealMatch || (recipeMatch && line.length < 60)) {
         let recipeName = legacyMealMatch ? `${legacyMealMatch[1]} ${legacyMealMatch[2]}` : recipeMatch[1];
-        recipeName = recipeName.replace(/[\*#:\-]/g, '').trim();
+        recipeName = recipeName.replace(/[*#:-]/g, '').trim();
         
         const recipe = {
           title: recipeName,
@@ -354,7 +354,7 @@ Provide recipes with instructions and list each grocery item on a separate line.
       }
       
       // Extract ingredients and instructions
-      const bulletMatch = line.match(/^[•\-*]\s*(.+)$/) || line.match(/^\d+[\.)]\s*(.+)$/);
+      const bulletMatch = line.match(/^[•*-]\s*(.+)$/) || line.match(/^\d+[.)]\s*(.+)$/);
       if (bulletMatch && currentSection) {
         const content = bulletMatch[1].trim();
         if (currentSection === 'ingredients' && content.length > 2) {

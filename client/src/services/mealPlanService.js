@@ -221,7 +221,7 @@ export async function getMealAssignments(uid, mealPlanId) {
 export async function generateShoppingListFromMealPlan(uid, mealPlanId) {
   try {
     // Get meal plan and assignments
-    const mealPlan = await getMealPlan(uid, mealPlanId);
+    await getMealPlan(uid, mealPlanId);
     const assignments = await getMealAssignments(uid, mealPlanId);
     
     // Collect all recipe IDs

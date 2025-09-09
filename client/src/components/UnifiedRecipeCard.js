@@ -4,7 +4,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { saveRecipeToLibrary } from '../services/RecipeService';
-import { assignRecipeToMeal } from '../services/mealPlanService';
 
 export default function UnifiedRecipeCard({ 
   recipe, 
