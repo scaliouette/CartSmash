@@ -2248,7 +2248,7 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
               style={styles.expandButton}
               title={expanded ? "Show less" : "Show full recipe"}
             >
-              {expanded ? '▼' : '▶'} {expanded ? 'Less' : 'More'}
+              {expanded ? '▼' : '▶'}
             </button>
             <button 
               onClick={() => onAddToCart(recipe)}
