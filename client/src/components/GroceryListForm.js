@@ -199,26 +199,20 @@ FORMAT: JSON with "ingredients" array and "instructions" array containing as man
   }
   
   // Default enhanced prompt for other recipes
-  return `Create a DETAILED recipe for "${recipeName}".
+  return `Create a COMPLETE, DETAILED recipe for "${recipeName}".
 
-CRITICAL: Each instruction MUST be a complete paragraph of 50+ words minimum.
+Generate ALL necessary cooking steps for this recipe - provide as many steps as needed for a complete, professional-quality recipe. Do not limit yourself to any specific number of instructions.
 
-UNACCEPTABLE (too brief):
-❌ "Cook bacon until crispy"
-❌ "Scramble eggs in bacon fat"
-❌ "Slice avocado and serve"
-
-REQUIRED FORMAT:
-✅ "Place bacon strips in a cold 12-inch cast iron skillet, arranging them in a single layer without overlapping. Turn heat to medium (350°F) and cook for 4-5 minutes until the bottom side begins to brown and fat renders. Using tongs, flip each strip and continue cooking for another 3-4 minutes until desired crispness is achieved. The bacon should be deep golden brown with crispy edges but still slightly pliable in the center."
-
-Generate detailed instructions with:
+Each instruction should include:
 - Exact temperatures and times
-- Equipment specifications
+- Equipment specifications  
 - Visual/sensory cues for doneness
 - Professional techniques
 - Safety considerations
 
-FORMAT: JSON with "ingredients" array and "instructions" array.`;
+Provide comprehensive coverage of all cooking phases from preparation through serving.
+
+FORMAT: JSON with "ingredients" array and "instructions" array containing as many steps as the recipe naturally requires.`;
 };
 
 // Strict validation function
