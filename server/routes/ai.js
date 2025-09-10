@@ -506,6 +506,13 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
         const trimmed = line.trim();
         if (trimmed.match(/^[•\-*]\s*(.+)/) || trimmed.match(/^\d+\.?\s*(.+)/)) {
           const item = trimmed.replace(/^[•\-*\d\.]\s*/, '');
+          
+          // Skip meal plan descriptions in text fallback parsing
+          if (item.match(/^(Breakfast|Lunch|Dinner|Snack):/i)) {
+            console.log('🍽️ Skipping meal plan item in text fallback:', item);
+            return;
+          }
+          
           if (item.length > 3) {
             products.push({
               productName: item,

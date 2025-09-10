@@ -762,23 +762,43 @@ function GroceryListForm({
               setRecipes(aiData.recipes);
             }
             
-            // Use structured products
+            // Use structured products - filter out meal descriptions
             if (aiData.products && aiData.products.length > 0) {
-              const groceryItems = aiData.products.map(product => {
-                const quantity = product.quantity || '1';
-                const unit = product.unit ? ` ${product.unit}` : '';
+              console.log('🔍 Processing structured products, total count:', aiData.products.length);
+              
+              // Filter out any "products" that are actually meal descriptions
+              const realGroceryItems = aiData.products.filter(product => {
                 const name = product.productName || product.name;
-                return `• ${quantity}${unit} ${name}`;
+                const isMealDescription = name.match(/^(Breakfast|Lunch|Dinner|Snack):/i);
+                
+                if (isMealDescription) {
+                  console.log('🍽️ Skipping meal plan item (should be recipe):', name);
+                  return false;
+                }
+                return true;
               });
               
-              const groceryListText = groceryItems.join('\n');
-              setInputText(groceryListText);
+              console.log('🛒 Real grocery items after filtering:', realGroceryItems.length);
               
-              if (textareaRef.current) {
-                textareaRef.current.value = groceryListText;
+              if (realGroceryItems.length > 0) {
+                const groceryItems = realGroceryItems.map(product => {
+                  const quantity = product.quantity || '1';
+                  const unit = product.unit ? ` ${product.unit}` : '';
+                  const name = product.productName || product.name;
+                  return `• ${quantity}${unit} ${name}`;
+                });
+                
+                const groceryListText = groceryItems.join('\n');
+                setInputText(groceryListText);
+                
+                if (textareaRef.current) {
+                  textareaRef.current.value = groceryListText;
+                }
+                
+                groceryListProcessed = true;
+              } else {
+                console.log('⚠️ No real grocery items found after filtering meal descriptions');
               }
-              
-              groceryListProcessed = true;
             }
           }
           
