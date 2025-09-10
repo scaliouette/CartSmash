@@ -692,8 +692,11 @@ function GroceryListForm({
             // Store structured recipes for display
             if (aiData.recipes.length > 0) {
               console.log('🍳 Displaying structured recipes from AI:', aiData.recipes);
+              console.log('🔍 Recipe validation - checking first recipe:', aiData.recipes[0]);
               setParsedRecipes(aiData.recipes);
               setRecipes(aiData.recipes);
+            } else {
+              console.log('⚠️ No structured recipes found in AI response:', aiData);
             }
             
             // Use structured products
@@ -733,6 +736,32 @@ function GroceryListForm({
                 if (recipeResult.recipes && recipeResult.recipes.length > 0) {
                   console.log('🍳 Parsed recipes from AI response:', recipeResult.recipes);
                   setParsedRecipes(recipeResult.recipes);
+                } else {
+                  console.log('⚠️ No recipes found in text parsing, checking for JSON recipes...');
+                  
+                  // Try to extract recipes from JSON format in the AI response
+                  try {
+                    const jsonMatch = aiResponseText.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                      const jsonData = JSON.parse(jsonMatch[0]);
+                      if (jsonData.ingredients && jsonData.instructions) {
+                        const singleRecipe = {
+                          title: jsonData.name || jsonData.title || 'AI Generated Recipe',
+                          ingredients: Array.isArray(jsonData.ingredients) ? jsonData.ingredients : [jsonData.ingredients],
+                          instructions: Array.isArray(jsonData.instructions) ? jsonData.instructions : [jsonData.instructions],
+                          servings: jsonData.servings || '',
+                          prepTime: jsonData.prepTime || '',
+                          cookTime: jsonData.cookTime || '',
+                          mealType: 'Dinner',
+                          id: `ai_recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                        };
+                        console.log('🍳 Found JSON recipe in AI response:', singleRecipe);
+                        setParsedRecipes([singleRecipe]);
+                      }
+                    }
+                  } catch (jsonError) {
+                    console.log('⚠️ No valid JSON recipe found in AI response');
+                  }
                 }
               } catch (recipeError) {
                 console.error('❌ Failed to parse recipes from AI response:', recipeError);
