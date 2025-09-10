@@ -34,6 +34,16 @@ function MyAccount({
   const [selectedDayForRecipe, setSelectedDayForRecipe] = useState(null);
   const [selectedMealTypeForRecipe, setSelectedMealTypeForRecipe] = useState(null);
   
+  // AI Provider Settings
+  const [preferredAI, setPreferredAI] = useState(() => {
+    try {
+      return localStorage.getItem('preferredAI') || 'claude';
+    } catch (error) {
+      console.warn('Failed to load AI preference from localStorage:', error);
+      return 'claude';
+    }
+  });
+  
   // Load meal plans from props or localStorage with error handling
   useEffect(() => {
     try {
@@ -117,6 +127,24 @@ function MyAccount({
     } catch (error) {
       console.error('❌ Error adding shopping list:', error);
       alert('Failed to create shopping list. Please try again.');
+    }
+  };
+
+  // AI Provider toggle handler
+  const handleAIProviderToggle = (provider) => {
+    try {
+      console.log(`🤖 Switching AI provider from ${preferredAI} to ${provider}`);
+      setPreferredAI(provider);
+      localStorage.setItem('preferredAI', provider);
+      
+      // Broadcast change to other components (optional)
+      window.dispatchEvent(new CustomEvent('aiProviderChanged', { 
+        detail: { provider } 
+      }));
+      
+      console.log(`✅ AI provider changed to ${provider}`);
+    } catch (error) {
+      console.error('❌ Failed to change AI provider:', error);
     }
   };
 
@@ -563,6 +591,60 @@ function MyAccount({
     </div>
   );
 
+  const renderSettings = () => (
+    <div style={styles.settingsContainer}>
+      <div style={styles.settingsHeader}>
+        <h2 style={styles.pageTitle}>Settings</h2>
+        <p style={styles.settingsDescription}>
+          Configure your CARTSMASH preferences and AI behavior.
+        </p>
+      </div>
+
+      <div style={styles.settingsSection}>
+        <h3 style={styles.settingsSectionTitle}>🤖 AI Provider</h3>
+        <p style={styles.settingDescription}>
+          Choose your preferred AI assistant for generating meal plans and grocery lists.
+        </p>
+        
+        <div style={styles.aiToggleContainer}>
+          <button
+            onClick={() => handleAIProviderToggle('claude')}
+            style={{
+              ...styles.aiToggleButton,
+              ...(preferredAI === 'claude' ? styles.aiToggleActive : styles.aiToggleInactive)
+            }}
+          >
+            <div style={styles.aiToggleIcon}>🤖</div>
+            <div style={styles.aiToggleContent}>
+              <div style={styles.aiToggleName}>Claude</div>
+              <div style={styles.aiToggleDesc}>Anthropic's AI - Great for detailed meal planning</div>
+            </div>
+            {preferredAI === 'claude' && <div style={styles.aiToggleCheck}>✓</div>}
+          </button>
+
+          <button
+            onClick={() => handleAIProviderToggle('chatgpt')}
+            style={{
+              ...styles.aiToggleButton,
+              ...(preferredAI === 'chatgpt' ? styles.aiToggleActive : styles.aiToggleInactive)
+            }}
+          >
+            <div style={styles.aiToggleIcon}>🧠</div>
+            <div style={styles.aiToggleContent}>
+              <div style={styles.aiToggleName}>ChatGPT</div>
+              <div style={styles.aiToggleDesc}>OpenAI's AI - Versatile and creative responses</div>
+            </div>
+            {preferredAI === 'chatgpt' && <div style={styles.aiToggleCheck}>✓</div>}
+          </button>
+        </div>
+
+        <div style={styles.currentSelection}>
+          <strong>Current Selection:</strong> {preferredAI === 'claude' ? '🤖 Claude' : '🧠 ChatGPT'}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -607,6 +689,15 @@ function MyAccount({
         >
           📖 Recipes ({stats.totalRecipes})
         </button>
+        <button
+          onClick={() => setActiveTab('settings')}
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'settings' ? styles.tabActive : {})
+          }}
+        >
+          ⚙️ Settings
+        </button>
       </div>
 
       <div style={styles.content}>
@@ -614,6 +705,7 @@ function MyAccount({
         {activeTab === 'lists' && renderShoppingLists()}
         {activeTab === 'mealplans' && renderMealPlans()}
         {activeTab === 'recipes' && renderRecipes()}
+        {activeTab === 'settings' && renderSettings()}
       </div>
 
 
@@ -1772,6 +1864,113 @@ const styles = {
     fontSize: '14px',
     marginTop: '8px',
     color: '#9ca3af'
+  },
+
+  // Settings styles
+  settingsContainer: {
+    padding: '32px'
+  },
+
+  settingsHeader: {
+    marginBottom: '32px'
+  },
+
+  settingsDescription: {
+    fontSize: '16px',
+    color: '#6b7280',
+    marginTop: '8px'
+  },
+
+  settingsSection: {
+    marginBottom: '32px',
+    padding: '24px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '12px',
+    border: '2px solid #e5e7eb'
+  },
+
+  settingsSectionTitle: {
+    fontSize: '20px',
+    fontWeight: 'bold',
+    color: '#002244',
+    marginBottom: '8px'
+  },
+
+  settingDescription: {
+    fontSize: '14px',
+    color: '#6b7280',
+    marginBottom: '20px'
+  },
+
+  aiToggleContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    marginBottom: '20px'
+  },
+
+  aiToggleButton: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '16px',
+    border: '2px solid transparent',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    textAlign: 'left',
+    position: 'relative'
+  },
+
+  aiToggleActive: {
+    backgroundColor: '#FFF5F2',
+    borderColor: '#FB4F14',
+    boxShadow: '0 4px 12px rgba(251,79,20,0.15)'
+  },
+
+  aiToggleInactive: {
+    backgroundColor: 'white',
+    borderColor: '#e5e7eb',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+  },
+
+  aiToggleIcon: {
+    fontSize: '32px',
+    marginRight: '16px',
+    flexShrink: 0
+  },
+
+  aiToggleContent: {
+    flex: 1
+  },
+
+  aiToggleName: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#002244',
+    marginBottom: '4px'
+  },
+
+  aiToggleDesc: {
+    fontSize: '14px',
+    color: '#6b7280'
+  },
+
+  aiToggleCheck: {
+    fontSize: '20px',
+    color: '#FB4F14',
+    fontWeight: 'bold',
+    position: 'absolute',
+    top: '12px',
+    right: '16px'
+  },
+
+  currentSelection: {
+    padding: '12px 16px',
+    backgroundColor: '#002244',
+    color: 'white',
+    borderRadius: '8px',
+    fontSize: '14px',
+    textAlign: 'center'
   }
 };
 

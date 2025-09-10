@@ -292,7 +292,14 @@ function GroceryListForm({
   const [parsingProgress, setParsingProgress] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
   const [ingredientStyle, setIngredientStyle] = useState('basic');
-  const [selectedAI] = useState('claude');
+  const [selectedAI, setSelectedAI] = useState(() => {
+    try {
+      return localStorage.getItem('preferredAI') || 'claude';
+    } catch (error) {
+      console.warn('Failed to load AI preference:', error);
+      return 'claude';
+    }
+  });
   const [mealPlanExpanded, setMealPlanExpanded] = useState(true);
   const [individualExpansionStates, setIndividualExpansionStates] = useState({});
   // eslint-disable-next-line no-unused-vars
@@ -513,6 +520,28 @@ function GroceryListForm({
   useEffect(() => {
     setShowResults(currentCart.length > 0);
   }, [currentCart]);
+
+  // Listen for AI provider changes from MyAccount settings
+  useEffect(() => {
+    const handleAIProviderChange = (event) => {
+      const newProvider = event.detail.provider;
+      console.log(`🤖 AI provider changed to: ${newProvider}`);
+      setSelectedAI(newProvider);
+    };
+
+    window.addEventListener('aiProviderChanged', handleAIProviderChange);
+    
+    // Also check localStorage on component mount for changes
+    const storedProvider = localStorage.getItem('preferredAI');
+    if (storedProvider && storedProvider !== selectedAI) {
+      console.log(`🤖 Syncing AI provider to: ${storedProvider}`);
+      setSelectedAI(storedProvider);
+    }
+
+    return () => {
+      window.removeEventListener('aiProviderChanged', handleAIProviderChange);
+    };
+  }, [selectedAI]);
 
   // Initialize expansion states when recipes change
   useEffect(() => {
@@ -2882,7 +2911,10 @@ PROVIDE COMPREHENSIVE DETAILED INSTRUCTIONS - as many steps as the recipe natura
               <label style={styles.settingLabel}>AI:</label>
               <div style={styles.toggleButtons}>
                 <button
-                  onClick={() => setSelectedAI('claude')}
+                  onClick={() => {
+                    setSelectedAI('claude');
+                    localStorage.setItem('preferredAI', 'claude');
+                  }}
                   style={{
                     ...styles.toggleBtn,
                     ...(selectedAI === 'claude' ? styles.toggleActive : {})
@@ -2891,7 +2923,10 @@ PROVIDE COMPREHENSIVE DETAILED INSTRUCTIONS - as many steps as the recipe natura
                   🤖 Claude
                 </button>
                 <button
-                  onClick={() => setSelectedAI('chatgpt')}
+                  onClick={() => {
+                    setSelectedAI('chatgpt');
+                    localStorage.setItem('preferredAI', 'chatgpt');
+                  }}
                   style={{
                     ...styles.toggleBtn,
                     ...(selectedAI === 'chatgpt' ? styles.toggleActive : {})
