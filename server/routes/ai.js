@@ -445,14 +445,31 @@ IMPORTANT:
           });
         } else if (structuredData.type === 'meal_plan' && structuredData.days) {
           recipes = []; // Extract recipes from days
-          structuredData.days?.forEach(day => {
-            Object.values(day.meals || {}).forEach(meal => {
+          console.log('🔍 Extracting recipes from meal plan, days count:', structuredData.days.length);
+          
+          structuredData.days?.forEach((day, dayIndex) => {
+            console.log(`📅 Processing day ${dayIndex + 1}:`, day.day || `Day ${dayIndex + 1}`);
+            const meals = day.meals || {};
+            console.log('🍽️ Meals in this day:', Object.keys(meals));
+            
+            Object.entries(meals).forEach(([mealType, meal]) => {
+              console.log(`🔍 Checking ${mealType}:`, {
+                hasName: !!meal.name,
+                hasIngredients: !!meal.ingredients,
+                hasInstructions: !!meal.instructions,
+                ingredientCount: meal.ingredients?.length || 0,
+                instructionCount: meal.instructions?.length || 0
+              });
+              
               if (meal.name && meal.ingredients) {
+                console.log(`✅ Adding recipe: ${meal.name} (${meal.instructions?.length || 0} instructions)`);
                 recipes.push({
                   name: meal.name,
                   ingredients: meal.ingredients,
                   instructions: meal.instructions || [],
-                  mealType: 'meal_plan_item'
+                  mealType: mealType,
+                  day: day.day,
+                  title: meal.name // Add title for compatibility
                 });
                 
                 // Convert each recipe's ingredients to products (matches recipe display)
@@ -465,9 +482,13 @@ IMPORTANT:
                     source: 'ai_meal_plan_recipe'
                   });
                 });
+              } else {
+                console.log(`❌ Skipping meal ${mealType} - missing name or ingredients`);
               }
             });
           });
+          
+          console.log(`📊 Total recipes extracted from meal plan: ${recipes.length}`);
         } else if (structuredData.type === 'recipe_list' && structuredData.recipes) {
           recipes = structuredData.recipes;
           // Convert recipe ingredients to products
