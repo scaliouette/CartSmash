@@ -336,9 +336,11 @@ Return a structured JSON response. If this is a recipe request, return:
         {"name": "ingredient", "quantity": "2", "unit": "cups"}
       ],
       "instructions": [
-        "Step 1: Detailed preparation instruction with specific techniques, temperatures, and timing",
-        "Step 2: Continuation with precise cooking methods and visual cues",
-        "Step 3: Additional steps as needed with complete information for success"
+        "Detailed instruction with specific techniques, temperatures, and timing",
+        "Continue with more comprehensive steps as needed for the complete recipe",
+        "Add as many additional steps as the recipe requires - no limit on instruction count",
+        "Include all necessary preparation, cooking, and finishing steps",
+        "...continue with remaining steps until recipe is complete"
       ]
     }
   ]
@@ -355,7 +357,12 @@ If this is a grocery list request, return:
   ]
 }
 
-IMPORTANT: Return ONLY the JSON object with specific, measurable items and quantities.`;
+IMPORTANT: 
+- Return ONLY the JSON object with specific, measurable items and quantities
+- UNLIMITED INSTRUCTIONS: Provide as many instruction steps as the recipe naturally requires - there is NO MAXIMUM limit
+- Generate the complete recipe with ALL necessary steps from start to finish
+- Each instruction should be comprehensive with temperatures, times, techniques, and visual cues
+- Break complex recipes into logical, sequential steps - use 3, 5, 8, 12+ steps as needed for completeness.`;
     }
     
     let responseText, usage, model;
