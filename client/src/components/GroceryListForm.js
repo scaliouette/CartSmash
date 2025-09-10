@@ -24,118 +24,49 @@ function getTimeAgo(date) {
 // Extract only grocery list items from AI response (not full meal plan)
 function extractGroceryListOnly(text) {
   console.log('🛒 Extracting grocery list from AI response...');
-  console.log('📄 Text preview:', text.substring(0, 300));
   
   const lines = text.split('\n');
   const groceryItems = [];
   let inGrocerySection = false;
-  let inRecipeSection = false;
-  
-  console.log('📊 Total lines to process:', lines.length);
+  let inMealPlanSection = false;
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     const lowerLine = line.toLowerCase();
     
-    // Detect recipe sections to avoid parsing them as grocery items
-    if (lowerLine.includes('recipe') || lowerLine.includes('instructions') || 
-        lowerLine.includes('directions') || lowerLine.includes('method')) {
-      inRecipeSection = true;
-      inGrocerySection = false;
+    // Skip meal plan items (they should be recipes, not grocery items)
+    if (line.match(/^(•|-|\*|\d+\.)\s*(Breakfast|Lunch|Dinner|Snack):/i)) {
+      console.log('🍽️ Skipping meal plan item (should be recipe):', line);
+      inMealPlanSection = true;
       continue;
     }
     
-    // Detect start of grocery list section
+    // Detect actual grocery list section
     if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list') || 
-        lowerLine === 'produce:' || lowerLine === 'proteins & dairy:' ||
-        lowerLine === 'grains & bakery:' || lowerLine === 'pantry:' ||
-        lowerLine === 'produce' || lowerLine === 'dairy:' || lowerLine === 'meat & seafood:' ||
-        lowerLine === 'pantry items:' || lowerLine === 'frozen:' || lowerLine === 'bakery:') {
-      console.log('🛒 Found grocery section start on line', i, ':', line);
+        lowerLine.includes('ingredients needed') || lowerLine.includes('shopping items')) {
+      console.log('🛒 Found grocery section start');
       inGrocerySection = true;
-      inRecipeSection = false;
-      if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list')) {
-        continue; // Skip the header line
-      }
+      inMealPlanSection = false;
+      continue;
     }
     
-    // Stop if we hit non-grocery content while in grocery section
-    if (inGrocerySection && (
-      lowerLine.startsWith('estimated total cost:') ||
-      lowerLine.startsWith('money-saving tips:') ||
-      lowerLine.startsWith('sample recipe') ||
-      lowerLine.startsWith('key recipes:') ||
-      lowerLine.includes('this plan emphasizes') ||
-      lowerLine.includes('this meal plan')
-    )) {
-      break;
-    }
-    
-    // If we're in grocery section and not in recipe section, collect items
-    if (inGrocerySection && !inRecipeSection) {
-      // Match items with bullets, dashes, or numbers
-      const itemMatch = line.match(/^[-•*]\s*(.+)$|^\d+\.\s*(.+)$/);
+    // Only add items if we're in the grocery section and NOT in meal plan section
+    if (inGrocerySection && !inMealPlanSection) {
+      const itemMatch = line.match(/^[-•*]\s*(.+)$|^\d+\.?\s*(.+)$/);
       if (itemMatch) {
         const item = (itemMatch[1] || itemMatch[2]).trim();
-        console.log('🥕 Found potential grocery item on line', i, ':', item);
         
-        // Skip category headers and empty items
-        if (item && !item.endsWith(':') && item.length > 2) {
-          // Clean up the item text
-          const cleanedItem = item
-            .replace(/\*\*/g, '') // Remove markdown bold
-            .replace(/\*/g, '')   // Remove markdown italic
-            .trim();
-          
-          if (cleanedItem && !groceryItems.includes(cleanedItem)) {
-            console.log('✅ Added grocery item:', cleanedItem);
-            groceryItems.push(cleanedItem);
-          }
-        }
-      } else if (line.length > 0 && !line.endsWith(':')) {
-        // Handle items without bullets (some AI responses don't use bullets)
-        const cleanedItem = line
-          .replace(/\*\*/g, '')
-          .replace(/\*/g, '')
-          .trim();
-        
-        // Check if it looks like a grocery item (has quantity or common food words)
-        if (cleanedItem.match(/^\d+/) || 
-            cleanedItem.match(/\b(lb|lbs|oz|cup|cups|tbsp|tsp|dozen|bag|jar|can|bottle)\b/i)) {
-          if (!groceryItems.includes(cleanedItem)) {
-            groceryItems.push(cleanedItem);
-          }
-        }
-      }
-    }
-  }
-  
-  // If no grocery section found, try to extract items from the entire text
-  if (groceryItems.length === 0) {
-    console.log('No grocery section found, attempting full text extraction...');
-    
-    for (const line of lines) {
-      const trimmed = line.trim();
-      
-      // Look for lines that look like grocery items
-      if (trimmed.match(/^[-•*]\s*\d+.*(lb|lbs|oz|cup|cups|tbsp|tsp|dozen|bag|jar|can|bottle|bunch|head|clove)/i) ||
-          trimmed.match(/^[-•*]\s*\d+\s+\w+/)) {
-        const item = trimmed.replace(/^[-•*]\s*/, '').trim();
-        if (item && !groceryItems.includes(item)) {
+        // Skip meal descriptions, only keep actual grocery items
+        if (!item.match(/^(Breakfast|Lunch|Dinner|Snack):/i) && 
+            item.length > 2 && 
+            !item.endsWith(':')) {
           groceryItems.push(item);
         }
       }
     }
   }
   
-  // Return clean list of items, one per line
-  console.log(`🛒 Grocery extraction complete: Found ${groceryItems.length} items`);
-  console.log('📋 Grocery items:', groceryItems);
-  
-  const result = groceryItems.join('\n');
-  console.log('📄 Final grocery list text:', result);
-  
-  return result;
+  return groceryItems.join('\n');
 }
 
 // Utility functions for cleaning recipe data
