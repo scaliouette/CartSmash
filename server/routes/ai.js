@@ -320,7 +320,13 @@ Return a structured JSON response with complete meal plan information:
   "totalEstimatedCost": "$85-95"
 }
 
-IMPORTANT: Return ONLY the JSON object, no additional text. Generate complete details for ALL requested days with specific ingredients and quantities.`;
+IMPORTANT: 
+- Return ONLY the JSON object, no additional text
+- Generate complete details for ALL requested days with specific ingredients and quantities
+- CRITICAL: Each recipe's instructions MUST be an array of separate, detailed steps - NOT a single paragraph
+- Each instruction step should be 30-50 words and focus on one specific cooking action
+- Break complex cooking into logical, sequential steps with specific temperatures, times, and techniques
+- Use the example format above where each instruction is a separate array element`;
     } else {
       // Regular grocery list or simple recipe format - structured JSON
       enhancedPrompt = `${processedPrompt}
@@ -782,7 +788,13 @@ Return a structured JSON response with complete meal plan information:
   "totalEstimatedCost": "$85-95"
 }
 
-IMPORTANT: Return ONLY the JSON object, no additional text. Generate complete details for ALL requested days with specific ingredients and quantities.`;
+IMPORTANT: 
+- Return ONLY the JSON object, no additional text
+- Generate complete details for ALL requested days with specific ingredients and quantities
+- CRITICAL: Each recipe's instructions MUST be an array of separate, detailed steps - NOT a single paragraph
+- Each instruction step should be 30-50 words and focus on one specific cooking action
+- Break complex cooking into logical, sequential steps with specific temperatures, times, and techniques
+- Use the example format above where each instruction is a separate array element`;
     } else {
       // Regular grocery list format
       enhancedPrompt = `${processedPrompt}
