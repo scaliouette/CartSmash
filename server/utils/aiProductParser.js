@@ -438,12 +438,25 @@ Rules:
       if (pattern.test(line)) return true;
     }
     const lower = line.toLowerCase();
+    
     // Exclude markdown headers and section titles like "For the Chicken"
     if (/^#{1,6}\s/.test(line)) return true;
     if (/^for the\b/.test(lower)) return true;
-    if (['proteins:', 'produce:', 'dairy:', 'pantry:', 'pantry/other:', 'beverages:'].includes(lower)) return true;
+    
+    // Exclude section headers with asterisks or colons
+    if (/^\*+.*\*+$/.test(line)) return true; // *GROCERY SHOPPING LIST:*, *Proteins:*, etc.
+    if (/^\*+[^*]*:?\*+$/.test(line)) return true; // Any text wrapped in asterisks
+    
+    // Standard section headers
+    if (['proteins:', 'produce:', 'dairy:', 'pantry:', 'pantry/other:', 'beverages:', 'grains & bakery:', 'pantry items:', 'fresh produce:'].includes(lower)) return true;
+    
+    // Headers without colons but clearly section names
+    if (['grocery shopping list', 'proteins', 'fresh produce', 'pantry items', 'dairy', 'grains & bakery'].includes(lower)) return true;
+    
+    // Food category descriptions
     if (lower.includes('salads with') || lower.includes('salmon with') || lower.includes('lunch with') || lower.includes('breakfast with')) return true;
     if (lower.includes('combinations') || lower.includes('quick grain bowls') || lower.includes('wrap sandwiches')) return true;
+    
     return false;
   }
 
