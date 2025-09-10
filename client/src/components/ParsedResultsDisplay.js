@@ -58,6 +58,31 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   const [showValidationPage, setShowValidationPage] = useState(false);
   const [validatingAll, setValidatingAll] = useState(false);
 
+  // Safe function to get product display name for rendering
+  const getProductDisplayName = (item) => {
+    // Handle various possible structures
+    if (typeof item.productName === 'string') {
+      return item.productName;
+    }
+    
+    if (typeof item.productName === 'object' && item.productName !== null) {
+      // If productName is an object, try to extract the actual text
+      return item.productName.text || 
+             item.productName.name || 
+             item.productName.value ||
+             item.productName.original ||
+             JSON.stringify(item.productName); // Last resort - show the structure
+    }
+    
+    // Fallback to other possible fields
+    return item.itemName || 
+           item.name || 
+           item.item || 
+           item.original || 
+           item.text || 
+           'Unknown Item';
+  };
+
   // Track latest items to prevent race conditions in price fetches
   const latestItemsRef = useRef(items);
   useEffect(() => { 
@@ -862,7 +887,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
             {editingItem === item.id ? (
               <input
                 type="text"
-                value={item.productName || item.itemName || ''}
+                value={getProductDisplayName(item)}
                 onChange={(e) => handleItemEdit(item.id, 'productName', e.target.value)}
                 onBlur={() => setEditingItem(null)}
                 onKeyPress={(e) => e.key === 'Enter' && setEditingItem(null)}
@@ -875,7 +900,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
                 style={styles.itemNameText}
                 title="Click to edit"
               >
-                {item.productName || item.itemName || item.name || ''}
+                {getProductDisplayName(item)}
               </span>
             )}
           </div>

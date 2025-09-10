@@ -205,6 +205,144 @@ function GroceryListForm({
     isSaving: isDraftSaving
   } = useGroceryListAutoSave(inputText);
 
+  // Debug function to identify cart item structure
+  const debugCartItem = (item) => {
+    console.log('Cart item structure:', {
+      fullItem: item,
+      keys: Object.keys(item),
+      productName: item.productName,
+      name: item.name,
+      item: item.item,
+      original: item.original,
+      text: item.text,
+      typeOfProductName: typeof item.productName,
+      isProductNameObject: typeof item.productName === 'object'
+    });
+    
+    // Try to extract the actual product name
+    let displayName = 'Unknown Item';
+    
+    // Check various possible field names and structures
+    if (typeof item.productName === 'string') {
+      displayName = item.productName;
+    } else if (typeof item.productName === 'object' && item.productName !== null) {
+      // productName is an object, try to extract text from it
+      displayName = item.productName.text || 
+                    item.productName.name || 
+                    item.productName.value || 
+                    JSON.stringify(item.productName);
+    } else if (item.name) {
+      displayName = item.name;
+    } else if (item.item) {
+      displayName = item.item;
+    } else if (item.original) {
+      displayName = item.original;
+    } else if (item.text) {
+      displayName = item.text;
+    }
+    
+    return displayName;
+  };
+
+  // Fix cart item structure to ensure productName is always a string
+  const fixCartItemStructure = (cartData) => {
+    // If cart items have nested structure, flatten them
+    if (Array.isArray(cartData)) {
+      return cartData.map(item => {
+        // Ensure each item has a proper productName string
+        let productName = '';
+        
+        // Handle various possible structures
+        if (typeof item === 'string') {
+          // Item is just a string
+          productName = item;
+          return {
+            id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            productName: productName,
+            quantity: 1,
+            unit: 'each',
+            price: 0,
+            confidence: 'medium',
+            category: 'Other'
+          };
+        }
+        
+        // Extract product name from various possible fields
+        if (typeof item.productName === 'object' && item.productName !== null) {
+          productName = item.productName.text || 
+                       item.productName.name || 
+                       item.productName.value || 
+                       'Unknown Item';
+        } else if (typeof item.productName === 'string') {
+          productName = item.productName;
+        } else if (item.name) {
+          productName = item.name;
+        } else if (item.item) {
+          productName = item.item;
+        } else if (item.original) {
+          productName = item.original;
+        } else if (item.text) {
+          productName = item.text;
+        } else {
+          productName = 'Unknown Item';
+        }
+        
+        // Return properly structured item
+        return {
+          ...item,
+          id: item.id || `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          productName: productName, // Ensure this is always a string
+          quantity: item.quantity || 1,
+          unit: item.unit || 'each',
+          price: item.price || 0,
+          confidence: item.confidence || 'medium',
+          category: item.category || 'Other'
+        };
+      });
+    }
+    
+    return cartData;
+  };
+
+  // Safe function to get product display name for rendering
+  const getProductDisplayName = (item) => {
+    // Handle various possible structures
+    if (typeof item.productName === 'string') {
+      return item.productName;
+    }
+    
+    if (typeof item.productName === 'object' && item.productName !== null) {
+      // If productName is an object, try to extract the actual text
+      return item.productName.text || 
+             item.productName.name || 
+             item.productName.value ||
+             item.productName.original ||
+             JSON.stringify(item.productName); // Last resort - show the structure
+    }
+    
+    // Fallback to other possible fields
+    return item.name || 
+           item.item || 
+           item.original || 
+           item.text || 
+           'Unknown Item';
+  };
+
+  // Debug effect to monitor cart structure changes
+  useEffect(() => {
+    if (currentCart && currentCart.length > 0) {
+      console.log('🛒 Current cart structure:', currentCart);
+      currentCart.forEach((item, index) => {
+        console.log(`Item ${index}:`, {
+          fullItem: item,
+          productNameType: typeof item.productName,
+          productNameValue: item.productName,
+          allKeys: Object.keys(item)
+        });
+      });
+    }
+  }, [currentCart]);
+
   // Show results when cart has items
   useEffect(() => {
     setShowResults(currentCart.length > 0);
@@ -2581,8 +2719,17 @@ NO SHORTCUTS. Generate FULL detailed instructions.`,
       const data = await response.json();
       
       if (data.success && data.cart) {
-        // Update the cart with new items
-        setCurrentCart(data.cart);
+        // Fix cart item structure before setting
+        const fixedCart = fixCartItemStructure(data.cart);
+        
+        console.log('Original cart:', data.cart);
+        console.log('Fixed cart:', fixedCart);
+        
+        // Debug each item before setting
+        data.cart.forEach((item, index) => debugCartItem(item));
+        
+        // Update the cart with properly structured items
+        setCurrentCart(fixedCart);
         
         // Count added items - use the parsed count from the API response if available
         const addedCount = data.parsedCount || recipe.ingredients.length;
