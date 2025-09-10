@@ -1063,9 +1063,9 @@ Return as JSON with this structure:
         // Second attempt - more explicit
         prompt = `The previous attempt failed because instructions were too brief.
 
-Generate a recipe for "${recipeName}" with EXACTLY 6 DETAILED instruction steps.
+Generate a detailed recipe for "${recipeName}" with comprehensive cooking instructions.
 
-EACH instruction must be a FULL PARAGRAPH (50+ words minimum).
+EACH instruction should be detailed and specific with temperatures, times, and techniques.
 
 BAD EXAMPLE (too short):
 "Stir-fry chicken and vegetables"
@@ -1079,11 +1079,11 @@ Return JSON with:
 
       } else {
         // Final attempt - very explicit with example
-        prompt = `CRITICAL: You MUST provide 6 DETAILED instruction steps, NOT 3!
+        prompt = `CRITICAL: You MUST provide DETAILED instruction steps with comprehensive cooking guidance!
 
 Recipe: "${recipeName}"
 
-Return this EXACT JSON structure with 6 detailed instructions:
+Return this EXACT JSON structure with detailed instructions (as many steps as the recipe requires):
 {
   "ingredients": [
     "2 lbs chicken breast, cut into 1-inch pieces",
@@ -1095,16 +1095,16 @@ Return this EXACT JSON structure with 6 detailed instructions:
     "2 cups rice"
   ],
   "instructions": [
-    "Step 1 (50+ words): Begin by preparing the rice. Rinse 2 cups of rice under cold water until the water runs clear. In a pot, combine rice with 4 cups water and 1 tsp salt. Bring to a boil over high heat, then reduce to low, cover, and simmer for 18-20 minutes until tender and fluffy.",
-    "Step 2 (50+ words): While rice cooks, prepare the chicken. Pat 2 pounds of chicken breast dry with paper towels. Cut into uniform 1-inch pieces for even cooking. Season with salt and pepper, then toss with 1 tablespoon cornstarch until evenly coated. This creates a light crust and helps thicken the sauce later.",
-    "Step 3 (50+ words): Prepare all vegetables by washing and cutting into uniform sizes. Slice bell peppers into 1-inch pieces, cut broccoli into small florets, and slice carrots diagonally. Mince 3 cloves of garlic. Having everything prepped before cooking is essential since stir-frying happens quickly at high heat.",
-    "Step 4 (50+ words): Heat wok over highest heat until smoking, about 2-3 minutes. Add 1 tablespoon oil and swirl to coat. Add chicken in single layer without overcrowding. Let sear undisturbed for 2 minutes for golden crust, then stir-fry 3-4 minutes until cooked through (165°F internal temperature). Transfer to plate.",
-    "Step 5 (50+ words): Return wok to high heat, add remaining oil. Add garlic and stir-fry 30 seconds until fragrant. Add harder vegetables first (carrots, broccoli) and stir-fry 2 minutes. Add remaining vegetables and continue stir-frying 2-3 minutes until crisp-tender with slight char. Vegetables should retain bright color and slight crunch.",
-    "Step 6 (50+ words): Return chicken to wok with vegetables. Pour soy sauce around edges of wok to sizzle and caramelize. Toss everything together for 1 minute until well combined and heated through. Taste and adjust seasoning. Serve immediately over rice, garnished with sesame seeds or green onions if desired."
+    "Begin by preparing the rice. Rinse 2 cups of rice under cold water until the water runs clear. In a pot, combine rice with 4 cups water and 1 tsp salt. Bring to a boil over high heat, then reduce to low, cover, and simmer for 18-20 minutes until tender and fluffy.",
+    "While rice cooks, prepare the chicken. Pat 2 pounds of chicken breast dry with paper towels. Cut into uniform 1-inch pieces for even cooking. Season with salt and pepper, then toss with 1 tablespoon cornstarch until evenly coated.",
+    "Prepare all vegetables by washing and cutting into uniform sizes. Slice bell peppers into 1-inch pieces, cut broccoli into small florets, and slice carrots diagonally. Mince 3 cloves of garlic.",
+    "Heat wok over highest heat until smoking, about 2-3 minutes. Add 1 tablespoon oil and swirl to coat. Add chicken in single layer without overcrowding. Let sear undisturbed for 2 minutes for golden crust, then stir-fry 3-4 minutes until cooked through (165°F internal temperature).",
+    "Return wok to high heat, add remaining oil. Add garlic and stir-fry 30 seconds until fragrant. Add harder vegetables first (carrots, broccoli) and stir-fry 2 minutes. Add remaining vegetables and continue stir-frying 2-3 minutes until crisp-tender.",
+    "Return chicken to wok with vegetables. Pour soy sauce around edges of wok to sizzle and caramelize. Toss everything together for 1 minute until well combined and heated through. Taste and adjust seasoning. Serve immediately over rice."
   ]
 }
 
-PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
+PROVIDE COMPREHENSIVE DETAILED INSTRUCTIONS - as many steps as the recipe naturally requires (no artificial limits)!`;
       }
 
       console.log('📝 Sending prompt attempt', retryCount + 1);
