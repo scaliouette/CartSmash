@@ -67,11 +67,26 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     
     if (typeof item.productName === 'object' && item.productName !== null) {
       // If productName is an object, try to extract the actual text
-      return item.productName.text || 
-             item.productName.name || 
-             item.productName.value ||
-             item.productName.original ||
-             JSON.stringify(item.productName); // Last resort - show the structure
+      const extractedName = item.productName.text || 
+                           item.productName.name || 
+                           item.productName.value ||
+                           item.productName.original ||
+                           item.productName.displayName ||
+                           item.productName.title ||
+                           item.productName.label;
+      
+      if (extractedName) {
+        return extractedName;
+      }
+      
+      // If still no meaningful text, check if it's a simple object with a single property
+      const objectKeys = Object.keys(item.productName);
+      if (objectKeys.length === 1 && typeof item.productName[objectKeys[0]] === 'string') {
+        return item.productName[objectKeys[0]];
+      }
+      
+      // Last resort - return a more user-friendly fallback instead of [object Object]
+      return 'Unknown Product (Object)';
     }
     
     // Fallback to other possible fields

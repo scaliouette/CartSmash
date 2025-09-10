@@ -227,10 +227,25 @@ function GroceryListForm({
       displayName = item.productName;
     } else if (typeof item.productName === 'object' && item.productName !== null) {
       // productName is an object, try to extract text from it
-      displayName = item.productName.text || 
-                    item.productName.name || 
-                    item.productName.value || 
-                    JSON.stringify(item.productName);
+      const extractedName = item.productName.text || 
+                           item.productName.name || 
+                           item.productName.value ||
+                           item.productName.original ||
+                           item.productName.displayName ||
+                           item.productName.title ||
+                           item.productName.label;
+      
+      if (extractedName) {
+        displayName = extractedName;
+      } else {
+        // Check if it's a simple object with a single property
+        const objectKeys = Object.keys(item.productName);
+        if (objectKeys.length === 1 && typeof item.productName[objectKeys[0]] === 'string') {
+          displayName = item.productName[objectKeys[0]];
+        } else {
+          displayName = 'Unknown Product (Object)';
+        }
+      }
     } else if (item.name) {
       displayName = item.name;
     } else if (item.item) {
@@ -269,10 +284,25 @@ function GroceryListForm({
         
         // Extract product name from various possible fields
         if (typeof item.productName === 'object' && item.productName !== null) {
-          productName = item.productName.text || 
-                       item.productName.name || 
-                       item.productName.value || 
-                       'Unknown Item';
+          const extractedName = item.productName.text || 
+                               item.productName.name || 
+                               item.productName.value ||
+                               item.productName.original ||
+                               item.productName.displayName ||
+                               item.productName.title ||
+                               item.productName.label;
+          
+          if (extractedName) {
+            productName = extractedName;
+          } else {
+            // Check if it's a simple object with a single property
+            const objectKeys = Object.keys(item.productName);
+            if (objectKeys.length === 1 && typeof item.productName[objectKeys[0]] === 'string') {
+              productName = item.productName[objectKeys[0]];
+            } else {
+              productName = 'Unknown Product (Object)';
+            }
+          }
         } else if (typeof item.productName === 'string') {
           productName = item.productName;
         } else if (item.name) {
@@ -313,11 +343,26 @@ function GroceryListForm({
     
     if (typeof item.productName === 'object' && item.productName !== null) {
       // If productName is an object, try to extract the actual text
-      return item.productName.text || 
-             item.productName.name || 
-             item.productName.value ||
-             item.productName.original ||
-             JSON.stringify(item.productName); // Last resort - show the structure
+      const extractedName = item.productName.text || 
+                           item.productName.name || 
+                           item.productName.value ||
+                           item.productName.original ||
+                           item.productName.displayName ||
+                           item.productName.title ||
+                           item.productName.label;
+      
+      if (extractedName) {
+        return extractedName;
+      }
+      
+      // Check if it's a simple object with a single property
+      const objectKeys = Object.keys(item.productName);
+      if (objectKeys.length === 1 && typeof item.productName[objectKeys[0]] === 'string') {
+        return item.productName[objectKeys[0]];
+      }
+      
+      // Last resort - return a more user-friendly fallback
+      return 'Unknown Product (Object)';
     }
     
     // Fallback to other possible fields
