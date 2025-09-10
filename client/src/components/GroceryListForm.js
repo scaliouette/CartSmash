@@ -255,6 +255,74 @@ Generate detailed instructions with:
 FORMAT: JSON with "ingredients" array and "instructions" array.`;
 };
 
+// Strict validation function
+const validateStrictQuality = (instructions) => {
+  // Must have at least 5 instructions (relaxed from 6 for flexibility)
+  if (!Array.isArray(instructions)) {
+    return { valid: false, reason: 'Instructions is not an array' };
+  }
+  
+  if (instructions.length < 5) {
+    return { 
+      valid: false, 
+      reason: `Only ${instructions.length} instructions provided (minimum 5 required)` 
+    };
+  }
+  
+  // Check each instruction for minimum quality
+  for (let i = 0; i < instructions.length; i++) {
+    const inst = instructions[i];
+    
+    if (!inst || typeof inst !== 'string') {
+      return { 
+        valid: false, 
+        reason: `Instruction ${i + 1} is not a valid string` 
+      };
+    }
+    
+    const wordCount = inst.split(' ').filter(word => word.length > 0).length;
+    
+    // Require at least 30 words (relaxed from 50 for some flexibility)
+    if (wordCount < 30) {
+      return { 
+        valid: false, 
+        reason: `Instruction ${i + 1} has only ${wordCount} words (minimum 30 required)` 
+      };
+    }
+    
+    // Check for lazy single-line instructions
+    const lazyPatterns = [
+      /^(Cook|Stir-fry|Mix|Serve|Season|Add)\s+\w+(\s+\w+){0,4}\.?$/i,
+      /^[A-Z][a-z]+\s+\w+\s+\w+\.?$/i, // Three word sentences
+      /^.{0,50}$/ // Very short instructions (under 50 characters)
+    ];
+    
+    for (const pattern of lazyPatterns) {
+      if (pattern.test(inst.trim())) {
+        return { 
+          valid: false, 
+          reason: `Instruction ${i + 1} is too brief: "${inst.substring(0, 50)}..."` 
+        };
+      }
+    }
+  }
+  
+  // Check for essential cooking details
+  const allInstructions = instructions.join(' ');
+  const hasTemperature = /\d+°[FC]|degrees|high heat|medium heat|low heat/i.test(allInstructions);
+  const hasTime = /\d+\s*(minutes?|mins?|hours?|seconds?)/i.test(allInstructions);
+  const hasTechnique = /(stir|mix|cook|heat|simmer|boil|bake|fry|saute|roast)/i.test(allInstructions);
+  
+  if (!hasTemperature || !hasTime || !hasTechnique) {
+    return { 
+      valid: false, 
+      reason: 'Instructions lack essential cooking details (temperature/time/technique)' 
+    };
+  }
+  
+  return { valid: true };
+};
+
 // Main Component
 function GroceryListForm({ 
   currentCart, 
@@ -294,10 +362,10 @@ function GroceryListForm({
   // eslint-disable-next-line no-unused-vars
   const [recipes, setRecipes] = useState([]);
   const [waitingForAIResponse, setWaitingForAIResponse] = useState(false);
-  const [recipeUrl, setRecipeUrl] = useState('');
-  const [aiRecipeText, setAiRecipeText] = useState('');
   const [showRecipeImport, setShowRecipeImport] = useState(false);
   const [importingRecipe, setImportingRecipe] = useState(false);
+  const [recipeUrl, setRecipeUrl] = useState('');
+  const [aiRecipeText, setAiRecipeText] = useState('');
   const { currentUser } = useAuth();
   const textareaRef = useRef(null);
 
@@ -965,43 +1033,108 @@ function GroceryListForm({
     }
   };
 
-  // PURE AI-ONLY recipe generation - NO MANUAL FALLBACKS
-  // FIXED: generateDetailedRecipeWithAI function with enforced quality standards
+  // Pure AI-only generation with better prompting and validation
   const generateDetailedRecipeWithAI = async (recipeName, retryCount = 0) => {
     const MAX_RETRIES = 3;
     
-    console.log('🤖 Generating detailed recipe for:', recipeName);
+    console.log('🤖 AI-ONLY generation for:', recipeName);
+    console.log('📊 Attempt:', retryCount + 1, 'of', MAX_RETRIES);
     
     if (retryCount >= MAX_RETRIES) {
-      console.error(`❌ Failed after ${MAX_RETRIES} attempts for: ${recipeName}`);
+      console.error(`❌ AI failed after ${MAX_RETRIES} attempts for: ${recipeName}`);
       return {
-        ingredients: [],
-        instructions: [],
+        ingredients: [`Unable to generate ingredients for ${recipeName}`],
+        instructions: [`AI generation failed. Please try again or try a different recipe name.`],
         success: false,
-        error: 'Failed to generate quality recipe after multiple attempts.'
+        error: 'AI generation failed after multiple attempts'
       };
     }
 
     try {
-      console.log(`🤖 Attempt ${retryCount + 1}/${MAX_RETRIES}: "${recipeName}"`);
-      
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       
-      // Use enhanced prompt generator
-      const enhancedPrompt = getEnhancedPromptForRecipe(recipeName);
+      // More aggressive prompt based on retry count
+      let prompt = '';
+      
+      if (retryCount === 0) {
+        // First attempt - detailed but polite
+        prompt = `Generate a detailed recipe for "${recipeName}".
 
+REQUIREMENTS:
+- MINIMUM 6 instruction steps (not 3, not 4, not 5 - at least 6!)
+- Each instruction MUST be 50+ words
+- Include specific temperatures and times
+- Include equipment details
+
+Return as JSON with this structure:
+{
+  "ingredients": ["ingredient 1", "ingredient 2", ...],
+  "instructions": ["detailed step 1 (50+ words)", "detailed step 2 (50+ words)", ... at least 6 steps]
+}`;
+
+      } else if (retryCount === 1) {
+        // Second attempt - more explicit
+        prompt = `The previous attempt failed because instructions were too brief.
+
+Generate a recipe for "${recipeName}" with EXACTLY 6 DETAILED instruction steps.
+
+EACH instruction must be a FULL PARAGRAPH (50+ words minimum).
+
+BAD EXAMPLE (too short):
+"Stir-fry chicken and vegetables"
+
+GOOD EXAMPLE (detailed):
+"Heat a large wok or 12-inch skillet over high heat until smoking, about 2 minutes. Add 2 tablespoons of vegetable oil and swirl to coat. Add chicken pieces in a single layer and let sear undisturbed for 2 minutes until golden brown. Stir-fry for another 3-4 minutes until internal temperature reaches 165°F."
+
+Return JSON with:
+- ingredients array
+- instructions array with EXACTLY 6 detailed paragraphs`;
+
+      } else {
+        // Final attempt - very explicit with example
+        prompt = `CRITICAL: You MUST provide 6 DETAILED instruction steps, NOT 3!
+
+Recipe: "${recipeName}"
+
+Return this EXACT JSON structure with 6 detailed instructions:
+{
+  "ingredients": [
+    "2 lbs chicken breast, cut into 1-inch pieces",
+    "2 cups mixed vegetables",
+    "3 tbsp soy sauce",
+    "2 tbsp oil",
+    "3 cloves garlic",
+    "1 tbsp cornstarch",
+    "2 cups rice"
+  ],
+  "instructions": [
+    "Step 1 (50+ words): Begin by preparing the rice. Rinse 2 cups of rice under cold water until the water runs clear. In a pot, combine rice with 4 cups water and 1 tsp salt. Bring to a boil over high heat, then reduce to low, cover, and simmer for 18-20 minutes until tender and fluffy.",
+    "Step 2 (50+ words): While rice cooks, prepare the chicken. Pat 2 pounds of chicken breast dry with paper towels. Cut into uniform 1-inch pieces for even cooking. Season with salt and pepper, then toss with 1 tablespoon cornstarch until evenly coated. This creates a light crust and helps thicken the sauce later.",
+    "Step 3 (50+ words): Prepare all vegetables by washing and cutting into uniform sizes. Slice bell peppers into 1-inch pieces, cut broccoli into small florets, and slice carrots diagonally. Mince 3 cloves of garlic. Having everything prepped before cooking is essential since stir-frying happens quickly at high heat.",
+    "Step 4 (50+ words): Heat wok over highest heat until smoking, about 2-3 minutes. Add 1 tablespoon oil and swirl to coat. Add chicken in single layer without overcrowding. Let sear undisturbed for 2 minutes for golden crust, then stir-fry 3-4 minutes until cooked through (165°F internal temperature). Transfer to plate.",
+    "Step 5 (50+ words): Return wok to high heat, add remaining oil. Add garlic and stir-fry 30 seconds until fragrant. Add harder vegetables first (carrots, broccoli) and stir-fry 2 minutes. Add remaining vegetables and continue stir-frying 2-3 minutes until crisp-tender with slight char. Vegetables should retain bright color and slight crunch.",
+    "Step 6 (50+ words): Return chicken to wok with vegetables. Pour soy sauce around edges of wok to sizzle and caramelize. Toss everything together for 1 minute until well combined and heated through. Taste and adjust seasoning. Serve immediately over rice, garnished with sesame seeds or green onions if desired."
+  ]
+}
+
+PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
+      }
+
+      console.log('📝 Sending prompt attempt', retryCount + 1);
+      
       const response = await fetch(`${API_URL}/api/ai/${selectedAI || 'anthropic'}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: enhancedPrompt,
+          prompt: prompt,
           context: 'detailed_recipe_generation',
           options: {
-            enforceQuality: true,
-            minInstructionLength: 50,
-            requireProfessionalDetail: true,
             temperature: 0.7,
-            maxTokens: 3000 // Increased for longer instructions
+            maxTokens: 4000, // Increased to ensure full response
+            format: 'json',
+            minInstructions: 6, // Pass this to backend
+            minInstructionLength: 50, // Pass this to backend
+            enforceDetailedInstructions: true
           }
         })
       });
@@ -1011,105 +1144,105 @@ function GroceryListForm({
       }
 
       const data = await response.json();
-      console.log('🤖 AI response received');
+      
+      // Debug what we received
+      console.log('🔍 AI Response Structure:', {
+        hasResponse: !!data.response,
+        hasStructuredData: !!data.structuredData,
+        hasInstructions: !!data.instructions,
+        responseType: typeof data.response
+      });
 
-      // STRICT VALIDATION
-      const validateInstructionQuality = (instructions) => {
-        return validateRecipeQuality({ instructions, ingredients: [] });
-      };
-
-      // Parse response
       let parsedData;
-      if (data.structuredData) {
+      
+      // Try multiple parsing strategies
+      if (data.structuredData && data.structuredData.instructions) {
         parsedData = data.structuredData;
+      } else if (data.instructions && Array.isArray(data.instructions)) {
+        parsedData = {
+          ingredients: data.ingredients || [],
+          instructions: data.instructions
+        };
       } else if (data.response) {
         try {
-          parsedData = JSON.parse(data.response);
+          // Clean and parse JSON response
+          let jsonStr = data.response;
+          if (typeof jsonStr === 'string') {
+            // Remove markdown code blocks if present
+            jsonStr = jsonStr.replace(/```json\n?/gi, '').replace(/```\n?/gi, '');
+            // Remove any text before the first {
+            const jsonStart = jsonStr.indexOf('{');
+            if (jsonStart > 0) {
+              jsonStr = jsonStr.substring(jsonStart);
+            }
+            // Remove any text after the last }
+            const jsonEnd = jsonStr.lastIndexOf('}');
+            if (jsonEnd > 0) {
+              jsonStr = jsonStr.substring(0, jsonEnd + 1);
+            }
+            parsedData = JSON.parse(jsonStr);
+          } else if (typeof jsonStr === 'object') {
+            parsedData = jsonStr;
+          }
         } catch (e) {
-          console.log('Failed to parse JSON, extracting from text...');
-          // Manual extraction as fallback
-          const text = data.response;
-          
-          // Try to extract instructions that look detailed
-          const instructionMatches = text.match(/\d+\.\s*([^.]+\.(?:[^.]+\.)?)/g) || [];
-          const instructions = instructionMatches
-            .map(match => match.replace(/^\d+\.\s*/, '').trim())
-            .filter(inst => inst.split(' ').length > 30); // Only keep detailed ones
-          
-          parsedData = {
-            ingredients: extractIngredientsFromText(text),
-            instructions: instructions
-          };
+          console.error('JSON parse error:', e);
+          console.log('Raw response:', data.response?.substring(0, 500));
+          throw new Error('Failed to parse AI response as JSON');
         }
+      } else {
+        throw new Error('No valid response structure from AI');
       }
 
       const ingredients = Array.isArray(parsedData.ingredients) ? parsedData.ingredients : [];
       const instructions = Array.isArray(parsedData.instructions) ? parsedData.instructions : [];
 
-      // VALIDATE QUALITY
-      if (!validateInstructionQuality(instructions)) {
-        console.log(`🔄 Quality check failed, retrying (attempt ${retryCount + 2})...`);
+      console.log('📊 Parsed recipe data:', {
+        ingredientCount: ingredients.length,
+        instructionCount: instructions.length,
+        firstInstructionLength: instructions[0]?.split(' ').length || 0
+      });
+
+      // STRICT VALIDATION
+      const validationResult = validateStrictQuality(instructions);
+      
+      if (!validationResult.valid) {
+        console.log(`❌ Quality check failed: ${validationResult.reason}`);
+        console.log(`🔄 Retrying with attempt ${retryCount + 2}...`);
+        // Retry with more explicit prompt
         return await generateDetailedRecipeWithAI(recipeName, retryCount + 1);
       }
 
-      console.log(`✅ Generated high-quality recipe for "${recipeName}"`);
+      console.log(`✅ AI successfully generated detailed recipe for "${recipeName}"`);
       console.log(`   - ${ingredients.length} ingredients`);
       console.log(`   - ${instructions.length} detailed instructions`);
-      console.log(`   - Average instruction length: ${Math.round(instructions.join(' ').split(' ').length / instructions.length)} words`);
-
+      
       return {
         ingredients: ingredients,
         instructions: instructions,
         success: true,
-        source: 'ai_generated',
-        quality: 'professional'
+        source: 'ai_generated'
       };
 
     } catch (error) {
-      console.error(`❌ Attempt ${retryCount + 1} failed:`, error);
+      console.error(`❌ AI attempt ${retryCount + 1} failed:`, error.message);
       
+      // Retry with different prompt
       if (retryCount < MAX_RETRIES - 1) {
-        console.log(`🔄 Retrying (attempt ${retryCount + 2})...`);
+        console.log(`🔄 Retrying with more explicit prompt...`);
         return await generateDetailedRecipeWithAI(recipeName, retryCount + 1);
       }
       
-      // Final failure - return error state
+      // Final failure - no manual fallback
       return {
         ingredients: [`Failed to generate ingredients for ${recipeName}`],
-        instructions: [`Unable to generate detailed instructions. Please try again or select a different recipe.`],
+        instructions: [`AI was unable to generate detailed instructions. Please try again.`],
         success: false,
         error: error.message
       };
     }
   };
 
-  // Helper function to extract ingredients from unstructured text
-  function extractIngredientsFromText(text) {
-    const ingredients = [];
-    const lines = text.split('\n');
-    
-    for (const line of lines) {
-      const trimmed = line.trim();
-      // Look for lines that appear to be ingredients
-      if (trimmed.match(/^\d+.*\b(cup|tbsp|tsp|oz|lb|g|kg|ml|l)\b/i) ||
-          trimmed.match(/^([\d/]+\s+)?(small|medium|large|fresh|dried|chopped|sliced)/i) ||
-          trimmed.match(/^[-•*]\s*\d+/)) {
-        ingredients.push(trimmed.replace(/^[-•*]\s*/, ''));
-      }
-    }
-    
-    return ingredients.length > 0 ? ingredients : ['Ingredients not specified - see instructions'];
-  }
-
-  // REMOVED: Manual parsing functions - AI-ONLY mode enforced
-
-  // REMOVED: Manual recipe extraction functions - AI-ONLY mode enforced
-
-  // Parse AI response for recipes
-  const parseAIRecipes = (aiText) => {
-    console.log('🔍 Parsing AI recipes');
-    return [];
-  };
+  // REMOVED: All manual parsing functions - AI-ONLY mode enforced
 
   // Handle adding recipe to recipe library
   const handleAddRecipeToLibrary = (recipe) => {
@@ -1117,515 +1250,9 @@ function GroceryListForm({
     // Recipe library functionality preserved
   };
 
-  // DUPLICATE REMOVED - Extract single recipe from text (simplified parsing for single recipe content)
-  const extractSingleRecipeFromText_DUPLICATE1 = async (text) => {
-    const lines = text.split('\n');
-    let recipeName = '';
-    let ingredients = [];
-    let instructions = [];
-    let currentSection = '';
-    
-    console.log('🔍 Single recipe extraction starting...');
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      
-      // Get recipe name from first significant header
-      if (!recipeName && line.match(/^#\s*(.+)/)) {
-        recipeName = line.replace(/^#\s*/, '').trim();
-        console.log('📝 Found recipe name:', recipeName);
-        continue;
-      }
-      
-      // Detect ingredient sections (but don't treat as recipe names)
-      if (line.match(/^##?\s*(Ingredients?|Main Components?|Sauce|Garnish|Protein|Dairy|Vegetables?|Spices?|Seasonings?)\s*$/i)) {
-        currentSection = 'ingredients';
-        continue;
-      }
-      
-      // Detect instruction sections
-      if (line.match(/^##?\s*(Instructions?|Directions?|Method|Steps?|Preparation)\s*$/i)) {
-        currentSection = 'instructions';
-        continue;
-      }
-      
-      // Process ingredients (lines starting with - or numbers)
-      if (currentSection === 'ingredients' && (line.match(/^[-*]\s+/) || line.match(/^\d+\.?\s+/))) {
-        const cleanIngredient = line.replace(/^[-*]\s*/, '').replace(/^\d+\.?\s*/, '').trim();
-        if (cleanIngredient) {
-          ingredients.push(cleanIngredient);
-        }
-        continue;
-      }
-      
-      // Process instructions (lines starting with - or numbers)
-      if (currentSection === 'instructions' && (line.match(/^[-*]\s+/) || line.match(/^\d+\.?\s+/))) {
-        const cleanInstruction = line.replace(/^[-*]\s*/, '').replace(/^\d+\.?\s*/, '').trim();
-        if (cleanInstruction) {
-          instructions.push(cleanInstruction);
-        }
-        continue;
-      }
-      
-      // If no recipe name yet and this looks like a title, use it
-      if (!recipeName && line.length > 3 && !line.includes(':') && !line.match(/^[-*]\s+/)) {
-        recipeName = line;
-        console.log('📝 Using as recipe name:', recipeName);
-        continue;
-      }
-    }
-    
-    // Generate missing parts using AI if recipe name exists
-    if (!recipeName) {
-      recipeName = 'Single Recipe';
-    }
-    
-    // Use AI to fill in missing ingredients and instructions
-    if (ingredients.length === 0 || instructions.length === 0) {
-      try {
-        const aiResult = await generateDetailedRecipeWithAI(recipeName);
-        if (aiResult.success) {
-          if (ingredients.length === 0) {
-            ingredients = Array.isArray(aiResult.ingredients) ? aiResult.ingredients : [aiResult.ingredients].filter(Boolean);
-          }
-          if (instructions.length === 0) {
-            instructions = Array.isArray(aiResult.instructions) ? aiResult.instructions : [aiResult.instructions].filter(Boolean);
-          }
-        }
-      } catch (error) {
-        console.error('AI generation failed for single recipe:', error);
-      }
-    }
-    
-    const recipe = {
-      title: recipeName,
-      ingredients: ingredients.length > 0 ? ingredients : [`Ingredients for ${recipeName}`],
-      instructions: instructions.length > 0 ? instructions : [`Prepare ${recipeName} according to standard methods`],
-      prepTime: '',
-      cookTime: '',
-      servings: '',
-      difficulty: '',
-      cuisine: '',
-      tags: [],
-      calories: '',
-      notes: '',
-      id: `single_recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    };
-    
-    console.log('✅ Single recipe extraction complete:', {
-      recipeName: recipe.title,
-      ingredientCount: recipe.ingredients.length,
-      instructionCount: recipe.instructions.length
-    });
-    
-    return {
-      recipes: [recipe], // Single recipe in array
-      totalRecipes: 1
-    };
-  };
 
-  // CORRUPTED DUPLICATE REMOVED - Extract multiple recipes from a meal plan
-  const extractMultipleRecipesFromText_CORRUPTED_DUPLICATE = async (text) => {
-    console.error('🚫 CORRUPTED DUPLICATE FUNCTION REMOVED - USE ORIGINAL FUNCTION INSTEAD');
-    return { recipes: [], totalRecipes: 0 };
-  };
 
-  // REMOVED CORRUPTED CODE BLOCK - Replaced with simple stub for production stability
-  const removedCorruptedCode = () => {
-    console.error('🚫 CORRUPTED CODE REMOVED FOR PRODUCTION STABILITY');
-    return ['Prepare according to your preferred method.'];
-  };
-  // ORPHANED CODE REMOVED - This was causing syntax errors
-  
-  // DEPRECATED: Helper function to infer basic ingredients from recipe name  
-  // REMOVED: inferIngredientsFromRecipeName duplicate function
-  // This function was duplicated and has been removed to fix syntax errors
-  
-  // REMOVED MORE ORPHANED CODE - All corrupted sections cleaned for production
-  
-  // Continue removing orphaned conditional blocks
-  // Continue removing all orphaned return statements and arrays
-  // Bulk removal of all remaining orphaned code blocks until proper function starts
-  // ORPHANED CODE REMOVED - All corrupted conditional blocks cleaned for production
 
-  // DEPRECATED: Helper function to infer basic ingredients from recipe name  
-  // REMOVED: inferIngredientsFromRecipeName duplicate function
-  // This function was duplicated and has been removed to fix syntax errors
-  const deprecatedInferIngredients = (recipeName) => {
-    console.error('🚫 DEPRECATED FUNCTION - USE AI GENERATION INSTEAD!', 'inferIngredientsFromRecipeName', recipeName);
-    const name = recipeName.toLowerCase();
-    const ingredients = [];
-    
-    // Common ingredients based on recipe name patterns
-    if (name.includes('oatmeal') || name.includes('oats')) {
-      ingredients.push('1/2 cup rolled oats', '1 cup milk', '1 pinch salt');
-      if (name.includes('berries')) ingredients.push('1/2 cup mixed berries');
-      if (name.includes('honey')) ingredients.push('2 tbsp honey');
-    } else if (name.includes('sandwich') || name.includes('sandwiches') || name.includes('wrap') || name.includes('wraps')) {
-      // Base wrap/sandwich ingredients
-      if (name.includes('wrap')) {
-        ingredients.push('2 large flour tortillas', '4 leaves lettuce');
-      } else {
-        ingredients.push('2 slices whole wheat bread', '2 leaves lettuce');
-      }
-      
-      // Protein additions
-      if (name.includes('turkey')) ingredients.push('6 oz sliced turkey breast', '2 tbsp mayo or mustard');
-      if (name.includes('ham')) ingredients.push('4 oz ham slices', '2 slices Swiss cheese');
-      if (name.includes('chicken')) ingredients.push('1 grilled chicken breast', '2 tbsp mayo');
-      
-      // Vegetable additions
-      if (name.includes('avocado')) ingredients.push('1 fresh avocado', '1 tsp lime juice', '1 pinch salt', '1 pinch pepper');
-      if (name.includes('tomato')) ingredients.push('2 tomato slices');
-      if (name.includes('cucumber')) ingredients.push('4 cucumber slices');
-      if (name.includes('vegetables') || name.includes('fresh')) {
-        ingredients.push('4 cucumber slices', '2 tomato slices', '2 red onion slices', '1/4 cup bell pepper strips');
-      }
-      
-      // Cheese additions
-      if (name.includes('cheese') && !ingredients.some(ing => ing.includes('cheese'))) {
-        ingredients.push('2 slices cheese');
-      }
-    } else if (name.includes('yogurt')) {
-      ingredients.push('1 cup Greek yogurt');
-      if (name.includes('granola')) ingredients.push('1/2 cup granola');
-      if (name.includes('berries')) ingredients.push('1/2 cup mixed berries');
-      if (name.includes('honey')) ingredients.push('2 tbsp honey');
-    } else if (name.includes('toast')) {
-      // Toast-based dishes
-      if (name.includes('whole grain') || name.includes('wholegrain')) {
-        ingredients.push('Whole grain bread');
-      } else if (name.includes('sourdough')) {
-        ingredients.push('Sourdough bread');
-      } else {
-        ingredients.push('Bread');
-      }
-      
-      // Common toast toppings
-      if (name.includes('eggs') || name.includes('scrambled')) {
-        ingredients.push('Eggs', 'Butter', 'Salt', 'Pepper');
-      }
-      if (name.includes('avocado')) ingredients.push('Avocado', 'Lime juice', 'Salt');
-      if (name.includes('butter')) ingredients.push('Butter');
-      if (name.includes('jam') || name.includes('jelly')) ingredients.push('Jam');
-    } else if (name.includes('eggs')) {
-      ingredients.push('Eggs');
-      if (name.includes('scrambled')) ingredients.push('Butter', 'Salt', 'Pepper');
-      if (name.includes('spinach')) ingredients.push('Fresh spinach');
-      if (name.includes('cheese')) ingredients.push('Cheese');
-    } else if (name.includes('chicken')) {
-      ingredients.push('Chicken breast');
-      if (name.includes('baked')) ingredients.push('Olive oil', 'Salt', 'Pepper');
-      if (name.includes('caesar')) ingredients.push('Romaine lettuce', 'Caesar dressing');
-    } else if (name.includes('salmon')) {
-      ingredients.push('4 salmon fillets (6 oz each)', '2 tbsp olive oil', '1 lemon', '1 tsp salt', '1/2 tsp black pepper');
-      if (name.includes('rice')) ingredients.push('1 cup brown rice');
-      if (name.includes('broccoli')) ingredients.push('2 cups fresh broccoli florets');
-      if (name.includes('quinoa')) ingredients.push('1 cup quinoa');
-    } else if (name.includes('quinoa')) {
-      ingredients.push('1 cup quinoa', '2 cups water');
-      if (name.includes('chickpeas')) ingredients.push('1 can chickpeas (15 oz)');
-      if (name.includes('bowls')) ingredients.push('2 cups mixed vegetables');
-    } else if (name.includes('stir') && name.includes('fry')) {
-      ingredients.push('Mixed vegetables', 'Soy sauce', 'Garlic', 'Ginger');
-      if (name.includes('beef')) ingredients.push('Beef strips');
-      if (name.includes('chicken')) ingredients.push('Chicken strips');
-    } else if (name.includes('salad')) {
-      // Base salad ingredients
-      ingredients.push('Mixed greens');
-      
-      // Specific salad types
-      if (name.includes('greek')) {
-        ingredients.push('Tomatoes', 'Cucumbers', 'Red onion', 'Kalamata olives', 'Feta cheese', 'Olive oil', 'Red wine vinegar', 'Oregano');
-      } else if (name.includes('caesar')) {
-        ingredients.push('Romaine lettuce', 'Parmesan cheese', 'Caesar dressing', 'Croutons');
-      } else if (name.includes('garden')) {
-        ingredients.push('Tomatoes', 'Cucumbers', 'Carrots', 'Bell peppers', 'Red onion');
-      } else {
-        ingredients.push('Olive oil', 'Vinegar');
-      }
-      
-      // Protein additions
-      if (name.includes('chicken')) ingredients.push('Grilled chicken breast');
-      if (name.includes('salmon')) ingredients.push('Grilled salmon');
-      if (name.includes('shrimp')) ingredients.push('Cooked shrimp');
-      
-    } else if (name.includes('pasta')) {
-      // Base pasta
-      if (name.includes('whole wheat') || name.includes('wholemeal')) {
-        ingredients.push('Whole wheat pasta');
-      } else if (name.includes('penne')) {
-        ingredients.push('Penne pasta');
-      } else if (name.includes('spaghetti')) {
-        ingredients.push('Spaghetti');
-      } else if (name.includes('linguine')) {
-        ingredients.push('Linguine');
-      } else {
-        ingredients.push('Pasta');
-      }
-      
-      // Sauces
-      if (name.includes('marinara')) {
-        ingredients.push('Marinara sauce', 'Garlic', 'Onion');
-      } else if (name.includes('tomato')) {
-        ingredients.push('Tomato sauce');
-      } else if (name.includes('pesto')) {
-        ingredients.push('Pesto sauce');
-      } else if (name.includes('alfredo')) {
-        ingredients.push('Alfredo sauce');
-      } else if (name.includes('carbonara')) {
-        ingredients.push('Eggs', 'Parmesan cheese', 'Bacon', 'Black pepper');
-      } else {
-        ingredients.push('Olive oil');
-      }
-      
-      // Protein additions
-      if (name.includes('meatballs')) ingredients.push('Ground beef', 'Breadcrumbs', 'Egg', 'Italian seasoning');
-      if (name.includes('chicken')) ingredients.push('Chicken breast');
-      if (name.includes('shrimp')) ingredients.push('Shrimp');
-    } else if (name.includes('nuts')) {
-      ingredients.push('Mixed nuts');
-    } else if (name.includes('cheese') && name.includes('crackers')) {
-      ingredients.push('String cheese', 'Crackers');
-    } else {
-      // Generic fallback - extract key food words and expand them
-      const name_processed = name.replace(/\b(with|and|&)\b/g, ' '); // Remove connecting words
-      
-      // Common ingredients mapping
-      const ingredientMap = {
-        'chicken': ['Chicken breast'],
-        'beef': ['Beef'],
-        'fish': ['Fish fillet'],
-        'salmon': ['Salmon fillet'],
-        'turkey': ['Turkey'],
-        'pork': ['Pork'],
-        'rice': ['Rice'],
-        'bread': ['Bread'],
-        'cheese': ['Cheese'],
-        'eggs': ['Eggs'],
-        'milk': ['Milk'],
-        'butter': ['Butter'],
-        'onion': ['Onion'],
-        'garlic': ['Garlic'],
-        'tomato': ['Tomatoes'],
-        'lettuce': ['Lettuce'],
-        'spinach': ['Spinach'],
-        'broccoli': ['Broccoli'],
-        'carrots': ['Carrots'],
-        'potatoes': ['Potatoes'],
-        'mushrooms': ['Mushrooms'],
-        'peppers': ['Bell peppers'],
-        'beans': ['Beans'],
-        'avocado': ['Avocado'],
-        'bacon': ['Bacon'],
-        'ham': ['Ham'],
-        'sausage': ['Sausage'],
-        'shrimp': ['Shrimp'],
-        'meatballs': ['Ground beef', 'Breadcrumbs', 'Egg'],
-        'marinara': ['Marinara sauce'],
-        'alfredo': ['Alfredo sauce'],
-        'pesto': ['Pesto sauce'],
-        'parmesan': ['Parmesan cheese'],
-        'mozzarella': ['Mozzarella cheese'],
-        'basil': ['Fresh basil'],
-        'oregano': ['Oregano'],
-        'thyme': ['Thyme']
-      };
-      
-      // Find all matching ingredients
-      Object.keys(ingredientMap).forEach(key => {
-        if (name_processed.includes(key)) {
-          ingredients.push(...ingredientMap[key]);
-        }
-      });
-      
-      // If still no ingredients found, add basic ones based on common patterns
-      if (ingredients.length === 0) {
-        // Try to extract any food-sounding words
-        const foodWords = name.match(/\b[a-z]{4,}(s)?\b/g) || [];
-        const likelyFoods = foodWords.filter(word => 
-          !['with', 'and', 'the', 'for', 'this', 'that', 'from', 'your', 'some', 'very', 'much', 'good', 'best', 'easy', 'quick', 'fresh', 'healthy'].includes(word)
-        );
-        
-        if (likelyFoods.length > 0) {
-          ingredients.push(...likelyFoods.slice(0, 3).map(word => 
-            word.charAt(0).toUpperCase() + word.slice(1)
-          ));
-        }
-      }
-    }
-    
-    // REMOVED: No manual fallbacks - rely on AI generation only
-    // If ingredients are still empty, they will be generated by AI later
-    
-    return ingredients;
-  };
-
-  // DUPLICATE REMOVED - Extract single recipe from text (simplified parsing for single recipe content)
-  const extractSingleRecipeFromText_DUPLICATE2 = async (text) => {
-    const lines = text.split('\n');
-    let recipeName = '';
-    let ingredients = [];
-    let instructions = [];
-    let currentSection = '';
-    
-    console.log('🔍 Single recipe extraction starting...');
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      
-      // Get recipe name from first significant header
-      if (!recipeName && line.match(/^#\s*(.+)/)) {
-        recipeName = line.replace(/^#\s*/, '').trim();
-        console.log('📝 Found recipe name:', recipeName);
-        continue;
-      }
-      
-      // Detect ingredient sections (but don't treat as recipe names)
-      if (line.match(/^##?\s*(Ingredients?|Main Components?|Sauce|Garnish|Protein|Dairy|Vegetables?|Spices?|Seasonings?)\s*$/i)) {
-        currentSection = 'ingredients';
-        console.log('📝 Found ingredients section:', line);
-        continue;
-      }
-      
-      // Detect instruction sections
-      if (line.match(/^##?\s*(Instructions?|Directions?|Method|Steps|Preparation)\s*$/i)) {
-        currentSection = 'instructions';
-        console.log('👨‍🍳 Found instructions section:', line);
-        continue;
-      }
-      
-      // Parse content based on current section  
-      if (currentSection === 'ingredients') {
-        // Handle bulleted ingredients
-        if (line.match(/^[-*•]\s*(.+)/)) {
-          const ingredient = line.replace(/^[-*•]\s*/, '').trim();
-          if (ingredient) {
-            ingredients.push(ingredient);
-            console.log('🥕 Added ingredient:', ingredient);
-          }
-        }
-        // Handle plain text ingredients (lines that look like ingredients)
-        else if (line.match(/^\d+.*\b(cups?|tbsp|tsp|oz|lbs?|g|kg|ml|l|cloves?|pieces?)\b/i) || 
-                 line.match(/^[A-Z][a-z]+.*\b(salt|pepper|oil|butter|cheese|garlic|onion)\b/i)) {
-          ingredients.push(line);
-          console.log('🥕 Added plain ingredient:', line);
-        }
-      } else if (currentSection === 'instructions') {
-        // Handle numbered instructions (1. 2. 3.)
-        if (line.match(/^\d+\.\s*(.+)/)) {
-          const instruction = line.replace(/^\d+\.\s*/, '').trim();
-          if (instruction) {
-            instructions.push(instruction);
-            console.log('📋 Added numbered instruction:', instruction);
-          }
-        }
-        // Handle bold instruction headers (**Header**)
-        else if (line.match(/^\*\*(.+)\*\*$/)) {
-          const header = line.replace(/^\*\*(.+)\*\*$/, '$1').trim();
-          if (header) {
-            instructions.push(header);
-            console.log('📋 Added instruction header:', header);
-          }
-        }
-        // Handle detailed instruction text (longer lines that aren't headers)
-        else if (line.length > 15 && 
-                 !line.match(/^(##?|Serves?|Prep|Cook|Total|\*\*)/i) &&
-                 !line.match(/^[-*•]/) && // Not bullet points
-                 line.match(/[a-z]/) && // Contains lowercase letters (likely descriptive text)
-                 (line.includes(' and ') || line.includes(' until ') || line.includes(' for ') || 
-                  line.includes(' with ') || line.includes(' over ') || line.includes(' in ') ||
-                  line.match(/\b(cook|add|mix|stir|heat|place|remove|season|serve|garnish)\b/i))) {
-          instructions.push(line);
-          console.log('📋 Added detailed instruction:', line);
-        }
-      }
-    }
-    
-    // If very few ingredients found, scan entire text for ingredient-like lines
-    if (ingredients.length <= 2) {
-      console.log('🔍 Scanning entire text for additional ingredients...');
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed && 
-            !trimmed.match(/^#/) && // Not headers
-            !trimmed.match(/^(Instructions?|Directions?|Method|Steps|Preparation)/i) && // Not instruction headers
-            (trimmed.match(/^\d+.*\b(cups?|tbsp|tsp|oz|lbs?|g|kg|ml|l|cloves?|pieces?|strips?|slices?)\b/i) || 
-             trimmed.match(/\b(chicken|beef|pork|salmon|pasta|rice|garlic|onion|salt|pepper|oil|butter|cheese|eggs?|milk|flour|sugar)\b/i))) {
-          if (!ingredients.includes(trimmed)) {
-            ingredients.push(trimmed);
-            console.log('🥕 Scanned ingredient:', trimmed);
-          }
-        }
-      }
-    }
-    
-    // If still no ingredients found, use AI to generate them
-    if (ingredients.length === 0 && recipeName) {
-      console.log('🤖 AI generation required for:', recipeName);
-      const aiRecipe = await generateDetailedRecipeWithAI(recipeName);
-      
-      if (aiRecipe.success) {
-        ingredients = aiRecipe.ingredients;
-        console.log('✅ AI generated ingredients:', ingredients);
-      } else if (aiRecipe.error) {
-        console.error('❌ AI ingredient generation failed for:', recipeName);
-        ingredients = ['⚠️ Failed to generate ingredients - please retry'];
-      }
-    }
-    
-    // If instructions are too brief (only headers), scan for detailed steps
-    if (instructions.length <= 6 && instructions.every(inst => inst.length < 30)) {
-      console.log('🔍 Instructions appear to be headers only, scanning for detailed steps...');
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line && 
-            line.length > 20 && // Longer lines likely to be detailed instructions
-            !line.match(/^(#|##|###|\*\*.*\*\*|Ingredients?|Instructions?|Serves?|Prep|Cook|Total)/i) &&
-            (line.match(/\b(cook|add|mix|stir|heat|place|remove|season|serve|garnish|combine|drain|slice|chop|dice|sauté|boil|simmer|bake|roast)\b/i) ||
-             line.includes(' until ') || line.includes(' for ') || line.includes(' with ') || 
-             line.includes(' over ') || line.includes(' in ') || line.includes(' and '))) {
-          
-          // Don't add if it's already included
-          if (!instructions.some(existing => existing.includes(line.substring(0, 20)))) {
-            instructions.push(line);
-            console.log('🔍 Scanned detailed instruction:', line);
-          }
-        }
-      }
-    }
-    
-    // REMOVED: No manual instruction fallbacks - rely on AI generation only
-    // If instructions are still empty, they will be generated by AI later
-    
-    const recipe = {
-      title: recipeName || 'Untitled Recipe',
-      ingredients: ingredients,
-      instructions: instructions.map((inst, index) => ({ step: index + 1, instruction: inst })),
-      servings: '',
-      prepTime: '',
-      cookTime: '',
-      mealType: 'Dinner',
-      day: '',
-      tags: ['ai_generated', 'single_recipe'],
-      notes: '',
-      id: `single_recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    };
-    
-    console.log('✅ Single recipe extraction complete:', {
-      name: recipe.title,
-      ingredients: recipe.ingredients.length,
-      instructions: recipe.instructions.length
-    });
-    
-    return {
-      isMealPlan: true, // Still return as meal plan format for compatibility
-      recipes: [recipe], // Single recipe in array
-      totalRecipes: 1
-    };
-  };
 
   // Extract multiple recipes from a meal plan
   const extractMealPlanRecipes = async (text) => {
@@ -3201,75 +2828,6 @@ function GroceryListForm({
           </div>
         </div>
 
-        {/* Recipe Import Section */}
-        <div style={styles.recipeImportSection}>
-          <div style={styles.recipeImportHeader}>
-            <h3 style={styles.recipeImportTitle}>
-              🍳 Recipe Import
-              <span style={styles.recipeImportSubtitle}>Import recipes from URLs or AI-generated text</span>
-            </h3>
-            <button
-              onClick={() => setShowRecipeImport(!showRecipeImport)}
-              style={styles.recipeToggleBtn}
-            >
-              {showRecipeImport ? '▼' : '▶'} {showRecipeImport ? 'Hide' : 'Show'} Recipe Import
-            </button>
-          </div>
-
-          {showRecipeImport && (
-            <div style={styles.recipeImportContent}>
-              {/* URL Import */}
-              <div style={styles.importMethod}>
-                <h4 style={styles.importMethodTitle}>🔗 Import from URL</h4>
-                <div style={styles.importInputGroup}>
-                  <input
-                    type="url"
-                    placeholder="Paste recipe URL (e.g., from AllRecipes, Food Network, etc.)"
-                    value={recipeUrl}
-                    onChange={(e) => setRecipeUrl(e.target.value)}
-                    style={styles.importInput}
-                    disabled={importingRecipe}
-                  />
-                  <button
-                    onClick={handleImportFromUrl}
-                    disabled={importingRecipe || !recipeUrl.trim()}
-                    style={{
-                      ...styles.importButton,
-                      ...(importingRecipe || !recipeUrl.trim() ? styles.importButtonDisabled : {})
-                    }}
-                  >
-                    {importingRecipe ? '⏳ Importing...' : '📥 Import'}
-                  </button>
-                </div>
-              </div>
-
-              {/* AI Text Import */}
-              <div style={styles.importMethod}>
-                <h4 style={styles.importMethodTitle}>🤖 Import from AI Text</h4>
-                <div style={styles.importInputGroup}>
-                  <textarea
-                    placeholder="Paste recipe text or meal plan generated by AI..."
-                    value={aiRecipeText}
-                    onChange={(e) => setAiRecipeText(e.target.value)}
-                    style={styles.importTextarea}
-                    disabled={importingRecipe}
-                    rows={4}
-                  />
-                  <button
-                    onClick={handleImportFromAI}
-                    disabled={importingRecipe || !aiRecipeText.trim()}
-                    style={{
-                      ...styles.importButton,
-                      ...(importingRecipe || !aiRecipeText.trim() ? styles.importButtonDisabled : {})
-                    }}
-                  >
-                    {importingRecipe ? '⏳ Importing...' : '🧠 Parse with AI'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Controls Bar */}
         <div style={styles.controlsBar}>
@@ -3402,13 +2960,6 @@ Or paste any grocery list directly!"
           {waitingForAIResponse && (
             <div style={styles.aiStatusMessage}>
               💡 AI response loaded! Review it above and hit CARTSMASH to add items to your cart.
-              <button 
-                onClick={handleSaveRecipeFromAI}
-                style={styles.saveRecipeButton}
-                title="Save this recipe to My Recipes collection"
-              >
-                📖 Save to My Recipes
-              </button>
             </div>
           )}
           
