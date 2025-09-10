@@ -542,6 +542,16 @@ IMPORTANT:
           }
         }
       });
+      
+      // ✨ ENHANCED: Extract recipes from fallback text for meal plans
+      console.log('🔍 Attempting to extract recipes from fallback text...');
+      try {
+        recipes = extractRecipesFromText(responseText);
+        console.log(`✅ Extracted ${recipes.length} recipes from fallback text`);
+      } catch (recipeError) {
+        console.log(`⚠️ Recipe extraction from fallback failed: ${recipeError.message}`);
+        recipes = [];
+      }
     }
     
     res.json({
@@ -857,6 +867,128 @@ Focus on specific, measurable grocery items that can be easily found in a store.
       model = 'gpt-4o-mini (fallback)';
     }
     
+    // 🚀 STRUCTURED JSON PARSING - AI generates complete structured data
+    console.log('🎯 Processing ChatGPT-generated structured response...');
+    
+    let structuredData = null;
+    let products = [];
+    let recipes = [];
+    
+    try {
+      // Try to parse JSON response from AI
+      const trimmedResponse = responseText.trim();
+      if (trimmedResponse.startsWith('{') && trimmedResponse.endsWith('}')) {
+        structuredData = JSON.parse(trimmedResponse);
+        console.log(`✅ Successfully parsed structured JSON response: ${structuredData.type}`);
+        
+        // Extract products/ingredients based on response type
+        if (structuredData.type === 'single_recipe' && structuredData.recipes) {
+          recipes = structuredData.recipes;
+          // Convert recipe ingredients to products for cart
+          structuredData.recipes.forEach(recipe => {
+            recipe.ingredients.forEach(ingredient => {
+              products.push({
+                productName: ingredient.name,
+                quantity: ingredient.quantity || '1',
+                unit: ingredient.unit || '',
+                confidence: 0.95,
+                source: 'structured_recipe'
+              });
+            });
+          });
+        } else if (structuredData.type === 'meal_plan' && structuredData.days) {
+          recipes = []; // Extract recipes from days
+          console.log('🔍 Extracting recipes from meal plan, days count:', structuredData.days.length);
+          
+          structuredData.days?.forEach((day, dayIndex) => {
+            console.log(`📅 Processing day ${dayIndex + 1}:`, day.day || `Day ${dayIndex + 1}`);
+            const meals = day.meals || {};
+            console.log('🍽️ Meals in this day:', Object.keys(meals));
+            
+            Object.entries(meals).forEach(([mealType, meal]) => {
+              console.log(`🍴 Processing ${mealType}:`, meal.name || 'Unnamed meal');
+              
+              if (meal.name && meal.ingredients) {
+                console.log(`✅ Adding recipe: ${meal.name} (${meal.instructions?.length || 0} instructions)`);
+                recipes.push({
+                  name: meal.name,
+                  ingredients: meal.ingredients,
+                  instructions: meal.instructions || [],
+                  mealType: mealType,
+                  day: day.day || `Day ${dayIndex + 1}`,
+                  servings: meal.servings || '',
+                  prepTime: meal.prepTime || '',
+                  cookTime: meal.cookTime || '',
+                  id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                });
+                
+                // Add ingredients to products
+                meal.ingredients?.forEach(ingredient => {
+                  products.push({
+                    productName: ingredient.name,
+                    quantity: ingredient.quantity || '1',
+                    unit: ingredient.unit || '',
+                    confidence: 0.9,
+                    source: 'meal_plan'
+                  });
+                });
+              }
+            });
+          });
+          
+          console.log(`📊 Total recipes extracted from meal plan: ${recipes.length}`);
+        } else if (structuredData.type === 'recipe_list' && structuredData.recipes) {
+          recipes = structuredData.recipes;
+          // Convert recipe ingredients to products
+          structuredData.recipes.forEach(recipe => {
+            recipe.ingredients?.forEach(ingredient => {
+              products.push({
+                productName: ingredient.name,
+                quantity: ingredient.quantity || '1',
+                unit: ingredient.unit || '',
+                confidence: 0.9,
+                source: 'recipe_list'
+              });
+            });
+          });
+        } else if (structuredData.type === 'grocery_list' && structuredData.items) {
+          // Direct grocery list
+          structuredData.items.forEach(item => {
+            products.push({
+              productName: item.name,
+              quantity: item.quantity || '1',
+              unit: item.unit || '',
+              confidence: 0.85,
+              source: 'grocery_list'
+            });
+          });
+        }
+        
+        console.log(`✅ Extracted ${products.length} products and ${recipes.length} recipes from structured data`);
+        
+      } else {
+        throw new Error('Response is not valid JSON format');
+      }
+    } catch (parseError) {
+      console.log(`⚠️ JSON parsing failed: ${parseError.message}, falling back to text response`);
+      
+      // Fallback: treat as unstructured text (but this shouldn't happen with new prompts)
+      structuredData = {
+        type: 'text_fallback',
+        content: responseText
+      };
+      
+      // ✨ ENHANCED: Extract recipes from fallback text for meal plans
+      console.log('🔍 Attempting to extract recipes from ChatGPT fallback text...');
+      try {
+        recipes = extractRecipesFromText(responseText);
+        console.log(`✅ Extracted ${recipes.length} recipes from ChatGPT fallback text`);
+      } catch (recipeError) {
+        console.log(`⚠️ Recipe extraction from ChatGPT fallback failed: ${recipeError.message}`);
+        recipes = [];
+      }
+    }
+
     // 🚀 INTELLIGENT PARSING with caching and token limits
     const MAX_PARSING_CHARS = 10000; // Skip AI parsing for extremely long inputs
     let parsingResults;
@@ -904,12 +1036,16 @@ Focus on specific, measurable grocery items that can be easily found in a store.
       success: true,
       response: responseText,
       
-      // 🎯 Enhanced Results
-      products: parsingResults.products,  // Only validated grocery products
+      // 🎯 NEW: Direct structured data from AI
+      structuredData: structuredData,
+      recipes: recipes,
+      
+      // 🎯 Enhanced Results - prioritize structured products over parsed ones
+      products: products.length > 0 ? products : parsingResults.products,
       parsingStats: parsingStats,
       
       // Legacy support
-      groceryList: parsingResults.products.map(p => 
+      groceryList: (products.length > 0 ? products : parsingResults.products).map(p => 
         `${p.quantity}${p.unit ? ' ' + p.unit : ''} ${p.productName}`
       ),
       
@@ -921,10 +1057,12 @@ Focus on specific, measurable grocery items that can be easily found in a store.
       
       // Intelligence metrics
       intelligence: {
-        totalCandidates: parsingResults.totalCandidates,
-        validProducts: parsingResults.validProducts,
-        averageConfidence: parsingResults.averageConfidence,
-        filteringEfficiency: parsingStats.processingMetrics.filteringEfficiency
+        totalCandidates: products.length > 0 ? products.length : parsingResults.totalCandidates,
+        validProducts: products.length > 0 ? products.length : parsingResults.validProducts,
+        averageConfidence: products.length > 0 ? 
+          (products.reduce((sum, p) => sum + p.confidence, 0) / products.length) : 
+          parsingResults.averageConfidence,
+        structuredParsing: structuredData !== null
       }
     });
     
@@ -1184,6 +1322,137 @@ This provides a solid foundation for healthy, versatile meals throughout the wee
 function generateEnhancedChatGPTResponse(prompt) {
   // Just use the Claude fallback for now to fix the reference error
   return generateEnhancedClaudeResponse(prompt);
+}
+
+// Extract recipes from fallback text content for meal plans  
+function extractRecipesFromText(text) {
+  const recipes = [];
+  const lines = text.split('\n');
+  let currentRecipe = null;
+  let inRecipeSection = false;
+  let inIngredientsSection = false;
+  let inInstructionsSection = false;
+  
+  console.log('🔍 Parsing text for recipes...');
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const lowerLine = line.toLowerCase();
+    
+    // Skip empty lines
+    if (!line) continue;
+    
+    // Detect recipe names from meal plan items
+    const mealMatch = line.match(/^(?:-\s*)?(Breakfast|Lunch|Dinner|Snack):\s*(.+)$/i);
+    if (mealMatch) {
+      // Save previous recipe if exists
+      if (currentRecipe) {
+        recipes.push(currentRecipe);
+      }
+      
+      const mealType = mealMatch[1];
+      const recipeName = mealMatch[2].trim();
+      
+      currentRecipe = {
+        name: recipeName,
+        ingredients: [],
+        instructions: [],
+        mealType: mealType,
+        servings: '',
+        prepTime: '',
+        cookTime: '',
+        id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      };
+      
+      inRecipeSection = true;
+      inIngredientsSection = false;
+      inInstructionsSection = false;
+      console.log(`📝 Found ${mealType} recipe: "${recipeName}"`);
+      continue;
+    }
+    
+    // Detect standalone recipe names (usually after a blank line or section)
+    if (!currentRecipe && line.length > 5 && line.length < 80 && 
+        !line.includes(':') && !line.startsWith('-') && !line.startsWith('*') &&
+        (lowerLine.includes('chicken') || lowerLine.includes('beef') || lowerLine.includes('salmon') || 
+         lowerLine.includes('soup') || lowerLine.includes('salad') || lowerLine.includes('pasta') ||
+         lowerLine.includes('stir') || lowerLine.includes('baked') || lowerLine.includes('grilled'))) {
+      
+      currentRecipe = {
+        name: line,
+        ingredients: [],
+        instructions: [],
+        mealType: 'Dinner',
+        servings: '',
+        prepTime: '',
+        cookTime: '',
+        id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      };
+      
+      inRecipeSection = true;
+      console.log(`📝 Found standalone recipe: "${line}"`);
+      continue;
+    }
+    
+    // Only process if we have a current recipe
+    if (!currentRecipe) continue;
+    
+    // Detect ingredients section
+    if (lowerLine === 'ingredients:' || lowerLine === 'ingredients') {
+      inIngredientsSection = true;
+      inInstructionsSection = false;
+      continue;
+    }
+    
+    // Detect instructions section
+    if (lowerLine === 'instructions:' || lowerLine === 'instructions' || lowerLine === 'directions:' || lowerLine === 'method:') {
+      inInstructionsSection = true;
+      inIngredientsSection = false;
+      continue;
+    }
+    
+    // Stop if we hit a new major section
+    if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list') || 
+        lowerLine.includes('estimated total') || lowerLine.includes('money-saving')) {
+      break;
+    }
+    
+    // Add ingredients
+    if (inIngredientsSection && (line.startsWith('-') || line.startsWith('*') || line.match(/^\d+/))) {
+      const ingredient = line.replace(/^[-*\d\.]\s*/, '').trim();
+      if (ingredient.length > 2) {
+        currentRecipe.ingredients.push(ingredient);
+        console.log(`  + Ingredient: ${ingredient}`);
+      }
+      continue;
+    }
+    
+    // Add instructions
+    if (inInstructionsSection && (line.startsWith('-') || line.startsWith('*') || line.match(/^\d+/))) {
+      const instruction = line.replace(/^[-*\d\.]\s*/, '').trim();
+      if (instruction.length > 5) {
+        currentRecipe.instructions.push(instruction);
+        console.log(`  + Instruction: ${instruction.substring(0, 50)}...`);
+      }
+      continue;
+    }
+    
+    // If we detect numbered instructions without explicit section header
+    if (currentRecipe && line.match(/^\d+\.\s*[A-Z]/) && line.length > 20) {
+      const instruction = line.replace(/^\d+\.\s*/, '').trim();
+      currentRecipe.instructions.push(instruction);
+      console.log(`  + Auto-detected instruction: ${instruction.substring(0, 50)}...`);
+      continue;
+    }
+  }
+  
+  // Save the last recipe
+  if (currentRecipe) {
+    recipes.push(currentRecipe);
+  }
+  
+  console.log(`✅ Recipe extraction complete: Found ${recipes.length} recipes`);
+  return recipes;
 }
 
 // AI Service Management Endpoints for Admin Dashboard
