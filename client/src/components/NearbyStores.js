@@ -13,55 +13,8 @@ const NearbyStores = ({ onStoreSelect }) => {
   const [selectedStore, setSelectedStore] = useState(null);
   const [gettingLocation, setGettingLocation] = useState(false);
 
-  // Get user's current location
-  const getCurrentLocation = useCallback(() => {
-    setGettingLocation(true);
-    
-    if (!navigator.geolocation) {
-      setError('Geolocation is not supported by this browser');
-      setGettingLocation(false);
-      // Default to a common location (can be customized)
-      searchStores({ lat: 39.7392, lng: -104.9903 }); // Denver, CO
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const location = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
-        setUserLocation(location);
-        setGettingLocation(false);
-        searchStores(location);
-      },
-      (error) => {
-        console.error('Error getting location:', error);
-        setGettingLocation(false);
-        
-        // Fallback to ZIP code search or default location
-        if (error.code === error.PERMISSION_DENIED) {
-          setError('Location access denied. Please enter your ZIP code to find nearby stores.');
-        } else {
-          setError('Could not get your location. Using default area.');
-          // Default to a common location
-          searchStores({ lat: 39.7392, lng: -104.9903 }); // Denver, CO
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000 // 5 minutes
-      }
-    );
-  }, [searchStores]);
-
-  useEffect(() => {
-    getCurrentLocation();
-  }, [getCurrentLocation]);
-
   // Search for nearby Kroger stores
-  const searchStores = async (location, zipCode = null) => {
+  const searchStores = useCallback(async (location, zipCode = null) => {
     if (!currentUser || typeof currentUser.getIdToken !== 'function') {
       setError('Please sign in to search for stores');
       setIsLoading(false);
@@ -121,7 +74,54 @@ const NearbyStores = ({ onStoreSelect }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentUser]);
+
+  // Get user's current location
+  const getCurrentLocation = useCallback(() => {
+    setGettingLocation(true);
+    
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by this browser');
+      setGettingLocation(false);
+      // Default to a common location (can be customized)
+      searchStores({ lat: 39.7392, lng: -104.9903 }); // Denver, CO
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setUserLocation(location);
+        setGettingLocation(false);
+        searchStores(location);
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        setGettingLocation(false);
+        
+        // Fallback to ZIP code search or default location
+        if (error.code === error.PERMISSION_DENIED) {
+          setError('Location access denied. Please enter your ZIP code to find nearby stores.');
+        } else {
+          setError('Could not get your location. Using default area.');
+          // Default to a common location
+          searchStores({ lat: 39.7392, lng: -104.9903 }); // Denver, CO
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000 // 5 minutes
+      }
+    );
+  }, [searchStores]);
+
+  useEffect(() => {
+    getCurrentLocation();
+  }, [getCurrentLocation]);
 
   // Handle ZIP code search
   const handleZipSearch = async (e) => {

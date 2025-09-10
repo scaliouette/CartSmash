@@ -8,7 +8,7 @@ import ProductValidator from './ProductValidator';
 import InstacartCheckoutFlow from './InstacartCheckoutFlow';
 import { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
-import confetti from 'canvas-confetti';
+// import confetti from 'canvas-confetti'; // REMOVED - Not used in AI-only mode
 import { unified as unifiedRecipeService } from '../services/unifiedRecipeService';
 
 // Helper functions
@@ -522,206 +522,15 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
       setShowProgress(false);
       return;
       
-      // Add confetti only when actually parsing items
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#FB4F14', '#002244', '#FFFFFF']
-      });
-      
-      // Extract ingredients from recipe text if it's a full recipe
-      const extractIngredientsFromRecipe = (text) => {
-        const lines = text.split('\n');
-        const ingredients = [];
-        let inIngredientsSection = false;
-        
-        for (const line of lines) {
-          const trimmed = line.trim();
-          
-          // Check for ingredients section headers
-          if (trimmed.match(/^(ingredients?:?\s*$|##?\s*ingredients?|Ingredients?:?\s*$)/i)) {
-            inIngredientsSection = true;
-            continue;
-          }
-          
-          // Check for instructions/directions section (stop ingredients)
-          if (trimmed.match(/^(instructions?:?\s*$|directions?:?\s*$|method:?\s*$|steps?:?\s*$|##?\s*(instructions?|directions?|method|steps?))/i)) {
-            inIngredientsSection = false;
-            continue;
-          }
-          
-          // If we're in ingredients section, collect ingredient lines
-          if (inIngredientsSection && trimmed.length > 0) {
-            // Skip obvious non-ingredient lines
-            if (!trimmed.match(/^(recipe|serves?|prep time|cook time|total time|yield)/i)) {
-              ingredients.push(trimmed);
-            }
-          }
-        }
-        
-        return ingredients.length > 0 ? ingredients.join('\n') : text;
-      };
-      
-      // Check if this looks like a full recipe and extract ingredients
-      const isFullRecipe = listText.toLowerCase().includes('ingredients') && 
-                          (listText.toLowerCase().includes('instructions') || listText.toLowerCase().includes('directions'));
-      
-      const textToParse = isFullRecipe ? extractIngredientsFromRecipe(listText) : listText;
-      
-      console.log('Parsing type:', isFullRecipe ? 'Full Recipe (extracting ingredients)' : 'Regular List');
-      if (isFullRecipe) {
-        console.log('Extracted ingredients:', textToParse.substring(0, 200) + '...');
-      }
-
-      // Parse the list
-      console.log('🌐 API Request Details:', {
-        url: `${API_URL}/api/cart/parse`,
-        textLength: textToParse.length,
-        textPreview: textToParse.substring(0, 100),
-        action: mergeCart ? 'merge' : 'replace',
-        userId: currentUser?.uid || null
-      });
-
-      const response = await fetch(`${API_URL}/api/cart/parse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          listText: textToParse,
-          action: mergeCart ? 'merge' : 'replace',
-          userId: currentUser?.uid || null,
-          options: {
-            mergeDuplicates: true,
-            enhancedQuantityParsing: true,
-            detectContainers: true
-          }
-        }),
-      });
-
-      console.log('📡 API Response Status:', response.status, response.statusText);
-
-      clearInterval(progressInterval);
-      setParsingProgress(100);
-
-      const data = await response.json();
-      
-      console.log('📊 API Response Data:', {
-        success: data.success,
-        cartLength: data.cart?.length || 0,
-        totalItems: data.totalItems,
-        itemsAdded: data.itemsAdded,
-        errorMessage: data.error || 'none'
-      });
-
-      if (data.success && data.cart && data.cart.length > 0) {
-        // Attach the recipe to the cart items for persistence and ensure stable IDs/fields
-        const cartWithRecipe = data.cart.map((item, index) => {
-          // Generate a truly unique ID using timestamp + random string
-          const uniqueId = item.id || item._id || `item_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
-          
-          // Create clean item without undefined values
-          const cleanItem = {
-            id: uniqueId,
-            productName: item.productName || item.itemName || item.name || '',
-            quantity: typeof item.quantity === 'number' && !Number.isNaN(item.quantity) ? item.quantity : 1,
-            unit: item.unit || 'each',
-            category: item.category || 'other',
-            confidence: typeof item.confidence === 'number' ? item.confidence : 0.7,
-            // Store recipe only on first item to avoid duplication
-            ...(index === 0 ? { _sourceRecipe: listText } : {})
-          };
-          
-          // Only add optional fields if they have valid values
-          if (item.realPrice !== undefined && item.realPrice !== null) cleanItem.realPrice = item.realPrice;
-          if (item.salePrice !== undefined && item.salePrice !== null) cleanItem.salePrice = item.salePrice;
-          if (item.availability !== undefined && item.availability !== null) cleanItem.availability = item.availability;
-          if (item.upc !== undefined && item.upc !== null) cleanItem.upc = item.upc;
-          if (item.productId !== undefined && item.productId !== null) cleanItem.productId = item.productId;
-          if (item.krogerProduct !== undefined && item.krogerProduct !== null) cleanItem.krogerProduct = item.krogerProduct;
-          if (item.matchedName !== undefined && item.matchedName !== null) cleanItem.matchedName = item.matchedName;
-          if (item.brand !== undefined && item.brand !== null) cleanItem.brand = item.brand;
-          if (item.size !== undefined && item.size !== null) cleanItem.size = item.size;
-          if (item.storeId !== undefined && item.storeId !== null) cleanItem.storeId = item.storeId;
-          if (item.original !== undefined && item.original !== null) cleanItem.original = item.original;
-          
-          return cleanItem;
-        });
-        
-        // Debug logging before cart update
-        console.log('🛒 Cart update debug:');
-        console.log('- Current cart length:', currentCart.length);
-        console.log('- New items length:', cartWithRecipe.length);
-        console.log('- Merge mode:', mergeCart);
-        console.log('- First few new items:', cartWithRecipe.slice(0, 3).map(item => ({id: item.id, name: item.productName})));
-        
-        if (mergeCart) {
-          const newCart = [...currentCart, ...cartWithRecipe];
-          console.log('- Merged cart length:', newCart.length);
-          setCurrentCart(newCart);
-        } else {
-          console.log('- Replacing cart entirely');
-          setCurrentCart([...cartWithRecipe]); // Force new array reference
-        }
-        
-        // Verify update after state change
-        setTimeout(() => {
-          console.log('- Cart length after update:', currentCart.length);
-        }, 100);
-        
-        // Store parsing stats with original text preserved for recipe display
-        const statsToSet = {
-          ...(data.parsing?.stats || {}),
-          sourceRecipe: listText  // Preserve the original input for display
-        };
-        console.log('📝 Setting parsingStats:', {
-          hasSourceRecipe: !!statsToSet.sourceRecipe,
-          sourceRecipeLength: statsToSet.sourceRecipe?.length,
-          firstChars: statsToSet.sourceRecipe?.substring(0, 50)
-        });
-        
-        setParsingStats(statsToSet);
-        
-        // Auto-save recipes when parsing
-        if (data.recipes && data.recipes.length > 0) {
-          console.log(`📝 Auto-saving ${data.recipes.length} recipes from parsing...`);
-          data.recipes.forEach(recipe => {
-            const savedRecipe = {
-              ...recipe,
-              userId: currentUser?.uid || 'guest',
-              source: 'auto_saved_from_parsing'
-            };
-            saveRecipe(savedRecipe);
-          });
-          console.log(`✅ Auto-saved ${data.recipes.length} recipes to collection`);
-        }
-        
-        clearDraft();
-        setInputText(''); // Clear input after successful parsing
-        setWaitingForAIResponse(false);
-        
-        console.log(`✅ Successfully parsed ${data.cart.length} items`);
-      } else {
-        console.log('❌ Parsing failed or no items found:', {
-          success: data.success,
-          hasCart: !!data.cart,
-          cartLength: data.cart?.length || 0,
-          errorMessage: data.error || 'Unknown error'
-        });
-        setError(data.error || 'No valid grocery items found in the text');
-      }
-      
     } catch (err) {
       console.error('Processing failed:', err);
       setError(`Failed to process: ${err.message}`);
-      if (progressInterval) {
-        clearInterval(progressInterval);
-      }
     } finally {
       if (progressInterval) clearInterval(progressInterval);
-      clearTimeout(overlaySafety);
       setIsLoading(false);
       setShowProgress(false);
       setParsingProgress(0);
+      setWaitingForAIResponse(false);
     }
   };
 
@@ -1030,55 +839,9 @@ NO SHORTCUTS. Generate FULL detailed instructions.`,
     }
   };
 
-  // AI-ONLY ENFORCEMENT: Block manual recipe instruction generation
-  const generateInstructionsFromRecipeName = (recipeName) => {
-    console.error('🚫 MANUAL PARSING BLOCKED - AI-ONLY MODE ENFORCED!');
-    console.error('Function: generateInstructionsFromRecipeName');
-    console.error('Recipe:', recipeName);
-    console.error('This function has been removed in favor of AI-only generation.');
-    
-    throw new Error(`AI-ONLY MODE: Manual parsing of instructions for "${recipeName}" is blocked. Use AI generation instead.`);
-  };
+  // REMOVED: Manual parsing functions - AI-ONLY mode enforced
 
-  // AI-ONLY ENFORCEMENT: Block manual ingredient inference 
-  const inferIngredientsFromRecipeName = (recipeName) => {
-    console.error('🚫 MANUAL PARSING BLOCKED - AI-ONLY MODE ENFORCED!');
-    console.error('Function: inferIngredientsFromRecipeName');
-    console.error('Recipe:', recipeName);
-    console.error('This function has been removed in favor of AI-only generation.');
-    
-    throw new Error(`AI-ONLY MODE: Manual parsing of ingredients for "${recipeName}" is blocked. Use AI generation instead.`);
-  };
-
-  // Extract single recipe from text (simplified parsing for single recipe content)
-  const extractSingleRecipeFromText = async (text) => {
-    const lines = text.split('\n');
-    let recipeName = '';
-    let ingredients = [];
-    let instructions = [];
-    let currentSection = '';
-    
-    console.log('🔍 Single recipe extraction starting...');
-    
-    return {
-      recipes: [{ 
-        title: recipeName || 'Single Recipe',
-        ingredients: ingredients.length > 0 ? ingredients : ['AI generation required'],
-        instructions: instructions.length > 0 ? instructions : ['AI generation required'],
-        id: `single_recipe_${Date.now()}`
-      }],
-      totalRecipes: 1
-    };
-  };
-
-  // Extract multiple recipes from a meal plan
-  const extractMultipleRecipesFromText = async (text) => {
-    console.log('🔍 Multiple recipe extraction - using AI fallback');
-    return {
-      recipes: [],
-      totalRecipes: 0
-    };
-  };
+  // REMOVED: Manual recipe extraction functions - AI-ONLY mode enforced
 
   // Parse AI response for recipes
   const parseAIRecipes = (aiText) => {
@@ -1222,49 +985,7 @@ NO SHORTCUTS. Generate FULL detailed instructions.`,
   // Continue removing orphaned conditional blocks
   // Continue removing all orphaned return statements and arrays
   // Bulk removal of all remaining orphaned code blocks until proper function starts
-  // Removing orphaned conditional block
-      if (name.includes('baked')) {
-        return [
-          '1. Preheat oven to 400°F (200°C)',
-          '2. Pat salmon fillets dry and place on parchment-lined baking sheet',
-          '3. Drizzle with olive oil and season with salt and pepper',
-          '4. Squeeze fresh lemon juice over fillets',
-          '5. Bake for 12-15 minutes until fish flakes easily with a fork',
-          '6. If serving with quinoa: Rinse quinoa and cook in 2:1 ratio with water for 15 minutes',
-          '7. Steam broccoli for 5-7 minutes until tender-crisp',
-          '8. Serve salmon over quinoa with steamed broccoli on the side'
-        ];
-      } else {
-        return [
-          '1. Season salmon fillets with salt and pepper',
-          '2. Heat oil in a pan over medium-high heat',
-          '3. Cook salmon for 4-5 minutes per side',
-          '4. Serve with your choice of sides'
-        ];
-      }
-    } else if (name.includes('parfait') && name.includes('yogurt')) {
-      return [
-        '1. In tall glasses or bowls, start with a layer of Greek yogurt (about 1/3 cup)',
-        '2. Add a layer of granola (about 2 tbsp)',
-        '3. Add a layer of mixed berries (about 2 tbsp)',
-        '4. Repeat layering: yogurt, granola, berries',
-        '5. Top with a final layer of yogurt',
-        '6. Drizzle with honey and garnish with fresh berries',
-        '7. Serve immediately for best texture'
-      ];
-    } else if (name.includes('stir') && name.includes('fry')) {
-      return [
-        '1. Heat oil in a large wok or skillet over high heat',
-        '2. Add protein and cook until nearly done, remove',
-        '3. Add aromatics (garlic, ginger) and stir for 30 seconds',
-        '4. Add vegetables and stir-fry for 2-3 minutes',
-        '5. Return protein to pan and add sauce',
-        '6. Toss everything together for 1 minute and serve'
-      ];
-    } else {
-      return [`Prepare ${recipeName} according to your preferred cooking method.`];
-    }
-  };
+  // ORPHANED CODE REMOVED - All corrupted conditional blocks cleaned for production
 
   // DEPRECATED: Helper function to infer basic ingredients from recipe name  
   // REMOVED: inferIngredientsFromRecipeName duplicate function
@@ -1684,10 +1405,15 @@ NO SHORTCUTS. Generate FULL detailed instructions.`,
       isTrueMealPlan: isTrueMealPlan
     });
     
-    // If this looks like a single recipe, use simpler parsing
+    // If this looks like a single recipe, use AI generation
     if (!isTrueMealPlan) {
-      console.log('📝 Content appears to be a single recipe, using simplified parsing...');
-      return await extractSingleRecipeFromText(text);
+      console.log('📝 Content appears to be a single recipe, using AI generation...');
+      // Return AI-only placeholder - actual AI generation handled elsewhere
+      return {
+        recipes: [],
+        totalRecipes: 0,
+        requiresAI: true
+      };
     }
     
     console.log('📅 Content appears to be a multi-day meal plan, using full parsing...');
@@ -2047,123 +1773,7 @@ NO SHORTCUTS. Generate FULL detailed instructions.`,
     };
   };
 
-  // Parse AI response for recipes in multiple formats
-  const parseAIRecipes = (aiResponseText) => {
-    if (!aiResponseText) return [];
-
-    const recipes = [];
-    const lines = aiResponseText.split('\n');
-    
-    console.log('🔍 Parsing AI response for recipes, line count:', lines.length);
-    
-    // Method 1: Look for structured recipe formats (Recipe Name:, Ingredients:, Instructions:)
-    let currentRecipe = null;
-    let currentSection = '';
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      // Detect recipe name section
-      if (line.toLowerCase().match(/^recipe\s*name\s*:/)) {
-        if (currentRecipe) recipes.push(currentRecipe);
-        currentRecipe = {
-          title: line.replace(/^recipe\s*name\s*:/i, '').trim(),
-          ingredients: [],
-          instructions: [],
-          prepTime: '',
-          cookTime: '',
-          calories: '',
-          tags: []
-        };
-        currentSection = 'title';
-        continue;
-      }
-      
-      // Detect ingredients section
-      if (line.toLowerCase().match(/^ingredients?\s*:/)) {
-        currentSection = 'ingredients';
-        continue;
-      }
-      
-      // Detect instructions section
-      if (line.toLowerCase().match(/^(instructions?|directions?|method|steps?)\s*:/)) {
-        currentSection = 'instructions';
-        continue;
-      }
-      
-      // Add content to current section
-      if (currentRecipe && line) {
-        if (currentSection === 'title' && !currentRecipe.title) {
-          currentRecipe.title = line;
-        } else if (currentSection === 'ingredients') {
-          const cleanIngredient = line.replace(/^[-*•]\s*/, '').trim();
-          if (cleanIngredient && !cleanIngredient.toLowerCase().match(/^(instructions?|directions?|method|steps?)\s*:/)) {
-            currentRecipe.ingredients.push(cleanIngredient);
-          }
-        } else if (currentSection === 'instructions') {
-          const cleanInstruction = line.replace(/^[\d.-]*\s*/, '').trim();
-          if (cleanInstruction) {
-            currentRecipe.instructions.push(cleanInstruction);
-          }
-        }
-      }
-    }
-    
-    // Add the last recipe if it exists
-    if (currentRecipe && currentRecipe.title) {
-      recipes.push(currentRecipe);
-    }
-    
-    // Method 2: If no structured recipes found, look for recipe-like sections in the text
-    if (recipes.length === 0) {
-      console.log('🔍 No structured recipes found, looking for recipe patterns...');
-      
-      // Look for lines that could be recipe titles (not grocery list items)
-      const potentialRecipes = [];
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        
-        // Skip obvious grocery list headers and items
-        if (!line || 
-            line.toLowerCase().includes('grocery list') || 
-            line.toLowerCase().includes('shopping list') ||
-            line.startsWith('-') || 
-            line.startsWith('•') ||
-            line.match(/^\d+\s*(oz|lb|cups?|tbsp|tsp|cloves?|bunch|bag|jar|can|container|loaf|bottle)/i)) {
-          continue;
-        }
-        
-        // Look for potential recipe titles (descriptive food names)
-        if (line.length > 8 && line.length < 60 &&
-            !line.match(/^\d+\./) && // Not numbered steps
-            (line.toLowerCase().includes('chicken') || 
-             line.toLowerCase().includes('pasta') || 
-             line.toLowerCase().includes('salad') ||
-             line.toLowerCase().includes('soup') ||
-             line.toLowerCase().includes('sandwich') ||
-             line.toLowerCase().includes('recipe') ||
-             line.toLowerCase().match(/(with|and|or|in)\s+/))) { // Contains food relationship words
-          
-          potentialRecipes.push({
-            title: line.replace(/[*#]+/g, '').trim(), // Remove markdown formatting
-            ingredients: [],
-            instructions: [],
-            prepTime: '',
-            cookTime: '',
-            calories: '',
-            tags: []
-          });
-        }
-      }
-      
-      console.log('🔍 Found potential recipes:', potentialRecipes.length);
-      recipes.push(...potentialRecipes); // Include all found recipes (removed 3-recipe limit)
-    }
-    
-    console.log(`📝 Parsed ${recipes.length} recipes from AI response`);
-    return recipes;
-  };
+  // DUPLICATE FUNCTION REMOVED - parseAIRecipes already exists at line 1084
 
   // Handle adding recipe to recipe library
   const handleAddToRecipeLibrary = (recipe) => {
@@ -3733,7 +3343,7 @@ Or paste any grocery list directly!"
 
     </div>
   );
-  // REMOVED EXTRA CLOSING BRACE - This was incorrectly ending the main function
+}; // End of GroceryListForm function
 
 // Styles
 const styles = {
