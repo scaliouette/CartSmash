@@ -400,17 +400,12 @@ IMPORTANT:
       }
     }
     
-    // Fallback only if API is truly unavailable (no client or API error)
+    // Fallback if API is unavailable or request failed
     if (!responseText) {
-      if (!anthropic) {
-        console.log('🔄 Claude API unavailable - using fallback...');
-        responseText = "⚠️ **AI SERVICE TEMPORARILY UNAVAILABLE - SHOWING FALLBACK CONTENT**\n\n" + generateEnhancedClaudeResponse(prompt);
-        usage = { input_tokens: 150, output_tokens: 300 };
-        model = 'claude-3-sonnet (fallback)';
-      } else {
-        // API client exists but request failed - return error instead of fallback
-        throw new Error('Claude API request failed but client is available');
-      }
+      console.log('🔄 Claude API failed or unavailable - using fallback...');
+      responseText = "⚠️ **AI SERVICE TEMPORARILY UNAVAILABLE - SHOWING FALLBACK CONTENT**\n\n" + generateEnhancedClaudeResponse(prompt);
+      usage = { input_tokens: 150, output_tokens: 300 };
+      model = 'claude-3-sonnet (fallback)';
     }
     
     // 🚀 STRUCTURED JSON PARSING - AI generates complete structured data
@@ -854,17 +849,12 @@ Focus on specific, measurable grocery items that can be easily found in a store.
       }
     }
     
-    // Fallback only if API is truly unavailable (no client or API error)
+    // Fallback if API is unavailable or request failed
     if (!responseText) {
-      if (!openai) {
-        console.log('🔄 OpenAI API unavailable - using fallback...');
-        responseText = "⚠️ **AI SERVICE TEMPORARILY UNAVAILABLE - SHOWING FALLBACK CONTENT**\n\n" + generateEnhancedChatGPTResponse(prompt);
-        usage = { prompt_tokens: 120, completion_tokens: 250 };
-        model = 'gpt-4o-mini (fallback)';
-      } else {
-        // API client exists but request failed - return error instead of fallback
-        throw new Error('OpenAI API request failed but client is available');
-      }
+      console.log('🔄 OpenAI API failed or unavailable - using fallback...');
+      responseText = "⚠️ **AI SERVICE TEMPORARILY UNAVAILABLE - SHOWING FALLBACK CONTENT**\n\n" + generateEnhancedChatGPTResponse(prompt);
+      usage = { prompt_tokens: 120, completion_tokens: 250 };
+      model = 'gpt-4o-mini (fallback)';
     }
     
     // 🚀 INTELLIGENT PARSING with caching and token limits
