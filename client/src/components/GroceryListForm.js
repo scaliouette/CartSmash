@@ -2981,7 +2981,7 @@ Or paste any grocery list directly!"
                 onClick={handleCollapseExpandAll}
                 title={mealPlanExpanded ? "Collapse all recipe details" : "Expand all recipe details"}
               >
-                {mealPlanExpanded ? '▼ Collapse All' : '▶ Expand All'}
+                {mealPlanExpanded ? '▼' : '▶'}
               </button>
               <button
                 style={styles.clearRecipesButton}
