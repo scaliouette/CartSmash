@@ -2254,7 +2254,7 @@ PROVIDE COMPREHENSIVE DETAILED INSTRUCTIONS - as many steps as the recipe natura
     const icon = recipe.icon || getMealTypeIcon(mealType);
     const day = recipe.day || recipe.dayAssigned;
     const ingredients = recipe.ingredients || [];
-    const instructions = recipe.instructions || [];
+    const instructions = recipe.instructions || [];     
     const servings = recipe.servings;
     const prepTime = recipe.prepTime;
     const cookTime = recipe.cookTime;

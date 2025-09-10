@@ -9,7 +9,7 @@ console.log('🤖 Loading Enhanced AI routes with intelligent parsing...');
 
 // Import AI SDKs
 let Anthropic, OpenAI;
-try {
+try { 
   Anthropic = require('@anthropic-ai/sdk');
   console.log('✅ Anthropic SDK loaded');
 } catch (error) {
