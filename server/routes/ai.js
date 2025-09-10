@@ -443,7 +443,7 @@ IMPORTANT:
               });
             });
           });
-        } else if (structuredData.type === 'meal_plan' && structuredData.shoppingList) {
+        } else if (structuredData.type === 'meal_plan' && structuredData.days) {
           recipes = []; // Extract recipes from days
           structuredData.days?.forEach(day => {
             Object.values(day.meals || {}).forEach(meal => {
@@ -454,23 +454,19 @@ IMPORTANT:
                   instructions: meal.instructions || [],
                   mealType: 'meal_plan_item'
                 });
+                
+                // Convert each recipe's ingredients to products (matches recipe display)
+                meal.ingredients.forEach(ingredient => {
+                  products.push({
+                    productName: ingredient.name,
+                    quantity: ingredient.quantity || '1',
+                    unit: ingredient.unit || '',
+                    confidence: 1.0,
+                    source: 'ai_meal_plan_recipe'
+                  });
+                });
               }
             });
-          });
-          
-          // Convert shopping list to products
-          Object.values(structuredData.shoppingList || {}).forEach(category => {
-            if (Array.isArray(category)) {
-              category.forEach(item => {
-                products.push({
-                  productName: item.name,
-                  quantity: item.quantity || '1',
-                  unit: item.unit || '',
-                  confidence: 1.0,
-                  source: 'ai_meal_plan'
-                });
-              });
-            }
           });
         } else if (structuredData.type === 'recipe_list' && structuredData.recipes) {
           recipes = structuredData.recipes;
