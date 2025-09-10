@@ -30,6 +30,7 @@ function extractGroceryListOnly(text) {
   const groceryItems = [];
   let inGrocerySection = false;
   let inRecipeSection = false;
+  let inMealPlanSection = false;
   
   console.log('📊 Total lines to process:', lines.length);
   
@@ -37,16 +38,25 @@ function extractGroceryListOnly(text) {
     const line = lines[i].trim();
     const lowerLine = line.toLowerCase();
     
+    // Skip meal plan items (they should be recipes, not grocery items)
+    if (line.match(/^(•|-|\*|\d+\.)\s*(Breakfast|Lunch|Dinner|Snack):/i)) {
+      console.log('🍽️ Skipping meal plan item (should be recipe):', line);
+      inMealPlanSection = true;
+      continue;
+    }
+    
     // Detect recipe sections to avoid parsing them as grocery items
     if (lowerLine.includes('recipe') || lowerLine.includes('instructions') || 
         lowerLine.includes('directions') || lowerLine.includes('method')) {
       inRecipeSection = true;
       inGrocerySection = false;
+      inMealPlanSection = false;
       continue;
     }
     
     // Detect start of grocery list section
     if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list') || 
+        lowerLine.includes('ingredients needed') || lowerLine.includes('shopping items') ||
         lowerLine === 'produce:' || lowerLine === 'proteins & dairy:' ||
         lowerLine === 'grains & bakery:' || lowerLine === 'pantry:' ||
         lowerLine === 'produce' || lowerLine === 'dairy:' || lowerLine === 'meat & seafood:' ||
@@ -54,7 +64,9 @@ function extractGroceryListOnly(text) {
       console.log('🛒 Found grocery section start on line', i, ':', line);
       inGrocerySection = true;
       inRecipeSection = false;
-      if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list')) {
+      inMealPlanSection = false;
+      if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list') || 
+          lowerLine.includes('ingredients needed') || lowerLine.includes('shopping items')) {
         continue; // Skip the header line
       }
     }
@@ -71,16 +83,20 @@ function extractGroceryListOnly(text) {
       break;
     }
     
-    // If we're in grocery section and not in recipe section, collect items
-    if (inGrocerySection && !inRecipeSection) {
+    // Only add items if we're in the grocery section and NOT in meal plan or recipe sections
+    if (inGrocerySection && !inRecipeSection && !inMealPlanSection) {
       // Match items with bullets, dashes, or numbers
       const itemMatch = line.match(/^[-•*]\s*(.+)$|^\d+\.\s*(.+)$/);
       if (itemMatch) {
         const item = (itemMatch[1] || itemMatch[2]).trim();
-        console.log('🥕 Found potential grocery item on line', i, ':', item);
         
-        // Skip category headers and empty items
-        if (item && !item.endsWith(':') && item.length > 2) {
+        // Skip meal descriptions, only keep actual grocery items
+        if (!item.match(/^(Breakfast|Lunch|Dinner|Snack):/i) && 
+            item.length > 2 && 
+            !item.endsWith(':')) {
+          
+          console.log('🥕 Found potential grocery item on line', i, ':', item);
+          
           // Clean up the item text
           const cleanedItem = item
             .replace(/\*\*/g, '') // Remove markdown bold
@@ -92,7 +108,8 @@ function extractGroceryListOnly(text) {
             groceryItems.push(cleanedItem);
           }
         }
-      } else if (line.length > 0 && !line.endsWith(':')) {
+      } else if (line.length > 0 && !line.endsWith(':') && 
+                 !line.match(/^(Breakfast|Lunch|Dinner|Snack):/i)) {
         // Handle items without bullets (some AI responses don't use bullets)
         const cleanedItem = line
           .replace(/\*\*/g, '')
@@ -117,11 +134,19 @@ function extractGroceryListOnly(text) {
     for (const line of lines) {
       const trimmed = line.trim();
       
+      // Skip meal plan items in fallback extraction too
+      if (trimmed.match(/^(•|-|\*|\d+\.)\s*(Breakfast|Lunch|Dinner|Snack):/i)) {
+        console.log('🍽️ Skipping meal plan item in fallback extraction:', trimmed);
+        continue;
+      }
+      
       // Look for lines that look like grocery items
       if (trimmed.match(/^[-•*]\s*\d+.*(lb|lbs|oz|cup|cups|tbsp|tsp|dozen|bag|jar|can|bottle|bunch|head|clove)/i) ||
           trimmed.match(/^[-•*]\s*\d+\s+\w+/)) {
         const item = trimmed.replace(/^[-•*]\s*/, '').trim();
-        if (item && !groceryItems.includes(item)) {
+        
+        // Double-check that it's not a meal description
+        if (item && !item.match(/^(Breakfast|Lunch|Dinner|Snack):/i) && !groceryItems.includes(item)) {
           groceryItems.push(item);
         }
       }
@@ -682,7 +707,7 @@ function GroceryListForm({
         setParsingProgress(prev => Math.min(prev + 10, 90));
       }, 200);
       
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3020';
       
       console.log('🔍 DEBUG: API_URL =', API_URL);
       console.log('🔍 DEBUG: Environment =', process.env.NODE_ENV);
@@ -740,23 +765,43 @@ function GroceryListForm({
               console.log('⚠️ No structured recipes found in AI response:', aiData);
             }
             
-            // Use structured products
+            // Use structured products - filter out meal descriptions
             if (aiData.products && aiData.products.length > 0) {
-              const groceryItems = aiData.products.map(product => {
-                const quantity = product.quantity || '1';
-                const unit = product.unit ? ` ${product.unit}` : '';
+              console.log('🔍 Processing structured products, total count:', aiData.products.length);
+              
+              // Filter out any "products" that are actually meal descriptions
+              const realGroceryItems = aiData.products.filter(product => {
                 const name = product.productName || product.name;
-                return `• ${quantity}${unit} ${name}`;
+                const isMealDescription = name.match(/^(Breakfast|Lunch|Dinner|Snack):/i);
+                
+                if (isMealDescription) {
+                  console.log('🍽️ Skipping meal plan item (should be recipe):', name);
+                  return false;
+                }
+                return true;
               });
               
-              const groceryListText = groceryItems.join('\n');
-              setInputText(groceryListText);
+              console.log('🛒 Real grocery items after filtering:', realGroceryItems.length);
               
-              if (textareaRef.current) {
-                textareaRef.current.value = groceryListText;
+              if (realGroceryItems.length > 0) {
+                const groceryItems = realGroceryItems.map(product => {
+                  const quantity = product.quantity || '1';
+                  const unit = product.unit ? ` ${product.unit}` : '';
+                  const name = product.productName || product.name;
+                  return `• ${quantity}${unit} ${name}`;
+                });
+                
+                const groceryListText = groceryItems.join('\n');
+                setInputText(groceryListText);
+                
+                if (textareaRef.current) {
+                  textareaRef.current.value = groceryListText;
+                }
+                
+                groceryListProcessed = true;
+              } else {
+                console.log('⚠️ No real grocery items found after filtering meal descriptions');
               }
-              
-              groceryListProcessed = true;
             }
           }
           
@@ -2470,7 +2515,7 @@ PROVIDE COMPREHENSIVE DETAILED INSTRUCTIONS - as many steps as the recipe natura
       }).join('\n');
       
       // Use the same API endpoint as regular grocery list parsing
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3020';
       const response = await fetch(`${API_URL}/api/cart/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
