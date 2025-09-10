@@ -755,8 +755,10 @@ function GroceryListForm({
           if (aiData.structuredData && aiData.recipes) {
             console.log(`📊 Found ${aiData.recipes.length} recipes and ${aiData.products?.length || 0} products`);
             
-            // Store structured recipes
+            // Store structured recipes for display
             if (aiData.recipes.length > 0) {
+              console.log('🍳 Displaying structured recipes from AI:', aiData.recipes);
+              setParsedRecipes(aiData.recipes);
               setRecipes(aiData.recipes);
             }
             
@@ -790,6 +792,18 @@ function GroceryListForm({
               if (textareaRef.current) {
                 textareaRef.current.value = cleanGroceryList;
               }
+              
+              // Parse and display recipes from AI response
+              try {
+                const recipeResult = await extractMealPlanRecipes(aiResponseText);
+                if (recipeResult.recipes && recipeResult.recipes.length > 0) {
+                  console.log('🍳 Parsed recipes from AI response:', recipeResult.recipes);
+                  setParsedRecipes(recipeResult.recipes);
+                }
+              } catch (recipeError) {
+                console.error('❌ Failed to parse recipes from AI response:', recipeError);
+              }
+              
               groceryListProcessed = true;
             }
           }
