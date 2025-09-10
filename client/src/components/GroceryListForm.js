@@ -701,6 +701,8 @@ function GroceryListForm({
             if (aiData.recipes.length > 0) {
               console.log('🍳 Displaying structured recipes from AI:', aiData.recipes);
               console.log('🔍 Recipe validation - checking first recipe:', aiData.recipes[0]);
+              console.log('🔍 First recipe instructions:', aiData.recipes[0]?.instructions);
+              console.log('🔍 First recipe instructions length:', aiData.recipes[0]?.instructions?.length);
               setParsedRecipes(aiData.recipes);
               setRecipes(aiData.recipes);
             } else {
