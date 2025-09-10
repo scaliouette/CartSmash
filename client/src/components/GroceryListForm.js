@@ -518,17 +518,13 @@ function GroceryListForm({
     setError('');
     setShowProgress(true);
     setParsingProgress(0);
+    
     // Safety: prevent overlays from blocking UI if a request hangs
     const overlaySafety = setTimeout(() => {
       setIsLoading(false);
       setShowProgress(false);
       setWaitingForAIResponse(false);
     }, 15000);
-    
-    // Track if we're waiting for AI
-    if (useAI) {
-      setWaitingForAIResponse(true);
-    }
 
     let progressInterval;
     try {
@@ -538,8 +534,8 @@ function GroceryListForm({
       
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       
-      // If using AI, first generate a response
-      if (useAI && selectedAI) {
+      // STEP 1: Generate with AI (first click)
+      if (useAI && selectedAI && !waitingForAIResponse) {
         try {
           console.log('🤖 Starting AI processing:', { prompt: listText.substring(0, 100), ai: selectedAI, useAI, selectedAI });
           
@@ -554,29 +550,7 @@ function GroceryListForm({
                 includeRecipes: true,
                 includeInstructions: true,
                 formatAsList: true,
-                structuredFormat: true,
-                formatInstruction: `Please provide COMPLETE recipes with:
-
-RECIPE FORMAT:
-Recipe Name: [Name]
-Servings: [Number]
-Prep Time: [Minutes]
-Cook Time: [Minutes]
-
-Ingredients:
-- [List each ingredient with quantities]
-
-Instructions:
-1. [Step-by-step cooking instructions]
-2. [Continue with all steps]
-
-Notes: [Any tips or variations]
-
-Then provide:
-Grocery List:
-[Complete shopping list with all ingredients]
-
-Please ensure each recipe has FULL cooking instructions, not just ingredient lists.`
+                structuredFormat: true
               }
             })
           });
@@ -594,19 +568,15 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
           
           // Handle structured data response
           if (aiData.structuredData && aiData.recipes) {
-            console.log('🎉 Using AI-generated structured data:', aiData.structuredData.type);
-            console.log(`📊 Found ${aiData.recipes.length} recipes and ${aiData.products.length} products`);
+            console.log(`📊 Found ${aiData.recipes.length} recipes and ${aiData.products?.length || 0} products`);
             
             // Store structured recipes
             if (aiData.recipes.length > 0) {
-              console.log('📝 Setting structured recipes from AI:', aiData.recipes.map(r => r.name));
               setRecipes(aiData.recipes);
             }
             
             // Use structured products
             if (aiData.products && aiData.products.length > 0) {
-              console.log(`📦 Using ${aiData.products.length} AI-generated products directly`);
-              
               const groceryItems = aiData.products.map(product => {
                 const quantity = product.quantity || '1';
                 const unit = product.unit ? ` ${product.unit}` : '';
@@ -622,25 +592,12 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
               }
               
               groceryListProcessed = true;
-              console.log('✅ Set grocery list from structured AI data');
-            } else if (aiData.groceryList && aiData.groceryList.length > 0) {
-              // Fallback to legacy groceryList format
-              const fallbackList = aiData.groceryList.map(item => `• ${item}`).join('\n');
-              setInputText(fallbackList);
-              if (textareaRef.current) {
-                textareaRef.current.value = fallbackList;
-              }
-              groceryListProcessed = true;
-              console.log('✅ Used fallback grocery list format');
             }
           }
           
-          // Only use legacy parsing if structured data wasn't available
+          // Fallback to text extraction if no structured data
           if (!groceryListProcessed) {
-            console.log('⚠️ No structured data found, using legacy text parsing...');
-            
             const aiResponseText = extractAIResponseText(aiData);
-            
             if (aiResponseText) {
               const cleanGroceryList = extractGroceryListOnly(aiResponseText);
               setInputText(cleanGroceryList);
@@ -649,45 +606,36 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
                 textareaRef.current.value = cleanGroceryList;
               }
               groceryListProcessed = true;
-              console.log('✅ Used legacy text parsing fallback');
-            } else {
-              console.error('No usable response found in AI data:', Object.keys(aiData));
-              throw new Error('AI response was empty');
             }
           }
           
-          // Single place for cleanup and success messaging
           if (groceryListProcessed) {
-            // Trigger textarea auto-expansion
+            // Expand textarea
             setTimeout(() => {
               expandTextarea();
             }, 50);
             
-            // Clear loading states but keep waitingForAIResponse true for next click
+            // Clear loading states
             clearInterval(progressInterval);
             clearTimeout(overlaySafety);
             setIsLoading(false);
             setShowProgress(false);
             setParsingProgress(0);
-            // Keep waitingForAIResponse true so next click will parse to cart
             
-            // Single success message
-            const successMessage = `✅ ${selectedAI === 'claude' ? 'Claude' : 'ChatGPT'} has generated your list! Review it and hit CARTSMASH to add items to cart.`;
-            console.log(successMessage);
+            // Set flag for second click
+            setWaitingForAIResponse(true);
             
-            // Single input text update log
-            setTimeout(() => {
-              console.log('Input text updated to:', inputText.substring(0, 50) + '...');
-            }, 100);
+            console.log('✅ AI has generated your list! Hit CARTSMASH again to add items to cart.');
+            return;
+          } else {
+            throw new Error('AI response was empty');
           }
-          
-          // Exit here - user needs to review and hit CARTSMASH again
-          return;
           
         } catch (aiError) {
           console.error('AI request failed:', aiError);
           setError(`AI request failed: ${aiError.message}`);
           clearInterval(progressInterval);
+          clearTimeout(overlaySafety);
           setIsLoading(false);
           setShowProgress(false);
           setParsingProgress(0);
@@ -696,24 +644,85 @@ Please ensure each recipe has FULL cooking instructions, not just ingredient lis
         }
       }
       
-      // AI-ONLY MODE: No manual parsing fallback allowed
-      console.log('❌ Manual parsing blocked - AI processing required:', { useAI, selectedAI, textLength: listText.length });
+      // STEP 2: Parse text into cart items (second click or manual text)
+      if (waitingForAIResponse || !useAI) {
+        console.log('📦 Parsing grocery list into cart items...');
+        
+        const response = await fetch(`${API_URL}/api/cart/parse`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            listText: listText,
+            action: mergeCart ? 'merge' : 'replace',
+            userId: currentUser?.uid || null,
+            options: {
+              mergeDuplicates: true,
+              enhancedQuantityParsing: true,
+              detectContainers: true
+            }
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to parse list: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.success && data.cart) {
+          // Fix cart item structure before setting
+          const fixedCart = fixCartItemStructure(data.cart);
+          
+          console.log('Original cart:', data.cart);
+          console.log('Fixed cart:', fixedCart);
+          
+          // Update the cart with properly structured items
+          setCurrentCart(fixedCart);
+          
+          // Update parsing stats
+          if (data.stats) {
+            setParsingStats(data.stats);
+          }
+          
+          // Clear the waiting flag
+          setWaitingForAIResponse(false);
+          
+          // Clear the input for next use
+          setInputText('');
+          if (textareaRef.current) {
+            textareaRef.current.value = '';
+          }
+          
+          // Clear draft
+          clearDraft();
+          
+          console.log(`✅ Added ${fixedCart.length} items to cart!`);
+          
+        } else {
+          throw new Error(data.error || 'Failed to parse grocery list');
+        }
+        
+        // Clear loading states
+        clearInterval(progressInterval);
+        clearTimeout(overlaySafety);
+        setIsLoading(false);
+        setShowProgress(false);
+        setParsingProgress(0);
+        return;
+      }
       
-      // Force error instead of manual parsing
-      setError('AI processing is required. Please ensure an AI model is selected.');
-      setWaitingForAIResponse(false);
-      setShowProgress(false);
-      return;
+      // If we get here, something went wrong
+      setError('Unable to process. Please try again.');
       
     } catch (err) {
       console.error('Processing failed:', err);
       setError(`Failed to process: ${err.message}`);
     } finally {
       if (progressInterval) clearInterval(progressInterval);
+      clearTimeout(overlaySafety);
       setIsLoading(false);
       setShowProgress(false);
       setParsingProgress(0);
-      setWaitingForAIResponse(false);
     }
   };
 
