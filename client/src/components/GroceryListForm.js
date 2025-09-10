@@ -2256,7 +2256,7 @@ PROVIDE COMPREHENSIVE DETAILED INSTRUCTIONS - as many steps as the recipe natura
     const ingredients = recipe.ingredients || [];
     const instructions = recipe.instructions || [];     
     const servings = recipe.servings;
-    const prepTime = recipe.prepTime;
+    const prepTime = recipe.prepTime; 
     const cookTime = recipe.cookTime;
     
     // Handle both string arrays and object arrays for ingredients with proper quantity formatting

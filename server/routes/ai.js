@@ -7,7 +7,7 @@ const { generateStructuredMealPlan } = require('../utils/mealPlanner');
 
 console.log('🤖 Loading Enhanced AI routes with intelligent parsing...');
 
-// Import AI SDKs
+// Import AI SDKs 
 let Anthropic, OpenAI;
 try { 
   Anthropic = require('@anthropic-ai/sdk');

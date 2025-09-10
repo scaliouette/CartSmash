@@ -1357,7 +1357,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     </div>
   );
 }
-
+ 
 
 const styles = {
   container: {
