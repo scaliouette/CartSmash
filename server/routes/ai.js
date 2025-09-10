@@ -219,9 +219,13 @@ Return a structured JSON response with complete recipe information:
         }
       ],
       "instructions": [
-        "Step 1: Detailed instruction",
-        "Step 2: Next step with timing and technique",
-        "Step 3: Continue with specific details"
+        "Step 1: Comprehensive detailed instruction with specific temperatures, times, and techniques (e.g., 'Heat 2 tablespoons olive oil in a 12-inch skillet over medium-high heat until shimmering, about 2 minutes.')",
+        "Step 2: Detailed next step with visual cues and precise methods (e.g., 'Add diced onions and sauté until golden brown and translucent, stirring occasionally, about 5-7 minutes.')",
+        "Step 3: Continue with thorough preparation steps (e.g., 'Add minced garlic and cook for 30 seconds until fragrant but not browned.')",
+        "Step 4: Main cooking process with timing and techniques (e.g., 'Pour in crushed tomatoes, add salt, pepper, and Italian herbs. Simmer uncovered for 15-20 minutes, stirring every 5 minutes until sauce reduces and thickens.')",
+        "Step 5: Quality checks and adjustments (e.g., 'Taste and adjust seasoning with salt and pepper as needed.')",
+        "Step 6: Finishing techniques and plating (e.g., 'Remove from heat and stir in fresh basil leaves and grated Parmesan cheese.')",
+        "Step 7: Serving and storage instructions (e.g., 'Serve immediately over al dente pasta with additional cheese on the side. Store leftovers covered in refrigerator for up to 3 days.')"
       ],
       "tags": ["dinner", "italian", "pasta"],
       "difficulty": "Easy"
@@ -230,7 +234,13 @@ Return a structured JSON response with complete recipe information:
   "type": "single_recipe"
 }
 
-IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
+IMPORTANT: 
+- Provide as many instruction steps as the recipe naturally requires (5, 7, 10+ steps if needed) - do not artificially limit to 3 steps
+- Each instruction step must be comprehensive and detailed with specific temperatures, times, techniques, and visual cues
+- Include precise measurements, cooking methods, and sensory indicators (e.g., "until golden brown", "165°F internal temperature")
+- Break complex recipes into logical, sequential steps that a novice cook can follow
+- Provide complete information so anyone can successfully prepare the dish
+- Return ONLY the JSON object, no additional text or formatting.`;
     } else if (isMealPlanning || isBudgetPlanning) {
       // Detailed meal planning format - structured JSON
       enhancedPrompt = `${processedPrompt}
@@ -660,9 +670,13 @@ Return a structured JSON response with complete recipe information:
         }
       ],
       "instructions": [
-        "Step 1: Detailed instruction",
-        "Step 2: Next step with timing and technique",
-        "Step 3: Continue with specific details"
+        "Step 1: Comprehensive detailed instruction with specific temperatures, times, and techniques (e.g., 'Heat 2 tablespoons olive oil in a 12-inch skillet over medium-high heat until shimmering, about 2 minutes.')",
+        "Step 2: Detailed next step with visual cues and precise methods (e.g., 'Add diced onions and sauté until golden brown and translucent, stirring occasionally, about 5-7 minutes.')",
+        "Step 3: Continue with thorough preparation steps (e.g., 'Add minced garlic and cook for 30 seconds until fragrant but not browned.')",
+        "Step 4: Main cooking process with timing and techniques (e.g., 'Pour in crushed tomatoes, add salt, pepper, and Italian herbs. Simmer uncovered for 15-20 minutes, stirring every 5 minutes until sauce reduces and thickens.')",
+        "Step 5: Quality checks and adjustments (e.g., 'Taste and adjust seasoning with salt and pepper as needed.')",
+        "Step 6: Finishing techniques and plating (e.g., 'Remove from heat and stir in fresh basil leaves and grated Parmesan cheese.')",
+        "Step 7: Serving and storage instructions (e.g., 'Serve immediately over al dente pasta with additional cheese on the side. Store leftovers covered in refrigerator for up to 3 days.')"
       ],
       "tags": ["dinner", "italian", "pasta"],
       "difficulty": "Easy"
@@ -671,7 +685,13 @@ Return a structured JSON response with complete recipe information:
   "type": "single_recipe"
 }
 
-IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
+IMPORTANT: 
+- Provide as many instruction steps as the recipe naturally requires (5, 7, 10+ steps if needed) - do not artificially limit to 3 steps
+- Each instruction step must be comprehensive and detailed with specific temperatures, times, techniques, and visual cues
+- Include precise measurements, cooking methods, and sensory indicators (e.g., "until golden brown", "165°F internal temperature")
+- Break complex recipes into logical, sequential steps that a novice cook can follow
+- Provide complete information so anyone can successfully prepare the dish
+- Return ONLY the JSON object, no additional text or formatting.`;
     } else if (isMealPlanning || isBudgetPlanning) {
       // Detailed meal planning format - structured JSON
       enhancedPrompt = `${processedPrompt}

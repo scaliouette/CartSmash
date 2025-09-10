@@ -2510,15 +2510,12 @@ FORMAT: JSON with "ingredients" array and "instructions" array.`;
     console.log(`✅ Setting all ${allRecipes.length} recipes (indices 0-${allRecipes.length - 1}) to ${newExpandedState ? 'expanded' : 'collapsed'}`);
   };
 
-  // Clear all recipes function with confirmation
+  // Clear all recipes function
   const handleClearAllRecipes = () => {
-    // Confirm before clearing
-    if (window.confirm('Are you sure you want to clear all recipes? This cannot be undone.')) {
-      setParsedRecipes([]);
-      setRecipes([]);
-      setIndividualExpansionStates({});
-      console.log('✨ Cleared all recipes');
-    }
+    setParsedRecipes([]);
+    setRecipes([]);
+    setIndividualExpansionStates({});
+    console.log('✨ Cleared all recipes');
   };
 
   // Helper function to format ingredients with quantities
