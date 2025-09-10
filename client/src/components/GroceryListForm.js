@@ -653,10 +653,15 @@ function GroceryListForm({
       
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       
+      console.log('🔍 DEBUG: API_URL =', API_URL);
+      console.log('🔍 DEBUG: Environment =', process.env.NODE_ENV);
+      console.log('🔍 DEBUG: REACT_APP_API_URL =', process.env.REACT_APP_API_URL);
+      
       // STEP 1: Generate with AI (first click)
       if (useAI && selectedAI && !waitingForAIResponse) {
         try {
           console.log('🤖 Starting AI processing:', { prompt: listText.substring(0, 100), ai: selectedAI, useAI, selectedAI });
+          console.log('🔍 DEBUG: Making request to:', `${API_URL}/api/ai/${selectedAI}`);
           
           const aiResponse = await fetch(`${API_URL}/api/ai/${selectedAI}`, {
             method: 'POST',
@@ -681,6 +686,9 @@ function GroceryListForm({
           }
 
           const aiData = await aiResponse.json();
+          console.log('🔍 DEBUG: AI response received:', aiData);
+          console.log('🔍 DEBUG: aiData.structuredData:', aiData.structuredData);
+          console.log('🔍 DEBUG: aiData.recipes:', aiData.recipes);
           console.log('AI response received, checking structure...');
           
           let groceryListProcessed = false;
