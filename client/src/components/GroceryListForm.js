@@ -2267,8 +2267,9 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
             <button 
               onClick={() => onAddToLibrary(recipe)}
               style={styles.wideHeaderButton}
+              title="Save recipe to library"
             >
-              📖 Save Recipe
+              🔖
             </button>
             {onEdit && (
               <button 

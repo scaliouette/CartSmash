@@ -395,7 +395,8 @@
       "Bash(PORT=3016 npm start)",
       "Bash(git checkout:*)",
       "Bash(del remove_functions.js)",
-      "Bash(PORT=3017 npm start)"
+      "Bash(PORT=3017 npm start)",
+      "WebFetch(domain:cart-smash.vercel.app)"
     ],
     "deny": [],
     "ask": []
