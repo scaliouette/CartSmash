@@ -156,55 +156,23 @@ const cleanMarkdown = (text) => {
     .trim();
 };
 
-// Enhanced recipe quality validation
+// Unlimited recipe validation - accepts any AI-generated content
 const validateRecipeQuality = (recipe) => {
   const { instructions, ingredients } = recipe;
   
-  // Must have at least 3 ingredients
-  if (!ingredients || ingredients.length < 3) {
-    console.log('❌ Too few ingredients:', ingredients?.length || 0);
+  // Only basic checks - must have some content
+  if (!ingredients || ingredients.length < 1) {
+    console.log('❌ No ingredients provided');
     return false;
   }
   
-  // Must have at least 3 instructions
-  if (!instructions || instructions.length < 3) {
-    console.log('❌ Too few instructions:', instructions?.length || 0);
+  if (!instructions || instructions.length < 1) {
+    console.log('❌ No instructions provided');
     return false;
   }
   
-  // Each instruction must be detailed (at least 30 words)
-  const tooShortInstructions = instructions.filter(inst => {
-    const wordCount = inst.split(' ').filter(w => w.length > 0).length;
-    return wordCount < 30;
-  });
-  
-  if (tooShortInstructions.length > 0) {
-    console.log('❌ Instructions too brief:', tooShortInstructions);
-    return false;
-  }
-  
-  // Check for lazy patterns
-  const lazyPatterns = [
-    /^cook.*until.*$/i,  // "Cook bacon until crispy"
-    /^scramble.*$/i,     // "Scramble eggs"
-    /^slice.*and serve$/i, // "Slice avocado and serve"
-    /^mix.*together$/i,
-    /^serve.*$/i,
-    /^enjoy.*$/i
-  ];
-  
-  for (let inst of instructions) {
-    // Check if entire instruction matches a lazy pattern
-    if (inst.split(' ').length < 10) { // Very short instruction
-      for (let pattern of lazyPatterns) {
-        if (pattern.test(inst)) {
-          console.log('❌ Lazy instruction detected:', inst);
-          return false;
-        }
-      }
-    }
-  }
-  
+  // No word count limits, no pattern restrictions, no arbitrary minimums
+  // Let AI generate whatever it wants
   return true;
 };
 
