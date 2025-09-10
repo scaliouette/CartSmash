@@ -141,10 +141,12 @@ function extractGroceryListOnly(text) {
 // Utility functions for cleaning recipe data
 const cleanRecipeTitle = (title) => {
   // Remove any tags that got appended
+  if (!title) return 'Untitled Recipe';
   return title
     .replace(/meal_plan_item/gi, '')
     .replace(/dinner|lunch|breakfast|snack/gi, '')
     .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
     .trim();
 };
 
