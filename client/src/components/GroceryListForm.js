@@ -181,23 +181,21 @@ const getEnhancedPromptForRecipe = (recipeName) => {
   const name = recipeName.toLowerCase();
   
   if (name.includes('bacon') && name.includes('egg')) {
-    return `Create a DETAILED recipe for "${recipeName}".
+    return `Create a COMPLETE, DETAILED recipe for "${recipeName}".
 
-EACH instruction must be a COMPLETE, DETAILED PARAGRAPH (minimum 50 words).
+Generate ALL necessary cooking steps - as many as needed for a complete recipe. Do not limit yourself to any specific number of steps.
 
-For Bacon and Avocado Eggs, provide these DETAILED steps:
+Include detailed instructions covering:
+- Bacon preparation (temperature, timing, doneness cues)
+- Egg preparation (cracking, whisking, seasoning)
+- Cooking techniques (heat levels, timing, visual cues)
+- Avocado preparation (selection, cutting, seasoning)
+- Plating and serving (arrangement, garnishes, presentation)
+- Any additional steps needed for the complete dish
 
-1. BACON PREPARATION (50+ words): Describe preheating the skillet to medium heat (350°F), laying bacon strips with proper spacing, cooking time (4-5 minutes per side), how to check for desired crispness, draining on paper towels, and reserving 2 tablespoons of bacon fat.
+Each instruction should be detailed with specific temperatures, times, techniques, and visual cues.
 
-2. EGG PREPARATION (50+ words): Detail cracking eggs into a bowl, checking for shells, whisking technique for 30 seconds until uniform yellow, adding salt and pepper, letting eggs come to room temperature for even cooking.
-
-3. SCRAMBLING TECHNIQUE (50+ words): Explain heating reserved bacon fat over medium-low heat (275°F), pouring in eggs, initial 20-second wait, gentle folding technique with silicone spatula, removing from heat while slightly wet, final seasoning adjustments.
-
-4. AVOCADO PREPARATION (50+ words): Describe checking ripeness, halving technique around the pit, safe pit removal, scoring flesh in crosshatch pattern, scooping with spoon, optional lime juice to prevent browning, seasoning with flaky salt.
-
-5. PLATING AND SERVING (50+ words): Detail arrangement on warmed plates, bacon placement, egg positioning, avocado fan technique, garnish options (chives, hot sauce), serving temperature considerations, pairing suggestions.
-
-FORMAT: JSON with "ingredients" array and "instructions" array.`;
+FORMAT: JSON with "ingredients" array and "instructions" array containing as many steps as the recipe requires.`;
   }
   
   // Default enhanced prompt for other recipes
