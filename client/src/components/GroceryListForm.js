@@ -257,15 +257,15 @@ FORMAT: JSON with "ingredients" array and "instructions" array.`;
 
 // Strict validation function
 const validateStrictQuality = (instructions) => {
-  // Must have at least 5 instructions (relaxed from 6 for flexibility)
+  // Basic validation - just ensure we have some instructions
   if (!Array.isArray(instructions)) {
     return { valid: false, reason: 'Instructions is not an array' };
   }
   
-  if (instructions.length < 5) {
+  if (instructions.length < 1) {
     return { 
       valid: false, 
-      reason: `Only ${instructions.length} instructions provided (minimum 5 required)` 
+      reason: 'No instructions provided' 
     };
   }
   
@@ -282,43 +282,17 @@ const validateStrictQuality = (instructions) => {
     
     const wordCount = inst.split(' ').filter(word => word.length > 0).length;
     
-    // Require at least 30 words (relaxed from 50 for some flexibility)
-    if (wordCount < 30) {
+    // No word count restrictions - allow any length instructions
+    // Just ensure it's not completely empty
+    if (inst.trim().length < 3) {
       return { 
         valid: false, 
-        reason: `Instruction ${i + 1} has only ${wordCount} words (minimum 30 required)` 
+        reason: `Instruction ${i + 1} is too short or empty` 
       };
     }
-    
-    // Check for lazy single-line instructions
-    const lazyPatterns = [
-      /^(Cook|Stir-fry|Mix|Serve|Season|Add)\s+\w+(\s+\w+){0,4}\.?$/i,
-      /^[A-Z][a-z]+\s+\w+\s+\w+\.?$/i, // Three word sentences
-      /^.{0,50}$/ // Very short instructions (under 50 characters)
-    ];
-    
-    for (const pattern of lazyPatterns) {
-      if (pattern.test(inst.trim())) {
-        return { 
-          valid: false, 
-          reason: `Instruction ${i + 1} is too brief: "${inst.substring(0, 50)}..."` 
-        };
-      }
-    }
   }
   
-  // Check for essential cooking details
-  const allInstructions = instructions.join(' ');
-  const hasTemperature = /\d+°[FC]|degrees|high heat|medium heat|low heat/i.test(allInstructions);
-  const hasTime = /\d+\s*(minutes?|mins?|hours?|seconds?)/i.test(allInstructions);
-  const hasTechnique = /(stir|mix|cook|heat|simmer|boil|bake|fry|saute|roast)/i.test(allInstructions);
-  
-  if (!hasTemperature || !hasTime || !hasTechnique) {
-    return { 
-      valid: false, 
-      reason: 'Instructions lack essential cooking details (temperature/time/technique)' 
-    };
-  }
+  // No additional restrictions - let AI generate whatever instructions it wants
   
   return { valid: true };
 };
@@ -2264,13 +2238,7 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
       return cleanMarkdown(instruction);
     });
     
-    // Check if instructions are too brief and add warning if needed
-    const hasBriefInstructions = displayInstructions.some(inst => inst.split(' ').length < 30);
-    if (hasBriefInstructions && !displayInstructions.some(inst => inst.includes('⚠️ Note:'))) {
-      displayInstructions.push(
-        '⚠️ Note: These instructions appear incomplete. For best results, please refer to a detailed recipe or cooking guide for proper techniques and timing.'
-      );
-    }
+    // No validation restrictions - let AI generate any length instructions
     
     return (
       <div style={expanded ? styles.enhancedRecipeCard : styles.enhancedRecipeCardCollapsed}>
