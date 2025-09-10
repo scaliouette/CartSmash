@@ -138,6 +138,123 @@ function extractGroceryListOnly(text) {
   return result;
 }
 
+// Utility functions for cleaning recipe data
+const cleanRecipeTitle = (title) => {
+  // Remove any tags that got appended
+  return title
+    .replace(/meal_plan_item/gi, '')
+    .replace(/dinner|lunch|breakfast|snack/gi, '')
+    .replace(/_/g, ' ')
+    .trim();
+};
+
+const cleanMarkdown = (text) => {
+  return text
+    .replace(/\*\*/g, '') // Remove bold markdown
+    .replace(/\*/g, '')   // Remove italic markdown
+    .replace(/_/g, '')    // Remove underscores
+    .trim();
+};
+
+// Enhanced recipe quality validation
+const validateRecipeQuality = (recipe) => {
+  const { instructions, ingredients } = recipe;
+  
+  // Must have at least 3 ingredients
+  if (!ingredients || ingredients.length < 3) {
+    console.log('❌ Too few ingredients:', ingredients?.length || 0);
+    return false;
+  }
+  
+  // Must have at least 3 instructions
+  if (!instructions || instructions.length < 3) {
+    console.log('❌ Too few instructions:', instructions?.length || 0);
+    return false;
+  }
+  
+  // Each instruction must be detailed (at least 30 words)
+  const tooShortInstructions = instructions.filter(inst => {
+    const wordCount = inst.split(' ').filter(w => w.length > 0).length;
+    return wordCount < 30;
+  });
+  
+  if (tooShortInstructions.length > 0) {
+    console.log('❌ Instructions too brief:', tooShortInstructions);
+    return false;
+  }
+  
+  // Check for lazy patterns
+  const lazyPatterns = [
+    /^cook.*until.*$/i,  // "Cook bacon until crispy"
+    /^scramble.*$/i,     // "Scramble eggs"
+    /^slice.*and serve$/i, // "Slice avocado and serve"
+    /^mix.*together$/i,
+    /^serve.*$/i,
+    /^enjoy.*$/i
+  ];
+  
+  for (let inst of instructions) {
+    // Check if entire instruction matches a lazy pattern
+    if (inst.split(' ').length < 10) { // Very short instruction
+      for (let pattern of lazyPatterns) {
+        if (pattern.test(inst)) {
+          console.log('❌ Lazy instruction detected:', inst);
+          return false;
+        }
+      }
+    }
+  }
+  
+  return true;
+};
+
+// Enhanced prompt generator for specific recipes
+const getEnhancedPromptForRecipe = (recipeName) => {
+  const name = recipeName.toLowerCase();
+  
+  if (name.includes('bacon') && name.includes('egg')) {
+    return `Create a DETAILED recipe for "${recipeName}".
+
+EACH instruction must be a COMPLETE, DETAILED PARAGRAPH (minimum 50 words).
+
+For Bacon and Avocado Eggs, provide these DETAILED steps:
+
+1. BACON PREPARATION (50+ words): Describe preheating the skillet to medium heat (350°F), laying bacon strips with proper spacing, cooking time (4-5 minutes per side), how to check for desired crispness, draining on paper towels, and reserving 2 tablespoons of bacon fat.
+
+2. EGG PREPARATION (50+ words): Detail cracking eggs into a bowl, checking for shells, whisking technique for 30 seconds until uniform yellow, adding salt and pepper, letting eggs come to room temperature for even cooking.
+
+3. SCRAMBLING TECHNIQUE (50+ words): Explain heating reserved bacon fat over medium-low heat (275°F), pouring in eggs, initial 20-second wait, gentle folding technique with silicone spatula, removing from heat while slightly wet, final seasoning adjustments.
+
+4. AVOCADO PREPARATION (50+ words): Describe checking ripeness, halving technique around the pit, safe pit removal, scoring flesh in crosshatch pattern, scooping with spoon, optional lime juice to prevent browning, seasoning with flaky salt.
+
+5. PLATING AND SERVING (50+ words): Detail arrangement on warmed plates, bacon placement, egg positioning, avocado fan technique, garnish options (chives, hot sauce), serving temperature considerations, pairing suggestions.
+
+FORMAT: JSON with "ingredients" array and "instructions" array.`;
+  }
+  
+  // Default enhanced prompt for other recipes
+  return `Create a DETAILED recipe for "${recipeName}".
+
+CRITICAL: Each instruction MUST be a complete paragraph of 50+ words minimum.
+
+UNACCEPTABLE (too brief):
+❌ "Cook bacon until crispy"
+❌ "Scramble eggs in bacon fat"
+❌ "Slice avocado and serve"
+
+REQUIRED FORMAT:
+✅ "Place bacon strips in a cold 12-inch cast iron skillet, arranging them in a single layer without overlapping. Turn heat to medium (350°F) and cook for 4-5 minutes until the bottom side begins to brown and fat renders. Using tongs, flip each strip and continue cooking for another 3-4 minutes until desired crispness is achieved. The bacon should be deep golden brown with crispy edges but still slightly pliable in the center."
+
+Generate detailed instructions with:
+- Exact temperatures and times
+- Equipment specifications
+- Visual/sensory cues for doneness
+- Professional techniques
+- Safety considerations
+
+FORMAT: JSON with "ingredients" array and "instructions" array.`;
+};
+
 // Main Component
 function GroceryListForm({ 
   currentCart, 
@@ -870,51 +987,8 @@ function GroceryListForm({
       
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       
-      // ENHANCED PROMPT for turkey wrap example
-      const enhancedPrompt = recipeName.toLowerCase().includes('wrap') || recipeName.toLowerCase().includes('sandwich') 
-        ? `Create a DETAILED recipe for "${recipeName}".
-
-REQUIREMENT: Each instruction must be a COMPLETE PARAGRAPH (minimum 50 words) with specific details.
-
-For a wrap/sandwich recipe, include ALL these steps with FULL details:
-
-1. PREPARATION (50+ words): Describe gathering ingredients, letting items reach room temperature, preparing workspace, washing vegetables, and setting up cutting board.
-
-2. VEGETABLE PREP (50+ words): Detail how to wash, dry, and slice each vegetable. Include knife techniques, thickness of slices, and how to arrange for assembly.
-
-3. PROTEIN PREP (50+ words): Explain how to prepare the protein (seasoning, heating if needed, slicing technique, temperature checks).
-
-4. SAUCE/SPREAD PREP (50+ words): Describe making or preparing any spreads, mixing sauces, seasoning adjustments.
-
-5. WRAP/TORTILLA PREP (50+ words): Explain warming technique, how to make pliable, avoiding tears.
-
-6. ASSEMBLY LAYERING (50+ words): Detail the exact order of ingredients, placement strategy, portion control, leaving borders.
-
-7. ROLLING TECHNIQUE (50+ words): Explain the folding method, how to tuck, roll tightly without tearing, securing the wrap.
-
-8. CUTTING & PRESENTATION (50+ words): Describe how to cut (angle, number of pieces), plating arrangement, garnish suggestions.
-
-FORMAT: JSON with "ingredients" array and "instructions" array.`
-        : `Create a DETAILED, PROFESSIONAL recipe for "${recipeName}".
-
-CRITICAL REQUIREMENTS:
-- EACH instruction must be a COMPLETE PARAGRAPH of 50+ words minimum
-- Include EXACT measurements, temperatures, and times
-- Describe visual/sensory cues ("golden brown", "sizzling", "165°F internal")
-- Specify equipment needed ("12-inch skillet", "sharp chef's knife")
-- Include technique details ("dice into 1/4-inch cubes", "fold gently to avoid deflating")
-
-UNACCEPTABLE EXAMPLES (too brief):
-❌ "Layer turkey and vegetables"
-❌ "Roll up wraps"
-❌ "Cook until done"
-
-REQUIRED QUALITY EXAMPLE:
-✅ "Begin by heating 2 tablespoons of olive oil in a 12-inch cast-iron skillet over medium-high heat (approximately 375°F). Wait 2-3 minutes until the oil shimmers and moves freely across the pan. Season 4 chicken breasts (6 oz each) with 1 teaspoon kosher salt and 1/2 teaspoon freshly ground black pepper. Carefully place chicken in the hot oil, listening for immediate sizzling. Cook undisturbed for 6-7 minutes until the underside develops a deep golden-brown crust and releases easily from the pan."
-
-Generate ${recipeName.includes('wrap') ? '8' : '6-10'} detailed instruction paragraphs.
-
-FORMAT: JSON with "ingredients" array and "instructions" array.`;
+      // Use enhanced prompt generator
+      const enhancedPrompt = getEnhancedPromptForRecipe(recipeName);
 
       const response = await fetch(`${API_URL}/api/ai/${selectedAI || 'anthropic'}`, {
         method: 'POST',
@@ -941,64 +1015,7 @@ FORMAT: JSON with "ingredients" array and "instructions" array.`;
 
       // STRICT VALIDATION
       const validateInstructionQuality = (instructions) => {
-        if (!Array.isArray(instructions) || instructions.length < 3) {
-          console.log('❌ Too few instructions:', instructions.length);
-          return false;
-        }
-        
-        // Check each instruction for quality
-        let failedInstructions = [];
-        instructions.forEach((inst, index) => {
-          const wordCount = inst.split(' ').filter(word => word.length > 0).length;
-          
-          if (wordCount < 40) { // Slightly lower than 50 to allow some flexibility
-            failedInstructions.push({
-              index: index + 1,
-              wordCount,
-              preview: inst.substring(0, 50) + '...'
-            });
-          }
-        });
-        
-        if (failedInstructions.length > 0) {
-          console.log('❌ Instructions too brief:', failedInstructions);
-          return false;
-        }
-        
-        // Check for lazy instructions
-        const lazyPatterns = [
-          /^(layer|roll|serve|cook|mix|add|place)\s+\w+(\s+\w+)?\.?$/i,
-          /^\w+\s+\w+\s+\w+\.?$/i, // Three word instructions
-          /^.{0,30}$/  // Less than 30 characters total
-        ];
-        
-        for (let inst of instructions) {
-          for (let pattern of lazyPatterns) {
-            if (pattern.test(inst.trim())) {
-              console.log('❌ Lazy instruction detected:', inst);
-              return false;
-            }
-          }
-        }
-        
-        // Must include some specific details
-        const hasDetails = instructions.some(inst => 
-          inst.includes('minute') || 
-          inst.includes('inch') || 
-          inst.includes('until') || 
-          inst.includes('degrees') ||
-          inst.includes('temperature') ||
-          inst.includes('tablespoon') ||
-          inst.includes('cup')
-        );
-        
-        if (!hasDetails) {
-          console.log('❌ No specific measurements or timings found');
-          return false;
-        }
-        
-        console.log('✅ Instructions passed quality check');
-        return true;
+        return validateRecipeQuality({ instructions, ingredients: [] });
       };
 
       // Parse response
@@ -2587,7 +2604,7 @@ FORMAT: JSON with "ingredients" array and "instructions" array.`;
     };
     
     // Extract data with fallbacks for both formats
-    const title = recipe.title || recipe.name || 'Untitled Recipe';
+    const title = cleanRecipeTitle(recipe.title || recipe.name || 'Untitled Recipe');
     const mealType = recipe.mealType || 'Dinner';
     const icon = recipe.icon || getMealTypeIcon(mealType);
     const day = recipe.day || recipe.dayAssigned;
@@ -2598,12 +2615,21 @@ FORMAT: JSON with "ingredients" array and "instructions" array.`;
     const cookTime = recipe.cookTime;
     
     // Handle both string arrays and object arrays for ingredients with proper quantity formatting
-    const displayIngredients = ingredients.map(ing => formatIngredientWithQuantity(ing));
+    const displayIngredients = ingredients.map(ing => cleanMarkdown(formatIngredientWithQuantity(ing)));
     
     // Handle both string arrays and object arrays for instructions  
-    const displayInstructions = instructions.map(inst =>
-      typeof inst === 'string' ? inst : inst.instruction || inst.step || inst
-    );
+    const displayInstructions = instructions.map(inst => {
+      const instruction = typeof inst === 'string' ? inst : inst.instruction || inst.step || inst;
+      return cleanMarkdown(instruction);
+    });
+    
+    // Check if instructions are too brief and add warning if needed
+    const hasBriefInstructions = displayInstructions.some(inst => inst.split(' ').length < 30);
+    if (hasBriefInstructions && !displayInstructions.some(inst => inst.includes('⚠️ Note:'))) {
+      displayInstructions.push(
+        '⚠️ Note: These instructions appear incomplete. For best results, please refer to a detailed recipe or cooking guide for proper techniques and timing.'
+      );
+    }
     
     return (
       <div style={expanded ? styles.enhancedRecipeCard : styles.enhancedRecipeCardCollapsed}>

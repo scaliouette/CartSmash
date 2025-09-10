@@ -265,9 +265,9 @@ Return a structured JSON response with complete meal plan information:
             {"name": "butter", "quantity": "2", "unit": "tablespoons"}
           ],
           "instructions": [
-            "Heat butter in pan",
-            "Scramble eggs until fluffy",
-            "Toast bread until golden"
+            "Heat 2 tablespoons butter in a 10-inch non-stick pan over medium-low heat until melted and foaming, about 1-2 minutes",
+            "In a bowl, crack 6 large eggs, season with salt and pepper, then whisk until completely combined. Pour into the heated pan and let sit for 20 seconds before gently stirring with a rubber spatula, pushing eggs from edges to center. Continue cooking for 2-3 minutes, stirring every 30 seconds, until eggs are just set but still creamy",
+            "Meanwhile, toast 4 slices of bread in toaster until golden brown. Butter each slice while warm and serve immediately alongside the scrambled eggs"
           ]
         },
         "lunch": {
@@ -278,9 +278,9 @@ Return a structured JSON response with complete meal plan information:
             {"name": "feta cheese", "quantity": "4", "unit": "oz"}
           ],
           "instructions": [
-            "Chop vegetables",
-            "Add feta cheese",
-            "Dress with olive oil"
+            "Wash and thoroughly dry all vegetables. Dice tomatoes into 1/2-inch pieces, removing seeds. Peel and slice cucumber into 1/4-inch half-moons. Thinly slice red onion into rings",
+            "In a large serving bowl, combine diced tomatoes, sliced cucumber, and red onion rings. Crumble 4 oz feta cheese over the vegetables using your fingers to create irregular chunks",
+            "Drizzle with 3 tablespoons extra virgin olive oil and 1 tablespoon red wine vinegar. Season with 1/2 teaspoon dried oregano, salt, and freshly ground black pepper. Toss gently to combine and let stand 10 minutes before serving to allow flavors to meld"
           ]
         },
         "dinner": {
@@ -291,9 +291,9 @@ Return a structured JSON response with complete meal plan information:
             {"name": "zucchini", "quantity": "1", "unit": "medium"}
           ],
           "instructions": [
-            "Season chicken with salt and pepper",
-            "Grill chicken 6-8 minutes per side",
-            "Grill vegetables until tender"
+            "Remove chicken from refrigerator 30 minutes before cooking to bring to room temperature. Pat chicken breasts dry with paper towels and season generously with 1 teaspoon kosher salt and 1/2 teaspoon black pepper on both sides",
+            "Preheat grill to medium-high heat (400-450°F). Oil the grates to prevent sticking. Place chicken on hottest part of grill and cook for 6-8 minutes without moving, until golden grill marks form and chicken releases easily from grates",
+            "Meanwhile, slice zucchini into 1/2-inch thick rounds and brush with olive oil. Flip chicken and continue grilling 6-8 more minutes until internal temperature reaches 165°F. Add zucchini to grill during last 8-10 minutes, turning once, until tender with light char marks. Let chicken rest 5 minutes before slicing"
           ]
         }
       }
@@ -335,7 +335,11 @@ Return a structured JSON response. If this is a recipe request, return:
       "ingredients": [
         {"name": "ingredient", "quantity": "2", "unit": "cups"}
       ],
-      "instructions": ["Step 1", "Step 2"]
+      "instructions": [
+        "Step 1: Detailed preparation instruction with specific techniques, temperatures, and timing",
+        "Step 2: Continuation with precise cooking methods and visual cues",
+        "Step 3: Additional steps as needed with complete information for success"
+      ]
     }
   ]
 }
@@ -716,9 +720,9 @@ Return a structured JSON response with complete meal plan information:
             {"name": "butter", "quantity": "2", "unit": "tablespoons"}
           ],
           "instructions": [
-            "Heat butter in pan",
-            "Scramble eggs until fluffy",
-            "Toast bread until golden"
+            "Heat 2 tablespoons butter in a 10-inch non-stick pan over medium-low heat until melted and foaming, about 1-2 minutes",
+            "In a bowl, crack 6 large eggs, season with salt and pepper, then whisk until completely combined. Pour into the heated pan and let sit for 20 seconds before gently stirring with a rubber spatula, pushing eggs from edges to center. Continue cooking for 2-3 minutes, stirring every 30 seconds, until eggs are just set but still creamy",
+            "Meanwhile, toast 4 slices of bread in toaster until golden brown. Butter each slice while warm and serve immediately alongside the scrambled eggs"
           ]
         },
         "lunch": {
@@ -729,9 +733,9 @@ Return a structured JSON response with complete meal plan information:
             {"name": "feta cheese", "quantity": "4", "unit": "oz"}
           ],
           "instructions": [
-            "Chop vegetables",
-            "Add feta cheese",
-            "Dress with olive oil"
+            "Wash and thoroughly dry all vegetables. Dice tomatoes into 1/2-inch pieces, removing seeds. Peel and slice cucumber into 1/4-inch half-moons. Thinly slice red onion into rings",
+            "In a large serving bowl, combine diced tomatoes, sliced cucumber, and red onion rings. Crumble 4 oz feta cheese over the vegetables using your fingers to create irregular chunks",
+            "Drizzle with 3 tablespoons extra virgin olive oil and 1 tablespoon red wine vinegar. Season with 1/2 teaspoon dried oregano, salt, and freshly ground black pepper. Toss gently to combine and let stand 10 minutes before serving to allow flavors to meld"
           ]
         },
         "dinner": {
@@ -742,9 +746,9 @@ Return a structured JSON response with complete meal plan information:
             {"name": "zucchini", "quantity": "1", "unit": "medium"}
           ],
           "instructions": [
-            "Season chicken with salt and pepper",
-            "Grill chicken 6-8 minutes per side",
-            "Grill vegetables until tender"
+            "Remove chicken from refrigerator 30 minutes before cooking to bring to room temperature. Pat chicken breasts dry with paper towels and season generously with 1 teaspoon kosher salt and 1/2 teaspoon black pepper on both sides",
+            "Preheat grill to medium-high heat (400-450°F). Oil the grates to prevent sticking. Place chicken on hottest part of grill and cook for 6-8 minutes without moving, until golden grill marks form and chicken releases easily from grates",
+            "Meanwhile, slice zucchini into 1/2-inch thick rounds and brush with olive oil. Flip chicken and continue grilling 6-8 more minutes until internal temperature reaches 165°F. Add zucchini to grill during last 8-10 minutes, turning once, until tender with light char marks. Let chicken rest 5 minutes before slicing"
           ]
         }
       }
