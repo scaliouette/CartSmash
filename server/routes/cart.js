@@ -278,10 +278,22 @@ router.post('/parse', async (req, res) => {
         
       } catch (aiError) {
         console.error('❌ AI parsing failed - AI-only mode requires functional AI:', aiError.message);
-        return res.status(500).json({
+        
+        // Check if it's a credit/billing issue
+        if (aiError.message && aiError.message.includes('credit balance is too low')) {
+          return res.status(400).json({
+            success: false,
+            error: 'AI credits exhausted',
+            message: 'AI parsing temporarily unavailable due to credit limits. Please try again later.',
+            needsCredits: true
+          });
+        }
+        
+        // Other AI failures
+        return res.status(400).json({
           success: false,
-          error: 'AI parsing required but failed',
-          message: 'System is configured for AI-only processing'
+          error: 'AI parsing unavailable',
+          message: 'AI service temporarily unavailable. Please try again later.'
         });
       }
     } else {
