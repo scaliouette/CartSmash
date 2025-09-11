@@ -300,7 +300,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     setIsProcessing(true);
     
     try {
-      console.log('🛒 Starting enhanced Instacart API integration...');
+      console.log('🛒 Starting enhanced Instacart direct cart integration...');
       
       // Step 1: Resolve CartSmash items to Instacart products
       console.log('🔍 Step 1: Resolving products with enhanced matching...');
@@ -317,49 +317,111 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       console.log('🎯 Product resolution completed:', resolution.stats);
       console.log(`✅ Resolved ${resolution.resolved.length}/${resolution.stats.total} items (${resolution.stats.resolutionRate})`);
       
-      // Prepare ingredients list with enhanced structure
+      if (resolution.resolved.length === 0) {
+        console.log('⚠️ No items were resolved, falling back to recipe-based approach...');
+        return handleRecipeBasedCheckout(resolution);
+      }
+      
+      // Step 2: Create direct Instacart cart with resolved products
+      console.log('🛒 Step 2: Creating direct Instacart cart...');
+      
+      // Prepare cart items with resolved product IDs
+      const cartItems = resolution.resolved.map(item => ({
+        product_id: item.instacartProduct.id,
+        retailer_sku: item.instacartProduct.sku || item.instacartProduct.id,
+        quantity: item.resolvedDetails.quantity || 1,
+        name: item.resolvedDetails.name,
+        price: item.instacartProduct.price
+      }));
+      
+      console.log('📦 Cart items prepared:', cartItems);
+      
+      // Use InstacartService to create direct cart via backend API
+      const cartResult = await instacartService.createDirectCart(
+        cartItems,
+        selectedStore?.id,
+        zipCode,
+        {
+          userId: 'cartsmash_user', // You might want to get this from auth context
+          resolutionStats: resolution.stats,
+          originalItemCount: currentCart.length,
+          resolvedItemCount: resolution.resolved.length
+        }
+      );
+      
+      if (cartResult.success && cartResult.checkoutUrl) {
+        console.log('✅ Direct cart created successfully:', cartResult);
+        console.log(`🛒 Cart ID: ${cartResult.cartId}`);
+        console.log(`📦 Items added: ${cartResult.itemsAdded}`);
+        
+        // Open the direct checkout URL with items pre-added
+        window.open(cartResult.checkoutUrl, '_blank');
+      } else {
+        console.log('⚠️ Direct cart creation failed, falling back to recipe-based approach...');
+        return handleRecipeBasedCheckout(resolution);
+      }
+      
+      onClose();
+    } catch (error) {
+      console.error('❌ Error in direct cart checkout:', error);
+      console.log('🔄 Falling back to recipe-based checkout...');
+      
+      try {
+        // Fallback to recipe-based approach
+        const resolution = await productResolutionService.resolveCartSmashItems(currentCart, selectedStore?.id);
+        await handleRecipeBasedCheckout(resolution);
+      } catch (fallbackError) {
+        console.error('❌ Recipe fallback also failed:', fallbackError);
+        window.open('https://www.instacart.com', '_blank');
+        onClose();
+      }
+    }
+  };
+
+  // Fallback recipe-based checkout method
+  const handleRecipeBasedCheckout = async (resolution) => {
+    try {
+      console.log('📝 Using recipe-based checkout as fallback...');
+      
+      // Prepare ingredients list
       const enhancedIngredients = [];
       
       // Add successfully resolved items with detailed info
       resolution.resolved.forEach(item => {
         const ingredient = `${item.resolvedDetails.quantity} ${item.resolvedDetails.unit} ${item.resolvedDetails.name}`;
         enhancedIngredients.push(ingredient);
-        console.log(`✅ Resolved: ${ingredient} ($${item.resolvedDetails.price})`);
+        console.log(`✅ Recipe ingredient: ${ingredient} ($${item.resolvedDetails.price})`);
       });
       
       // Add unresolved items as basic strings
       resolution.unresolved.forEach(item => {
         const basicItem = item.originalItem.productName || item.originalItem.name || item.originalItem.item;
         enhancedIngredients.push(basicItem);
-        console.log(`⚠️ Unresolved: ${basicItem} (${item.reason})`);
+        console.log(`⚠️ Unresolved ingredient: ${basicItem} (${item.reason})`);
       });
       
-      // Step 2: Create enhanced recipe with resolution data
-      console.log('📝 Step 2: Creating enhanced Instacart recipe...');
+      // Create recipe using existing method
       const recipeResult = await instacartService.exportGroceryListAsRecipe(enhancedIngredients, {
-        title: `CartSmash Enhanced List - ${new Date().toLocaleDateString()}`,
-        imageUrl: 'https://via.placeholder.com/400x300/FF6B35/white?text=CartSmash+Enhanced',
+        title: `CartSmash List - ${new Date().toLocaleDateString()}`,
+        imageUrl: 'https://via.placeholder.com/400x300/FF6B35/white?text=CartSmash+List',
         preferredRetailer: selectedStore?.id === 'safeway' ? 'safeway' : undefined,
         partnerUrl: 'https://cartsmash.com',
         trackPantryItems: false,
         resolutionStats: resolution.stats
       });
       
-      console.log('✅ Enhanced Instacart recipe created:', recipeResult);
+      console.log('✅ Fallback recipe created:', recipeResult);
       
       if (recipeResult.success && recipeResult.instacartUrl) {
-        // Open the actual Instacart recipe page
         window.open(recipeResult.instacartUrl, '_blank');
       } else {
-        // Fallback to general Instacart site
-        console.log('⚠️ Recipe creation failed, using fallback URL');
+        console.log('⚠️ Recipe creation failed, using general Instacart URL');
         window.open('https://www.instacart.com', '_blank');
       }
       
       onClose();
     } catch (error) {
-      console.error('❌ Error in Instacart checkout:', error);
-      // Fallback on error
+      console.error('❌ Recipe-based checkout failed:', error);
       window.open('https://www.instacart.com', '_blank');
       onClose();
     }
@@ -927,25 +989,87 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
           {currentStep === 'complete' && (
             <>
               <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '16px' }}>
-                Ready to Checkout!
+                Ready for Direct Cart Checkout!
               </h2>
               <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
-                Your items are ready to be sent to Instacart
+                CartSmash will create a pre-filled Instacart cart with your resolved products
               </p>
+              
+              {resolutionResult && (
+                <div style={{ 
+                  backgroundColor: '#F0F9FF', 
+                  border: '1px solid #3B82F6', 
+                  borderRadius: '12px', 
+                  padding: '20px',
+                  marginBottom: '24px'
+                }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#1E40AF', marginBottom: '12px' }}>
+                    🛒 Cart Summary
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#059669' }}>
+                        {resolutionResult.resolved.length}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#6B7280' }}>Items Ready</div>
+                    </div>
+                    {resolutionResult.unresolved.length > 0 && (
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#DC2626' }}>
+                          {resolutionResult.unresolved.length}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#6B7280' }}>To Review</div>
+                      </div>
+                    )}
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#7C3AED' }}>
+                        {resolutionResult.stats.resolutionRate}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#6B7280' }}>Match Rate</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div style={{
                 textAlign: 'center',
-                padding: '40px',
+                padding: '32px',
                 backgroundColor: '#FFF5F2',
                 borderRadius: '12px',
                 border: '2px solid #FF6B35'
               }}>
-                <div style={{ fontSize: '64px', marginBottom: '16px', color: '#28A745' }}>✅</div>
-                <p style={{ fontSize: '18px', color: '#FF6B35', fontWeight: 'bold' }}>
-                  {currentCart.length} items matched successfully!
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🛒</div>
+                <p style={{ fontSize: '18px', color: '#FF6B35', fontWeight: 'bold', marginBottom: '8px' }}>
+                  Direct Cart Integration
                 </p>
-                <p style={{ color: '#666', marginTop: '8px' }}>
-                  Click "Send to Instacart" to complete your order
+                <p style={{ color: '#666', fontSize: '14px', lineHeight: '1.5' }}>
+                  We'll add your resolved products directly to an Instacart cart.<br/>
+                  You'll be taken to Instacart's checkout with items pre-loaded.
                 </p>
+                {resolutionResult?.resolved.length > 0 && (
+                  <div style={{ 
+                    marginTop: '16px',
+                    padding: '12px',
+                    backgroundColor: '#E8F5E8',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    color: '#2D5016'
+                  }}>
+                    ✅ {resolutionResult.resolved.length} products will be added automatically
+                  </div>
+                )}
+                {resolutionResult?.unresolved.length > 0 && (
+                  <div style={{ 
+                    marginTop: '8px',
+                    padding: '12px',
+                    backgroundColor: '#FEF2F2',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    color: '#991B1B'
+                  }}>
+                    ⚠️ {resolutionResult.unresolved.length} items will use fallback recipe-style display
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -991,8 +1115,8 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               opacity: currentStep === 'store' && !selectedStore ? 0.5 : 1
             }}
           >
-            {isProcessing ? 'Processing...' : 
-             currentStep === 'complete' ? 'Send to Instacart' : 'Continue'}
+            {isProcessing ? 'Creating Cart...' : 
+             currentStep === 'complete' ? 'Create Instacart Cart' : 'Continue'}
           </button>
         </div>
       </div>

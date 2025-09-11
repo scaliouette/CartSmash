@@ -2842,21 +2842,27 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
     }
   }, [currentCart, debugDeleteItem, setCurrentCart]);
 
-  // Dedicated delete handler with multiple ID checks
-  const handleDeleteItem = (itemId) => {
+  // Fixed delete handler - simple ID-based filtering
+  const handleDeleteItem = useCallback((itemId) => {
+    console.log('🗑️ handleDeleteItem called with:', itemId);
+    console.log('📋 Current cart items before deletion:', currentCart.map(item => ({id: item.id, name: item.productName})));
+    
     setCurrentCart(prevCart => {
-      const newCart = prevCart.filter(item => {
-        // Use multiple checks to ensure we're comparing the right field
-        const shouldKeep = item.id !== itemId && 
-                           item._id !== itemId && 
-                           item.productId !== itemId;
-        return shouldKeep;
-      });
+      // Simple filtering - only match the exact item ID
+      const newCart = prevCart.filter(item => item.id !== itemId);
+      console.log(`🗑️ Deletion: ${prevCart.length} → ${newCart.length} items (removed ID: ${itemId})`);
       
-      console.log(`🗑️ Deleted item ${itemId}. Cart went from ${prevCart.length} to ${newCart.length} items`);
+      // Debug: show which items remain
+      if (prevCart.length === newCart.length) {
+        console.warn('⚠️ No item was removed - ID not found in cart');
+        console.log('Available IDs:', prevCart.map(item => item.id));
+      } else {
+        console.log('✅ Item successfully removed');
+      }
+      
       return newCart;
     });
-  };
+  }, [currentCart, setCurrentCart]);
 
   // Main component return (this should be inside the main GroceryListForm function)
   return (
