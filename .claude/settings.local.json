@@ -430,7 +430,8 @@
       "Bash(del test-instacart-api.js)",
       "Bash(start http://localhost:3039)",
       "WebFetch(domain:docs.instacart.tools)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(del test-shopping-list-parsing.js)"
     ],
     "deny": [],
     "ask": []

@@ -1286,7 +1286,7 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
           context: 'detailed_recipe_generation',
           options: {
             temperature: 0.7,
-            maxTokens: 4000, // Increased to ensure full response
+            maxTokens: 12000, // Increased for 7-day meal plans
             format: 'json',
             minInstructions: 6, // Pass this to backend
             minInstructionLength: 50, // Pass this to backend
@@ -1342,8 +1342,36 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
           }
         } catch (e) {
           console.error('JSON parse error:', e);
-          console.log('Raw response:', data.response?.substring(0, 500));
-          throw new Error('Failed to parse AI response as JSON');
+          console.log('Raw response length:', data.response?.length);
+          console.log('Raw response preview:', data.response?.substring(0, 500));
+          
+          // Check if response appears truncated
+          if (data.response && data.response.length > 6000 && !data.response.trim().endsWith('}')) {
+            console.warn('⚠️ Response appears to be truncated - trying to repair JSON');
+            // Try to repair truncated JSON by closing incomplete structures
+            let repairedJson = data.response;
+            
+            // Count open braces vs closed braces to detect incomplete objects
+            const openBraces = (repairedJson.match(/{/g) || []).length;
+            const closeBraces = (repairedJson.match(/}/g) || []).length;
+            const missingBraces = openBraces - closeBraces;
+            
+            if (missingBraces > 0) {
+              // Add missing closing braces
+              repairedJson += '}'.repeat(missingBraces);
+              try {
+                parsedData = JSON.parse(repairedJson);
+                console.log('✅ Successfully repaired truncated JSON');
+              } catch (repairError) {
+                console.error('❌ Failed to repair JSON:', repairError);
+                throw new Error(`Response appears truncated (${data.response.length} chars). Try reducing meal plan size or increasing token limit.`);
+              }
+            } else {
+              throw new Error(`Failed to parse AI response as JSON: ${e.message}`);
+            }
+          } else {
+            throw new Error(`Failed to parse AI response as JSON: ${e.message}`);
+          }
         }
       } else {
         throw new Error('No valid response structure from AI');
