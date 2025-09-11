@@ -220,19 +220,43 @@ router.post('/parse', async (req, res) => {
         
         // Convert AI parser results to cart items format with enhanced ingredient parsing
         parsedItems = parsingResults.products.map(product => {
+          // CRITICAL FIX: Ensure productName is always a string, never an object
+          let productName = '';
+          if (typeof product.productName === 'string') {
+            productName = product.productName;
+          } else if (typeof product.productName === 'object' && product.productName !== null) {
+            // Handle nested productName objects by extracting the actual text
+            productName = product.productName.text || 
+                         product.productName.name || 
+                         product.productName.value ||
+                         product.productName.original ||
+                         product.productName.displayName ||
+                         product.productName.title ||
+                         product.productName.label ||
+                         String(product.productName);
+          } else {
+            productName = product.name || product.item || product.ingredient || String(product.productName || '');
+          }
+          
+          // Ensure productName is a clean string
+          productName = String(productName).trim();
+          if (!productName) {
+            productName = 'Unknown Item';
+          }
+          
           // Apply professional ingredient parsing to get structured data
-          const ingredientData = parseIngredientLine(product.productName);
+          const ingredientData = parseIngredientLine(productName);
           const searchQuery = buildSearchQuery(ingredientData);
           
           return {
             id: product.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            productName: product.productName,
+            productName: productName, // GUARANTEED to be a string
             quantity: product.quantity || ingredientData.qty || 1,
             unit: product.unit || ingredientData.unit || 'each',
             category: product.category || 'other',
             confidence: product.confidence || 0.8,
             needsReview: product.confidence < 0.6,
-            original: product.original,
+            original: product.original || productName,
             addedAt: new Date().toISOString(),
             aiParsed: true,
             parsingFactors: product.factors,

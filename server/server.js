@@ -1050,6 +1050,7 @@ app.post('/api/cache/clear', (req, res) => {
 const routes = [
   { path: '/api/cart', module: './routes/cart' },
   { path: '/api/ai', module: './routes/ai' },
+  { path: '/api/ai-simple', module: './routes/aiSimplified' },  // Simplified AI system
   { path: '/api/kroger', module: './routes/kroger' },  // Add this
   { path: '/api/kroger-orders', module: './routes/kroger-orders' },
   { path: '/api/instacart', module: './routes/instacartRoutes' },  // Instacart integration

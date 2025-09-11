@@ -395,7 +395,9 @@
       "Bash(PORT=3016 npm start)",
       "Bash(git checkout:*)",
       "Bash(del remove_functions.js)",
-      "Bash(PORT=3017 npm start)"
+      "Bash(PORT=3017 npm start)",
+      "Bash(PORT=3021 npm start)",
+      "Bash(del test-ai-accuracy.js test-simplified-ai.js)"
     ],
     "deny": [],
     "ask": []
