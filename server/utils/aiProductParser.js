@@ -183,10 +183,12 @@ Rules:
       globalOpenai: !!global.openai
     });
 
-    // Call Anthropic first if available, else OpenAI
+    // Try Anthropic first, then OpenAI fallback
     let raw;
-    try {
-      if (anthropic) {
+    let lastError;
+    
+    if (anthropic) {
+      try {
         console.log('🔍 [DEBUG] Attempting Anthropic API call...');
         const resp = await anthropic.messages.create({
           model: 'claude-3-5-sonnet-20241022',
@@ -199,8 +201,34 @@ Rules:
         });
         raw = resp.content?.[0]?.text || '';
         console.log('🔍 [DEBUG] Anthropic API successful, response length:', raw.length);
-      } else if (openai) {
-        console.log('🔍 [DEBUG] Attempting OpenAI API call...');
+      } catch (anthropicError) {
+        console.log('🔍 [DEBUG] Anthropic API failed:', anthropicError.message);
+        lastError = anthropicError;
+        
+        // Try OpenAI fallback
+        if (openai) {
+          try {
+            console.log('🔍 [DEBUG] Falling back to OpenAI API...');
+            const resp = await openai.chat.completions.create({
+              model: 'gpt-4o-mini',
+              temperature: 0,
+              max_tokens: 1200,
+              messages: [
+                { role: 'system', content: sysPrompt },
+                { role: 'user', content: userPrompt }
+              ]
+            });
+            raw = resp.choices?.[0]?.message?.content || '';
+            console.log('🔍 [DEBUG] OpenAI fallback successful, response length:', raw.length);
+          } catch (openaiError) {
+            console.log('🔍 [DEBUG] OpenAI fallback also failed:', openaiError.message);
+            lastError = openaiError;
+          }
+        }
+      }
+    } else if (openai) {
+      try {
+        console.log('🔍 [DEBUG] Attempting OpenAI API call (Anthropic not available)...');
         const resp = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
           temperature: 0,
@@ -212,14 +240,20 @@ Rules:
         });
         raw = resp.choices?.[0]?.message?.content || '';
         console.log('🔍 [DEBUG] OpenAI API successful, response length:', raw.length);
+      } catch (openaiError) {
+        console.log('🔍 [DEBUG] OpenAI API failed:', openaiError.message);
+        lastError = openaiError;
+      }
+    }
+    
+    if (!raw) {
+      if (lastError) {
+        console.error('🔍 [DEBUG] All AI services failed, throwing last error');
+        throw lastError;
       } else {
         console.log('🔍 [DEBUG] No AI clients available, returning empty array');
         return [];
       }
-    } catch (apiError) {
-      console.error('🔍 [DEBUG] API call failed:', apiError.message);
-      console.error('🔍 [DEBUG] API error details:', JSON.stringify(apiError, null, 2));
-      throw apiError;  // AI-only mode: No fallback available
     }
 
     console.log('🔍 [DEBUG] Processing AI response...');

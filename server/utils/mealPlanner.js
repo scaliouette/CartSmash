@@ -1,9 +1,8 @@
-// meal-planner.js
-// Node 18+ (no external deps).
-// Generates: (A) Healthy 7-day plan for family of 4 + grocery list
-//            (B) $75/2 people budget grocery list + simple weekly outline
-//            (C) Five 30-minute convenience dinners
-// Also exports cart-ready "ingredient lines".
+// meal-planner.js - DEPRECATED: AI-ONLY MODE
+// This file contains hardcoded meal plans and grocery lists
+// VIOLATES AI-ONLY ARCHITECTURE - DO NOT USE
+// All meal planning now done via AI services only
+// @deprecated Use AI services for meal planning instead
 
 ///////////////////////
 // Utilities

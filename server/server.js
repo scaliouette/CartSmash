@@ -135,8 +135,6 @@ if (process.env.GOOGLE_AI_API_KEY) {
 
 // MongoDB Connection with proper configuration for production
 mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
   maxPoolSize: 10,

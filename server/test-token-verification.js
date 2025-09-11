@@ -33,8 +33,6 @@ async function testTokenSystem() {
     if (connectionState !== 1) { // 1 = connected
       console.log('📡 Connecting to MongoDB...');
       await mongoose.connect(process.env.MONGODB_URI, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
         serverSelectionTimeoutMS: 10000, // 10 second timeout
         connectTimeoutMS: 10000,
       });

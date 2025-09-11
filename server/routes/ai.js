@@ -1291,107 +1291,13 @@ router.post('/test-enhanced', async (req, res) => {
   }
 });
 
-// Enhanced fallback response generators - EMERGENCY FALLBACK ENABLED
+// AI-ONLY MODE: No emergency fallbacks
 function generateEnhancedClaudeResponse(prompt) {
-  const lowerPrompt = prompt.toLowerCase();
-  
-  // EMERGENCY FALLBACK: Provide basic meal plan until AI credits are restored
-  if (lowerPrompt.includes('meal plan') || lowerPrompt.includes('week') || lowerPrompt.includes('day')) {
-    return `**7-Day Healthy Meal Plan**
-
-**Monday:**
-- Breakfast: Oatmeal with berries and almonds
-- Lunch: Grilled chicken salad with mixed vegetables
-- Dinner: Baked salmon with quinoa and steamed broccoli
-
-**Tuesday:**
-- Breakfast: Greek yogurt with granola
-- Lunch: Turkey and avocado wrap
-- Dinner: Lean beef stir-fry with brown rice
-
-**Wednesday:**
-- Breakfast: Scrambled eggs with whole grain toast
-- Lunch: Vegetable soup with crusty bread
-- Dinner: Grilled chicken breast with sweet potato
-
-**Thursday:**
-- Breakfast: Smoothie bowl with banana and berries
-- Lunch: Quinoa salad with chickpeas
-- Dinner: Baked cod with roasted vegetables
-
-**Friday:**
-- Breakfast: Overnight oats with nuts
-- Lunch: Chicken Caesar salad
-- Dinner: Turkey meatballs with pasta
-
-**Saturday:**
-- Breakfast: Whole grain pancakes with fruit
-- Lunch: Tuna salad sandwich
-- Dinner: Grilled pork tenderloin with asparagus
-
-**Sunday:**
-- Breakfast: Veggie omelet
-- Lunch: Chicken noodle soup
-- Dinner: Roasted chicken with mashed potatoes
-
-**Grocery Shopping List:**
-- 2 lbs chicken breast
-- 1 lb salmon fillets
-- 1 lb lean ground beef
-- 1 lb ground turkey
-- 1 dozen eggs
-- 32 oz Greek yogurt
-- 1 gallon milk
-- 2 lbs mixed vegetables
-- 1 bag quinoa
-- 1 bag brown rice
-- 1 loaf whole grain bread
-- 2 lbs sweet potatoes
-- 1 bag oats
-- Mixed berries
-- Bananas
-- Almonds and nuts
-- Olive oil
-- Seasonings and spices`;
-  }
-  
-  // For other requests, provide a basic grocery list
-  return `**Healthy Grocery Shopping List:**
-
-**Proteins:**
-- 2 lbs chicken breast
-- 1 lb ground turkey
-- 1 dozen eggs
-- Greek yogurt
-
-**Vegetables:**
-- Mixed salad greens
-- Broccoli
-- Bell peppers
-- Onions
-- Tomatoes
-
-**Fruits:**
-- Bananas
-- Apples
-- Berries
-
-**Grains:**
-- Brown rice
-- Quinoa
-- Whole grain bread
-- Oats
-
-**Pantry:**
-- Olive oil
-- Salt and pepper
-- Garlic
-- Basic seasonings`;
+  throw new Error('AI services required - no fallback data available. This system operates in AI-only mode.');
 }
 
 function generateEnhancedChatGPTResponse(prompt) {
-  // Just use the Claude fallback for now to fix the reference error
-  return generateEnhancedClaudeResponse(prompt);
+  throw new Error('AI services required - no fallback data available. This system operates in AI-only mode.');
 }
 
 // AI Service Management Endpoints for Admin Dashboard

@@ -18,8 +18,6 @@ const testConnection = async () => {
     console.log(`Connecting to: ${hiddenUri}\n`);
 
     await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000
     });
     
