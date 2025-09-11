@@ -368,10 +368,11 @@ Rules:
   parseLine(line, context = {}) {
     const trimmed = line.trim();
     if (this.isExcludedLine(trimmed)) return null;
-    // Remove bullet markers and ordered list prefixes
+    // Remove bullet markers and ordered list prefixes (including standalone numbers)
     const cleaned = trimmed
       .replace(/^[\-\*\u2022\u2023\u25AA\u25CF\u25E6]\s*/, '')
-      .replace(/^\d+[\.)]\s*/, '');
+      .replace(/^\d+[\.)]\s*/, '')
+      .replace(/^\d+\s+/, '');  // Remove standalone numbers at start (like "1 2 lbs" -> "2 lbs")
 
     let quantity = 1;
     let unit = 'each';

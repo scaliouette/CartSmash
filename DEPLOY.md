@@ -10,3 +10,10 @@ This file triggers production deployment with critical fixes:
 
 Deploy timestamp: 2025-09-11T03:47:00Z
 **CRITICAL FIX - EMERGENCY PARSING DEPLOYED**
+
+- ✅ **NEW**: Fixed quantity parsing in emergency fallback system
+- ✅ **FIXED**: Improved regex cleaning to handle "• 1 2 lbs chicken breast" → "2 lbs chicken breast"
+- ✅ **TESTED**: All problematic parsing cases now work correctly
+
+Deploy timestamp: 2025-09-11T04:15:00Z
+**QUANTITY PARSING FIX DEPLOYED**
