@@ -147,32 +147,11 @@ class AIProductParser {
         }
       };
     } catch (error) {
-      // EMERGENCY FALLBACK: Use basic parsing when AI APIs are invalid/unavailable
+      // AI ONLY: No fallback, throw error if AI fails
       console.error('🔍 [DEBUG] AI extraction failed in aiProductParser, error:', error.message);
       console.error('🔍 [DEBUG] Error type:', typeof error);
-      console.error('🔍 [DEBUG] Activating emergency fallback...');
-      
-      try {
-        const emergencyProducts = this.emergencyBasicParsing(textToParse);
-        console.log('🔍 [DEBUG] Emergency parsing successful, got', emergencyProducts.length, 'products');
-        
-        return {
-          products: emergencyProducts,
-          totalCandidates: emergencyProducts.length,
-          validProducts: emergencyProducts.length,
-          averageConfidence: 0.6, // Lower confidence for basic parsing
-          meta: { 
-            aiTried: true, 
-            aiUsed: false, 
-            emergencyMode: true,
-            errorMessage: error.message,
-            emergencySuccess: true
-          }
-        };
-      } catch (emergencyError) {
-        console.error('🔍 [DEBUG] Emergency parsing also failed!', emergencyError.message);
-        throw new Error(`AI and emergency parsing both failed. AI: ${error.message}, Emergency: ${emergencyError.message}`);
-      }
+      console.error('🔍 [DEBUG] AI ONLY MODE - No fallback available');
+      throw error;
     }
   }
 
@@ -185,7 +164,8 @@ Rules:
 - Only output JSON. No prose. No markdown. No trailing commas.
 - One object per product with fields: productName (string), quantity (number), unit (string or null), containerSize (string or null), category (produce|meat|dairy|grains|frozen|canned|pantry|deli|snacks|other).
 - Normalize units (lb, oz, can, jar, bottle, box, bag, container, dozen, each).
-- Remove bullets, headings, recipes, instructions. Ignore lines like Breakfast/Lunch/Dinner.
+- Remove bullets (*), asterisks, numbers, and list markers from the beginning of lines. Clean "• 1 2 lbs chicken breast" to extract quantity=2, unit="lbs", productName="chicken breast".
+- Remove headings, recipes, instructions. Ignore lines like Breakfast/Lunch/Dinner.
 - Parse grouped sections (Produce:, Proteins & Dairy:, Grains & Bakery:, Pantry:).
 - If quantity missing, set quantity=1 and unit='each'.
 - Keep productName concise (e.g., "boneless skinless chicken breast").`;
@@ -286,10 +266,10 @@ Rules:
     if (!productName || typeof productName !== 'string') return null;
     productName = productName.replace(/\s+/g, ' ').trim();
     quantity = (typeof quantity === 'number' && !Number.isNaN(quantity)) ? quantity : 1;
-    unit = unit && typeof unit === 'string' ? this.normalizeUnit(unit) : 'each';
+    unit = unit && typeof unit === 'string' ? unit.toLowerCase().trim() : 'each';
     containerSize = containerSize && String(containerSize).trim() || null;
     const allowedCats = new Set(['produce','meat','dairy','grains','frozen','canned','pantry','deli','snacks','other']);
-    category = (typeof category === 'string' && allowedCats.has(category.toLowerCase())) ? category.toLowerCase() : this.categorizeProduct(productName);
+    category = (typeof category === 'string' && allowedCats.has(category.toLowerCase())) ? category.toLowerCase() : 'other';
     return {
       id: `ai_${Date.now()}_${Math.random().toString(36).slice(2,9)}`,
       original: productName,
@@ -325,259 +305,12 @@ Rules:
         }
       }
     }
-    // Post-validate with manual rules for confidence
-    return Array.from(map.values()).map(p => {
-      const conf = this.calculateConfidence(p.productName, p.quantity, p.unit);
-      return { ...p, confidence: Math.max(p.confidence || 0, conf) };
-    });
+    // Return AI-processed products without manual validation
+    return Array.from(map.values());
   }
 
-  // Parse fractions including mixed numbers (1 1/2), simple fractions (1/2), and Unicode fractions (½)
-  parseFraction(str) {
-    // Handle Unicode fractions
-    const unicodeFractions = {
-      '½': 0.5, '⅓': 0.333, '⅔': 0.667, '¼': 0.25, '¾': 0.75,
-      '⅕': 0.2, '⅖': 0.4, '⅗': 0.6, '⅘': 0.8, '⅙': 0.167,
-      '⅚': 0.833, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875
-    };
-    
-    if (unicodeFractions[str]) return unicodeFractions[str];
-    
-    // Handle mixed numbers like "1 1/2"
-    const mixedMatch = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);
-    if (mixedMatch) {
-      const whole = parseFloat(mixedMatch[1]);
-      const numerator = parseFloat(mixedMatch[2]);
-      const denominator = parseFloat(mixedMatch[3]);
-      return whole + (numerator / denominator);
-    }
-    
-    // Handle simple fractions like "1/2"
-    const fractionMatch = str.match(/^(\d+)\/(\d+)$/);
-    if (fractionMatch) {
-      const numerator = parseFloat(fractionMatch[1]);
-      const denominator = parseFloat(fractionMatch[2]);
-      return numerator / denominator;
-    }
-    
-    // Handle regular decimals or integers
-    const num = parseFloat(str);
-    return isNaN(num) ? null : num;
-  }
-
-  parseLine(line, context = {}) {
-    const trimmed = line.trim();
-    if (this.isExcludedLine(trimmed)) return null;
-    // Remove bullet markers and ordered list prefixes (including standalone numbers)
-    const cleaned = trimmed
-      .replace(/^[\-\*\u2022\u2023\u25AA\u25CF\u25E6]\s*/, '')
-      .replace(/^\d+[\.)]\s*/, '')
-      .replace(/^\d+\s+/, '');  // Remove standalone numbers at start (like "1 2 lbs" -> "2 lbs")
-
-    let quantity = 1;
-    let unit = 'each';
-    let productName = cleaned;
-    let containerSize = null;
-    let quantityRange = null;
-
-    // Handle ranged quantities like "4-6 chicken breasts" or "4 to 6 ..."
-    const rangeMatch = cleaned.match(/^(\d+)\s*(?:-|\s*to\s*)\s*(\d+)\s+(.+)$/i);
-    if (rangeMatch) {
-      const minQ = parseInt(rangeMatch[1], 10);
-      const maxQ = parseInt(rangeMatch[2], 10);
-      if (!Number.isNaN(minQ) && !Number.isNaN(maxQ)) {
-        quantity = minQ;
-        unit = 'each';
-        productName = rangeMatch[3];
-        quantityRange = { min: minQ, max: maxQ };
-      }
-    }
-
-    // Enhanced patterns to support fractions, mixed numbers, and Unicode fractions
-    const containerPattern = /^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\d+(?:\s+\d+\/\d+)?|\d+\/\d+|\d+(?:\.\d+)?)\s+(bag|bags|container|containers|jar|jars|can|cans|bottle|bottles|box|boxes|package|packages)\s*\(([^)]+)\)\s+(.+)$/i;
-    const containerMatch = cleaned.match(containerPattern);
-    if (!quantityRange && containerMatch) {
-      const parsedQty = this.parseFraction(containerMatch[1]);
-      quantity = parsedQty !== null ? parsedQty : 1;
-      unit = this.normalizeUnit(containerMatch[2]);
-      containerSize = containerMatch[3];
-      productName = containerMatch[4];
-    } else if (!quantityRange) {
-      const sizePattern = /^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\d+(?:\s+\d+\/\d+)?|\d+\/\d+|\d+(?:\.\d+)?)\s+(\w+)\s*\(([^)]+)\)\s+(.+)$/i;
-      const sizeMatch = cleaned.match(sizePattern);
-      if (sizeMatch) {
-        const parsedQty = this.parseFraction(sizeMatch[1]);
-        quantity = parsedQty !== null ? parsedQty : 1;
-        const possibleUnit = sizeMatch[2];
-        containerSize = sizeMatch[3];
-        productName = sizeMatch[4];
-        if (this.isValidUnit(possibleUnit)) {
-          unit = this.normalizeUnit(possibleUnit);
-        } else {
-          productName = possibleUnit + ' ' + productName;
-        }
-      } else {
-        const simplePattern = /^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\d+(?:\s+\d+\/\d+)?|\d+\/\d+|\d+(?:\.\d+)?)\s+([a-zA-Z]+)\s+(.+)$/;
-        const simpleMatch = cleaned.match(simplePattern);
-        if (simpleMatch) {
-          const parsedQty = this.parseFraction(simpleMatch[1]);
-          quantity = parsedQty !== null ? parsedQty : 1;
-          const possibleUnit = simpleMatch[2];
-          if (this.isValidUnit(possibleUnit)) {
-            unit = this.normalizeUnit(possibleUnit);
-            productName = simpleMatch[3];
-          } else {
-            productName = possibleUnit + ' ' + simpleMatch[3];
-          }
-        } else {
-          const numberPattern = /^([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\d+(?:\s+\d+\/\d+)?|\d+\/\d+|\d+(?:\.\d+)?)\s+(.+)$/;
-          const numberMatch = cleaned.match(numberPattern);
-          if (numberMatch) {
-            const parsedQty = this.parseFraction(numberMatch[1]);
-            quantity = parsedQty !== null ? parsedQty : 1;
-            productName = numberMatch[2];
-          }
-        }
-      }
-    }
-
-    productName = productName.replace(/\(.*?\)/g, '').replace(/\s+/g, ' ').trim();
-    if (!productName || productName.length < 2) return null;
-
-    const category = this.categorizeProduct(productName);
-    const confidence = this.calculateConfidence(productName, quantity, unit, context);
-    return {
-      id: `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      original: line,
-      productName,
-      quantity,
-      unit,
-      containerSize,
-      ...(quantityRange ? { quantityRange } : {}),
-      category,
-      confidence,
-      needsReview: confidence < 0.7,
-      isValid: true,
-      timestamp: new Date().toISOString(),
-      section: context.section
-    };
-  }
-
-  isExcludedLine(line) {
-    for (const pattern of this.excludePatterns) {
-      if (pattern.test(line)) return true;
-    }
-    const lower = line.toLowerCase();
-    
-    // Exclude markdown headers and section titles like "For the Chicken"
-    if (/^#{1,6}\s/.test(line)) return true;
-    if (/^for the\b/.test(lower)) return true;
-    
-    // Exclude section headers with asterisks or colons
-    if (/^\*+.*\*+$/.test(line)) return true; // *GROCERY SHOPPING LIST:*, *Proteins:*, etc.
-    if (/^\*+[^*]*:?\*+$/.test(line)) return true; // Any text wrapped in asterisks
-    
-    // Standard section headers
-    if (['proteins:', 'produce:', 'dairy:', 'pantry:', 'pantry/other:', 'beverages:', 'grains & bakery:', 'pantry items:', 'fresh produce:'].includes(lower)) return true;
-    
-    // Headers without colons but clearly section names
-    if (['grocery shopping list', 'proteins', 'fresh produce', 'pantry items', 'dairy', 'grains & bakery'].includes(lower)) return true;
-    
-    // Food category descriptions
-    if (lower.includes('salads with') || lower.includes('salmon with') || lower.includes('lunch with') || lower.includes('breakfast with')) return true;
-    if (lower.includes('combinations') || lower.includes('quick grain bowls') || lower.includes('wrap sandwiches')) return true;
-    
-    return false;
-  }
-
-  isValidUnit(word) {
-    const normalized = word.toLowerCase();
-    return this.validUnits.some(unit => unit === normalized || unit + 's' === normalized || unit === normalized + 's');
-  }
-
-  normalizeUnit(unit) {
-    const lower = unit.toLowerCase();
-    const singular = lower.endsWith('s') ? lower.slice(0, -1) : lower;
-    
-    // Use comprehensive unit normalization mapping
-    const normalizedUnit = this.unitNormalization[lower] || 
-                          this.unitNormalization[singular] || 
-                          singular || 
-                          lower;
-    
-    return normalizedUnit;
-  }
-
-  categorizeProduct(productName) {
-    const lower = productName.toLowerCase();
-    if (lower.match(/cheese|ricotta|mozzarella|parmesan|milk|yogurt|cream|butter/)) return 'dairy';
-    if (lower.match(/beef|chicken|pork|turkey|fish|salmon/)) return 'meat';
-    if (lower.match(/spinach|mushroom|onion|garlic|tomato|pepper|lettuce|carrot|banana|apple|orange/)) return 'produce';
-    if (lower.match(/sauce|pasta|rice|oil|olive oil|vinegar|powder|foil|bread|flour|sugar|salt|sea salt|stock|broth|spice|seasoning/)) return 'pantry';
-    if (lower.match(/edamame|peas|mixed vegetables/)) return 'frozen';
-    if (lower.match(/turkey slices|ham|bacon/)) return 'deli';
-    if (lower.includes('egg')) return 'dairy';
-    return 'other';
-  }
-
-  calculateConfidence(productName, quantity, unit, context = {}) {
-    let confidence = 0.5;
-    if (quantity && quantity !== 1) confidence += 0.2;
-    if (unit && unit !== 'each') confidence += 0.2;
-    const allProducts = Object.values(this.productPatterns).flat();
-    if (allProducts.some(product => productName.toLowerCase().includes(product))) confidence += 0.2;
-    if (productName.length >= 3 && productName.length <= 50) confidence += 0.1;
-    
-    // Boost confidence for items under section headers
-    if (context.section) {
-      confidence += 0.15; // Base boost for being under any section
-      
-      // Additional boost if the section matches the categorized product
-      const category = this.categorizeProduct(productName);
-      const sectionCategoryMap = {
-        'produce': 'produce',
-        'protein': 'meat', 'proteins': 'meat',
-        'dairy': 'dairy',
-        'meat': 'meat',
-        'grain': 'pantry', 'grains': 'pantry',
-        'bakery': 'pantry',
-        'pantry': 'pantry',
-        'frozen': 'frozen',
-        'deli': 'deli',
-        'beverage': 'other', 'beverages': 'other',
-        'snack': 'other', 'snacks': 'other'
-      };
-      
-      if (sectionCategoryMap[context.section] === category) {
-        confidence += 0.1; // Additional boost for category match
-      }
-    }
-    
-    return Math.min(confidence, 1.0);
-  }
-
-  emergencyBasicParsing(text) {
-    console.log('🚨 EMERGENCY MODE: Basic parsing active - AI APIs unavailable');
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    const products = [];
-    
-    for (const line of lines) {
-      if (this.isExcludedLine(line)) continue;
-      
-      // Use existing parseLine method which has all the logic
-      const parsed = this.parseLine(line, { section: 'emergency' });
-      if (parsed) {
-        // Lower confidence for emergency parsing
-        parsed.confidence = Math.max(0.4, parsed.confidence - 0.2);
-        parsed.emergencyParsed = true;
-        products.push(parsed);
-      }
-    }
-    
-    console.log(`🔄 Emergency parsing extracted ${products.length} items`);
-    return products;
-  }
-
+  // AI ONLY MODE: No manual parsing methods
+  
   getParsingStats(results) {
     const products = results.products || [];
     return {
