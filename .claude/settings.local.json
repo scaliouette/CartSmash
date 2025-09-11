@@ -429,7 +429,8 @@
       "Bash(NODE_ENV=development PORT=3039 npm start)",
       "Bash(del test-instacart-api.js)",
       "Bash(start http://localhost:3039)",
-      "WebFetch(domain:docs.instacart.tools)"
+      "WebFetch(domain:docs.instacart.tools)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []
