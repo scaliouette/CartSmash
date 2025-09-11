@@ -402,7 +402,12 @@
       "Bash(PORT=3023 npm start)",
       "Bash(npm test)",
       "Bash(git stash:*)",
-      "Bash(PORT=3024 npm start)"
+      "Bash(PORT=3024 npm start)",
+      "Bash(start http://localhost:3024)",
+      "Bash(REACT_APP_API_URL=http://localhost:3024 PORT=3025 npm start)",
+      "WebFetch(domain:cartsmash-api.onrender.com)",
+      "Bash(PORT=3026 npm start)",
+      "Bash(PORT=3027 npm start)"
     ],
     "deny": [],
     "ask": []
