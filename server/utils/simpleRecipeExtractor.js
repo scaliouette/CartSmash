@@ -60,8 +60,8 @@ Rules:
           model: 'claude-3-5-sonnet-20241022',
           max_tokens: 2000,
           temperature: 0,
+          system: sysPrompt,
           messages: [
-            { role: 'system', content: sysPrompt },
             { role: 'user', content: userPrompt }
           ]
         });

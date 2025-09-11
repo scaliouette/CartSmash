@@ -412,7 +412,8 @@
       "Bash(PORT=3029 npm start)",
       "Bash(del test-quantity-parsing.js)",
       "Bash(PORT=3030 npm start)",
-      "Bash(PORT=3031 npm start)"
+      "Bash(PORT=3031 npm start)",
+      "Bash(del fix_anthropic_api.js)"
     ],
     "deny": [],
     "ask": []

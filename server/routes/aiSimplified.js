@@ -96,7 +96,7 @@ function detectContentType(prompt) {
 
 // Simple, consistent AI prompts
 function createSimplePrompt(userPrompt, contentType) {
-  const baseInstruction = "You are a helpful grocery shopping assistant. Always respond with a simple list of grocery items, one per line, with quantities when possible.";
+  const baseInstruction = "You are a helpful grocery shopping assistant. Always respond with a grocery list and DETAILED cooking instructions. For instructions, always include specific temperatures, cooking times, techniques, and visual cues. Never use vague terms like 'cook according to package' - always be specific.";
   
   switch (contentType) {
     case 'recipe':
@@ -105,8 +105,10 @@ function createSimplePrompt(userPrompt, contentType) {
 User request: ${userPrompt}
 
 Please provide:
-1. A simple recipe with ingredients and basic instructions
+1. A recipe with ingredients and DETAILED step-by-step instructions (include specific temperatures, cooking times, techniques, and visual cues)
 2. Followed by a grocery shopping list
+
+IMPORTANT: Each cooking instruction must include specific details like temperatures (e.g., "375°F"), times (e.g., "5-7 minutes"), techniques (e.g., "sauté until golden brown"), and visual cues (e.g., "until translucent").
 
 Format like this:
 **Recipe Name**
@@ -116,9 +118,10 @@ Ingredients:
 - 2 cups rice
 
 Instructions:
-1. Cook chicken
-2. Add onion
-3. Serve with rice
+1. Preheat oven to 375°F (190°C). Season 2 lbs chicken breast with salt, pepper, and your favorite herbs. Heat 2 tablespoons olive oil in a large oven-safe skillet over medium-high heat until shimmering.
+2. Sear chicken breasts for 3-4 minutes per side until golden brown. Add diced onion to the pan and sauté for 5-7 minutes until softened and translucent, stirring occasionally.
+3. Transfer skillet to preheated oven and bake for 15-20 minutes until chicken reaches internal temperature of 165°F (74°C). Meanwhile, prepare rice according to package directions (typically 1:2 ratio rice to water, bring to boil, then simmer covered for 18 minutes).
+4. Remove chicken from oven and let rest for 5 minutes before slicing. Serve sliced chicken over fluffy rice with the caramelized onions from the pan.
 
 **Grocery List:**
 - 2 lbs chicken breast

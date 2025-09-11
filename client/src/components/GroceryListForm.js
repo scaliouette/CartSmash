@@ -8,6 +8,7 @@ import ProductValidator from './ProductValidator';
 import InstacartCheckoutFlow from './InstacartCheckoutFlow';
 import { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
+// eslint-disable-next-line no-unused-vars
 import AIParsingSettings from './AIParsingSettings';
 // import confetti from 'canvas-confetti'; // REMOVED - Not used in AI-only mode
 import { unified as unifiedRecipeService } from '../services/unifiedRecipeService';
@@ -227,7 +228,14 @@ const validateStrictQuality = (instructions) => {
     const lazyPatterns = [
       /^(Cook|Stir-fry|Mix|Serve|Season|Add)\s+\w+(\s+\w+){0,4}\.?$/i,
       /^[A-Z][a-z]+\s+\w+\s+\w+\.?$/i, // Three word sentences
-      /^.{0,50}$/ // Very short instructions (under 50 characters)
+      /^.{0,50}$/, // Very short instructions (under 50 characters)
+      /according to package/i, // Vague "according to package" instructions
+      /^Cook\s+\w+\s+according\s+to\s+package/i, // "Cook quinoa according to package"
+      /^Roast\s+\w+\s+and\s+\w+$/i, // "Roast chickpeas and sweet potato" 
+      /^Assemble\s+\w+/i, // "Assemble bowls"
+      /^Mix\s+everything\s+together/i, // Generic mixing instructions
+      /^Heat\s+and\s+serve/i, // "Heat and serve"
+      /^Follow\s+package\s+directions/i // "Follow package directions"
     ];
     
     for (const pattern of lazyPatterns) {
@@ -284,6 +292,7 @@ function GroceryListForm({
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [showAISettings, setShowAISettings] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const [validatingAll, setValidatingAll] = useState(false);
@@ -2245,8 +2254,16 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
     });
     
     // Check if instructions are too brief and add warning if needed
-    const hasBriefInstructions = displayInstructions.some(inst => inst.split(' ').length < 30);
-    if (hasBriefInstructions && !displayInstructions.some(inst => inst.includes('⚠️ Note:'))) {
+    // Only warn if most instructions are brief (not just any single step)
+    const briefInstructions = displayInstructions.filter(inst => inst.split(' ').length < 15);
+    const totalInstructions = displayInstructions.length;
+    const averageWordsPerInstruction = displayInstructions.reduce((sum, inst) => sum + inst.split(' ').length, 0) / totalInstructions;
+    
+    // Only show warning if: majority of instructions are very brief AND average is low
+    const mostInstructionsAreBrief = briefInstructions.length > totalInstructions * 0.7;
+    const averageIsTooLow = averageWordsPerInstruction < 12;
+    
+    if (mostInstructionsAreBrief && averageIsTooLow && !displayInstructions.some(inst => inst.includes('⚠️ Note:'))) {
       displayInstructions.push(
         '⚠️ Note: These instructions appear incomplete. For best results, please refer to a detailed recipe or cooking guide for proper techniques and timing.'
       );
@@ -2271,7 +2288,7 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
               style={styles.expandButton}
               title={expanded ? "Show less" : "Show full recipe"}
             >
-              {expanded ? '▼' : '▶'} {expanded ? 'Less' : 'More'}
+              {expanded ? '▼' : '▶'}
             </button>
             <button 
               onClick={() => onAddToCart(recipe)}
@@ -2833,6 +2850,9 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
             <button onClick={handleNewList} style={styles.actionBtn}>
               📝 Clear List
             </button>
+            <button onClick={() => setShowAISettings(true)} style={styles.actionBtn}>
+              ⚙️ AI Settings
+            </button>
           </div>
 
           {/* Settings */}
@@ -3007,7 +3027,7 @@ Or paste any grocery list directly!"
                 onClick={handleCollapseExpandAll}
                 title={mealPlanExpanded ? "Collapse all recipe details" : "Expand all recipe details"}
               >
-                {mealPlanExpanded ? '▼ Collapse All' : '▶ Expand All'}
+                {mealPlanExpanded ? '▼' : '▶'}
               </button>
               <button
                 style={styles.clearRecipesButton}
@@ -3143,6 +3163,16 @@ Or paste any grocery list directly!"
         <InstacartCheckoutFlow
           currentCart={currentCart}
           onClose={() => setShowInstacartCheckout(false)}
+        />
+      )}
+
+      {showAISettings && (
+        <AIParsingSettings
+          onClose={() => setShowAISettings(false)}
+          onSettingsChange={(newSettings) => {
+            console.log('AI Settings updated:', newSettings);
+            // Future: Store settings in localStorage or context
+          }}
         />
       )}
 

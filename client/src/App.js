@@ -225,9 +225,13 @@ function AppContent({
   // ✅ NEW: Load recipes from Firestore for authenticated users
   const loadRecipesFromFirestore = useCallback(async () => {
     if (!currentUser) {
-      // Clear recipes for unauthenticated users
-      setSavedRecipes([]);
-      console.log('👤 User logged out - cleared recipes');
+      // Only clear recipes if we haven't loaded them yet (prevent data loss on auth state changes)
+      if (savedRecipes.length === 0) {
+        setSavedRecipes([]);
+        console.log('👤 User not authenticated - no recipes to load');
+      } else {
+        console.log('👤 User not authenticated - keeping existing recipes in memory');
+      }
       return;
     }
 
@@ -238,8 +242,9 @@ function AppContent({
     } catch (error) {
       console.error('❌ Failed to load recipes from Firestore:', error);
       // Keep current session recipes on error
+      console.log('🔒 Keeping existing recipes in memory due to load error');
     }
-  }, [currentUser, setSavedRecipes]);
+  }, [currentUser, setSavedRecipes, savedRecipes.length]);
   
   // Load all data from localStorage first, then Firebase
   const loadAllData = useCallback(async () => {
@@ -331,6 +336,16 @@ function AppContent({
     // Load recipes from Firestore for authenticated users
     loadRecipesFromFirestore();
   }, [loadAllData, hydrateCartFromFirestore, loadRecipesFromFirestore]);
+
+  // ✅ NEW: Ensure data consistency when switching views
+  useEffect(() => {
+    console.log(`📍 View changed to: ${currentView}`);
+    console.log(`📊 Current data state:`, {
+      recipes: savedRecipes.length,
+      cartItems: currentCart.length,
+      user: currentUser?.uid || 'not authenticated'
+    });
+  }, [currentView, savedRecipes.length, currentCart.length, currentUser?.uid]);
   
   // Auto-save cart to Firebase when it changes (debounced)
   useEffect(() => {
@@ -490,8 +505,22 @@ function AppContent({
     };
     
     try {
+      // Check if recipe already exists to prevent duplicates
+      const existingRecipeIndex = savedRecipes.findIndex(r => r.id === newRecipe.id);
+      
+      let updatedRecipes;
+      if (existingRecipeIndex >= 0) {
+        // Update existing recipe
+        updatedRecipes = [...savedRecipes];
+        updatedRecipes[existingRecipeIndex] = newRecipe;
+        console.log('🔄 Updating existing recipe:', newRecipe.title || newRecipe.name);
+      } else {
+        // Add new recipe
+        updatedRecipes = [...savedRecipes, newRecipe];
+        console.log('➕ Adding new recipe:', newRecipe.title || newRecipe.name);
+      }
+      
       // Update session state
-      const updatedRecipes = [...savedRecipes, newRecipe];
       setSavedRecipes(updatedRecipes);
       
       // Save to Firestore only if user is authenticated
@@ -502,11 +531,11 @@ function AppContent({
         console.log('👤 User not authenticated - recipe saved to session only');
       }
       
-      console.log('📝 Recipe saved:', newRecipe.title || newRecipe.name);
+      console.log('📝 Recipe saved successfully:', newRecipe.title || newRecipe.name);
       return newRecipe;
       
     } catch (error) {
-      console.error('Error saving recipe:', error);
+      console.error('❌ Error saving recipe:', error);
       alert('Failed to save recipe to cloud, but saved locally');
       return newRecipe;
     }
