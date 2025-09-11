@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import instacartService from '../services/instacartService';
 import locationService from '../services/locationService';
 import persistenceService from '../services/persistenceService';
+import productResolutionService from '../services/productResolutionService';
 
 const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   const [currentStep, setCurrentStep] = useState('store');
@@ -12,6 +13,8 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   const [, setMatchedProducts] = useState([]);
   const [stores, setStores] = useState([]);
   const [searchingStores, setSearchingStores] = useState(false);
+  const [resolutionResult, setResolutionResult] = useState(null);
+  const [isResolvingProducts, setIsResolvingProducts] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [locationPermission, setLocationPermission] = useState('unknown');
@@ -219,12 +222,57 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     }
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (currentStep === 'store' && selectedStore) {
       setCurrentStep('match');
-      // Simulate matching products with better Instacart compliance
-      setTimeout(() => {
-        const matchedItems = currentCart.map(item => {
+      
+      // Start enhanced product resolution
+      try {
+        console.log('🔍 Starting enhanced product resolution...');
+        setIsResolvingProducts(true);
+        
+        const resolution = await productResolutionService.resolveCartSmashItems(
+          currentCart, 
+          selectedStore?.id
+        );
+        
+        setResolutionResult(resolution);
+        setIsResolvingProducts(false);
+        
+        console.log('✅ Product resolution completed:', resolution.stats);
+        
+        // Set old matched products for backward compatibility
+        const matchedItems = resolution.resolved.map(item => ({
+          ...item.originalItem,
+          matched: true,
+          instacartProduct: {
+            name: item.instacartProduct.name,
+            price: item.instacartProduct.price,
+            matchQuality: item.confidence,
+            availability: item.instacartProduct.availability || 'in_stock'
+          }
+        }));
+        
+        // Add unresolved items as unmatched
+        const unmatchedItems = resolution.unresolved.map(item => ({
+          ...item.originalItem,
+          matched: false,
+          instacartProduct: {
+            name: item.originalItem.productName || item.originalItem.name,
+            price: 'N/A',
+            matchQuality: 'low',
+            availability: 'not_found'
+          }
+        }));
+        
+        setMatchedProducts([...matchedItems, ...unmatchedItems]);
+        
+      } catch (error) {
+        console.error('❌ Product resolution failed:', error);
+        setIsResolvingProducts(false);
+        
+        // Fallback to simple matching
+        const fallbackItems = currentCart.map(item => {
           const matchQuality = item.productName && item.productName.length > 2 ? 'high' : 'low';
           const matchPrice = matchQuality === 'high' ? 
             (Math.random() * 10 + 2.99).toFixed(2) : 'N/A';
@@ -240,9 +288,9 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             }
           };
         });
-        setMatchedProducts(matchedItems);
-        console.log('🛒 Instacart Matching Results:', matchedItems);
-      }, 500);
+        setMatchedProducts(fallbackItems);
+        console.log('🔄 Using fallback matching results');
+      }
     } else if (currentStep === 'match') {
       setCurrentStep('complete');
     }
@@ -252,18 +300,52 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     setIsProcessing(true);
     
     try {
-      console.log('🛒 Starting Instacart API integration...');
+      console.log('🛒 Starting enhanced Instacart API integration...');
       
-      // Use the Instacart service to create a recipe page with the cart items
-      const recipeResult = await instacartService.exportGroceryListAsRecipe(currentCart, {
-        title: `CartSmash Grocery List - ${new Date().toLocaleDateString()}`,
-        imageUrl: 'https://via.placeholder.com/400x300/FF6B35/white?text=CartSmash+Order',
-        preferredRetailer: selectedStore?.id === 'safeway' ? 'safeway' : undefined,
-        partnerUrl: 'https://cartsmash.com',
-        trackPantryItems: false
+      // Step 1: Resolve CartSmash items to Instacart products
+      console.log('🔍 Step 1: Resolving products with enhanced matching...');
+      setIsResolvingProducts(true);
+      
+      const resolution = await productResolutionService.resolveCartSmashItems(
+        currentCart, 
+        selectedStore?.id
+      );
+      
+      setResolutionResult(resolution);
+      setIsResolvingProducts(false);
+      
+      console.log('🎯 Product resolution completed:', resolution.stats);
+      console.log(`✅ Resolved ${resolution.resolved.length}/${resolution.stats.total} items (${resolution.stats.resolutionRate})`);
+      
+      // Prepare ingredients list with enhanced structure
+      const enhancedIngredients = [];
+      
+      // Add successfully resolved items with detailed info
+      resolution.resolved.forEach(item => {
+        const ingredient = `${item.resolvedDetails.quantity} ${item.resolvedDetails.unit} ${item.resolvedDetails.name}`;
+        enhancedIngredients.push(ingredient);
+        console.log(`✅ Resolved: ${ingredient} ($${item.resolvedDetails.price})`);
       });
       
-      console.log('✅ Instacart recipe created:', recipeResult);
+      // Add unresolved items as basic strings
+      resolution.unresolved.forEach(item => {
+        const basicItem = item.originalItem.productName || item.originalItem.name || item.originalItem.item;
+        enhancedIngredients.push(basicItem);
+        console.log(`⚠️ Unresolved: ${basicItem} (${item.reason})`);
+      });
+      
+      // Step 2: Create enhanced recipe with resolution data
+      console.log('📝 Step 2: Creating enhanced Instacart recipe...');
+      const recipeResult = await instacartService.exportGroceryListAsRecipe(enhancedIngredients, {
+        title: `CartSmash Enhanced List - ${new Date().toLocaleDateString()}`,
+        imageUrl: 'https://via.placeholder.com/400x300/FF6B35/white?text=CartSmash+Enhanced',
+        preferredRetailer: selectedStore?.id === 'safeway' ? 'safeway' : undefined,
+        partnerUrl: 'https://cartsmash.com',
+        trackPantryItems: false,
+        resolutionStats: resolution.stats
+      });
+      
+      console.log('✅ Enhanced Instacart recipe created:', recipeResult);
       
       if (recipeResult.success && recipeResult.instacartUrl) {
         // Open the actual Instacart recipe page
@@ -479,7 +561,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                         opacity: searchingStores ? 0.7 : 1
                       }}
                     >
-                      {searchingStores ? '📍...' : '📍 Use Current Location'}
+                      {searchingStores ? '📍...' : '📍'}
                     </button>
                   )}
                 </div>
@@ -733,15 +815,112 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
           {currentStep === 'match' && (
             <>
               <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '16px' }}>
-                Matching Your Items
+                Enhanced Product Matching
               </h2>
               <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
-                Finding the best products at {selectedStore?.name}...
+                Using AI-powered resolution to find the best Instacart product matches for your CartSmash items.
               </p>
-              <div style={{ textAlign: 'center', padding: '40px' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
-                <p>Matching {currentCart.length} items with {selectedStore?.name} inventory...</p>
-              </div>
+              
+              {isResolvingProducts && (
+                <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#FFF5F2', borderRadius: '12px', marginBottom: '24px' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>🧠</div>
+                  <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '8px' }}>
+                    Resolving Products...
+                  </p>
+                  <p style={{ color: '#666' }}>
+                    Analyzing {currentCart.length} items with {selectedStore?.name} catalog
+                  </p>
+                </div>
+              )}
+              
+              {resolutionResult && !isResolvingProducts && (
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ 
+                    backgroundColor: '#F0F9FF', 
+                    border: '1px solid #3B82F6', 
+                    borderRadius: '12px', 
+                    padding: '20px',
+                    marginBottom: '16px'
+                  }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1E40AF', marginBottom: '12px' }}>
+                      🎯 Resolution Summary
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#059669' }}>
+                          {resolutionResult.resolved.length}
+                        </div>
+                        <div style={{ fontSize: '14px', color: '#6B7280' }}>Resolved</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#DC2626' }}>
+                          {resolutionResult.unresolved.length}
+                        </div>
+                        <div style={{ fontSize: '14px', color: '#6B7280' }}>Unresolved</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#7C3AED' }}>
+                          {resolutionResult.stats.resolutionRate}
+                        </div>
+                        <div style={{ fontSize: '14px', color: '#6B7280' }}>Success Rate</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {resolutionResult.resolved.length > 0 && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#059669', marginBottom: '8px' }}>
+                        ✅ Successfully Resolved Items:
+                      </h4>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '12px' }}>
+                        {resolutionResult.resolved.slice(0, 5).map((item, index) => (
+                          <div key={index} style={{ fontSize: '14px', color: '#166534', marginBottom: '4px' }}>
+                            {item.originalItem.productName || item.originalItem.name} → {item.instacartProduct.name} 
+                            <span style={{ color: '#9CA3AF' }}>
+                              (${item.instacartProduct.price})
+                            </span>
+                          </div>
+                        ))}
+                        {resolutionResult.resolved.length > 5 && (
+                          <div style={{ fontSize: '14px', color: '#6B7280', fontStyle: 'italic' }}>
+                            ... and {resolutionResult.resolved.length - 5} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {resolutionResult.unresolved.length > 0 && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#DC2626', marginBottom: '8px' }}>
+                        ⚠️ Items to Review:
+                      </h4>
+                      <div style={{ maxHeight: '150px', overflowY: 'auto', backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', padding: '12px' }}>
+                        {resolutionResult.unresolved.slice(0, 3).map((item, index) => (
+                          <div key={index} style={{ fontSize: '14px', color: '#991B1B', marginBottom: '4px' }}>
+                            {item.originalItem.productName || item.originalItem.name}
+                            <span style={{ color: '#6B7280', fontSize: '12px' }}>
+                              ({item.reason})
+                            </span>
+                          </div>
+                        ))}
+                        {resolutionResult.unresolved.length > 3 && (
+                          <div style={{ fontSize: '14px', color: '#6B7280', fontStyle: 'italic' }}>
+                            ... and {resolutionResult.unresolved.length - 3} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {!isResolvingProducts && !resolutionResult && (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
+                  <p>Preparing to match {currentCart.length} items with {selectedStore?.name} inventory...</p>
+                </div>
+              )}
             </>
           )}
 
