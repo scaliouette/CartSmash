@@ -4,6 +4,67 @@ import { useAuth } from '../contexts/AuthContext';
 import userDataService from '../services/userDataService';
 import RecipeImporter from './RecipeImporter';
 
+// Helper function to safely extract string values from ingredient objects
+const safeExtractIngredientString = (ingredient) => {
+  if (!ingredient) return '';
+  
+  // If it's already a string, return it
+  if (typeof ingredient === 'string') return ingredient.trim();
+  
+  // Helper function to safely convert any value to string
+  const safeToString = (value) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object') {
+      // If it's an object, try to extract meaningful properties
+      if (value.name) return String(value.name);
+      if (value.text) return String(value.text);
+      if (value.label) return String(value.label);
+      // If no meaningful property found, return empty string instead of "[object Object]"
+      return '';
+    }
+    return String(value);
+  };
+  
+  // If ingredient is an object, try to extract string representation
+  if (typeof ingredient === 'object') {
+    // First try common ingredient properties
+    if (ingredient.original) {
+      return safeToString(ingredient.original);
+    }
+    
+    if (ingredient.item) {
+      const item = safeToString(ingredient.item);
+      const quantity = safeToString(ingredient.quantity);
+      const unit = safeToString(ingredient.unit);
+      
+      // Build ingredient string from parts
+      const parts = [quantity, unit, item].filter(part => part && part.trim());
+      return parts.join(' ').trim();
+    }
+    
+    // Try other common property names
+    if (ingredient.name) return safeToString(ingredient.name);
+    if (ingredient.text) return safeToString(ingredient.text);
+    if (ingredient.ingredient) return safeToString(ingredient.ingredient);
+    if (ingredient.description) return safeToString(ingredient.description);
+    
+    // If none of the above, try to build from quantity + unit + any name-like property
+    const quantity = safeToString(ingredient.quantity || ingredient.amount);
+    const unit = safeToString(ingredient.unit || ingredient.measure);
+    const name = safeToString(ingredient.ingredientName || ingredient.food || ingredient.product);
+    
+    const parts = [quantity, unit, name].filter(part => part && part.trim());
+    if (parts.length > 0) {
+      return parts.join(' ').trim();
+    }
+  }
+  
+  // Fallback: convert directly to string, but avoid "[object Object]"
+  const result = safeToString(ingredient);
+  return result || '';
+};
+
 function MyAccount({ 
   savedLists, 
   savedRecipes,
@@ -534,7 +595,7 @@ function MyAccount({
                       ingredientsList = recipe.ingredients.split('\n');
                     } else if (Array.isArray(recipe.ingredients)) {
                       ingredientsList = recipe.ingredients.map(ing => 
-                        ing.original || ing.item || `${ing.quantity || ''} ${ing.unit || ''} ${ing.item || ''}`.trim()
+                        safeExtractIngredientString(ing)
                       );
                     }
                     return ingredientsList.slice(0, 4).map((ing, idx) => (
@@ -2709,7 +2770,7 @@ function RecipeEditModal({ recipe, onClose, onSave }) {
     ingredients: typeof recipe.ingredients === 'string' 
       ? recipe.ingredients 
       : Array.isArray(recipe.ingredients)
-        ? recipe.ingredients.map(ing => ing.original || ing.item || `${ing.quantity || ''} ${ing.unit || ''} ${ing.item || ''}`.trim()).join('\n')
+        ? recipe.ingredients.map(ing => safeExtractIngredientString(ing)).join('\n')
         : '',
     instructions: recipe.instructions || '',
     prepTime: recipe.prepTime || '',

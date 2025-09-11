@@ -4,6 +4,7 @@ import instacartService from '../services/instacartService';
 import locationService from '../services/locationService';
 import persistenceService from '../services/persistenceService';
 import productResolutionService from '../services/productResolutionService';
+import { validateCartForInstacart, repairCartItems, createValidationReport } from '../utils/cartValidation';
 
 const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   const [currentStep, setCurrentStep] = useState('store');
@@ -20,6 +21,8 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   const [locationPermission, setLocationPermission] = useState('unknown');
   const [connectionInfo, setConnectionInfo] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [validationResult, setValidationResult] = useState(null);
+  const [validatedCart, setValidatedCart] = useState(null);
 
   // Initialize location and connection monitoring
   useEffect(() => {
@@ -302,12 +305,33 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     try {
       console.log('🛒 Starting enhanced Instacart direct cart integration...');
       
+      // Step 0: Validate and repair cart items
+      console.log('🔍 Step 0: Validating cart for Instacart integration...');
+      const validation = validateCartForInstacart(currentCart);
+      setValidationResult(validation);
+      
+      console.log(createValidationReport(validation));
+      
+      let cartToUse = currentCart;
+      if (!validation.valid) {
+        console.log('⚠️ Cart validation issues found, attempting auto-repair...');
+        cartToUse = repairCartItems(currentCart);
+        const repairedValidation = validateCartForInstacart(cartToUse);
+        
+        if (!repairedValidation.valid) {
+          console.error('❌ Cart still invalid after repair:', repairedValidation);
+          throw new Error(`Cart validation failed: ${repairedValidation.issues.map(i => i.message).join(', ')}`);
+        }
+        console.log('✅ Cart successfully repaired and validated');
+      }
+      setValidatedCart(cartToUse);
+      
       // Step 1: Resolve CartSmash items to Instacart products
       console.log('🔍 Step 1: Resolving products with enhanced matching...');
       setIsResolvingProducts(true);
       
       const resolution = await productResolutionService.resolveCartSmashItems(
-        currentCart, 
+        cartToUse, 
         selectedStore?.id
       );
       

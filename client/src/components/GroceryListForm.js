@@ -1407,8 +1407,8 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
         /^\*\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i, // "* Lunch: Turkey sandwich"
         /^Recipe Name:\s*(.+)/i,                       // "Recipe Name: Chicken Stir-fry"
         /^Recipe:\s*(.+)/i,                           // "Recipe: Pasta"
-        /^##\s+(?!(?:Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?|Grocery|Shopping|Main Components?|Sauce|Garnish|Protein|Dairy|Vegetables?|Spices?|Seasonings?)\s*$)(.+)/i, // "## Recipe Title" but not section headers
-        /^###\s+(?!(?:Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?|Grocery|Shopping|Main Components?|Sauce|Garnish|Protein|Dairy|Vegetables?|Spices?|Seasonings?)\s*$)(.+)/i, // "### Recipe Title" but not section headers  
+        /^##\s+([^#\n]+)/i,                           // "## Recipe Title" - simplified
+        /^###\s+([^#\n]+)/i,                          // "### Recipe Title" - simplified  
         /^Day\s+\d+\s*[-–]\s*(Breakfast|Lunch|Dinner|Snack):\s*(.+)/i, // "Day 1 - Breakfast: Oatmeal"
         /^\d+\.\s+(.+(?:recipe|meal|dish).*)/i,       // "1. Chicken stir-fry recipe"
         /^[🍳🥗🍽️🥪🍎🥞🥙🍲🍝🥘]\s*(.+)/i           // Emoji-prefixed meals

@@ -2,6 +2,7 @@
 // Enhanced product ID resolution for CartSmash to Instacart integration
 
 import instacartService from './instacartService';
+import instacartCatalogService from './instacartCatalogService';
 
 class ProductResolutionService {
   constructor() {
@@ -47,7 +48,59 @@ class ProductResolutionService {
   // Main method to resolve CartSmash items to Instacart products
   async resolveCartSmashItems(cartItems, retailerId = null) {
     console.log('🔍 Resolving', cartItems.length, 'CartSmash items to Instacart products');
+    console.log('🛒 Using enhanced Instacart Catalog API for product matching');
     
+    try {
+      // Use the new catalog service for batch resolution
+      const catalogResult = await instacartCatalogService.batchResolveItems(cartItems, retailerId);
+      
+      const resolvedItems = [];
+      const unresolvedItems = [];
+
+      catalogResult.resolvedItems.forEach(result => {
+        if (result.matchedProduct && result.matchScore > 30) { // Minimum match threshold
+          resolvedItems.push({
+            success: true,
+            originalItem: result.originalItem,
+            instacartProduct: result.matchedProduct,
+            productId: result.matchedProduct.id,
+            confidence: result.matchScore,
+            searchQuery: result.searchQuery,
+            alternatives: result.alternatives || []
+          });
+        } else {
+          unresolvedItems.push({
+            originalItem: result.originalItem,
+            reason: result.error || `Low match confidence (${result.matchScore?.toFixed(1) || 0}%)`
+          });
+        }
+      });
+
+      console.log(`✅ Resolution complete: ${resolvedItems.length}/${cartItems.length} items matched`);
+      
+      return {
+        success: true,
+        resolved: resolvedItems,
+        unresolved: unresolvedItems,
+        stats: {
+          total: cartItems.length,
+          resolved: resolvedItems.length,
+          unresolved: unresolvedItems.length,
+          resolutionRate: ((resolvedItems.length / cartItems.length) * 100).toFixed(1) + '%'
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Error during catalog resolution:', error);
+      
+      // Fallback to legacy resolution method
+      console.log('🔄 Falling back to legacy resolution method');
+      return await this.legacyResolveCartSmashItems(cartItems, retailerId);
+    }
+  }
+
+  // Legacy resolution method as fallback
+  async legacyResolveCartSmashItems(cartItems, retailerId = null) {
     const resolvedItems = [];
     const unresolvedItems = [];
 
