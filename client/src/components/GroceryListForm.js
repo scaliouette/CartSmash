@@ -1286,7 +1286,7 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
           context: 'detailed_recipe_generation',
           options: {
             temperature: 0.7,
-            maxTokens: 12000, // Increased for 7-day meal plans
+            maxTokens: 8192, // Max tokens for Claude 3.5 Sonnet
             format: 'json',
             minInstructions: 6, // Pass this to backend
             minInstructionLength: 50, // Pass this to backend

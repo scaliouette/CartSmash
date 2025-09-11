@@ -431,7 +431,13 @@
       "Bash(start http://localhost:3039)",
       "WebFetch(domain:docs.instacart.tools)",
       "Bash(dir:*)",
-      "Bash(del test-shopping-list-parsing.js)"
+      "Bash(del test-shopping-list-parsing.js)",
+      "Bash(REACT_APP_API_URL=http://localhost:3039 PORT=3040 npm start)",
+      "Bash(start http://localhost:3040)",
+      "Bash(del debug-ai-recipes.js)",
+      "Bash(PORT=3041 npm start)",
+      "Bash(REACT_APP_API_URL=http://localhost:3041 PORT=3042 npm start)",
+      "Bash(start http://localhost:3042)"
     ],
     "deny": [],
     "ask": []

@@ -367,7 +367,7 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
         
         const response = await anthropic.messages.create({
           model: 'claude-3-5-sonnet-20241022',
-          max_tokens: options.maxTokens || 2000, // Respect client's maxTokens parameter
+          max_tokens: Math.min(options.maxTokens || 2000, 8192), // Respect client's maxTokens but cap at Claude 3.5 Sonnet limit
           temperature: options.temperature || 0.7,
           messages: [{ 
             role: 'user', 
