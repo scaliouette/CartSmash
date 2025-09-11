@@ -219,7 +219,7 @@ router.post('/parse', async (req, res) => {
         });
         
         // Convert AI parser results to cart items format with enhanced ingredient parsing
-        parsedItems = parsingResults.products.map(product => {
+        parsedItems = await Promise.all(parsingResults.products.map(async (product) => {
           // CRITICAL FIX: Ensure productName is always a string, never an object
           let productName = '';
           if (typeof product.productName === 'string') {
@@ -278,7 +278,7 @@ router.post('/parse', async (req, res) => {
               originalLine: ingredientData.original
             }
           };
-        });
+        }));
         
         console.log(`✅ AI parsed ${parsedItems.length} validated products from ${parsingResults.totalCandidates} candidates`);
         console.log(`📊 Average confidence: ${(parsingResults.averageConfidence * 100).toFixed(1)}%`);
@@ -290,16 +290,7 @@ router.post('/parse', async (req, res) => {
         console.error('🔍 [DEBUG] Error stack:', aiError.stack?.substring(0, 500));
         console.error('🔍 [DEBUG] Full error object:', JSON.stringify(aiError, null, 2));
         
-        // Check if the error indicates emergency fallback was already attempted
-        if (aiError.message && aiError.message.includes('emergencyMode')) {
-          console.error('🔍 [DEBUG] Emergency mode was attempted but still failed');
-          return res.status(500).json({
-            success: false,
-            error: 'Emergency parsing failed',
-            message: 'Both AI and emergency parsing systems are unavailable.',
-            debugInfo: aiError.message
-          });
-        }
+        // AI-only mode: No emergency fallback available
         
         // Check if it's a credit/billing issue
         if (aiError.message && aiError.message.includes('credit balance is too low')) {

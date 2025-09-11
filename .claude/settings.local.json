@@ -410,7 +410,9 @@
       "Bash(PORT=3027 npm start)",
       "Bash(PORT=3028 npm start)",
       "Bash(PORT=3029 npm start)",
-      "Bash(del test-quantity-parsing.js)"
+      "Bash(del test-quantity-parsing.js)",
+      "Bash(PORT=3030 npm start)",
+      "Bash(PORT=3031 npm start)"
     ],
     "deny": [],
     "ask": []

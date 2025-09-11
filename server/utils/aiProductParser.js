@@ -219,7 +219,7 @@ Rules:
     } catch (apiError) {
       console.error('🔍 [DEBUG] API call failed:', apiError.message);
       console.error('🔍 [DEBUG] API error details:', JSON.stringify(apiError, null, 2));
-      throw apiError;  // Re-throw to trigger emergency fallback
+      throw apiError;  // AI-only mode: No fallback available
     }
 
     console.log('🔍 [DEBUG] Processing AI response...');
