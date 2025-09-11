@@ -13,7 +13,7 @@ import AIParsingSettings from './AIParsingSettings';
 // import confetti from 'canvas-confetti'; // REMOVED - Not used in AI-only mode
 import { unified as unifiedRecipeService } from '../services/unifiedRecipeService';
 import persistenceService from '../services/persistenceService';
-import { generateAIMealPlan, parseAIMealPlan, saveParsedMealPlan, bulkImportRecipes } from '../services/aiMealPlanService';
+import { generateAIMealPlan } from '../services/aiMealPlanService';
 
 // Helper functions
 // eslint-disable-next-line no-unused-vars
@@ -172,80 +172,7 @@ Please provide:
 FORMAT: JSON with "ingredients" array and "instructions" array.`;
 };
 
-// Strict validation function
-const validateStrictQuality = (instructions) => {
-  // Must have at least 5 instructions (relaxed from 6 for flexibility)
-  if (!Array.isArray(instructions)) {
-    return { valid: false, reason: 'Instructions is not an array' };
-  }
-  
-  if (instructions.length < 5) {
-    return { 
-      valid: false, 
-      reason: `Only ${instructions.length} instructions provided (minimum 5 required)` 
-    };
-  }
-  
-  // Check each instruction for minimum quality
-  for (let i = 0; i < instructions.length; i++) {
-    const inst = instructions[i];
-    
-    if (!inst || typeof inst !== 'string') {
-      return { 
-        valid: false, 
-        reason: `Instruction ${i + 1} is not a valid string` 
-      };
-    }
-    
-    const wordCount = inst.split(' ').filter(word => word.length > 0).length;
-    
-    // Require at least 30 words (relaxed from 50 for some flexibility)
-    if (wordCount < 30) {
-      return { 
-        valid: false, 
-        reason: `Instruction ${i + 1} has only ${wordCount} words (minimum 30 required)` 
-      };
-    }
-    
-    // Check for lazy single-line instructions
-    const lazyPatterns = [
-      /^(Cook|Stir-fry|Mix|Serve|Season|Add)\s+\w+(\s+\w+){0,4}\.?$/i,
-      /^[A-Z][a-z]+\s+\w+\s+\w+\.?$/i, // Three word sentences
-      /^.{0,50}$/, // Very short instructions (under 50 characters)
-      /according to package/i, // Vague "according to package" instructions
-      /^Cook\s+\w+\s+according\s+to\s+package/i, // "Cook quinoa according to package"
-      /^Roast\s+\w+\s+and\s+\w+$/i, // "Roast chickpeas and sweet potato" 
-      /^Assemble\s+\w+/i, // "Assemble bowls"
-      /^Mix\s+everything\s+together/i, // Generic mixing instructions
-      /^Heat\s+and\s+serve/i, // "Heat and serve"
-      /^Follow\s+package\s+directions/i // "Follow package directions"
-    ];
-    
-    for (const pattern of lazyPatterns) {
-      if (pattern.test(inst.trim())) {
-        return { 
-          valid: false, 
-          reason: `Instruction ${i + 1} is too brief: "${inst.substring(0, 50)}..."` 
-        };
-      }
-    }
-  }
-  
-  // Check for essential cooking details
-  const allInstructions = instructions.join(' ');
-  const hasTemperature = /\d+°[FC]|degrees|high heat|medium heat|low heat/i.test(allInstructions);
-  const hasTime = /\d+\s*(minutes?|mins?|hours?|seconds?)/i.test(allInstructions);
-  const hasTechnique = /(stir|mix|cook|heat|simmer|boil|bake|fry|saute|roast)/i.test(allInstructions);
-  
-  if (!hasTemperature || !hasTime || !hasTechnique) {
-    return { 
-      valid: false, 
-      reason: 'Instructions lack essential cooking details (temperature/time/technique)' 
-    };
-  }
-  
-  return { valid: true };
-};
+// Removed restrictive validation function - recipes are now accepted as provided by AI
 
 // Main Component
 function GroceryListForm({ 
@@ -296,6 +223,7 @@ function GroceryListForm({
   const [recipeUrl, setRecipeUrl] = useState('');
   const [aiRecipeText, setAiRecipeText] = useState('');
   const [generatingMealPlan, setGeneratingMealPlan] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [mealPlanPreferences, setMealPlanPreferences] = useState({
     familySize: 4,
     dietaryRestrictions: [],
@@ -3524,8 +3452,7 @@ const styles = {
     fontSize: '16px',
     fontWeight: '600',
     textAlign: 'center',
-    boxShadow: '0 4px 12px rgba(255, 107, 53, 0.3)',
-    textAlign: 'center'
+    boxShadow: '0 4px 12px rgba(255, 107, 53, 0.3)'
   },
   
   inputControls: {
