@@ -522,7 +522,7 @@ function MyAccount({
         <div style={styles.recipeGrid}>
           {savedRecipes.map(recipe => (
             <div key={recipe.id} style={styles.recipeCard}>
-              <h3 style={styles.recipeName}>{recipe.name}</h3>
+              <h3 style={styles.recipeName}>{recipe.name || recipe.title || 'Untitled Recipe'}</h3>
               
               <div style={styles.recipeIngredients}>
                 <strong>Ingredients:</strong>

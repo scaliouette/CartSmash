@@ -2570,7 +2570,7 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
         // Count added items - use the parsed count from the API response if available
         const addedCount = data.parsedCount || recipe.ingredients.length;
         
-        alert(`✅ Added ${addedCount} ingredients from "${recipe.title}" to your cart!`);
+        alert(`✅ Added ${addedCount} ingredients from "${recipe.title || recipe.name || 'Recipe'}" to your cart!`);
         
         console.log(`✅ Successfully added ${addedCount} items to cart from recipe:`, recipe.title);
       } else {
@@ -3046,7 +3046,7 @@ Or paste any grocery list directly!"
           
           {waitingForAIResponse && (
             <div style={styles.aiStatusMessage}>
-              🎯 CartSmash Results Ready! Review your personalized meal plans and shopping lists above, then add items to your cart!
+              Done! Hit CARTSMASH to add items.
             </div>
           )}
           
@@ -3946,19 +3946,19 @@ const styles = {
 
   addToCartButton: {
     padding: '10px 16px',
-    background: '#FB4F14', // CartSmash orange color
-    color: 'white',
-    border: 'none',
+    background: 'white',
+    color: '#002244',
+    border: '1px solid #FB4F14',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '600',
     transition: 'all 0.2s',
-    boxShadow: '0 2px 4px rgba(251,79,20,0.3)',
+    boxShadow: '0 2px 4px rgba(0,34,68,0.2)',
     ':hover': {
-      background: '#E0440F',
+      background: '#f8f9fa',
       transform: 'translateY(-1px)',
-      boxShadow: '0 4px 8px rgba(251,79,20,0.4)'
+      boxShadow: '0 4px 8px rgba(251,79,20,0.3)'
     }
   },
 
@@ -3984,39 +3984,48 @@ const styles = {
   },
 
   addToCartHeaderButton: {
-    padding: '8px 16px',
-    background: '#FB4F14', // CartSmash orange
-    color: 'white',
-    border: 'none',
+    padding: '8px',
+    background: 'white',
+    color: '#002244',
+    border: '1px solid #FB4F14',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: '16px',
     fontWeight: '600',
     transition: 'all 0.2s',
-    boxShadow: '0 2px 4px rgba(251,79,20,0.3)',
-    minWidth: '120px',
+    boxShadow: '0 2px 4px rgba(0,34,68,0.2)',
+    width: '36px',
+    height: '36px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     ':hover': {
-      background: '#E0440F',
+      background: '#f8f9fa',
       transform: 'translateY(-1px)',
-      boxShadow: '0 4px 8px rgba(251,79,20,0.4)'
+      boxShadow: '0 4px 8px rgba(251,79,20,0.3)'
     }
   },
 
   wideHeaderButton: {
-    padding: '8px 16px',
-    background: '#f8f9fa',
+    padding: '8px',
+    background: 'white',
     color: '#002244',
-    border: '1px solid #dee2e6',
-    borderRadius: '4px',
+    border: '1px solid #FB4F14',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
+    fontSize: '16px',
+    fontWeight: '600',
     transition: 'all 0.2s',
-    minWidth: '100px',
+    width: '36px',
+    height: '36px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 2px 4px rgba(0,34,68,0.2)',
     ':hover': {
-      background: '#e9ecef',
-      borderColor: '#adb5bd',
-      transform: 'translateY(-1px)'
+      background: '#f8f9fa',
+      transform: 'translateY(-1px)',
+      boxShadow: '0 4px 8px rgba(251,79,20,0.3)'
     }
   },
 

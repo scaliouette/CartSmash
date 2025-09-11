@@ -742,7 +742,7 @@ const styles = {
 
   applyButton: {
     padding: '8px 16px',
-    backgroundColor: '#FF6B35',
+    background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -758,7 +758,7 @@ const styles = {
 
   testButton: {
     padding: '12px 24px',
-    backgroundColor: '#FF6B35',
+    background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -899,7 +899,7 @@ const styles = {
 
   saveButton: {
     padding: '10px 20px',
-    backgroundColor: '#FF6B35',
+    background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '6px',

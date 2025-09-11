@@ -76,7 +76,7 @@ class MealPlanParser {
             ingredients: this.extractIngredientsFromAI(item),
             instructions: [],
             nutrition: { calories: item.calories || 400 },
-            time: { prep: 15, cook: 20 },
+            time: this.generateRealisticCookingTimes(recipe.name, this.detectMealType(mealIndex)),
             tags: [],
             dayAssigned: currentDay,
             mealType: this.detectMealType(mealIndex)
@@ -659,8 +659,8 @@ class MealPlanParser {
         title: recipe.name,
         description: `Healthy ${recipe.mealType} option`,
         servings: 4,
-        prepTime: recipe.time.prep || 0,
-        cookTime: recipe.time.cook || 0,
+        prepTime: this.formatTimeToString(recipe.time.prep || 0),
+        cookTime: this.formatTimeToString(recipe.time.cook || 0),
         totalTime: (recipe.time.prep || 0) + (recipe.time.cook || 0),
         difficulty: this.calculateDifficulty(recipe),
         ingredients: recipe.ingredients,
@@ -826,6 +826,86 @@ class MealPlanParser {
     const targetDate = new Date(today);
     targetDate.setDate(today.getDate() + daysToAdd);
     return targetDate.toISOString().split('T')[0];
+  }
+
+  /**
+   * Format time minutes to readable string
+   */
+  formatTimeToString(minutes) {
+    if (minutes <= 0) return 'Not specified';
+    if (minutes < 60) return `${minutes} minutes`;
+    
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    
+    if (remainingMinutes === 0) {
+      return hours === 1 ? '1 hour' : `${hours} hours`;
+    } else {
+      return `${hours}h ${remainingMinutes}m`;
+    }
+  }
+
+  /**
+   * Generate realistic cooking times based on recipe name and meal type
+   */
+  generateRealisticCookingTimes(recipeName, mealType) {
+    const name = recipeName.toLowerCase();
+    
+    // Quick/simple meals (lower prep and cook times)
+    const quickKeywords = ['toast', 'cereal', 'yogurt', 'smoothie', 'sandwich', 'salad', 'wrap'];
+    const isQuick = quickKeywords.some(keyword => name.includes(keyword));
+    
+    // Complex meals (higher prep and cook times)  
+    const complexKeywords = ['roast', 'braised', 'stew', 'casserole', 'lasagna', 'risotto', 'soup', 'curry'];
+    const isComplex = complexKeywords.some(keyword => name.includes(keyword));
+    
+    // Baked goods (long cook times, moderate prep)
+    const bakedKeywords = ['bread', 'cake', 'muffin', 'cookie', 'pie', 'tart'];
+    const isBaked = bakedKeywords.some(keyword => name.includes(keyword));
+    
+    // Grilled/pan items (moderate times)
+    const grilledKeywords = ['grilled', 'pan', 'seared', 'fried', 'sautéed'];
+    const isGrilled = grilledKeywords.some(keyword => name.includes(keyword));
+
+    let prepTime, cookTime;
+
+    if (isQuick) {
+      prepTime = Math.floor(Math.random() * 10) + 5; // 5-15 minutes
+      cookTime = Math.floor(Math.random() * 10) + 5; // 5-15 minutes
+    } else if (isComplex) {
+      prepTime = Math.floor(Math.random() * 20) + 15; // 15-35 minutes
+      cookTime = Math.floor(Math.random() * 60) + 30; // 30-90 minutes
+    } else if (isBaked) {
+      prepTime = Math.floor(Math.random() * 15) + 10; // 10-25 minutes
+      cookTime = Math.floor(Math.random() * 40) + 20; // 20-60 minutes
+    } else if (isGrilled) {
+      prepTime = Math.floor(Math.random() * 15) + 10; // 10-25 minutes
+      cookTime = Math.floor(Math.random() * 20) + 10; // 10-30 minutes
+    } else {
+      // Default based on meal type
+      switch (mealType) {
+        case 'breakfast':
+          prepTime = Math.floor(Math.random() * 10) + 5;  // 5-15 minutes
+          cookTime = Math.floor(Math.random() * 15) + 10; // 10-25 minutes
+          break;
+        case 'lunch':
+          prepTime = Math.floor(Math.random() * 15) + 10; // 10-25 minutes
+          cookTime = Math.floor(Math.random() * 20) + 15; // 15-35 minutes
+          break;
+        case 'dinner':
+          prepTime = Math.floor(Math.random() * 20) + 15; // 15-35 minutes
+          cookTime = Math.floor(Math.random() * 30) + 20; // 20-50 minutes
+          break;
+        default:
+          prepTime = Math.floor(Math.random() * 10) + 10; // 10-20 minutes
+          cookTime = Math.floor(Math.random() * 15) + 10; // 10-25 minutes
+      }
+    }
+
+    return {
+      prep: prepTime,
+      cook: cookTime
+    };
   }
 }
 
