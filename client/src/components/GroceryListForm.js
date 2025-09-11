@@ -2294,13 +2294,13 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
               onClick={() => onAddToCart(recipe)}
               style={styles.addToCartHeaderButton}
             >
-              🛒 Add to Cart
+              🛒
             </button>
             <button 
               onClick={() => onAddToLibrary(recipe)}
               style={styles.wideHeaderButton}
             >
-              📖 Save Recipe
+              ❤️
             </button>
             {onEdit && (
               <button 
@@ -2315,13 +2315,13 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
               onClick={() => onAddToMealPlan(recipe)}
               style={styles.wideHeaderButton}
             >
-              📅 Meal Plan
+              📅
             </button>
             <button 
               onClick={() => onRemove(index)}
               style={styles.wideDeleteButton}
             >
-              🗑️ Remove
+              🗑️
             </button>
           </div>
         </div>
@@ -2978,7 +2978,7 @@ Or paste any grocery list directly!"
           
           {waitingForAIResponse && (
             <div style={styles.aiStatusMessage}>
-              💡 AI response loaded! Review it above and hit CARTSMASH to add items to your cart.
+              🎯 CartSmash Results Ready! Review your personalized meal plans and shopping lists above, then add items to your cart!
             </div>
           )}
           
@@ -3014,6 +3014,13 @@ Or paste any grocery list directly!"
       {(parsedRecipes.length > 0 || recipes.length > 0) && (
         <div style={styles.recipesContainer}>
           <div style={styles.recipesHeader}>
+            <button
+              style={styles.collapseButton}
+              onClick={handleCollapseExpandAll}
+              title={mealPlanExpanded ? "Collapse all recipe details" : "Expand all recipe details"}
+            >
+              {mealPlanExpanded ? '▼' : '▶'}
+            </button>
             <div style={styles.headerLeft}>
               <h3 style={styles.recipesTitle}>
                 {(parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) || recipes.some(r => r.mealType || r.tags?.includes('meal plan'))) ? 
@@ -3025,18 +3032,11 @@ Or paste any grocery list directly!"
             </div>
             <div style={styles.headerButtonGroup}>
               <button
-                style={styles.collapseButton}
-                onClick={handleCollapseExpandAll}
-                title={mealPlanExpanded ? "Collapse all recipe details" : "Expand all recipe details"}
-              >
-                {mealPlanExpanded ? '▼' : '▶'}
-              </button>
-              <button
                 style={styles.clearRecipesButton}
                 onClick={handleClearAllRecipes}
                 title="Clear all recipes from the list"
               >
-                🗑️ Clear Recipes
+                🗑️
               </button>
             </div>
           </div>
@@ -3423,15 +3423,17 @@ const styles = {
   },
 
   aiStatusMessage: {
-    backgroundColor: '#E6F7FF',
-    border: '2px solid #1890FF',
-    borderRadius: '8px',
-    padding: '12px 16px',
+    background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
+    border: '2px solid #FF6B35',
+    borderRadius: '12px',
+    padding: '16px 20px',
     marginTop: '12px',
     marginBottom: '12px',
-    color: '#002244',
-    fontSize: '14px',
-    fontWeight: '500',
+    color: '#FFFFFF',
+    fontSize: '16px',
+    fontWeight: '600',
+    textAlign: 'center',
+    boxShadow: '0 4px 12px rgba(255, 107, 53, 0.3)',
     textAlign: 'center'
   },
   

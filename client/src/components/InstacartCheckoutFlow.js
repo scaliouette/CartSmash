@@ -1,5 +1,6 @@
 // client/src/components/InstacartCheckoutFlow.js
 import React, { useState, useEffect } from 'react';
+import instacartService from '../services/instacartService';
 
 const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   const [currentStep, setCurrentStep] = useState('store');
@@ -41,6 +42,30 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         ) || [];
         console.log('🚨 Problematic items:', problematic);
         return problematic;
+      },
+      verifyInstacartCompatibility: () => {
+        const report = {
+          totalItems: currentCart?.length || 0,
+          validNames: currentCart?.filter(item => item.productName && item.productName.length > 2).length || 0,
+          validIds: currentCart?.filter(item => item.id).length || 0,
+          validQuantities: currentCart?.filter(item => item.quantity && item.quantity > 0).length || 0,
+          problematicItems: currentCart?.filter(item => 
+            !item.productName || item.productName.length <= 2 || !item.id
+          ) || []
+        };
+        console.log('🔍 Instacart Compatibility Report:', report);
+        console.log('📊 Matching Success Rate:', `${Math.round((report.validNames / report.totalItems) * 100)}%`);
+        return report;
+      },
+      simulateInstacartSearch: () => {
+        const searchableItems = currentCart?.map(item => ({
+          original: item.productName,
+          searchQuery: item.productName?.toLowerCase().replace(/[^a-z0-9\s]/g, ''),
+          estimatedMatches: Math.floor(Math.random() * 5) + 1,
+          confidence: item.productName?.length > 10 ? 'High' : item.productName?.length > 5 ? 'Medium' : 'Low'
+        })) || [];
+        console.log('🎯 Simulated Instacart Search Results:', searchableItems);
+        return searchableItems;
       }
     };
   }, [currentCart]);
@@ -54,38 +79,116 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     { id: 'walmart', name: 'Walmart', logo: '🏬', price: '$7.95' }
   ];
 
-  const handleZipSearch = () => {
+  const handleZipSearch = async () => {
     if (zipCode.length === 5) {
       setSearchingStores(true);
-      setTimeout(() => {
+      
+      try {
+        console.log('🏪 Searching for Instacart retailers near:', zipCode);
+        
+        // Use Instacart service to get nearby retailers
+        const retailersResult = await instacartService.getNearbyRetailers(zipCode);
+        
+        if (retailersResult.success && retailersResult.retailers) {
+          console.log('✅ Found retailers:', retailersResult.retailers);
+          // Map Instacart retailers to our UI format
+          const mappedStores = retailersResult.retailers.map(retailer => ({
+            id: retailer.id,
+            name: retailer.name,
+            logo: getRetailerLogo(retailer.name),
+            price: retailer.delivery_fee ? `$${retailer.delivery_fee}` : 'Free',
+            hasAPI: true,
+            distance: retailer.distance,
+            address: retailer.address
+          }));
+          setStores([...mappedStores, ...availableStores]);
+        } else {
+          console.log('⚠️ API call failed, using fallback stores');
+          setStores(availableStores);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching retailers:', error);
         setStores(availableStores);
-        setSearchingStores(false);
-      }, 1000);
+      }
+      
+      setSearchingStores(false);
     }
+  };
+  
+  const getRetailerLogo = (name) => {
+    const logos = {
+      'Safeway': '🏪',
+      'Kroger': '🛒',
+      'Costco': '📦',
+      'Target': '🎯',
+      'Walmart': '🏬',
+      'Whole Foods': '🌿'
+    };
+    return logos[name] || '🏪';
   };
 
   const handleContinue = () => {
     if (currentStep === 'store' && selectedStore) {
       setCurrentStep('match');
-      // Simulate matching products
+      // Simulate matching products with better Instacart compliance
       setTimeout(() => {
-        setMatchedProducts(currentCart.map(item => ({
-          ...item,
-          matched: true,
-          instacartProduct: { name: item.productName, price: 5.99 }
-        })));
+        const matchedItems = currentCart.map(item => {
+          const matchQuality = item.productName && item.productName.length > 2 ? 'high' : 'low';
+          const matchPrice = matchQuality === 'high' ? 
+            (Math.random() * 10 + 2.99).toFixed(2) : 'N/A';
+          
+          return {
+            ...item,
+            matched: matchQuality === 'high',
+            instacartProduct: { 
+              name: item.productName, 
+              price: matchPrice,
+              matchQuality,
+              availability: matchQuality === 'high' ? 'in_stock' : 'not_found'
+            }
+          };
+        });
+        setMatchedProducts(matchedItems);
+        console.log('🛒 Instacart Matching Results:', matchedItems);
       }, 500);
     } else if (currentStep === 'match') {
       setCurrentStep('complete');
     }
   };
 
-  const handleFinalCheckout = () => {
+  const handleFinalCheckout = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
+    
+    try {
+      console.log('🛒 Starting Instacart API integration...');
+      
+      // Use the Instacart service to create a recipe page with the cart items
+      const recipeResult = await instacartService.exportGroceryListAsRecipe(currentCart, {
+        title: `CartSmash Grocery List - ${new Date().toLocaleDateString()}`,
+        imageUrl: 'https://via.placeholder.com/400x300/FF6B35/white?text=CartSmash+Order',
+        preferredRetailer: selectedStore?.id === 'safeway' ? 'safeway' : undefined,
+        partnerUrl: 'https://cartsmash.com',
+        trackPantryItems: false
+      });
+      
+      console.log('✅ Instacart recipe created:', recipeResult);
+      
+      if (recipeResult.success && recipeResult.instacartUrl) {
+        // Open the actual Instacart recipe page
+        window.open(recipeResult.instacartUrl, '_blank');
+      } else {
+        // Fallback to general Instacart site
+        console.log('⚠️ Recipe creation failed, using fallback URL');
+        window.open('https://www.instacart.com', '_blank');
+      }
+      
+      onClose();
+    } catch (error) {
+      console.error('❌ Error in Instacart checkout:', error);
+      // Fallback on error
       window.open('https://www.instacart.com', '_blank');
       onClose();
-    }, 1500);
+    }
   };
 
   return (
@@ -118,7 +221,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         <div 
           className="instacart-checkout-header"
           style={{
-            background: 'linear-gradient(135deg, #002244 0%, #FB4F14 100%)',
+            background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
             padding: '32px',
             color: 'white',
             position: 'relative'
@@ -171,7 +274,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             gap: '60px',
             padding: '20px 32px',
             backgroundColor: '#FFF5F2',
-            borderBottom: '2px solid #FB4F14'
+            borderBottom: '2px solid #FF6B35'
           }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
@@ -183,13 +286,13 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               justifyContent: 'center',
               fontSize: '18px',
               fontWeight: 'bold',
-              backgroundColor: currentStep === 'store' ? '#FB4F14' : currentStep !== 'store' ? '#002244' : '#E5E5E5',
+              backgroundColor: currentStep === 'store' ? '#FF6B35' : currentStep !== 'store' ? '#F7931E' : '#E5E5E5',
               color: currentStep === 'store' || currentStep !== 'store' ? 'white' : '#999',
-              boxShadow: currentStep === 'store' ? '0 4px 12px rgba(251, 79, 20, 0.3)' : 'none'
+              boxShadow: currentStep === 'store' ? '0 4px 12px rgba(255, 107, 53, 0.3)' : 'none'
             }}>
               {currentStep !== 'store' ? '✓' : '1'}
             </div>
-            <span style={{ fontSize: '14px', fontWeight: '500', color: '#002244' }}>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#FF6B35' }}>
               Select Store
             </span>
           </div>
@@ -204,13 +307,13 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               justifyContent: 'center',
               fontSize: '18px',
               fontWeight: 'bold',
-              backgroundColor: currentStep === 'match' ? '#FB4F14' : currentStep === 'complete' ? '#002244' : '#E5E5E5',
+              backgroundColor: currentStep === 'match' ? '#FF6B35' : currentStep === 'complete' ? '#F7931E' : '#E5E5E5',
               color: currentStep === 'match' || currentStep === 'complete' ? 'white' : '#999',
-              boxShadow: currentStep === 'match' ? '0 4px 12px rgba(251, 79, 20, 0.3)' : 'none'
+              boxShadow: currentStep === 'match' ? '0 4px 12px rgba(255, 107, 53, 0.3)' : 'none'
             }}>
               {currentStep === 'complete' ? '✓' : '2'}
             </div>
-            <span style={{ fontSize: '14px', fontWeight: '500', color: '#002244' }}>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#FF6B35' }}>
               Match Items
             </span>
           </div>
@@ -225,13 +328,13 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               justifyContent: 'center',
               fontSize: '18px',
               fontWeight: 'bold',
-              backgroundColor: currentStep === 'complete' ? '#FB4F14' : '#E5E5E5',
+              backgroundColor: currentStep === 'complete' ? '#FF6B35' : '#E5E5E5',
               color: currentStep === 'complete' ? 'white' : '#999',
-              boxShadow: currentStep === 'complete' ? '0 4px 12px rgba(251, 79, 20, 0.3)' : 'none'
+              boxShadow: currentStep === 'complete' ? '0 4px 12px rgba(255, 107, 53, 0.3)' : 'none'
             }}>
               3
             </div>
-            <span style={{ fontSize: '14px', fontWeight: '500', color: '#002244' }}>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#FF6B35' }}>
               Complete
             </span>
           </div>
@@ -241,7 +344,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         <div style={{ flex: 1, padding: '32px', overflowY: 'auto' }}>
           {currentStep === 'store' && (
             <>
-              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#002244', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '16px' }}>
                 Choose Your Store
               </h2>
               <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
@@ -249,7 +352,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               </p>
 
               <div style={{ marginBottom: '32px' }}>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#002244', marginBottom: '8px' }}>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: '#FF6B35', marginBottom: '8px' }}>
                   Delivery ZIP Code
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -262,7 +365,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                       flex: 1,
                       padding: '12px 16px',
                       fontSize: '16px',
-                      border: '2px solid #002244',
+                      border: '2px solid #FF6B35',
                       borderRadius: '8px',
                       outline: 'none'
                     }}
@@ -272,7 +375,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                     onClick={handleZipSearch} 
                     style={{
                       padding: '12px 24px',
-                      backgroundColor: '#FB4F14',
+                      backgroundColor: '#FF6B35',
                       color: 'white',
                       border: 'none',
                       borderRadius: '8px',
@@ -288,7 +391,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
               {stores.length > 0 && (
                 <>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#002244', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#FF6B35', marginBottom: '16px' }}>
                     Available Stores
                   </div>
                   <div style={{
@@ -305,12 +408,12 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                           padding: '16px',
                           borderRadius: '12px',
                           border: '2px solid',
-                          borderColor: selectedStore?.id === store.id ? '#FB4F14' : '#E5E5E5',
+                          borderColor: selectedStore?.id === store.id ? '#FF6B35' : '#E5E5E5',
                           cursor: 'pointer',
                           textAlign: 'center',
-                          backgroundColor: store.featured ? '#FB4F14' : selectedStore?.id === store.id ? '#FFF5F2' : 'white',
+                          backgroundColor: store.featured ? '#FF6B35' : selectedStore?.id === store.id ? '#FFF5F2' : 'white',
                           transform: selectedStore?.id === store.id ? 'scale(1.02)' : 'scale(1)',
-                          boxShadow: selectedStore?.id === store.id ? '0 4px 12px rgba(251, 79, 20, 0.2)' : 'none',
+                          boxShadow: selectedStore?.id === store.id ? '0 4px 12px rgba(255, 107, 53, 0.2)' : 'none',
                           transition: 'all 0.2s',
                           position: 'relative'
                         }}
@@ -335,7 +438,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                           fontSize: '16px',
                           fontWeight: 'bold',
                           marginBottom: '4px',
-                          color: store.featured ? 'white' : '#002244'
+                          color: store.featured ? 'white' : '#FF6B35'
                         }}>
                           {store.name}
                         </div>
@@ -356,7 +459,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                 borderRadius: '12px',
                 padding: '20px',
                 marginTop: '24px',
-                border: '2px solid #FB4F14'
+                border: '2px solid #FF6B35'
               }}>
                 <div style={{ 
                   display: 'flex', 
@@ -364,7 +467,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                   alignItems: 'center', 
                   marginBottom: '16px' 
                 }}>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#002244' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#FF6B35' }}>
                     Your Cart Items ({currentCart.length})
                   </div>
                   <button
@@ -372,14 +475,14 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                     style={{
                       padding: '6px 12px',
                       fontSize: '12px',
-                      backgroundColor: showDebug ? '#FB4F14' : '#002244',
+                      backgroundColor: showDebug ? '#FF6B35' : '#F7931E',
                       color: 'white',
                       border: 'none',
                       borderRadius: '4px',
                       cursor: 'pointer'
                     }}
                   >
-                    {showDebug ? 'Hide Debug' : 'Debug Items'}
+                    {showDebug ? 'Hide Debug' : 'Verify Instacart Matching'}
                   </button>
                 </div>
                 
@@ -404,7 +507,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                     padding: '12px'
                   }}>
                     <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: '#666' }}>
-                      Debug Information:
+                      Instacart Matching Verification:
                     </div>
                     {currentCart.map((item, idx) => (
                       <div key={idx} style={{
@@ -412,7 +515,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                         borderBottom: '1px solid #eee',
                         fontSize: '12px'
                       }}>
-                        <div style={{ fontWeight: 'bold', color: '#002244' }}>
+                        <div style={{ fontWeight: 'bold', color: '#FF6B35' }}>
                           Item #{idx + 1}: {item.productName}
                         </div>
                         <div style={{ color: '#666', marginTop: '4px' }}>
@@ -420,6 +523,9 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                         </div>
                         <div style={{ color: '#666' }}>
                           Quantity: {item.quantity || 'N/A'}
+                        </div>
+                        <div style={{ color: '#666' }}>
+                          Instacart Matchable: {item.productName && item.productName.length > 2 ? '✅ YES' : '❌ TOO SHORT'}
                         </div>
                         <div style={{ color: '#666' }}>
                           Has undefined values: {Object.values(item).includes(undefined) ? '❌ YES' : '✅ NO'}
@@ -431,6 +537,15 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                             marginTop: '4px' 
                           }}>
                             ⚠️ This item may not be deletable - missing ID
+                          </div>
+                        )}
+                        {(!item.productName || item.productName.length <= 2) && (
+                          <div style={{ 
+                            color: '#ff6600', 
+                            fontWeight: 'bold', 
+                            marginTop: '4px' 
+                          }}>
+                            ⚠️ Product name too short for reliable Instacart matching
                           </div>
                         )}
                       </div>
@@ -447,6 +562,8 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                       <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#333' }}>
                         • window.checkoutDebug.inspectItems()<br/>
                         • window.checkoutDebug.findProblematicItems()<br/>
+                        • window.checkoutDebug.verifyInstacartCompatibility()<br/>
+                        • window.checkoutDebug.simulateInstacartSearch()<br/>
                         • window.debugCart.checkLocalStorage()<br/>
                         • window.debugCart.compareWithLocalStorage()<br/>
                         • window.debugCart.nuclearClear() ⚠️ CLEARS ALL
@@ -459,15 +576,14 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                         border: '1px solid #ffcccc'
                       }}>
                         <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#cc0000' }}>
-                          ⚠️ ISSUE FOUND:
+                          🔍 INSTACART COMPLIANCE CHECK:
                         </div>
                         <div style={{ fontSize: '11px', color: '#cc0000', marginTop: '4px' }}>
-                          MULTIPLE DATA SOURCES CONFLICT:<br/>
-                          • App.js restores from localStorage<br/>
-                          • CartContext restores from localStorage + server<br/>
-                          • Firebase auto-saves deleted items<br/>
-                          • MongoDB server may have conflicting data<br/>
-                          Use nuclearClear() to clear ALL sources.
+                          ✅ Product Names: {currentCart.filter(item => item.productName && item.productName.length > 2).length}/{currentCart.length} items ready<br/>
+                          ✅ Valid IDs: {currentCart.filter(item => item.id).length}/{currentCart.length} items have IDs<br/>
+                          ✅ Quantities: {currentCart.filter(item => item.quantity && item.quantity > 0).length}/{currentCart.length} items have quantities<br/>
+                          {currentCart.some(item => !item.productName || item.productName.length <= 2) && '⚠️ Some items may not match well in Instacart search'}<br/>
+                          Use verifyInstacartCompatibility() for detailed analysis.
                         </div>
                       </div>
                     </div>
@@ -485,7 +601,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
           {currentStep === 'match' && (
             <>
-              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#002244', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '16px' }}>
                 Matching Your Items
               </h2>
               <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
@@ -500,7 +616,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
           {currentStep === 'complete' && (
             <>
-              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#002244', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '16px' }}>
                 Ready to Checkout!
               </h2>
               <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
@@ -511,10 +627,10 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                 padding: '40px',
                 backgroundColor: '#FFF5F2',
                 borderRadius: '12px',
-                border: '2px solid #FB4F14'
+                border: '2px solid #FF6B35'
               }}>
                 <div style={{ fontSize: '64px', marginBottom: '16px', color: '#28A745' }}>✅</div>
-                <p style={{ fontSize: '18px', color: '#002244', fontWeight: 'bold' }}>
+                <p style={{ fontSize: '18px', color: '#FF6B35', fontWeight: 'bold' }}>
                   {currentCart.length} items matched successfully!
                 </p>
                 <p style={{ color: '#666', marginTop: '8px' }}>
@@ -529,7 +645,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         <div style={{
           padding: '24px 32px',
           backgroundColor: '#FFF5F2',
-          borderTop: '2px solid #FB4F14',
+          borderTop: '2px solid #FF6B35',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
@@ -539,8 +655,8 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             style={{
               padding: '12px 24px',
               backgroundColor: 'white',
-              color: '#002244',
-              border: '2px solid #002244',
+              color: '#FF6B35',
+              border: '2px solid #FF6B35',
               borderRadius: '8px',
               fontSize: '16px',
               fontWeight: '500',
@@ -554,7 +670,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             disabled={currentStep === 'store' && !selectedStore}
             style={{
               padding: '14px 32px',
-              background: currentStep === 'store' && !selectedStore ? '#CCC' : 'linear-gradient(135deg, #FB4F14 0%, #FF6B35 100%)',
+              background: currentStep === 'store' && !selectedStore ? '#CCC' : 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
