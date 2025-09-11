@@ -1,7 +1,7 @@
 // client/src/firebase.js
 // FIXED VERSION WITH GOOGLE AUTH PROVIDER
 
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getDatabase } from 'firebase/database';
@@ -69,8 +69,8 @@ let analytics = null;
 
 if (isConfigValid) {
   try {
-    // Initialize Firebase app
-    app = initializeApp(firebaseConfig);
+    // Initialize Firebase app - avoid duplicate app error
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     console.log('✅ Firebase app initialized');
     
     // Initialize Authentication
