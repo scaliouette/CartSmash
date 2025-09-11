@@ -93,9 +93,7 @@ function MyAccount({
   };
 
   const handleDeleteList = (listId, listName) => {
-    if (window.confirm(`Delete list "${listName}"?`)) {
-      deleteList(listId);
-    }
+    deleteList(listId);
   };
 
   const handleDeleteRecipe = (recipeId, recipeName) => {
