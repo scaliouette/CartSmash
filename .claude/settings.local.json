@@ -413,7 +413,17 @@
       "Bash(del test-quantity-parsing.js)",
       "Bash(PORT=3030 npm start)",
       "Bash(PORT=3031 npm start)",
-      "Bash(del fix_anthropic_api.js)"
+      "Bash(del fix_anthropic_api.js)",
+      "WebSearch",
+      "Bash(PORT=3032 npm start)",
+      "Bash(PORT=3033 npm start)",
+      "Bash(REACT_APP_API_URL=http://localhost:3033 PORT=3034 npm start)",
+      "Bash(start http://localhost:3034)",
+      "Bash(NODE_ENV=development PORT=3035 npm start)",
+      "Bash(start https://customers.dev.instacart.tools/store/recipes/8083323)",
+      "Bash(NODE_ENV=development PORT=3036 npm start)",
+      "Bash(start https://customers.dev.instacart.tools/store/recipes/8083325)",
+      "Bash(NODE_ENV=development PORT=3037 npm start)"
     ],
     "deny": [],
     "ask": []
