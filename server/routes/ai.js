@@ -1307,63 +1307,10 @@ function generateEnhancedClaudeResponse(prompt) {
   
   // Legacy fallback removed - use structured meal planner for consistency
   
-  if (lowerPrompt.includes('budget') || lowerPrompt.includes('cheap')) {
-    return `Here's a budget-friendly grocery plan that maximizes nutrition while minimizing cost:
-
-**BUDGET-SMART GROCERY LIST:**
-
-**Proteins (Budget-Friendly):**
-- 3 lbs ground turkey
-- 2 dozen eggs
-- 1 container Greek yogurt (32 oz)
-- 1 bag dried black beans (1 lb)
-- 1 jar peanut butter (18 oz)
-
-**Bulk Staples:**
-- 5 lbs brown rice
-- 2 lbs whole wheat pasta
-- 1 loaf whole grain bread
-- 1 container oats (42 oz)
-
-**Affordable Produce:**
-- 3 lbs bananas
-- 2 lbs carrots
-- 1 bag potatoes (5 lbs)
-- 1 large onion
-- 1 head garlic
-
-**Pantry Essentials:**
-- 1 bottle vegetable oil
-- 1 bag flour (5 lbs)
-- 1 container salt
-
-Total estimated cost: $45-55 for a week's worth of nutritious meals.`;
-  }
+  // AI-ONLY: Budget grocery lists handled above - no duplicate manual fallbacks
   
-  return `Here's a practical grocery list tailored to your needs:
-
-**GROCERY SHOPPING LIST:**
-
-**Proteins:**
-- 2 lbs chicken breast
-- 1 dozen eggs
-- 1 container Greek yogurt (32 oz)
-
-**Fresh Produce:**
-- 3 bananas
-- 2 bell peppers
-- 1 bag spinach (5 oz)
-- 1 onion
-
-**Pantry Items:**
-- 2 cups brown rice
-- 1 loaf bread
-- 1 bottle olive oil (16.9 fl oz)
-
-**Dairy:**
-- 1 gallon milk
-
-This provides a solid foundation for healthy, versatile meals throughout the week.`;
+  // AI-ONLY: No manual grocery list fallbacks  
+  throw new Error('AI-only mode: Manual grocery list generation disabled. Requires functional AI service.');
 }
 
 function generateEnhancedChatGPTResponse(prompt) {

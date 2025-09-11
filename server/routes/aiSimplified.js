@@ -163,7 +163,13 @@ Format like this:
 
 // Main simplified Claude endpoint
 router.post('/claude', async (req, res) => {
-  console.log('🧠 Simplified Claude API request received');
+  console.log('🚫 AI-ONLY: Simplified route disabled');
+  
+  return res.status(403).json({
+    success: false,
+    error: 'AI-only mode: Simplified route disabled. Use enhanced AI route with functional AI service.',
+    message: 'Manual fallbacks and templates removed to ensure pure AI processing.'
+  });
   
   try {
     const { prompt } = req.body;
@@ -233,18 +239,8 @@ router.post('/claude', async (req, res) => {
         throw apiError;
       }
     } else {
-      // Simple fallback
-      responseText = `Here's a basic grocery list for your request:
-
-- 2 lbs chicken breast
-- 1 gallon milk
-- 1 loaf bread
-- 3 bananas
-- 1 onion
-- 2 cups rice
-
-Note: AI services are currently unavailable. This is a basic fallback response.`;
-      model = 'fallback';
+      // AI-ONLY: No manual fallbacks allowed
+      throw new Error('AI-only mode: Manual fallback parsing disabled. Requires functional AI service.');
     }
     
     // Simple, reliable parsing using the utilities
@@ -366,18 +362,8 @@ router.post('/chatgpt', async (req, res) => {
       responseText = response.content[0].text;
       model = response.model + ' (backup)';
     } else {
-      // Simple fallback
-      responseText = `Here's a basic grocery list for your request:
-
-- 2 lbs chicken breast
-- 1 gallon milk
-- 1 loaf bread
-- 3 bananas
-- 1 onion
-- 2 cups rice
-
-Note: AI services are currently unavailable.`;
-      model = 'fallback';
+      // AI-ONLY: No manual fallbacks allowed
+      throw new Error('AI-only mode: Manual fallback parsing disabled. Requires functional AI service.');
     }
     
     const products = productParser.parseProducts(responseText);
