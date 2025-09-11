@@ -538,7 +538,21 @@ function GroceryListForm({
       icon: '📅',
       title: 'Weekly Meal Plan',
       description: 'Create a healthy 7-day meal plan with complete grocery shopping list for a family of 4.',
-      prompt: 'Create a healthy 7-day meal plan with complete grocery shopping list for a family of 4. Include breakfast, lunch, dinner, and snacks for each day.'
+      prompt: `Create a detailed 7-day meal plan with MULTIPLE SEPARATE RECIPES for a family of 4. Format as follows:
+
+**Day 1**
+- Breakfast: [Recipe Name] - [Brief description]
+- Lunch: [Recipe Name] - [Brief description]  
+- Dinner: [Recipe Name] - [Brief description]
+- Snack: [Recipe Name] - [Brief description]
+
+**Day 2**
+- Breakfast: [Recipe Name] - [Brief description]
+- Lunch: [Recipe Name] - [Brief description]
+- Dinner: [Recipe Name] - [Brief description]
+- Snack: [Recipe Name] - [Brief description]
+
+Continue for all 7 days. After the meal plan, provide the complete grocery shopping list organized by category. Make sure each meal is a SEPARATE recipe with its own name and description, not a generic overview.`
     },
     {
       id: 'budget',
@@ -694,7 +708,8 @@ function GroceryListForm({
             // Store structured recipes for display
             if (aiData.recipes.length > 0) {
               console.log('🍳 Displaying structured recipes from AI:', aiData.recipes);
-              setParsedRecipes(aiData.recipes);
+              // FIXED: Only add to recipes array to avoid duplication 
+              // (parsedRecipes is for text parsing, recipes is for AI-generated)
               setRecipes(aiData.recipes);
             }
             
@@ -903,8 +918,9 @@ function GroceryListForm({
     setCurrentCart([]);
     setShowResults(false);
     setParsingStats(null);
-    // Clear parsed recipes
+    // Clear both recipe arrays
     setParsedRecipes([]);
+    setRecipes([]);
   };
 
   // eslint-disable-next-line no-unused-vars
