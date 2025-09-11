@@ -2272,6 +2272,13 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
     return (
       <div style={expanded ? styles.enhancedRecipeCard : styles.enhancedRecipeCardCollapsed}>
         <div style={styles.recipeHeader}>
+          <button 
+            onClick={handleToggle}
+            style={styles.expandButton}
+            title={expanded ? "Show less" : "Show full recipe"}
+          >
+            {expanded ? '▼' : '▶'}
+          </button>
           <h4 style={styles.recipeTitle}>
             {icon} 
             <strong>{title}</strong>
@@ -2283,13 +2290,6 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
             )}
           </h4>
           <div style={styles.headerButtons}>
-            <button 
-              onClick={handleToggle}
-              style={styles.expandButton}
-              title={expanded ? "Show less" : "Show full recipe"}
-            >
-              {expanded ? '▼' : '▶'}
-            </button>
             <button 
               onClick={() => onAddToCart(recipe)}
               style={styles.addToCartHeaderButton}
@@ -3678,7 +3678,7 @@ const styles = {
   },
 
   collapseButton: {
-    background: 'linear-gradient(135deg, #4A90E2 0%, #2171b5 100%)',
+    background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -3687,7 +3687,7 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
-    boxShadow: '0 2px 6px rgba(74, 144, 226, 0.3)',
+    boxShadow: '0 2px 6px rgba(255, 107, 53, 0.3)',
     display: 'flex',
     alignItems: 'center',
     gap: '6px'
@@ -4362,16 +4362,20 @@ const styles = {
   },
   
   expandButton: {
-    padding: '6px 12px',
-    backgroundColor: '#6c757d',
+    padding: '8px 16px',
+    background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
     color: 'white',
     border: 'none',
-    borderRadius: '6px',
+    borderRadius: '8px',
     cursor: 'pointer',
-    fontSize: '12px',
+    fontSize: '14px',
     fontWeight: '600',
-    transition: 'all 0.2s',
-    marginRight: '8px'
+    transition: 'all 0.3s ease',
+    boxShadow: '0 2px 6px rgba(255, 107, 53, 0.3)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginRight: '12px'
   },
   
   dayTag: {
