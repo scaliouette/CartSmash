@@ -245,12 +245,14 @@ IMPORTANT:
       // Detailed meal planning format - structured JSON
       enhancedPrompt = `${processedPrompt}
 
-Return a structured JSON response with complete meal plan information:
+Return a structured JSON response with complete meal plan information.
+
+IMPORTANT STRUCTURE: Show meal plans and recipes FIRST, then consolidated shopping list at the END for easy parsing:
 
 {
   "type": "meal_plan",
   "title": "7-Day Family Meal Plan",
-  "description": "Complete weekly meal plan with recipes and shopping list",
+  "description": "Complete weekly meal plan with recipes and detailed instructions",
   "servings": 4,
   "days": [
     {
@@ -910,12 +912,14 @@ IMPORTANT:
       // Detailed meal planning format - structured JSON
       enhancedPrompt = `${processedPrompt}
 
-Return a structured JSON response with complete meal plan information:
+Return a structured JSON response with complete meal plan information.
+
+IMPORTANT STRUCTURE: Show meal plans and recipes FIRST, then consolidated shopping list at the END for easy parsing:
 
 {
   "type": "meal_plan",
   "title": "7-Day Family Meal Plan",
-  "description": "Complete weekly meal plan with recipes and shopping list",
+  "description": "Complete weekly meal plan with recipes and detailed instructions",
   "servings": 4,
   "days": [
     {

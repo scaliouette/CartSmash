@@ -32,21 +32,49 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
   // Initialize location and connection monitoring
   useEffect(() => {
-    // Check location permission status
-    locationService.getPermissionStatus().then(setLocationPermission);
-    
-    // Get connection information
-    setConnectionInfo(locationService.getConnectionInfo());
+    const initializeLocation = async () => {
+      // Check location permission status
+      const permission = await locationService.getPermissionStatus();
+      setLocationPermission(permission);
+      
+      // Get connection information
+      setConnectionInfo(locationService.getConnectionInfo());
+      
+      // Auto-load ZIP if we have saved location data
+      const savedZip = locationService.getSavedZipCode();
+      if (savedZip && !zipCode) {
+        console.log('📍 Loading saved ZIP code:', savedZip);
+        setZipCode(savedZip);
+        // Auto-search for stores if we have a saved ZIP
+        setTimeout(() => {
+          if (savedZip.length === 5) {
+            handleZipSearch();
+          }
+        }, 100);
+      } else if (permission === 'granted') {
+        // Try to get current location automatically if permission granted
+        console.log('📍 Permission granted, attempting to get current location...');
+        try {
+          const currentZip = await locationService.getZipFromCurrentLocation();
+          if (currentZip && currentZip !== savedZip) {
+            setZipCode(currentZip);
+            locationService.saveZipCode(currentZip);
+            console.log('✅ Auto-detected ZIP code:', currentZip);
+            // Auto-search for stores
+            setTimeout(() => handleZipSearch(), 100);
+          }
+        } catch (error) {
+          console.log('⚠️ Could not auto-detect location:', error.message);
+        }
+      }
+    };
     
     // Monitor online/offline status
     const handleOnlineChange = () => setIsOnline(navigator.onLine);
     window.addEventListener('online', handleOnlineChange);
     window.addEventListener('offline', handleOnlineChange);
     
-    // Auto-load ZIP if we have location data
-    if (locationService.getSavedZipCode() && !zipCode) {
-      setZipCode(locationService.getSavedZipCode());
-    }
+    initializeLocation();
     
     return () => {
       window.removeEventListener('online', handleOnlineChange);
@@ -252,17 +280,25 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         
         if (retailersResult.success && retailersResult.retailers) {
           console.log('✅ Found retailers:', retailersResult.retailers);
-          // Map Instacart retailers to our UI format
-          const mappedStores = retailersResult.retailers.map(retailer => ({
-            id: retailer.id,
-            name: retailer.name,
-            logo: getRetailerLogo(retailer.name),
-            price: retailer.delivery_fee ? `$${retailer.delivery_fee}` : 'Free',
-            hasAPI: true,
-            distance: retailer.distance,
-            address: retailer.address
-          }));
-          setStores([...mappedStores, ...availableStores]);
+          // Map Instacart retailers to our UI format with distance sorting
+          const mappedStores = retailersResult.retailers
+            .map(retailer => ({
+              id: retailer.id,
+              name: retailer.name,
+              logo: getRetailerLogo(retailer.name),
+              price: retailer.delivery_fee ? `$${retailer.delivery_fee}` : 'Free',
+              hasAPI: true,
+              distance: retailer.distance,
+              address: retailer.address,
+              distanceText: retailer.distance ? `${retailer.distance.toFixed(1)} miles` : 'Distance N/A'
+            }))
+            .filter(store => store.distance && store.distance <= 25) // Only show stores within 25 miles
+            .sort((a, b) => (a.distance || 999) - (b.distance || 999)); // Sort by distance
+          
+          // Add fallback stores only if no API stores found or if user wants more options
+          const allStores = mappedStores.length > 0 ? mappedStores : availableStores;
+          setStores(allStores);
+          console.log(`📍 Found ${mappedStores.length} stores within 25 miles`);
         } else {
           console.log('⚠️ API call failed, using fallback stores');
           setStores(availableStores);
