@@ -401,7 +401,8 @@
       "Bash(PORT=3022 npm start)",
       "Bash(PORT=3023 npm start)",
       "Bash(npm test)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(PORT=3024 npm start)"
     ],
     "deny": [],
     "ask": []
