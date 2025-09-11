@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const AIProductParser = require('../utils/aiProductParser');
 const { extractRecipe, toCartSmashFormat } = require('../utils/recipeScraper');
-const { generateStructuredMealPlan } = require('../utils/mealPlanner');
+// REMOVED: Manual meal planner - AI-ONLY processing enforced
 
 console.log('🤖 Loading Enhanced AI routes with intelligent parsing...');
 
@@ -1296,12 +1296,13 @@ function generateEnhancedClaudeResponse(prompt) {
   const lowerPrompt = prompt.toLowerCase();
   
   if (lowerPrompt.includes('meal plan') || lowerPrompt.includes('week') || lowerPrompt.includes('day')) {
-    // Use structured meal planner for complete responses
-    return generateStructuredMealPlan(prompt);
+    // AI-ONLY: No manual meal planner fallback
+    throw new Error('AI-only mode: Manual meal planner disabled. Requires functional AI service.');
   }
   
   if (lowerPrompt.includes('budget') || lowerPrompt.includes('cheap') || lowerPrompt.match(/\$\d+/)) {
-    return generateStructuredMealPlan(prompt);
+    // AI-ONLY: No manual meal planner fallback  
+    throw new Error('AI-only mode: Manual meal planner disabled. Requires functional AI service.');
   }
   
   // Legacy fallback removed - use structured meal planner for consistency

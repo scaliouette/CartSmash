@@ -399,7 +399,8 @@
       "Bash(PORT=3021 npm start)",
       "Bash(del test-ai-accuracy.js test-simplified-ai.js)",
       "Bash(PORT=3022 npm start)",
-      "Bash(PORT=3023 npm start)"
+      "Bash(PORT=3023 npm start)",
+      "Bash(npm test)"
     ],
     "deny": [],
     "ask": []

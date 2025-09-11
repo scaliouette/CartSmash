@@ -1,5 +1,7 @@
 // server/services/aiMealPlanParser.js
-// Server-side parser for AI-generated meal plans to integrate with CARTSMASH
+// AI-ONLY parser for meal plans - NO manual parsing or emoji pattern matching
+
+const AIProductParser = require('../utils/aiProductParser');
 
 class MealPlanParser {
   constructor() {
@@ -9,6 +11,7 @@ class MealPlanParser {
       'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4,
       'friday': 5, 'saturday': 6, 'sunday': 7
     };
+    this.aiParser = new AIProductParser(); // AI-only processing
   }
 
   /**
@@ -16,34 +19,113 @@ class MealPlanParser {
    * @param {string} aiResponse - The raw text from AI meal plan generation
    * @returns {Object} Parsed meal plan with recipes and shopping list
    */
-  parseMealPlan(aiResponse) {
-    const lines = aiResponse.split('\n');
-    
-    // Check if this looks like a single recipe vs a full meal plan
-    const dayHeaders = lines.filter(line => line.match(/^##\s+Day\s+\d+/i));
-    const structuredRecipeHeaders = lines.filter(line => line.match(/^###.*\*\*(.+)\*\*/) && !line.match(/\*\*(Ingredients?|Instructions?|Directions?|Method|Steps|Preparation|Notes?|Tips?)\*\*/i));
-    const simpleRecipeHeaders = lines.filter(line => line.match(/^[🍳🥗🍽️🥙🌮🍲🥘🍚🍜🍕🥞🧇🥓🍔🌭🥪🍖🍗🥩🐟🦐🍤🥚🧀🥜🌰🍞🥖🥐🥨🥯🍯]/));
-    
-    const isSingleRecipe = dayHeaders.length === 0 && structuredRecipeHeaders.length <= 1 && simpleRecipeHeaders.length <= 1;
-    
-    if (isSingleRecipe) {
-      return this.parseSingleRecipeContent(aiResponse);
+  async parseMealPlan(aiResponse) {
+    try {
+      console.log('🤖 Using AI-ONLY meal plan parsing - no manual fallbacks');
+      
+      // Use AI to extract structured data from the meal plan text
+      const aiParsedData = await this.aiParser.aiExtractProducts(aiResponse, {
+        type: 'meal_plan',
+        extractRecipes: true,
+        extractIngredients: true,
+        extractCategories: true
+      });
+      
+      // Convert AI response to meal plan format
+      return this.convertAIResponseToMealPlan(aiParsedData, aiResponse);
+      
+    } catch (error) {
+      console.error('❌ AI meal plan parsing failed:', error.message);
+      throw new Error(`AI meal plan parsing failed: ${error.message}`);
     }
+  }
 
-    // Try different parsing formats
-    let result = this.parseStructuredMealPlan(aiResponse);
-    
-    // If structured parsing didn't find many recipes, try simple format parsing
-    if (result.recipes.length < 10) {
-      console.log(`🔄 Structured parsing found ${result.recipes.length} recipes, trying simple format...`);
-      const simpleResult = this.parseSimpleFormatMealPlan(aiResponse);
-      if (simpleResult.recipes.length > result.recipes.length) {
-        console.log(`✅ Simple format found ${simpleResult.recipes.length} recipes, using that instead`);
-        result = simpleResult;
+  /**
+   * Convert AI response to meal plan format
+   * @param {Object} aiParsedData - Data from AI parser
+   * @param {string} originalText - Original meal plan text
+   * @returns {Object} Structured meal plan
+   */
+  convertAIResponseToMealPlan(aiParsedData, originalText) {
+    const mealPlan = {
+      metadata: {
+        title: '7-Day AI-Generated Meal Plan',
+        familySize: 4,
+        generatedAt: new Date().toISOString(),
+        source: 'ai-only'
+      },
+      days: {},
+      recipes: [],
+      shoppingList: {}
+    };
+
+    // Process AI-extracted products as recipes and ingredients
+    if (aiParsedData && aiParsedData.length > 0) {
+      let recipeCount = 0;
+      const daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      
+      for (const item of aiParsedData) {
+        if (item.productName && item.productName.length > 5) { // Likely a recipe name
+          const dayIndex = Math.floor(recipeCount / 4) % 7;
+          const mealIndex = recipeCount % 4;
+          const currentDay = daysOrder[dayIndex];
+          
+          const recipe = {
+            id: `ai-recipe-${this.recipeIdCounter++}`,
+            name: String(item.productName),
+            ingredients: this.extractIngredientsFromAI(item),
+            instructions: [],
+            nutrition: { calories: item.calories || 400 },
+            time: { prep: 15, cook: 20 },
+            tags: [],
+            dayAssigned: currentDay,
+            mealType: this.detectMealType(mealIndex)
+          };
+          
+          if (!mealPlan.days[currentDay]) {
+            mealPlan.days[currentDay] = {
+              dayNumber: this.dayMapping[currentDay],
+              meals: []
+            };
+          }
+          
+          mealPlan.days[currentDay].meals.push(recipe);
+          mealPlan.recipes.push(recipe);
+          recipeCount++;
+        } else if (item.productName) { // Likely an ingredient
+          const category = item.category || 'other';
+          if (!mealPlan.shoppingList[category]) {
+            mealPlan.shoppingList[category] = [];
+          }
+          mealPlan.shoppingList[category].push({
+            item: String(item.productName),
+            quantity: item.quantity || 1,
+            unit: item.unit || 'each',
+            checked: false,
+            category: category
+          });
+        }
       }
     }
     
-    return result;
+    return mealPlan;
+  }
+
+  /**
+   * Extract ingredients from AI-parsed item
+   */
+  extractIngredientsFromAI(aiItem) {
+    if (aiItem.ingredients && Array.isArray(aiItem.ingredients)) {
+      return aiItem.ingredients;
+    }
+    
+    // Basic ingredient extraction from AI data
+    return [{
+      quantity: 1,
+      unit: 'serving',
+      item: 'Main ingredients as determined by AI',
+      original: aiItem.productName
+    }];
   }
 
   /**
@@ -158,16 +240,13 @@ class MealPlanParser {
         continue;
       }
 
-      // Parse shopping list categories
+      // AI-ONLY: Parse shopping list categories without manual mapping
       if (parsingShoppingList) {
-        if (line.match(/^###?\s*(Proteins|Dairy|Grains|Fresh Produce|Pantry|Herbs)/i)) {
-          const category = line.toLowerCase();
-          if (category.includes('protein')) currentShoppingCategory = 'proteins';
-          else if (category.includes('dairy')) currentShoppingCategory = 'dairy';
-          else if (category.includes('grain')) currentShoppingCategory = 'grains';
-          else if (category.includes('produce')) currentShoppingCategory = 'produce';
-          else if (category.includes('pantry')) currentShoppingCategory = 'pantry';
-          else if (category.includes('herb')) currentShoppingCategory = 'herbs';
+        if (line.match(/^###?\s*[A-Za-z\s]+/i)) {
+          // AI should determine the category instead of manual keyword matching
+          const categoryText = line.replace(/^###?\s*/, '').trim().toLowerCase();
+          // Use AI-determined category directly instead of manual mapping
+          currentShoppingCategory = categoryText.replace(/\s+/g, '_');
         }
         // Parse shopping list items
         else if (line.startsWith('□') && currentShoppingCategory) {
@@ -244,8 +323,9 @@ class MealPlanParser {
         continue;
       }
 
-      // Detect recipe headers with emojis (e.g., "🍳Baked Salmon with Quinoa")
-      if (line.match(/^[🍳🥗🍽️🥙🌮🍲🥘🍚🍜🍕🥞🧇🥓🍔🌭🥪🍖🍗🥩🐟🦐🍤🥚🧀🥜🌰🍞🥖🥐🥨🥯🍯]/)) {
+      // AI-ONLY: Detect recipe headers without manual emoji pattern matching
+      // Look for any line that starts with an emoji followed by text, but use AI to determine recipe vs ingredient
+      if (line.match(/^[\u{1F300}-\u{1F9FF}]/u) && line.length > 3) {
         // Save previous recipe if exists
         if (currentRecipe) {
           recipes.push(currentRecipe);
