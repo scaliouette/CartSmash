@@ -3517,12 +3517,12 @@ const styles = {
     fontSize: '18px',
     fontWeight: 'bold',
     minWidth: '200px',
-    background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
+    background: 'linear-gradient(135deg, #002244, #1E3A8A)',
     color: 'white',
     border: 'none',
     borderRadius: '12px',
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(251,79,20,0.3)',
+    boxShadow: '0 4px 12px rgba(0,34,68,0.3)',
     transition: 'all 0.3s'
   },
   
@@ -3933,9 +3933,9 @@ const styles = {
 
   recipeButton: {
     padding: '10px 16px',
-    background: '#002244',
-    color: 'white',
-    border: 'none',
+    background: '#FFF5F2',
+    color: '#002244',
+    border: '1px solid #FB4F14',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '14px',

@@ -576,7 +576,7 @@ const styles = {
     alignItems: 'center',
     padding: '20px 30px',
     borderBottom: '2px solid #f0f0f0',
-    background: 'linear-gradient(135deg, #6c5ce7, #a29bfe)'
+    background: 'linear-gradient(135deg, #002244, #FF6B35)'
   },
 
   title: {
@@ -621,7 +621,7 @@ const styles = {
   tabActive: {
     backgroundColor: 'white',
     color: '#333',
-    borderBottom: '3px solid #6c5ce7'
+    borderBottom: '3px solid #FF6B35'
   },
 
   content: {
@@ -742,7 +742,7 @@ const styles = {
 
   applyButton: {
     padding: '8px 16px',
-    backgroundColor: '#6c5ce7',
+    backgroundColor: '#FF6B35',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -758,7 +758,7 @@ const styles = {
 
   testButton: {
     padding: '12px 24px',
-    backgroundColor: '#28a745',
+    backgroundColor: '#FF6B35',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -878,7 +878,7 @@ const styles = {
 
   importButton: {
     padding: '8px 16px',
-    backgroundColor: '#28a745',
+    backgroundColor: '#002244',
     color: 'white',
     border: 'none',
     borderRadius: '6px',

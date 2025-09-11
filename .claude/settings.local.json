@@ -423,7 +423,9 @@
       "Bash(start https://customers.dev.instacart.tools/store/recipes/8083323)",
       "Bash(NODE_ENV=development PORT=3036 npm start)",
       "Bash(start https://customers.dev.instacart.tools/store/recipes/8083325)",
-      "Bash(NODE_ENV=development PORT=3037 npm start)"
+      "Bash(NODE_ENV=development PORT=3037 npm start)",
+      "Bash(NODE_ENV=development PORT=3038 npm start)",
+      "Bash(start http://localhost:3038)"
     ],
     "deny": [],
     "ask": []
