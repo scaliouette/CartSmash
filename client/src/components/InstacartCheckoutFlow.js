@@ -1,16 +1,64 @@
 // client/src/components/InstacartCheckoutFlow.js
 import React, { useState, useEffect } from 'react';
 import instacartService from '../services/instacartService';
+import locationService from '../services/locationService';
+import persistenceService from '../services/persistenceService';
 
 const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   const [currentStep, setCurrentStep] = useState('store');
   const [selectedStore, setSelectedStore] = useState(null);
-  const [zipCode, setZipCode] = useState('');
+  const [zipCode, setZipCode] = useState(locationService.getSavedZipCode());
   const [isProcessing, setIsProcessing] = useState(false);
   const [, setMatchedProducts] = useState([]);
   const [stores, setStores] = useState([]);
   const [searchingStores, setSearchingStores] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [locationPermission, setLocationPermission] = useState('unknown');
+  const [connectionInfo, setConnectionInfo] = useState(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Initialize location and connection monitoring
+  useEffect(() => {
+    // Check location permission status
+    locationService.getPermissionStatus().then(setLocationPermission);
+    
+    // Get connection information
+    setConnectionInfo(locationService.getConnectionInfo());
+    
+    // Monitor online/offline status
+    const handleOnlineChange = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', handleOnlineChange);
+    window.addEventListener('offline', handleOnlineChange);
+    
+    // Auto-load ZIP if we have location data
+    if (locationService.getSavedZipCode() && !zipCode) {
+      setZipCode(locationService.getSavedZipCode());
+    }
+    
+    return () => {
+      window.removeEventListener('online', handleOnlineChange);
+      window.removeEventListener('offline', handleOnlineChange);
+    };
+  }, []);
+
+  // Persist checkout state
+  useEffect(() => {
+    persistenceService.saveSessionData('checkout_state', {
+      currentStep,
+      selectedStore,
+      zipCode,
+      stores
+    });
+  }, [currentStep, selectedStore, zipCode, stores]);
+
+  // Load persisted checkout state
+  useEffect(() => {
+    const savedState = persistenceService.loadSessionData('checkout_state');
+    if (savedState && savedState.zipCode && !zipCode) {
+      setZipCode(savedState.zipCode);
+    }
+  }, []);
 
   // Debug logging
   useEffect(() => {
@@ -66,6 +114,30 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         })) || [];
         console.log('🎯 Simulated Instacart Search Results:', searchableItems);
         return searchableItems;
+      },
+      checkLocationServices: () => {
+        const locationInfo = {
+          geolocationSupported: locationService.geolocationSupported,
+          permission: locationPermission,
+          currentLocation: currentLocation,
+          savedZip: locationService.getSavedZipCode(),
+          isOnline: isOnline,
+          connectionInfo: connectionInfo
+        };
+        console.log('📍 Location Services Status:', locationInfo);
+        return locationInfo;
+      },
+      testLocationAPI: async () => {
+        try {
+          console.log('🗺️ Testing location API...');
+          const location = await locationService.getCurrentLocation();
+          const zip = await locationService.coordinatesToZipCode(location.latitude, location.longitude);
+          console.log('✅ Location test successful:', { location, zip });
+          return { success: true, location, zip };
+        } catch (error) {
+          console.error('❌ Location test failed:', error);
+          return { success: false, error: error.message };
+        }
       }
     };
   }, [currentCart]);
@@ -125,6 +197,26 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       'Whole Foods': '🌿'
     };
     return logos[name] || '🏪';
+  };
+
+  // Handle location-based ZIP search
+  const handleUseCurrentLocation = async () => {
+    setSearchingStores(true);
+    
+    try {
+      console.log('📍 Using current location for ZIP code...');
+      const zip = await locationService.getZipFromCurrentLocation();
+      setZipCode(zip);
+      locationService.saveZipCode(zip);
+      
+      // Automatically search stores with the new ZIP
+      await handleZipSearch();
+    } catch (error) {
+      console.error('❌ Location access failed:', error);
+      alert(`Location access failed: ${error.message}. Please enter your ZIP code manually.`);
+    } finally {
+      setSearchingStores(false);
+    }
   };
 
   const handleContinue = () => {
@@ -262,7 +354,18 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             textAlign: 'center'
           }}>
             Powered by CartSmash + Instacart
+            {!isOnline && ' • OFFLINE MODE'}
           </p>
+          {connectionInfo && (
+            <div style={{
+              fontSize: '12px',
+              opacity: 0.8,
+              marginTop: '4px',
+              textAlign: 'center'
+            }}>
+              {connectionInfo.effectiveType} • {connectionInfo.downlink}Mbps • {connectionInfo.rtt}ms RTT
+            </div>
+          )}
         </div>
 
         {/* Progress Bar */}
@@ -352,8 +455,33 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               </p>
 
               <div style={{ marginBottom: '32px' }}>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#FF6B35', marginBottom: '8px' }}>
-                  Delivery ZIP Code
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  marginBottom: '8px' 
+                }}>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#FF6B35' }}>
+                    Delivery Location
+                  </div>
+                  {locationPermission !== 'denied' && (
+                    <button
+                      onClick={handleUseCurrentLocation}
+                      disabled={searchingStores}
+                      style={{
+                        padding: '4px 12px',
+                        fontSize: '12px',
+                        backgroundColor: '#F7931E',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: searchingStores ? 'not-allowed' : 'pointer',
+                        opacity: searchingStores ? 0.7 : 1
+                      }}
+                    >
+                      {searchingStores ? '📍...' : '📍 Use Current Location'}
+                    </button>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                   <input
@@ -564,6 +692,8 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                         • window.checkoutDebug.findProblematicItems()<br/>
                         • window.checkoutDebug.verifyInstacartCompatibility()<br/>
                         • window.checkoutDebug.simulateInstacartSearch()<br/>
+                        • window.checkoutDebug.checkLocationServices()<br/>
+                        • window.checkoutDebug.testLocationAPI()<br/>
                         • window.debugCart.checkLocalStorage()<br/>
                         • window.debugCart.compareWithLocalStorage()<br/>
                         • window.debugCart.nuclearClear() ⚠️ CLEARS ALL
@@ -576,14 +706,15 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                         border: '1px solid #ffcccc'
                       }}>
                         <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#cc0000' }}>
-                          🔍 INSTACART COMPLIANCE CHECK:
+                          🔍 SYSTEM STATUS:
                         </div>
                         <div style={{ fontSize: '11px', color: '#cc0000', marginTop: '4px' }}>
                           ✅ Product Names: {currentCart.filter(item => item.productName && item.productName.length > 2).length}/{currentCart.length} items ready<br/>
                           ✅ Valid IDs: {currentCart.filter(item => item.id).length}/{currentCart.length} items have IDs<br/>
-                          ✅ Quantities: {currentCart.filter(item => item.quantity && item.quantity > 0).length}/{currentCart.length} items have quantities<br/>
-                          {currentCart.some(item => !item.productName || item.productName.length <= 2) && '⚠️ Some items may not match well in Instacart search'}<br/>
-                          Use verifyInstacartCompatibility() for detailed analysis.
+                          ✅ Connection: {isOnline ? 'Online' : 'Offline'} {connectionInfo ? `(${connectionInfo.effectiveType})` : ''}<br/>
+                          ✅ Location: {locationPermission === 'granted' ? 'Enabled' : locationPermission === 'denied' ? 'Denied' : 'Unknown'}<br/>
+                          ✅ ZIP Code: {zipCode || 'Not set'}<br/>
+                          Use checkLocationServices() and verifyInstacartCompatibility() for detailed analysis.
                         </div>
                       </div>
                     </div>

@@ -12,6 +12,7 @@ import { useGroceryListAutoSave } from '../hooks/useAutoSave';
 import AIParsingSettings from './AIParsingSettings';
 // import confetti from 'canvas-confetti'; // REMOVED - Not used in AI-only mode
 import { unified as unifiedRecipeService } from '../services/unifiedRecipeService';
+import persistenceService from '../services/persistenceService';
 
 // Helper functions
 // eslint-disable-next-line no-unused-vars
@@ -335,6 +336,73 @@ function GroceryListForm({
     // eslint-disable-next-line no-unused-vars
     isSaving: isDraftSaving
   } = useGroceryListAutoSave(inputText);
+
+  // Data persistence hooks - load data on component mount
+  useEffect(() => {
+    console.log('💾 Loading persisted data on component mount...');
+    
+    // Load cart data
+    const persistedCart = persistenceService.loadCart();
+    if (persistedCart && persistedCart.length > 0) {
+      console.log('📖 Loading persisted cart:', persistedCart.length, 'items');
+      setCurrentCart(persistedCart);
+    }
+    
+    // Load saved recipes
+    const persistedRecipes = persistenceService.loadRecipes();
+    if (persistedRecipes && persistedRecipes.length > 0) {
+      console.log('📖 Loading persisted recipes:', persistedRecipes.length, 'recipes');
+      setSavedRecipes(persistedRecipes);
+    }
+    
+    // Load parsed recipes
+    const persistedParsedRecipes = persistenceService.loadSessionData('parsed_recipes', []);
+    if (persistedParsedRecipes && persistedParsedRecipes.length > 0) {
+      console.log('📖 Loading persisted parsed recipes:', persistedParsedRecipes.length, 'recipes');
+      setParsedRecipes(persistedParsedRecipes);
+    }
+    
+    // Load last AI response text
+    const persistedAIText = persistenceService.loadSessionData('ai_recipe_text', '');
+    if (persistedAIText) {
+      console.log('📖 Loading persisted AI text');
+      setAiRecipeText(persistedAIText);
+    }
+    
+    console.log('✅ Data persistence loading complete');
+  }, [setCurrentCart, setSavedRecipes, setParsedRecipes]);
+
+  // Auto-save cart data when it changes
+  useEffect(() => {
+    if (currentCart && currentCart.length > 0) {
+      console.log('💾 Auto-saving cart:', currentCart.length, 'items');
+      persistenceService.saveCart(currentCart, 48); // 48-hour expiration
+    }
+  }, [currentCart]);
+
+  // Auto-save recipes when they change
+  useEffect(() => {
+    if (savedRecipes && savedRecipes.length > 0) {
+      console.log('💾 Auto-saving recipes:', savedRecipes.length, 'recipes');
+      persistenceService.saveRecipes(savedRecipes, 24); // 24-hour expiration
+    }
+  }, [savedRecipes]);
+
+  // Auto-save parsed recipes when they change
+  useEffect(() => {
+    if (parsedRecipes && parsedRecipes.length > 0) {
+      console.log('💾 Auto-saving parsed recipes:', parsedRecipes.length, 'recipes');
+      persistenceService.saveSessionData('parsed_recipes', parsedRecipes, 2); // 2-hour expiration
+    }
+  }, [parsedRecipes]);
+
+  // Auto-save AI response text when it changes
+  useEffect(() => {
+    if (aiRecipeText && aiRecipeText.trim()) {
+      console.log('💾 Auto-saving AI recipe text');
+      persistenceService.saveSessionData('ai_recipe_text', aiRecipeText, 2); // 2-hour expiration
+    }
+  }, [aiRecipeText]);
 
   // Debug function to identify cart item structure
   const debugCartItem = (item) => {
