@@ -179,8 +179,12 @@ class UserDataService {
       }
       
       const planRef = doc(this.db, 'users', this.userId, 'mealPlans', mealPlan.id);
+      
+      // Sanitize meal plan data to remove undefined values (Firestore doesn't allow them)
+      const sanitizedMealPlan = this.sanitizeForFirestore(mealPlan);
+      
       await setDoc(planRef, {
-        ...mealPlan,
+        ...sanitizedMealPlan,
         userId: this.userId,
         updatedAt: new Date().toISOString()
       }, { merge: true });
@@ -361,6 +365,30 @@ class UserDataService {
       // ✅ REMOVED: No localStorage fallback - session state only
       throw error;
     }
+  }
+
+  // Helper method to sanitize data for Firestore (removes undefined values)
+  sanitizeForFirestore(obj) {
+    if (obj === null || obj === undefined) {
+      return null;
+    }
+    
+    if (typeof obj !== 'object') {
+      return obj;
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitizeForFirestore(item)).filter(item => item !== undefined);
+    }
+    
+    const sanitized = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        sanitized[key] = this.sanitizeForFirestore(value);
+      }
+    }
+    
+    return sanitized;
   }
 }
 

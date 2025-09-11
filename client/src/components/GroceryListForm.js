@@ -312,7 +312,7 @@ function GroceryListForm({
   const [importingRecipe, setImportingRecipe] = useState(false);
   const [recipeUrl, setRecipeUrl] = useState('');
   const [aiRecipeText, setAiRecipeText] = useState('');
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const textareaRef = useRef(null);
 
   // Function to trigger textarea auto-expansion
@@ -552,16 +552,16 @@ function GroceryListForm({
       prompt: `Create a detailed 7-day meal plan with MULTIPLE SEPARATE RECIPES for a family of 4. Format as follows:
 
 **Day 1**
-- Breakfast: [Recipe Name] - [Brief description]
-- Lunch: [Recipe Name] - [Brief description]  
-- Dinner: [Recipe Name] - [Brief description]
-- Snack: [Recipe Name] - [Brief description]
+- Breakfast: 
+- Lunch:  
+- Dinner: 
+- Snack:  
 
 **Day 2**
-- Breakfast: [Recipe Name] - [Brief description]
-- Lunch: [Recipe Name] - [Brief description]
-- Dinner: [Recipe Name] - [Brief description]
-- Snack: [Recipe Name] - [Brief description]
+- Breakfast:  
+- Lunch:  
+- Dinner:
+- Snack:
 
 Continue for all 7 days. After the meal plan, provide the complete grocery shopping list organized by category. Make sure each meal is a SEPARATE recipe with its own name and description, not a generic overview.`
     },
@@ -2850,9 +2850,11 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
             <button onClick={handleNewList} style={styles.actionBtn}>
               📝 Clear List
             </button>
-            <button onClick={() => setShowAISettings(true)} style={styles.actionBtn}>
-              ⚙️ AI Settings
-            </button>
+            {isAdmin && (
+              <button onClick={() => setShowAISettings(true)} style={styles.actionBtn}>
+                ⚙️ AI Settings
+              </button>
+            )}
           </div>
 
           {/* Settings */}
@@ -3166,7 +3168,7 @@ Or paste any grocery list directly!"
         />
       )}
 
-      {showAISettings && (
+      {showAISettings && isAdmin && (
         <AIParsingSettings
           onClose={() => setShowAISettings(false)}
           onSettingsChange={(newSettings) => {
