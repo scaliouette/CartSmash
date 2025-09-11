@@ -1,275 +1,176 @@
-// server/utils/simpleProductParser.js - Simple, Reliable Product Parser
-class SimpleProductParser {
+// AI-ONLY Shopping List Loader
+// Handles shopping list parsing using only AI services - no manual regex patterns
+
+class AIShoppingListLoader {
   constructor() {
-    // Simple patterns for basic validation
-    this.excludePatterns = [
-      /^(recipe|instructions?|directions?|method):/i,
-      /^(prep time|cook time|total time|serves?):/i,
-      /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
-      /^(breakfast|lunch|dinner|snack):/i,
-      /^(note|tip|optional):/i,
-      /^#/,  // Headers
-      /^\*\*/  // Bold markdown
-    ];
+    // Detect available AI clients
+    this.ai = {
+      anthropic: global.anthropic || null,
+      openai: global.openai || null,
+    };
   }
 
-  /**
-   * Parse grocery products from text - simple and reliable
-   * @param {string} text - Text to parse
-   * @returns {Array} Array of products with consistent format
-   */
-  parseProducts(text) {
+  async parseProducts(text) {
+    // AI-ONLY PROCESSING - No manual fallback
+    if (!this.ai.anthropic && !this.ai.openai) {
+      throw new Error('AI services required - no AI clients available for shopping list loading');
+    }
+
     if (!text || typeof text !== 'string') {
       return [];
     }
 
-    const lines = text.split('\n');
-    const products = [];
+    try {
+      console.log('🔍 [DEBUG] AI shopping list loading starting...');
+      const products = await this.aiParseShoppingList(text);
+      console.log('🔍 [DEBUG] AI shopping list loading successful, found', products.length, 'products');
+      return products;
+    } catch (error) {
+      console.error('🔍 [DEBUG] AI shopping list loading failed:', error.message);
+      throw error;
+    }
+  }
 
-    for (const line of lines) {
-      const product = this.parseLine(line);
-      if (product) {
-        products.push(product);
+  async aiParseShoppingList(text) {
+    const sysPrompt = `You parse shopping lists and grocery text into structured JSON format.
+Rules:
+- Only output JSON. No prose. No markdown. No trailing commas.
+- Return an array of product objects.
+- Each product object has fields: productName (string), quantity (string), unit (string), source (string).
+- Extract product names, quantities, and units from list items.
+- Clean bullets, numbers, and formatting from product lines.
+- Handle "• 1 2 lbs chicken breast" → productName="chicken breast", quantity="2", unit="lbs"
+- If no quantity detected, use quantity="1" and unit="each".
+- Skip recipes, instructions, directions, prep time, cook time.
+- Keep product names clean and concise.
+- Remove descriptors like "boneless", "skinless", "fresh", "chopped".`;
+
+    const userPrompt = `Parse this shopping list and return JSON array:\\n\\n${text}`;
+
+    // Resolve AI clients dynamically
+    const anthropic = global.anthropic || this.ai.anthropic;
+    const openai = global.openai || this.ai.openai;
+
+    let raw;
+    try {
+      if (anthropic) {
+        console.log('🔍 [DEBUG] Using Anthropic for shopping list loading...');
+        const resp = await anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 1500,
+          temperature: 0,
+          messages: [
+            { role: 'system', content: sysPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        });
+        raw = resp.content?.[0]?.text || '';
+      } else if (openai) {
+        console.log('🔍 [DEBUG] Using OpenAI for shopping list loading...');
+        const resp = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          temperature: 0,
+          max_tokens: 1500,
+          messages: [
+            { role: 'system', content: sysPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        });
+        raw = resp.choices?.[0]?.message?.content || '';
+      } else {
+        throw new Error('No AI clients available');
       }
+    } catch (apiError) {
+      console.error('🔍 [DEBUG] AI shopping list loading API failed:', apiError.message);
+      throw apiError;
     }
 
-    return products;
+    // Parse AI response
+    const json = this.extractJSON(raw);
+    if (!json) {
+      console.log('🔍 [DEBUG] No valid JSON found in AI response');
+      return [];
+    }
+
+    // Ensure array format and validate products
+    const products = Array.isArray(json) ? json : [json];
+    return products
+      .filter(product => this.isValidProduct(product))
+      .map(product => ({
+        productName: product.productName || 'Unknown Item',
+        quantity: product.quantity || '1',
+        unit: product.unit || 'each',
+        source: 'ai_shopping_loader',
+        timestamp: new Date().toISOString()
+      }));
   }
 
-  /**
-   * Parse a single line into a product
-   * @param {string} line - Line to parse
-   * @returns {Object|null} Product object or null if not a valid product
-   */
-  parseLine(line) {
-    if (!line || typeof line !== 'string') {
-      return null;
-    }
-
-    const trimmed = line.trim();
-
-    // Skip empty lines
-    if (trimmed.length < 2) {
-      return null;
-    }
-
-    // Skip excluded patterns
-    if (this.isExcludedLine(trimmed)) {
-      return null;
-    }
-
-    // Remove common prefixes (bullets, numbers)
-    const cleaned = this.cleanLine(trimmed);
-
-    if (cleaned.length < 2) {
-      return null;
-    }
-
-    // Parse quantity and product name
-    const parsed = this.parseQuantityAndName(cleaned);
-
-    // Ensure productName is always a string
-    const productName = this.ensureStringProductName(parsed.name);
-
-    if (!productName || productName.length < 2) {
-      return null;
-    }
-
-    return {
-      productName: productName,  // Always a string, never an object
-      quantity: parsed.quantity || '1',
-      unit: parsed.unit || '',
-      source: 'simple_parser',
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  /**
-   * Check if line should be excluded
-   * @param {string} line - Line to check
-   * @returns {boolean} True if line should be excluded
-   */
-  isExcludedLine(line) {
-    return this.excludePatterns.some(pattern => pattern.test(line));
-  }
-
-  /**
-   * Clean line by removing prefixes
-   * @param {string} line - Line to clean
-   * @returns {string} Cleaned line
-   */
-  cleanLine(line) {
-    return line
-      // Remove bullet points
-      .replace(/^[\-\*\u2022\u2023\u25AA\u25CF\u25E6]\s*/, '')
-      // Remove numbered lists
-      .replace(/^\d+[\.)]\s*/, '')
-      // Remove extra whitespace
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  /**
-   * Parse quantity and product name from cleaned line
-   * @param {string} line - Cleaned line
-   * @returns {Object} Object with quantity, unit, and name
-   */
-  parseQuantityAndName(line) {
-    // Pattern 1: "2 lbs chicken breast" or "1 gallon milk"
-    const pattern1 = /^(\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?)\s+(lbs?|pounds?|oz|ounces?|cups?|tbsp|tsp|gallon|quart|pint|liters?|bottles?|cans?|jars?|boxes?|bags?|packages?|containers?|dozen|each|pieces?)\s+(.+)$/i;
-    const match1 = line.match(pattern1);
+  extractJSON(text) {
+    // Strip code fences and markdown
+    let cleanText = text.replace(/```json\s*\n?/gi, '')
+                        .replace(/```\s*\n?/gi, '')
+                        .replace(/^\s*json\s*\n?/gi, '')
+                        .trim();
     
-    if (match1) {
-      return {
-        quantity: match1[1],
-        unit: match1[2],
-        name: match1[3]
-      };
+    try {
+      return JSON.parse(cleanText);
+    } catch (_) {
+      // Try to find JSON array
+      const match = cleanText.match(/\[[\s\S]*\]/);
+      if (match) {
+        try {
+          return JSON.parse(match[0]);
+        } catch (_) {}
+      }
+      return null;
     }
-
-    // Pattern 2: "2 apples" (simple quantity + item)
-    const pattern2 = /^(\d+(?:\.\d+)?)\s+(.+)$/;
-    const match2 = line.match(pattern2);
-    
-    if (match2) {
-      return {
-        quantity: match2[1],
-        unit: '',
-        name: match2[2]
-      };
-    }
-
-    // Pattern 3: No quantity found, treat as "1 item"
-    return {
-      quantity: '1',
-      unit: '',
-      name: line
-    };
   }
 
-  /**
-   * Ensure product name is always a string
-   * @param {any} name - Product name (might be object, string, etc.)
-   * @returns {string} Product name as string
-   */
-  ensureStringProductName(name) {
-    if (typeof name === 'string') {
-      return name.trim();
-    }
-
-    if (name && typeof name === 'object') {
-      // If it's an object, try to extract a meaningful string
-      if (name.name) return String(name.name).trim();
-      if (name.productName) return String(name.productName).trim();
-      if (name.title) return String(name.title).trim();
-      
-      // Fallback: stringify the object
-      return String(name).replace(/\[object Object\]/, 'Unknown Item').trim();
-    }
-
-    if (name !== null && name !== undefined) {
-      return String(name).trim();
-    }
-
-    return 'Unknown Item';
+  isValidProduct(product) {
+    return product &&
+           product.productName &&
+           product.productName.length > 0;
   }
 
-  /**
-   * Validate and clean a list of products
-   * @param {Array} products - Array of products to validate
-   * @returns {Array} Array of validated products
-   */
+  // Keep utility methods for backward compatibility
+  extractGrocerySection(text) {
+    // AI will handle section detection, return original text
+    return text;
+  }
+
   validateProducts(products) {
     if (!Array.isArray(products)) {
       return [];
     }
 
     return products
-      .map(product => this.validateProduct(product))
-      .filter(product => product !== null);
+      .filter(product => this.isValidProduct(product))
+      .map(product => ({
+        productName: product.productName || 'Unknown Item',
+        quantity: product.quantity || '1',
+        unit: product.unit || 'each',
+        source: product.source || 'ai_shopping_loader',
+        timestamp: product.timestamp || new Date().toISOString()
+      }));
   }
 
-  /**
-   * Validate and clean a single product
-   * @param {Object} product - Product to validate
-   * @returns {Object|null} Validated product or null if invalid
-   */
   validateProduct(product) {
     if (!product || typeof product !== 'object') {
       return null;
     }
 
-    // Ensure productName is a string
-    const productName = this.ensureStringProductName(product.productName || product.name);
-    
-    if (!productName || productName.length < 2) {
+    if (!this.isValidProduct(product)) {
       return null;
     }
 
     return {
-      productName: productName,
-      quantity: String(product.quantity || '1'),
-      unit: String(product.unit || ''),
-      source: product.source || 'validated',
+      productName: product.productName || 'Unknown Item',
+      quantity: product.quantity || '1',
+      unit: product.unit || 'each',
+      source: product.source || 'ai_shopping_loader',
       timestamp: product.timestamp || new Date().toISOString()
     };
   }
-
-  /**
-   * Extract grocery list section from text (if present)
-   * @param {string} text - Full text
-   * @returns {string} Grocery list section or original text
-   */
-  extractGrocerySection(text) {
-    const lines = text.split('\n');
-    const groceryKeywords = [
-      'grocery list',
-      'shopping list',
-      'ingredients needed',
-      'you will need',
-      'buy:',
-      'shop for:'
-    ];
-
-    let startIndex = -1;
-    let endIndex = lines.length;
-
-    // Find start of grocery section
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].toLowerCase();
-      if (groceryKeywords.some(keyword => line.includes(keyword))) {
-        startIndex = i;
-        break;
-      }
-    }
-
-    if (startIndex === -1) {
-      // No explicit grocery section found, return original text
-      return text;
-    }
-
-    // Find end of grocery section (look for next major section)
-    const endKeywords = [
-      'recipe',
-      'instructions',
-      'directions',
-      'method',
-      'preparation',
-      'cooking',
-      'notes',
-      'tips'
-    ];
-
-    for (let i = startIndex + 1; i < lines.length; i++) {
-      const line = lines[i].toLowerCase();
-      if (endKeywords.some(keyword => line.includes(keyword))) {
-        endIndex = i;
-        break;
-      }
-    }
-
-    return lines.slice(startIndex, endIndex).join('\n');
-  }
 }
 
-module.exports = SimpleProductParser;
+module.exports = AIShoppingListLoader;

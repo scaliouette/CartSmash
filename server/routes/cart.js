@@ -245,8 +245,15 @@ router.post('/parse', async (req, res) => {
           }
           
           // Apply professional ingredient parsing to get structured data
-          const ingredientData = parseIngredientLine(productName);
-          const searchQuery = buildSearchQuery(ingredientData);
+          let ingredientData, searchQuery;
+          try {
+            ingredientData = await parseIngredientLine(productName);
+            searchQuery = buildSearchQuery(ingredientData);
+          } catch (parseError) {
+            console.log('🔍 [DEBUG] Ingredient parsing failed, using defaults:', parseError.message);
+            ingredientData = { qty: 1, unit: 'each', name: productName };
+            searchQuery = productName;
+          }
           
           return {
             id: product.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,

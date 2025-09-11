@@ -1,8 +1,8 @@
 // server/routes/aiSimplified.js - Clean, Simplified AI System
 const express = require('express');
 const router = express.Router();
-const SimpleProductParser = require('../utils/simpleProductParser');
-const SimpleRecipeExtractor = require('../utils/simpleRecipeExtractor');
+const AIShoppingListLoader = require('../utils/simpleProductParser');
+const AIRecipeExtractor = require('../utils/simpleRecipeExtractor');
 
 console.log('🤖 Loading Simplified AI routes...');
 
@@ -29,9 +29,9 @@ const anthropic = Anthropic && process.env.ANTHROPIC_API_KEY ?
 const openai = OpenAI && process.env.OPENAI_API_KEY ? 
   new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
-// Initialize simple parsers
-const productParser = new SimpleProductParser();
-const recipeExtractor = new SimpleRecipeExtractor();
+// Initialize AI parsers
+const productParser = new AIShoppingListLoader();
+const recipeExtractor = new AIRecipeExtractor();
 
 // Simple CORS middleware
 const setCORSHeaders = (req, res, next) => {
@@ -246,8 +246,8 @@ router.post('/claude', async (req, res) => {
     // Simple, reliable parsing using the utilities
     console.log('🎯 Parsing response...');
     
-    const products = productParser.parseProducts(responseText);
-    const recipes = recipeExtractor.extractRecipes(responseText);
+    const products = await productParser.parseProducts(responseText);
+    const recipes = await recipeExtractor.extractRecipes(responseText);
     
     console.log(`✅ Parsed ${products.length} products and ${recipes.length} recipes`);
     
@@ -366,8 +366,8 @@ router.post('/chatgpt', async (req, res) => {
       throw new Error('AI-only mode: Manual fallback parsing disabled. Requires functional AI service.');
     }
     
-    const products = productParser.parseProducts(responseText);
-    const recipes = recipeExtractor.extractRecipes(responseText);
+    const products = await productParser.parseProducts(responseText);
+    const recipes = await recipeExtractor.extractRecipes(responseText);
     
     const validatedProducts = products.map(product => ({
       ...product,

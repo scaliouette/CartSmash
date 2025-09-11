@@ -1,118 +1,141 @@
-// Lightweight ingredient parser + normalizer
-// Handles: quantities (incl. "1 1/2"), units, size hints ("24 oz jar"), and name.
+// AI-ONLY Ingredient Parser
+// Handles ingredient parsing using only AI services - no manual regex patterns
 
-// Correct Unicode fractions mapping
-const FRACTION_MAP = { '¼': '1/4', '½': '1/2', '¾': '3/4', '⅓': '1/3', '⅔': '2/3', '⅛': '1/8' };
+class AIIngredientParser {
+  constructor() {
+    // Detect available AI clients
+    this.ai = {
+      anthropic: global.anthropic || null,
+      openai: global.openai || null,
+    };
+  }
 
-const UNIT_ALIASES = {
-  teaspoon: ["tsp", "teaspoon", "teaspoons"],
-  tablespoon: ["tbsp", "tablespoon", "tablespoons"],
-  cup: ["cup", "cups"],
-  ounce: ["oz", "ounce", "ounces"],
-  pound: ["lb", "lbs", "pound", "pounds"],
-  gram: ["g", "gram", "grams"],
-  kilogram: ["kg", "kilogram", "kilograms"],
-  milliliter: ["ml", "millilitre", "milliliter", "milliliters"],
-  liter: ["l", "liter", "liters", "litre", "litres"],
-  clove: ["clove", "cloves"],
-  can: ["can", "cans"],
-  jar: ["jar", "jars"],
-  package: ["package", "packages", "pkg", "pkgs", "pack", "packs"],
-  slice: ["slice", "slices"],
-  piece: ["piece", "pieces"],
-  breast: ["breast", "breasts"],
-  unit: [] // fallback for unitless
+  async parseIngredientLine(line) {
+    // AI-ONLY PROCESSING - No manual fallback
+    if (!this.ai.anthropic && !this.ai.openai) {
+      throw new Error('AI services required - no AI clients available for ingredient parsing');
+    }
+
+    try {
+      console.log('🔍 [DEBUG] AI ingredient parsing:', line);
+      const parsed = await this.aiParseIngredient(line);
+      console.log('🔍 [DEBUG] AI ingredient parsing successful:', parsed);
+      return parsed;
+    } catch (error) {
+      console.error('🔍 [DEBUG] AI ingredient parsing failed:', error.message);
+      throw error;
+    }
+  }
+
+  async aiParseIngredient(ingredientText) {
+    const sysPrompt = `You parse ingredient lines into structured JSON format.
+Rules:
+- Only output JSON. No prose. No markdown. No trailing commas.
+- One object with fields: qty (number), unit (string), name (string), sizeQty (number or null), sizeUnit (string or null), notes (string), original (string).
+- Extract quantity, unit, and clean ingredient name.
+- Handle fractions: "1 1/2 cups" → qty=1.5, unit="cup", name="flour"
+- Handle embedded sizes: "24 oz jar marinara" → qty=1, unit="jar", name="marinara", sizeQty=24, sizeUnit="oz"
+- Clean descriptors: remove "boneless", "skinless", "fresh", "chopped", etc.
+- Normalize units: "cups" → "cup", "lbs" → "lb", "oz" → "ounce"
+- If no unit detected, use "unit"`;
+
+    const userPrompt = `Parse this ingredient: ${ingredientText}`;
+
+    // Resolve AI clients dynamically
+    const anthropic = global.anthropic || this.ai.anthropic;
+    const openai = global.openai || this.ai.openai;
+
+    let raw;
+    try {
+      if (anthropic) {
+        console.log('🔍 [DEBUG] Using Anthropic for ingredient parsing...');
+        const resp = await anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 800,
+          temperature: 0,
+          messages: [
+            { role: 'system', content: sysPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        });
+        raw = resp.content?.[0]?.text || '';
+      } else if (openai) {
+        console.log('🔍 [DEBUG] Using OpenAI for ingredient parsing...');
+        const resp = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          temperature: 0,
+          max_tokens: 800,
+          messages: [
+            { role: 'system', content: sysPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        });
+        raw = resp.choices?.[0]?.message?.content || '';
+      } else {
+        throw new Error('No AI clients available');
+      }
+    } catch (apiError) {
+      console.error('🔍 [DEBUG] AI ingredient parsing API failed:', apiError.message);
+      throw apiError;
+    }
+
+    // Parse AI response
+    const json = this.extractJSON(raw);
+    if (!json) {
+      throw new Error('Failed to extract JSON from AI response');
+    }
+
+    // Ensure required fields
+    return {
+      qty: json.qty || 1,
+      unit: json.unit || 'unit',
+      name: json.name || ingredientText,
+      sizeQty: json.sizeQty || null,
+      sizeUnit: json.sizeUnit || null,
+      notes: json.notes || '',
+      original: ingredientText
+    };
+  }
+
+  extractJSON(text) {
+    // Strip code fences and markdown
+    let cleanText = text.replace(/```json\s*\n?/gi, '')
+                        .replace(/```\s*\n?/gi, '')
+                        .replace(/^\s*json\s*\n?/gi, '')
+                        .trim();
+    
+    try {
+      return JSON.parse(cleanText);
+    } catch (_) {
+      // Try to find JSON object
+      const match = cleanText.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          return JSON.parse(match[0]);
+        } catch (_) {}
+      }
+      return null;
+    }
+  }
+
+  buildSearchQuery(item) {
+    const size = item.sizeQty ? ` ${item.sizeQty} ${item.sizeUnit || ""}` : "";
+    return `${item.name}${size}`.trim();
+  }
+
+  // Keep clean utility for backward compatibility
+  clean(s = "") {
+    return s.replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
+  }
+}
+
+// Create singleton instance
+const aiIngredientParser = new AIIngredientParser();
+
+// Export both class and convenience methods for backward compatibility
+module.exports = {
+  AIIngredientParser,
+  parseIngredientLine: (line) => aiIngredientParser.parseIngredientLine(line),
+  buildSearchQuery: (item) => aiIngredientParser.buildSearchQuery(item),
+  clean: (s) => aiIngredientParser.clean(s)
 };
-
-const NORMALIZE_UNIT = Object.entries(UNIT_ALIASES)
-  .flatMap(([norm, arr]) => arr.map(a => [a, norm]))
-  .reduce((acc, [a, norm]) => (acc[a] = norm, acc), {});
-
-function clean(s = "") {
-  return s.replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function fractionToNumber(text) {
-  if (!text) return null;
-  // Normalize any single-char Unicode fraction to ascii fraction
-  const t = String(text).replace(/[¼½¾⅓⅔⅛]/g, m => FRACTION_MAP[m] || m);
-  // "1 1/2" | "3/4" | "1.5"
-  const mMix = t.match(/^(\d+)\s+(\d+)\/(\d+)$/);
-  if (mMix) return Number(mMix[1]) + Number(mMix[2]) / Number(mMix[3]);
-  const mFrac = t.match(/^(\d+)\/(\d+)$/);
-  if (mFrac) return Number(mFrac[1]) / Number(mFrac[2]);
-  const n = Number(t);
-  return Number.isFinite(n) ? n : null;
-}
-
-/**
- * Parse an ingredient line like:
- *  - "1 1/2 cups shredded mozzarella"
- *  - "24 oz jar marinara sauce"
- *  - "3 boneless, skinless chicken breasts"
- * Returns: { qty, unit, name, sizeQty, sizeUnit, notes, original }
- */
-function parseIngredientLine(line) {
-  const original = clean(line);
-  let s = original.toLowerCase();
-
-  // Remove common trailing notes that don't affect shopping
-  s = s.replace(/\b(divided|for serving|to taste|optional)\b/g, "").trim();
-
-  // Pull leading quantity (mixed, fraction, decimal, integer)
-  const qtyMatch = s.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d*\.\d+|\d+)/);
-  const qty = qtyMatch ? fractionToNumber(qtyMatch[1]) : null;
-  if (qtyMatch) s = s.slice(qtyMatch[0].length).trim();
-
-  // Pull unit (first word after qty if it looks like a unit)
-  let unit = null;
-  if (qty !== null) {
-    const unitMatch = s.match(/^([a-zA-Z]+)\b/);
-    if (unitMatch) {
-      const cand = unitMatch[1];
-      const normalized = NORMALIZE_UNIT[cand] || (UNIT_ALIASES[cand] ? cand : null);
-      if (normalized) {
-        unit = normalized;
-        s = s.slice(unitMatch[0].length).trim();
-      }
-    }
-  }
-
-  // Try to capture embedded size like "24 oz", "8 ounce", "2 lb", "500 g"
-  let sizeQty = null, sizeUnit = null;
-  const sizeRegex = /\b(\d+(?:\.\d+)?)\s*(oz|ounce|ounces|lb|lbs|pound|pounds|g|gram|grams|kg|kilogram|kilograms|ml|milliliter|milliliters|l|liter|liters)\b/;
-  const sizeMatch = s.match(sizeRegex);
-  if (sizeMatch) {
-    sizeQty = Number(sizeMatch[1]);
-    sizeUnit = NORMALIZE_UNIT[sizeMatch[2]] || sizeMatch[2].toLowerCase();
-    s = (s.slice(0, sizeMatch.index) + s.slice(sizeMatch.index + sizeMatch[0].length)).trim();
-  }
-
-  // Remove commas and extra descriptors that hurt search
-  let name = clean(s.replace(/[,;]+/g, " ")
-    .replace(/\b(boneless|skinless|fresh|shredded|grated|minced|chopped|large|small|medium)\b/g, "")
-    .replace(/\s{2,}/g, " ")).trim();
-
-  if (!name) name = clean(s);
-
-  // Heuristic: if we had no explicit unit but the noun is discrete (can/jar/package), treat it as unit
-  if (!unit) {
-    const discrete = ["can", "jar", "package", "pkg", "pack", "breast", "clove", "slice", "piece"];
-    for (const d of discrete) {
-      if (name.startsWith(d + " ") || name.endsWith(" " + d) || name === d) {
-        unit = NORMALIZE_UNIT[d] || d;
-        break;
-      }
-    }
-  }
-
-  return { qty, unit: unit || "unit", name, sizeQty, sizeUnit, notes: "", original };
-}
-
-function buildSearchQuery(item) {
-  const size = item.sizeQty ? ` ${item.sizeQty} ${item.sizeUnit || ""}` : "";
-  return `${item.name}${size}`.trim();
-}
-
-module.exports = { parseIngredientLine, buildSearchQuery, clean, fractionToNumber };
-

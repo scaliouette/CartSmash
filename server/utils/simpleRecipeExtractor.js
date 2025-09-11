@@ -1,314 +1,136 @@
-// server/utils/simpleRecipeExtractor.js - Simple Recipe Extractor
-class SimpleRecipeExtractor {
-  constructor() {
-    // Simple patterns for recipe detection
-    this.recipeIndicators = [
-      'recipe',
-      'ingredients',
-      'instructions',
-      'directions',
-      'method',
-      'preparation'
-    ];
+// AI-ONLY Recipe Extractor
+// Handles recipe extraction using only AI services - no manual regex patterns
 
-    this.sectionHeaders = {
-      ingredients: /^(ingredients?|what you need|grocery list|shopping list):\s*$/i,
-      instructions: /^(instructions?|directions?|method|steps?|preparation):\s*$/i,
-      title: /^(recipe|dish):\s*(.+)$/i
+class AIRecipeExtractor {
+  constructor() {
+    // Detect available AI clients
+    this.ai = {
+      anthropic: global.anthropic || null,
+      openai: global.openai || null,
     };
   }
 
-  /**
-   * Extract recipes from text - simple approach
-   * @param {string} text - Text to extract recipes from
-   * @returns {Array} Array of recipe objects
-   */
-  extractRecipes(text) {
+  async extractRecipes(text) {
+    // AI-ONLY PROCESSING - No manual fallback
+    if (!this.ai.anthropic && !this.ai.openai) {
+      throw new Error('AI services required - no AI clients available for recipe extraction');
+    }
+
     if (!text || typeof text !== 'string') {
       return [];
     }
 
-    const recipes = [];
-    
-    // Check if this looks like recipe content
-    if (!this.looksLikeRecipe(text)) {
+    try {
+      console.log('🔍 [DEBUG] AI recipe extraction starting...');
+      const recipes = await this.aiExtractRecipes(text);
+      console.log('🔍 [DEBUG] AI recipe extraction successful, found', recipes.length, 'recipes');
       return recipes;
+    } catch (error) {
+      console.error('🔍 [DEBUG] AI recipe extraction failed:', error.message);
+      throw error;
     }
+  }
 
-    // Try to extract structured recipes
-    const structuredRecipes = this.extractStructuredRecipes(text);
-    if (structuredRecipes.length > 0) {
-      recipes.push(...structuredRecipes);
-    } else {
-      // Fallback: try to extract a single recipe from the whole text
-      const singleRecipe = this.extractSingleRecipe(text);
-      if (singleRecipe) {
-        recipes.push(singleRecipe);
+  async aiExtractRecipes(text) {
+    const sysPrompt = `You extract recipe information from text into structured JSON format.
+Rules:
+- Only output JSON. No prose. No markdown. No trailing commas.
+- Return an array of recipe objects.
+- Each recipe object has fields: name (string), ingredients (array of strings), instructions (array of strings), source (string).
+- Extract recipe titles, ingredient lists, and cooking instructions.
+- Clean bullets, numbers, and formatting from ingredients and instructions.
+- If no clear recipes found, return empty array [].
+- Separate multiple recipes if present.
+- Keep ingredient and instruction text clean and concise.`;
+
+    const userPrompt = `Extract recipes from this text and return JSON array:\n\n${text}`;
+
+    // Resolve AI clients dynamically
+    const anthropic = global.anthropic || this.ai.anthropic;
+    const openai = global.openai || this.ai.openai;
+
+    let raw;
+    try {
+      if (anthropic) {
+        console.log('🔍 [DEBUG] Using Anthropic for recipe extraction...');
+        const resp = await anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 2000,
+          temperature: 0,
+          messages: [
+            { role: 'system', content: sysPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        });
+        raw = resp.content?.[0]?.text || '';
+      } else if (openai) {
+        console.log('🔍 [DEBUG] Using OpenAI for recipe extraction...');
+        const resp = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          temperature: 0,
+          max_tokens: 2000,
+          messages: [
+            { role: 'system', content: sysPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        });
+        raw = resp.choices?.[0]?.message?.content || '';
+      } else {
+        throw new Error('No AI clients available');
       }
+    } catch (apiError) {
+      console.error('🔍 [DEBUG] AI recipe extraction API failed:', apiError.message);
+      throw apiError;
     }
 
-    return recipes;
+    // Parse AI response
+    const json = this.extractJSON(raw);
+    if (!json) {
+      console.log('🔍 [DEBUG] No valid JSON found in AI response');
+      return [];
+    }
+
+    // Ensure array format and validate recipes
+    const recipes = Array.isArray(json) ? json : [json];
+    return recipes
+      .filter(recipe => this.isValidRecipe(recipe))
+      .map(recipe => ({
+        name: recipe.name || 'Untitled Recipe',
+        ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
+        instructions: Array.isArray(recipe.instructions) ? recipe.instructions : [],
+        source: 'ai_extractor'
+      }));
   }
 
-  /**
-   * Check if text looks like it contains recipe content
-   * @param {string} text - Text to check
-   * @returns {boolean} True if text looks like recipe content
-   */
-  looksLikeRecipe(text) {
-    const lowerText = text.toLowerCase();
+  extractJSON(text) {
+    // Strip code fences and markdown
+    let cleanText = text.replace(/```json\s*\n?/gi, '')
+                        .replace(/```\s*\n?/gi, '')
+                        .replace(/^\s*json\s*\n?/gi, '')
+                        .trim();
     
-    // Must contain at least 2 recipe-related keywords
-    const indicators = this.recipeIndicators.filter(indicator => 
-      lowerText.includes(indicator)
-    );
-    
-    return indicators.length >= 2;
-  }
-
-  /**
-   * Extract multiple structured recipes from text
-   * @param {string} text - Text to extract from
-   * @returns {Array} Array of recipe objects
-   */
-  extractStructuredRecipes(text) {
-    const recipes = [];
-    const lines = text.split('\n');
-    
-    let currentRecipe = null;
-    let currentSection = null;
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      
-      if (!trimmedLine) continue;
-
-      // Check for recipe title (markdown headers or bold text)
-      const titleMatch = this.extractRecipeTitle(trimmedLine);
-      if (titleMatch) {
-        // Save previous recipe if exists
-        if (currentRecipe && this.isValidRecipe(currentRecipe)) {
-          recipes.push(currentRecipe);
-        }
-        
-        // Start new recipe
-        currentRecipe = {
-          name: titleMatch,
-          ingredients: [],
-          instructions: [],
-          source: 'simple_extractor'
-        };
-        currentSection = null;
-        continue;
+    try {
+      return JSON.parse(cleanText);
+    } catch (_) {
+      // Try to find JSON array
+      const match = cleanText.match(/\[[\s\S]*\]/);
+      if (match) {
+        try {
+          return JSON.parse(match[0]);
+        } catch (_) {}
       }
-
-      // Check for section headers
-      if (this.sectionHeaders.ingredients.test(trimmedLine)) {
-        currentSection = 'ingredients';
-        continue;
-      }
-      
-      if (this.sectionHeaders.instructions.test(trimmedLine)) {
-        currentSection = 'instructions';
-        continue;
-      }
-
-      // Add content to current section
-      if (currentRecipe && currentSection && trimmedLine) {
-        const cleanedLine = this.cleanRecipeLine(trimmedLine);
-        if (cleanedLine) {
-          currentRecipe[currentSection].push(cleanedLine);
-        }
-      }
+      return null;
     }
-
-    // Don't forget the last recipe
-    if (currentRecipe && this.isValidRecipe(currentRecipe)) {
-      recipes.push(currentRecipe);
-    }
-
-    return recipes;
   }
 
-  /**
-   * Extract a single recipe from unstructured text
-   * @param {string} text - Text to extract from
-   * @returns {Object|null} Recipe object or null
-   */
-  extractSingleRecipe(text) {
-    const lines = text.split('\n').filter(line => line.trim());
-    
-    if (lines.length < 3) {
-      return null; // Too short to be a meaningful recipe
-    }
-
-    // Try to find a title (first meaningful line that's not a list item)
-    let title = 'Untitled Recipe';
-    let contentStartIndex = 0;
-    
-    for (let i = 0; i < Math.min(3, lines.length); i++) {
-      const line = lines[i].trim();
-      if (line && !this.isListItem(line) && !this.isSectionHeader(line)) {
-        title = this.cleanRecipeTitle(line);
-        contentStartIndex = i + 1;
-        break;
-      }
-    }
-
-    const ingredients = [];
-    const instructions = [];
-    
-    // Simple heuristic: lines that look like list items are probably ingredients/instructions
-    for (let i = contentStartIndex; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      
-      const cleanedLine = this.cleanRecipeLine(line);
-      if (!cleanedLine) continue;
-      
-      if (this.looksLikeIngredient(cleanedLine)) {
-        ingredients.push(cleanedLine);
-      } else if (this.looksLikeInstruction(cleanedLine)) {
-        instructions.push(cleanedLine);
-      }
-    }
-
-    const recipe = {
-      name: title,
-      ingredients: ingredients,
-      instructions: instructions,
-      source: 'simple_extractor'
-    };
-
-    return this.isValidRecipe(recipe) ? recipe : null;
-  }
-
-  /**
-   * Extract recipe title from line
-   * @param {string} line - Line to check
-   * @returns {string|null} Recipe title or null
-   */
-  extractRecipeTitle(line) {
-    // Markdown headers
-    const headerMatch = line.match(/^#{1,6}\s*(.+)$/);
-    if (headerMatch) {
-      return this.cleanRecipeTitle(headerMatch[1]);
-    }
-
-    // Bold markdown
-    const boldMatch = line.match(/^\*\*(.+)\*\*$/);
-    if (boldMatch) {
-      return this.cleanRecipeTitle(boldMatch[1]);
-    }
-
-    // "Recipe:" prefix
-    const recipeMatch = line.match(/^recipe:\s*(.+)$/i);
-    if (recipeMatch) {
-      return this.cleanRecipeTitle(recipeMatch[1]);
-    }
-
-    return null;
-  }
-
-  /**
-   * Clean recipe title
-   * @param {string} title - Raw title
-   * @returns {string} Cleaned title
-   */
-  cleanRecipeTitle(title) {
-    return title
-      .replace(/^(recipe|dish):\s*/i, '')
-      .replace(/\*\*/g, '')
-      .replace(/#/g, '')
-      .trim();
-  }
-
-  /**
-   * Clean recipe line (remove bullets, numbers, etc.)
-   * @param {string} line - Line to clean
-   * @returns {string} Cleaned line
-   */
-  cleanRecipeLine(line) {
-    return line
-      .replace(/^[\-\*\u2022\u2023\u25AA\u25CF\u25E6]\s*/, '') // Remove bullets
-      .replace(/^\d+[\.)]\s*/, '') // Remove numbers
-      .trim();
-  }
-
-  /**
-   * Check if line is a list item
-   * @param {string} line - Line to check
-   * @returns {boolean} True if line is a list item
-   */
-  isListItem(line) {
-    return /^[\-\*\u2022\u2023\u25AA\u25CF\u25E6]/.test(line) || /^\d+[\.)]/.test(line);
-  }
-
-  /**
-   * Check if line is a section header
-   * @param {string} line - Line to check
-   * @returns {boolean} True if line is a section header
-   */
-  isSectionHeader(line) {
-    return Object.values(this.sectionHeaders).some(pattern => pattern.test(line));
-  }
-
-  /**
-   * Check if line looks like an ingredient
-   * @param {string} line - Line to check
-   * @returns {boolean} True if line looks like an ingredient
-   */
-  looksLikeIngredient(line) {
-    const lowerLine = line.toLowerCase();
-    
-    // Has quantity indicators
-    if (/\b\d+(\.\d+)?\s*(cups?|tbsp|tsp|lbs?|oz|grams?|ml|liters?)\b/.test(lowerLine)) {
-      return true;
-    }
-    
-    // Has common ingredient words
-    const ingredientWords = [
-      'chicken', 'beef', 'pork', 'fish', 'egg', 'milk', 'cheese', 'butter',
-      'onion', 'garlic', 'tomato', 'pepper', 'salt', 'oil', 'flour', 'sugar'
-    ];
-    
-    return ingredientWords.some(word => lowerLine.includes(word));
-  }
-
-  /**
-   * Check if line looks like an instruction
-   * @param {string} line - Line to check
-   * @returns {boolean} True if line looks like an instruction
-   */
-  looksLikeInstruction(line) {
-    const lowerLine = line.toLowerCase();
-    
-    // Has cooking action words
-    const actionWords = [
-      'heat', 'cook', 'bake', 'fry', 'boil', 'simmer', 'add', 'mix', 'stir',
-      'combine', 'season', 'serve', 'garnish', 'preheat', 'chop', 'dice'
-    ];
-    
-    return actionWords.some(word => lowerLine.includes(word));
-  }
-
-  /**
-   * Check if recipe object is valid
-   * @param {Object} recipe - Recipe to validate
-   * @returns {boolean} True if recipe is valid
-   */
   isValidRecipe(recipe) {
     return recipe &&
            recipe.name &&
            recipe.name.length > 0 &&
-           (recipe.ingredients.length > 0 || recipe.instructions.length > 0);
+           (Array.isArray(recipe.ingredients) && recipe.ingredients.length > 0 ||
+            Array.isArray(recipe.instructions) && recipe.instructions.length > 0);
   }
 
-  /**
-   * Get simple recipe stats
-   * @param {Array} recipes - Array of recipes
-   * @returns {Object} Recipe statistics
-   */
   getStats(recipes) {
     if (!Array.isArray(recipes)) {
       return { count: 0, totalIngredients: 0, totalInstructions: 0 };
@@ -326,4 +148,4 @@ class SimpleRecipeExtractor {
   }
 }
 
-module.exports = SimpleRecipeExtractor;
+module.exports = AIRecipeExtractor;

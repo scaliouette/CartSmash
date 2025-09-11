@@ -36,7 +36,8 @@ npm run dev
 ## Tech Stack
 - Frontend: React, JavaScript, CSS
 - Backend: Node.js, Express
-- AI/ML: Custom grocery item recognition
+- AI/ML: **AI-ONLY Architecture** - Claude (Anthropic) & GPT (OpenAI)
+- Parsing: **Pure AI Processing** - No manual regex patterns or fallbacks
 - Infra: Vercel/Render (configurable), MongoDB Atlas, Firebase
 
 ## Brand Colors
@@ -50,9 +51,26 @@ npm run dev
 - Responsive design
 - PWA capable
 
+## AI-Only Architecture Rules
+
+**CRITICAL: This system operates exclusively on AI services with NO manual fallbacks**
+
+- ✅ **All parsing is AI-powered** - Claude (Anthropic) and GPT (OpenAI) only
+- ✅ **No manual regex patterns** - Zero traditional text processing rules
+- ✅ **No emergency fallbacks** - System requires functional AI services
+- ✅ **Pure AI processing** - Ingredient parsing, recipe extraction, shopping list loading
+- ⚠️ **AI services required** - System will fail gracefully if AI APIs are unavailable
+
+### Components (AI-Only):
+- `ingredientParser.js` - AI-only ingredient parsing
+- `simpleRecipeExtractor.js` - AI-only recipe extraction  
+- `simpleProductParser.js` - AI-only shopping list loading
+- `aiProductParser.js` - AI-only grocery list parsing
+
 ## Roadmap
 - [x] Core SMASH functionality
-- [x] Advanced parsing engine
+- [x] **AI-Only Architecture Implementation**
+- [x] Advanced AI parsing engine
 - [ ] Social sharing features
 - [ ] Cart battles/challenges
 - [ ] Influencer partnerships
