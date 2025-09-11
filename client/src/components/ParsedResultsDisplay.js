@@ -1357,13 +1357,13 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     </div>
   );
 }
-
+ 
 
 const styles = {
   container: {
     background: 'white',
     borderRadius: '12px',
-    padding: '20px',
+    padding: '20px', 
     margin: '20px 0',
     boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
     border: '2px solid #002244'
