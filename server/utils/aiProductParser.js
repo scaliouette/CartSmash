@@ -117,62 +117,37 @@ class AIProductParser {
     const grocerySection = this.extractGroceryListSection(text);
     const textToParse = grocerySection || text;
 
-    const wantAI = options.useAI !== false; // default: try AI
-    let aiProducts = [];
-    let aiTried = false;
-    if (wantAI && (this.ai.anthropic || this.ai.openai)) {
-      try {
-        aiTried = true;
-        aiProducts = await this.aiExtractProducts(textToParse, options);
-      } catch (e) {
-        // Swallow and fall back to manual parsing
-      }
+    // AI-ONLY PROCESSING - No manual fallback
+    if (!this.ai.anthropic && !this.ai.openai) {
+      throw new Error('AI services required - no AI clients available');
     }
 
-    // Manual fallback and validator with section context tracking
-    const lines = textToParse.split('\n').filter(line => line.trim());
-    const rbProducts = [];
-    let currentSection = null;
-    
-    // Track section headers to boost confidence for items under them
-    const sectionHeaders = /^(produce|proteins?|dairy|meat|grains?|bakery|pantry|frozen|deli|beverages?|snacks?):?\s*$/i;
-    
-    for (const line of lines) {
-      const trimmedLine = line.trim();
+    try {
+      const aiProducts = await this.aiExtractProducts(textToParse, options);
       
-      // Check if this line is a section header
-      const sectionMatch = trimmedLine.match(sectionHeaders);
-      if (sectionMatch) {
-        currentSection = sectionMatch[1].toLowerCase();
-        continue;
-      }
-      
-      const product = this.parseLine(line, { section: currentSection });
-      if (product && product.isValid) rbProducts.push(product);
+      // Apply confidence threshold filtering if specified (lite mode support)
+      const confidenceThreshold = options.confidenceThreshold || 0.0;
+      const filteredProducts = aiProducts.filter(p => (p.confidence || 0.5) >= confidenceThreshold);
+
+      return {
+        products: filteredProducts,
+        totalCandidates: aiProducts.length,
+        validProducts: filteredProducts.length,
+        averageConfidence: filteredProducts.length > 0
+          ? filteredProducts.reduce((sum, p) => sum + (p.confidence || 0.5), 0) / filteredProducts.length
+          : 0,
+        meta: { 
+          aiTried: true, 
+          aiUsed: aiProducts.length > 0, 
+          liteMode: options.liteMode || false,
+          confidenceThreshold: confidenceThreshold,
+          filteredByConfidence: aiProducts.length - filteredProducts.length
+        }
+      };
+    } catch (error) {
+      // If AI fails, throw error - no manual fallback in AI-only mode
+      throw new Error(`AI processing failed: ${error.message}`);
     }
-
-    // Merge AI + rule-based (prefer AI but fill gaps)
-    const merged = this.mergeProducts(aiProducts, rbProducts);
-
-    // Apply confidence threshold filtering if specified (lite mode support)
-    const confidenceThreshold = options.confidenceThreshold || 0.0;
-    const filteredProducts = merged.filter(p => (p.confidence || 0.5) >= confidenceThreshold);
-
-    return {
-      products: filteredProducts,
-      totalCandidates: lines.length,
-      validProducts: filteredProducts.length,
-      averageConfidence: filteredProducts.length > 0
-        ? filteredProducts.reduce((sum, p) => sum + (p.confidence || 0.5), 0) / filteredProducts.length
-        : 0,
-      meta: { 
-        aiTried, 
-        aiUsed: aiProducts.length > 0, 
-        liteMode: options.liteMode || false,
-        confidenceThreshold: confidenceThreshold,
-        filteredByConfidence: merged.length - filteredProducts.length
-      }
-    };
   }
 
   // Use Anthropic/OpenAI to extract a structured grocery list

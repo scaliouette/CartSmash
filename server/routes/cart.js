@@ -277,13 +277,20 @@ router.post('/parse', async (req, res) => {
         console.log(`📊 Average confidence: ${(parsingResults.averageConfidence * 100).toFixed(1)}%`);
         
       } catch (aiError) {
-        console.warn('⚠️ AI parsing failed, falling back to basic parsing:', aiError.message);
-        // Fall back to basic parsing if AI fails
-        parsedItems = basicParse(listText);
+        console.error('❌ AI parsing failed - AI-only mode requires functional AI:', aiError.message);
+        return res.status(500).json({
+          success: false,
+          error: 'AI parsing required but failed',
+          message: 'System is configured for AI-only processing'
+        });
       }
     } else {
-      // Use basic parsing if AI is disabled
-      parsedItems = basicParse(listText);
+      // AI-only mode - cannot disable AI
+      return res.status(400).json({
+        success: false,
+        error: 'AI processing required',
+        message: 'System is configured for AI-only processing - useAI cannot be disabled'
+      });
     }
 
     // Apply deduplication if enabled
@@ -330,7 +337,7 @@ router.post('/parse', async (req, res) => {
       fullContent: listText, // Preserve full text
       recipes: extractedRecipes, // Extract recipe blocks
       parsing: {
-        method: useAI ? 'ai_intelligent' : 'basic',
+        method: 'ai_intelligent',
         stats: {
           totalLines: listText.split('\n').filter(l => l.trim()).length,
           parsedItems: parsedItems.length,
@@ -353,84 +360,6 @@ router.post('/parse', async (req, res) => {
     });
   }
 });
-
-// Basic parsing fallback function
-function basicParse(listText) {
-  const lines = listText.split('\n').filter(line => line.trim());
-  const parsedItems = [];
-  
-  for (const line of lines) {
-    const cleaned = line.trim()
-      .replace(/^[-•*\d+\.\)]\s*/, '')
-      .replace(/\*\*/g, '');
-    
-    if (!cleaned || cleaned.length < 2) continue;
-    
-    // Skip common non-product lines
-    if (/^(monday|tuesday|wednesday|thursday|friday|saturday|sunday|week|day|meal|breakfast|lunch|dinner|snack):/i.test(cleaned)) {
-      continue;
-    }
-    
-    // Use professional ingredient parser for better accuracy
-    const ingredientData = parseIngredientLine(cleaned);
-    const searchQuery = buildSearchQuery(ingredientData);
-    
-    let quantity = ingredientData.qty || 1;
-    let unit = ingredientData.unit || 'each';
-    let productName = ingredientData.name || cleaned;
-    
-    const category = detectCategory(productName);
-    
-    parsedItems.push({
-      id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      productName: productName,
-      quantity: quantity,
-      unit: unit,
-      original: line,
-      confidence: 0.7, // Lower confidence for basic parsing
-      needsReview: true, // Mark for review since not AI validated
-      category: category,
-      addedAt: new Date().toISOString(),
-      aiParsed: false,
-      // Enhanced ingredient data from professional parser
-      ingredientData: {
-        parsedName: ingredientData.name,
-        parsedQuantity: ingredientData.qty,
-        parsedUnit: ingredientData.unit,
-        sizeQuantity: ingredientData.sizeQty,
-        sizeUnit: ingredientData.sizeUnit,
-        searchQuery: searchQuery,
-        originalLine: ingredientData.original
-      }
-    });
-  }
-  
-  return parsedItems;
-}
-
-// Helper function to detect category
-function detectCategory(productName) {
-  const name = productName.toLowerCase();
-  
-  const categories = {
-    produce: ['apple', 'banana', 'orange', 'lettuce', 'tomato', 'carrot', 'onion', 'potato', 'spinach', 'broccoli', 'pepper', 'cucumber', 'avocado', 'berry', 'berries', 'grape', 'lemon', 'lime'],
-    dairy: ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'eggs', 'cottage', 'sour cream'],
-    meat: ['chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'tuna', 'bacon', 'ham', 'sausage', 'ground', 'steak'],
-    pantry: ['rice', 'pasta', 'flour', 'sugar', 'oil', 'sauce', 'vinegar', 'salt', 'pepper', 'spice', 'cereal', 'oats', 'beans'],
-    beverages: ['water', 'juice', 'soda', 'coffee', 'tea', 'beer', 'wine'],
-    frozen: ['frozen', 'ice cream', 'pizza'],
-    bakery: ['bread', 'bagel', 'muffin', 'roll', 'bun', 'cake', 'cookie'],
-    snacks: ['chips', 'crackers', 'nuts', 'popcorn', 'candy', 'chocolate']
-  };
-  
-  for (const [category, keywords] of Object.entries(categories)) {
-    if (keywords.some(keyword => name.includes(keyword))) {
-      return category;
-    }
-  }
-  
-  return 'other';
-}
 
 // POST /api/cart/validate-all - Validate all items using AI
 router.post('/validate-all', async (req, res) => {
