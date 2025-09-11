@@ -435,35 +435,80 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
               });
             });
           });
-        } else if (structuredData.type === 'meal_plan' && structuredData.shoppingList) {
+        } else if (structuredData.type === 'meal_plan') {
           recipes = []; // Extract recipes from days
-          structuredData.days?.forEach(day => {
-            Object.values(day.meals || {}).forEach(meal => {
-              if (meal.name && meal.ingredients) {
+          
+          // Extract recipes from days structure
+          if (structuredData.days && Array.isArray(structuredData.days)) {
+            structuredData.days.forEach(day => {
+              Object.values(day.meals || {}).forEach(meal => {
+                if (meal.name && meal.ingredients) {
+                  recipes.push({
+                    name: meal.name,
+                    ingredients: meal.ingredients,
+                    instructions: meal.instructions || [],
+                    mealType: 'meal_plan_item'
+                  });
+                }
+              });
+            });
+          }
+          
+          // Convert shopping list to products (if available)
+          if (structuredData.shoppingList) {
+            Object.values(structuredData.shoppingList || {}).forEach(category => {
+              if (Array.isArray(category)) {
+                category.forEach(item => {
+                  products.push({
+                    productName: String(item.name || item.item || item.ingredient || ''),
+                    quantity: String(item.quantity || '1'),
+                    unit: String(item.unit || ''),
+                    confidence: 1.0,
+                    source: 'ai_meal_plan'
+                  });
+                });
+              }
+            });
+          }
+          
+          // Extract ingredients from meals if no shopping list or in addition to shopping list
+          if (recipes.length > 0) {
+            recipes.forEach(recipe => {
+              recipe.ingredients?.forEach(ingredient => {
+                products.push({
+                  productName: String(ingredient.name || ingredient.item || ingredient.ingredient || ''),
+                  quantity: String(ingredient.quantity || '1'),
+                  unit: String(ingredient.unit || ''),
+                  confidence: 1.0,
+                  source: 'ai_meal_plan_ingredients'
+                });
+              });
+            });
+          }
+          
+          // Also try to extract from any meals structure at root level
+          if (structuredData.meals && typeof structuredData.meals === 'object') {
+            Object.values(structuredData.meals).forEach(meal => {
+              if (meal && meal.name && meal.ingredients) {
                 recipes.push({
                   name: meal.name,
                   ingredients: meal.ingredients,
                   instructions: meal.instructions || [],
                   mealType: 'meal_plan_item'
                 });
+                
+                meal.ingredients.forEach(ingredient => {
+                  products.push({
+                    productName: String(ingredient.name || ingredient.item || ingredient.ingredient || ''),
+                    quantity: String(ingredient.quantity || '1'),
+                    unit: String(ingredient.unit || ''),
+                    confidence: 1.0,
+                    source: 'ai_meal_plan_meals'
+                  });
+                });
               }
             });
-          });
-          
-          // Convert shopping list to products
-          Object.values(structuredData.shoppingList || {}).forEach(category => {
-            if (Array.isArray(category)) {
-              category.forEach(item => {
-                products.push({
-                  productName: String(item.name || item.item || item.ingredient || ''),
-                  quantity: String(item.quantity || '1'),
-                  unit: String(item.unit || ''),
-                  confidence: 1.0,
-                  source: 'ai_meal_plan'
-                });
-              });
-            }
-          });
+          }
         } else if (structuredData.type === 'recipe_list' && structuredData.recipes) {
           recipes = structuredData.recipes;
           // Convert recipe ingredients to products
@@ -686,41 +731,58 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
         lines.forEach(line => {
           const trimmed = line.trim();
           
+          // Skip empty lines and headers
+          if (!trimmed || trimmed.length < 3) return;
+          
           // Enhanced patterns to catch more grocery items
           const listPatterns = [
             /^[-•*]\s*(.+)$/,                    // Bullet points
             /^\d+\.?\s*(.+)$/,                  // Numbered lists
-            /^(\d+(?:\.\d+)?)\s+(.*?)$/,        // Quantity + item
-            /^([A-Z][a-z]+.*?)(?:\s*-|$)/       // Capitalized items
+            /^(\d+(?:\.\d+)?)\s+(\w.*)$/,        // Quantity + item like "2 lb chicken"
+            /^([A-Z][a-z]+.*?)(?:\s*-|$)/,       // Capitalized items
+            /^([a-zA-Z][\w\s,.-]+)$/             // Simple grocery items
           ];
           
           for (const pattern of listPatterns) {
             const match = trimmed.match(pattern);
             if (match) {
-              const item = match[1] || match[2] || match[0];
+              let item = match[1] || match[2] || match[0];
               
               // Skip meal plan descriptions, section headers, and non-grocery items
               if (item.match(/^(Breakfast|Lunch|Dinner|Snack|Appetizer|Main|Dessert):/i) ||
-                  item.match(/^(Shopping List|Grocery List|Ingredients)$/i) ||
+                  item.match(/^(Shopping List|Grocery List|Ingredients|Produce|Dairy|Meat|Pantry)$/i) ||
                   item.match(/^\*+.*\*+:?\s*$/i) ||  // Section headers like "**Proteins:**"
                   item.match(/^[A-Z\s]+:?\s*$/i) ||  // All caps headers like "DAIRY:"
                   item.includes('**') ||             // Any markdown formatting
-                  item.match(/^(This provides|Here|Total estimated)/i) || // Summary text
+                  item.match(/^(This provides|Here|Total estimated|Day \d+|Recipe|Instructions)/i) || // Summary text
                   item.length < 3) {
                 console.log('🍽️ Skipping non-grocery item in text fallback:', item);
                 break;
               }
               
+              // Parse quantity and unit if present
+              let quantity = '1';
+              let unit = '';
+              let productName = item;
+              
+              const qtyMatch = item.match(/^(\d+(?:\.\d+)?)\s*(\w+)?\s+(.+)$/);
+              if (qtyMatch) {
+                quantity = qtyMatch[1];
+                unit = qtyMatch[2] || '';
+                productName = qtyMatch[3];
+              }
+              
               // Clean and validate the item
-              const cleanedItem = item.replace(/[^\w\s\-.,()]/g, '').trim();
-              if (cleanedItem.length >= 3) {
+              productName = productName.replace(/[^\w\s\-.,()]/g, '').trim();
+              if (productName.length >= 3) {
                 products.push({
-                  productName: cleanedItem,
-                  quantity: '1',
-                  unit: '',
+                  productName: productName,
+                  quantity: quantity,
+                  unit: unit,
                   confidence: 0.7,
                   source: 'text_fallback_enhanced'
                 });
+                console.log('📝 Extracted from text fallback:', productName, quantity, unit);
                 break;
               }
             }

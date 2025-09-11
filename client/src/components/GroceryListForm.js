@@ -881,7 +881,7 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
             
             // Store structured recipes for display
             if (aiData.recipes.length > 0) {
-              console.log('🍳 Displaying structured recipes from AI:', aiData.recipes);
+              console.log('Displaying structured recipes from AI:', aiData.recipes);
               // FIXED: Only add to recipes array to avoid duplication 
               // (parsedRecipes is for text parsing, recipes is for AI-generated)
               setRecipes(aiData.recipes);
