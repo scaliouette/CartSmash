@@ -51,9 +51,12 @@ Rules:
     const anthropic = global.anthropic || this.ai.anthropic;
     const openai = global.openai || this.ai.openai;
 
+    // Try Anthropic first, then OpenAI fallback for shopping list loading
     let raw;
-    try {
-      if (anthropic) {
+    let lastError;
+    
+    if (anthropic) {
+      try {
         console.log('🔍 [DEBUG] Using Anthropic for shopping list loading...');
         const resp = await anthropic.messages.create({
           model: 'claude-3-5-sonnet-20241022',
@@ -65,8 +68,35 @@ Rules:
           ]
         });
         raw = resp.content?.[0]?.text || '';
-      } else if (openai) {
-        console.log('🔍 [DEBUG] Using OpenAI for shopping list loading...');
+        console.log('🔍 [DEBUG] Anthropic shopping list loading successful');
+      } catch (anthropicError) {
+        console.log('🔍 [DEBUG] Anthropic shopping list loading failed:', anthropicError.message);
+        lastError = anthropicError;
+        
+        // Try OpenAI fallback
+        if (openai) {
+          try {
+            console.log('🔍 [DEBUG] Falling back to OpenAI for shopping list loading...');
+            const resp = await openai.chat.completions.create({
+              model: 'gpt-4o-mini',
+              temperature: 0,
+              max_tokens: 1500,
+              messages: [
+                { role: 'system', content: sysPrompt },
+                { role: 'user', content: userPrompt }
+              ]
+            });
+            raw = resp.choices?.[0]?.message?.content || '';
+            console.log('🔍 [DEBUG] OpenAI shopping list loading fallback successful');
+          } catch (openaiError) {
+            console.log('🔍 [DEBUG] OpenAI shopping list loading fallback also failed:', openaiError.message);
+            lastError = openaiError;
+          }
+        }
+      }
+    } else if (openai) {
+      try {
+        console.log('🔍 [DEBUG] Using OpenAI for shopping list loading (Anthropic not available)...');
         const resp = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
           temperature: 0,
@@ -77,12 +107,20 @@ Rules:
           ]
         });
         raw = resp.choices?.[0]?.message?.content || '';
-      } else {
-        throw new Error('No AI clients available');
+        console.log('🔍 [DEBUG] OpenAI shopping list loading successful');
+      } catch (openaiError) {
+        console.log('🔍 [DEBUG] OpenAI shopping list loading failed:', openaiError.message);
+        lastError = openaiError;
       }
-    } catch (apiError) {
-      console.error('🔍 [DEBUG] AI shopping list loading API failed:', apiError.message);
-      throw apiError;
+    }
+    
+    if (!raw) {
+      if (lastError) {
+        console.error('🔍 [DEBUG] All AI services failed for shopping list loading');
+        throw lastError;
+      } else {
+        throw new Error('No AI clients available for shopping list loading');
+      }
     }
 
     // Parse AI response

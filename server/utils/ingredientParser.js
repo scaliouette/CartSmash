@@ -45,9 +45,12 @@ Rules:
     const anthropic = global.anthropic || this.ai.anthropic;
     const openai = global.openai || this.ai.openai;
 
+    // Try Anthropic first, then OpenAI fallback for ingredient parsing
     let raw;
-    try {
-      if (anthropic) {
+    let lastError;
+    
+    if (anthropic) {
+      try {
         console.log('🔍 [DEBUG] Using Anthropic for ingredient parsing...');
         const resp = await anthropic.messages.create({
           model: 'claude-3-5-sonnet-20241022',
@@ -59,8 +62,35 @@ Rules:
           ]
         });
         raw = resp.content?.[0]?.text || '';
-      } else if (openai) {
-        console.log('🔍 [DEBUG] Using OpenAI for ingredient parsing...');
+        console.log('🔍 [DEBUG] Anthropic ingredient parsing successful');
+      } catch (anthropicError) {
+        console.log('🔍 [DEBUG] Anthropic ingredient parsing failed:', anthropicError.message);
+        lastError = anthropicError;
+        
+        // Try OpenAI fallback
+        if (openai) {
+          try {
+            console.log('🔍 [DEBUG] Falling back to OpenAI for ingredient parsing...');
+            const resp = await openai.chat.completions.create({
+              model: 'gpt-4o-mini',
+              temperature: 0,
+              max_tokens: 800,
+              messages: [
+                { role: 'system', content: sysPrompt },
+                { role: 'user', content: userPrompt }
+              ]
+            });
+            raw = resp.choices?.[0]?.message?.content || '';
+            console.log('🔍 [DEBUG] OpenAI ingredient parsing fallback successful');
+          } catch (openaiError) {
+            console.log('🔍 [DEBUG] OpenAI ingredient parsing fallback also failed:', openaiError.message);
+            lastError = openaiError;
+          }
+        }
+      }
+    } else if (openai) {
+      try {
+        console.log('🔍 [DEBUG] Using OpenAI for ingredient parsing (Anthropic not available)...');
         const resp = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
           temperature: 0,
@@ -71,12 +101,20 @@ Rules:
           ]
         });
         raw = resp.choices?.[0]?.message?.content || '';
-      } else {
-        throw new Error('No AI clients available');
+        console.log('🔍 [DEBUG] OpenAI ingredient parsing successful');
+      } catch (openaiError) {
+        console.log('🔍 [DEBUG] OpenAI ingredient parsing failed:', openaiError.message);
+        lastError = openaiError;
       }
-    } catch (apiError) {
-      console.error('🔍 [DEBUG] AI ingredient parsing API failed:', apiError.message);
-      throw apiError;
+    }
+    
+    if (!raw) {
+      if (lastError) {
+        console.error('🔍 [DEBUG] All AI services failed for ingredient parsing');
+        throw lastError;
+      } else {
+        throw new Error('No AI clients available for ingredient parsing');
+      }
     }
 
     // Parse AI response
