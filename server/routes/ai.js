@@ -1291,26 +1291,11 @@ router.post('/test-enhanced', async (req, res) => {
   }
 });
 
-// Enhanced fallback response generators
+// Enhanced fallback response generators - DISABLED for AI-only mode
 function generateEnhancedClaudeResponse(prompt) {
-  const lowerPrompt = prompt.toLowerCase();
-  
-  if (lowerPrompt.includes('meal plan') || lowerPrompt.includes('week') || lowerPrompt.includes('day')) {
-    // AI-ONLY: No manual meal planner fallback
-    throw new Error('AI-only mode: Manual meal planner disabled. Requires functional AI service.');
-  }
-  
-  if (lowerPrompt.includes('budget') || lowerPrompt.includes('cheap') || lowerPrompt.match(/\$\d+/)) {
-    // AI-ONLY: No manual meal planner fallback  
-    throw new Error('AI-only mode: Manual meal planner disabled. Requires functional AI service.');
-  }
-  
-  // Legacy fallback removed - use structured meal planner for consistency
-  
-  // AI-ONLY: Budget grocery lists handled above - no duplicate manual fallbacks
-  
-  // AI-ONLY: No manual grocery list fallbacks  
-  throw new Error('AI-only mode: Manual grocery list generation disabled. Requires functional AI service.');
+  // AI-ONLY: All fallback generation disabled - should never reach here
+  // If we reach this function, it means the AI processing failed
+  throw new Error('AI processing failed - no manual fallbacks available in AI-only mode.');
 }
 
 function generateEnhancedChatGPTResponse(prompt) {
