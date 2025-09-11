@@ -622,6 +622,82 @@ function GroceryListForm({
     }
   }, [parsedRecipes, recipes, mealPlanExpanded]);
 
+  // Generate a complete meal plan using the dedicated AI meal plan service
+  const generateCompleteMealPlan = async () => {
+    if (generatingMealPlan) {
+      console.log('🚫 Meal plan generation already in progress');
+      return;
+    }
+
+    setGeneratingMealPlan(true);
+    setError('');
+    setIsLoading(true);
+    setShowProgress(true);
+    setParsingProgress(0);
+
+    try {
+      console.log('🍽️ Starting complete AI meal plan generation with preferences:', mealPlanPreferences);
+
+      // Clear existing recipes to make room for new meal plan
+      setParsedRecipes([]);
+      setRecipes([]);
+
+      // Call the dedicated AI meal plan service
+      const mealPlanResult = await generateAIMealPlan(mealPlanPreferences, currentUser);
+
+      console.log('✅ AI meal plan generated successfully:', mealPlanResult);
+
+      if (mealPlanResult.success && mealPlanResult.mealPlan) {
+        const { mealPlan } = mealPlanResult;
+
+        // Set the recipes from the meal plan
+        if (mealPlan.recipes && mealPlan.recipes.length > 0) {
+          console.log(`📋 Displaying ${mealPlan.recipes.length} meal plan recipes`);
+          setRecipes(mealPlan.recipes);
+        }
+
+        // Set the shopping list from the meal plan
+        if (mealPlan.shoppingList && mealPlan.shoppingList.length > 0) {
+          console.log(`🛒 Setting shopping list with ${mealPlan.shoppingList.length} items`);
+          const shoppingListText = mealPlan.shoppingList.map(item => {
+            const quantity = item.quantity || '1';
+            const unit = item.unit ? ` ${item.unit}` : '';
+            const name = item.item || item.name;
+            return `• ${quantity}${unit} ${name}`;
+          }).join('\n');
+
+          setInputText(shoppingListText);
+          if (textareaRef.current) {
+            textareaRef.current.value = shoppingListText;
+          }
+        }
+
+        // If there's a saveMealPlan prop function, save the meal plan
+        if (typeof saveMealPlan === 'function') {
+          try {
+            await saveMealPlan(mealPlan);
+            console.log('💾 Meal plan saved successfully');
+          } catch (saveError) {
+            console.error('💾 Failed to save meal plan:', saveError);
+          }
+        }
+
+        setParsingProgress(100);
+        console.log('✅ Complete AI meal plan generation finished successfully');
+      } else {
+        throw new Error(mealPlanResult.error || 'Failed to generate meal plan');
+      }
+    } catch (error) {
+      console.error('❌ Error generating complete meal plan:', error);
+      setError(`Failed to generate meal plan: ${error.message}`);
+    } finally {
+      setGeneratingMealPlan(false);
+      setIsLoading(false);
+      setShowProgress(false);
+      setParsingProgress(0);
+    }
+  };
+
   const templates = [
     {
       id: 'weekly-meal',
@@ -1318,82 +1394,6 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
   };
 
   // REMOVED: All manual parsing functions - AI-ONLY mode enforced
-
-  // Generate a complete meal plan using the dedicated AI meal plan service
-  const generateCompleteMealPlan = async () => {
-    if (generatingMealPlan) {
-      console.log('🚫 Meal plan generation already in progress');
-      return;
-    }
-
-    setGeneratingMealPlan(true);
-    setError('');
-    setIsLoading(true);
-    setShowProgress(true);
-    setParsingProgress(0);
-
-    try {
-      console.log('🍽️ Starting complete AI meal plan generation with preferences:', mealPlanPreferences);
-
-      // Clear existing recipes to make room for new meal plan
-      setParsedRecipes([]);
-      setRecipes([]);
-
-      // Call the dedicated AI meal plan service
-      const mealPlanResult = await generateAIMealPlan(mealPlanPreferences, currentUser);
-
-      console.log('✅ AI meal plan generated successfully:', mealPlanResult);
-
-      if (mealPlanResult.success && mealPlanResult.mealPlan) {
-        const { mealPlan } = mealPlanResult;
-
-        // Set the recipes from the meal plan
-        if (mealPlan.recipes && mealPlan.recipes.length > 0) {
-          console.log(`📋 Displaying ${mealPlan.recipes.length} meal plan recipes`);
-          setRecipes(mealPlan.recipes);
-        }
-
-        // Set the shopping list from the meal plan
-        if (mealPlan.shoppingList && mealPlan.shoppingList.length > 0) {
-          console.log(`🛒 Setting shopping list with ${mealPlan.shoppingList.length} items`);
-          const shoppingListText = mealPlan.shoppingList.map(item => {
-            const quantity = item.quantity || '1';
-            const unit = item.unit ? ` ${item.unit}` : '';
-            const name = item.item || item.name;
-            return `• ${quantity}${unit} ${name}`;
-          }).join('\n');
-
-          setInputText(shoppingListText);
-          if (textareaRef.current) {
-            textareaRef.current.value = shoppingListText;
-          }
-        }
-
-        // If there's a saveMealPlan prop function, save the meal plan
-        if (saveMealPlan && typeof saveMealPlan === 'function') {
-          try {
-            await saveMealPlan(mealPlan);
-            console.log('💾 Meal plan saved successfully');
-          } catch (saveError) {
-            console.error('❌ Failed to save meal plan:', saveError);
-          }
-        }
-
-        console.log('✅ Complete meal plan generation finished successfully');
-      } else {
-        throw new Error(mealPlanResult.error || 'Failed to generate meal plan');
-      }
-
-    } catch (error) {
-      console.error('❌ Meal plan generation failed:', error);
-      setError(`Failed to generate meal plan: ${error.message}`);
-    } finally {
-      setGeneratingMealPlan(false);
-      setIsLoading(false);
-      setShowProgress(false);
-      setParsingProgress(0);
-    }
-  };
 
   // Handle adding recipe to recipe library
   // eslint-disable-next-line no-unused-vars
