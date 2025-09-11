@@ -277,23 +277,42 @@ router.post('/parse', async (req, res) => {
         console.log(`📊 Average confidence: ${(parsingResults.averageConfidence * 100).toFixed(1)}%`);
         
       } catch (aiError) {
-        console.error('❌ AI parsing failed - AI-only mode requires functional AI:', aiError.message);
+        console.error('🔍 [DEBUG] AI parsing failed in cart.js - analyzing error...');
+        console.error('🔍 [DEBUG] Error message:', aiError.message);
+        console.error('🔍 [DEBUG] Error type:', typeof aiError);
+        console.error('🔍 [DEBUG] Error stack:', aiError.stack?.substring(0, 500));
+        console.error('🔍 [DEBUG] Full error object:', JSON.stringify(aiError, null, 2));
+        
+        // Check if the error indicates emergency fallback was already attempted
+        if (aiError.message && aiError.message.includes('emergencyMode')) {
+          console.error('🔍 [DEBUG] Emergency mode was attempted but still failed');
+          return res.status(500).json({
+            success: false,
+            error: 'Emergency parsing failed',
+            message: 'Both AI and emergency parsing systems are unavailable.',
+            debugInfo: aiError.message
+          });
+        }
         
         // Check if it's a credit/billing issue
         if (aiError.message && aiError.message.includes('credit balance is too low')) {
+          console.error('🔍 [DEBUG] Detected credit balance issue - returning 400');
           return res.status(400).json({
             success: false,
             error: 'AI credits exhausted',
             message: 'AI parsing temporarily unavailable due to credit limits. Please try again later.',
-            needsCredits: true
+            needsCredits: true,
+            debugInfo: 'Credit balance too low'
           });
         }
         
-        // Other AI failures
+        // Other AI failures - add debugging
+        console.error('🔍 [DEBUG] Other AI failure - returning 400');
         return res.status(400).json({
           success: false,
           error: 'AI parsing unavailable',
-          message: 'AI service temporarily unavailable. Please try again later.'
+          message: 'AI service temporarily unavailable. Please try again later.',
+          debugInfo: aiError.message?.substring(0, 200)
         });
       }
     } else {

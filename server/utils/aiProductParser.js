@@ -123,7 +123,9 @@ class AIProductParser {
     }
 
     try {
+      console.log('🔍 [DEBUG] aiProductParser.parseGroceryProducts() - Starting AI extraction...');
       const aiProducts = await this.aiExtractProducts(textToParse, options);
+      console.log('🔍 [DEBUG] AI extraction successful, got', aiProducts.length, 'products');
       
       // Apply confidence threshold filtering if specified (lite mode support)
       const confidenceThreshold = options.confidenceThreshold || 0.0;
@@ -146,26 +148,38 @@ class AIProductParser {
       };
     } catch (error) {
       // EMERGENCY FALLBACK: Use basic parsing when AI APIs are invalid/unavailable
-      console.log('🔄 AI failed, using emergency basic parsing...');
-      const emergencyProducts = this.emergencyBasicParsing(textToParse);
+      console.error('🔍 [DEBUG] AI extraction failed in aiProductParser, error:', error.message);
+      console.error('🔍 [DEBUG] Error type:', typeof error);
+      console.error('🔍 [DEBUG] Activating emergency fallback...');
       
-      return {
-        products: emergencyProducts,
-        totalCandidates: emergencyProducts.length,
-        validProducts: emergencyProducts.length,
-        averageConfidence: 0.6, // Lower confidence for basic parsing
-        meta: { 
-          aiTried: true, 
-          aiUsed: false, 
-          emergencyMode: true,
-          errorMessage: error.message
-        }
-      };
+      try {
+        const emergencyProducts = this.emergencyBasicParsing(textToParse);
+        console.log('🔍 [DEBUG] Emergency parsing successful, got', emergencyProducts.length, 'products');
+        
+        return {
+          products: emergencyProducts,
+          totalCandidates: emergencyProducts.length,
+          validProducts: emergencyProducts.length,
+          averageConfidence: 0.6, // Lower confidence for basic parsing
+          meta: { 
+            aiTried: true, 
+            aiUsed: false, 
+            emergencyMode: true,
+            errorMessage: error.message,
+            emergencySuccess: true
+          }
+        };
+      } catch (emergencyError) {
+        console.error('🔍 [DEBUG] Emergency parsing also failed!', emergencyError.message);
+        throw new Error(`AI and emergency parsing both failed. AI: ${error.message}, Emergency: ${emergencyError.message}`);
+      }
     }
   }
 
   // Use Anthropic/OpenAI to extract a structured grocery list
   async aiExtractProducts(text, options = {}) {
+    console.log('🔍 [DEBUG] aiExtractProducts() starting...');
+    
     const sysPrompt = `You convert meal plans and shopping lists into a clean JSON array of grocery products.
 Rules:
 - Only output JSON. No prose. No markdown. No trailing commas.
@@ -181,41 +195,67 @@ Rules:
     // Resolve AI clients dynamically at call time (not construction time)
     const anthropic = global.anthropic || this.ai.anthropic;
     const openai = global.openai || this.ai.openai;
+    
+    console.log('🔍 [DEBUG] AI clients available:', {
+      anthropic: !!anthropic,
+      openai: !!openai,
+      globalAnthropic: !!global.anthropic,
+      globalOpenai: !!global.openai
+    });
 
     // Call Anthropic first if available, else OpenAI
     let raw;
-    if (anthropic) {
-      const resp = await anthropic.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 1200,
-        temperature: 0,
-        messages: [
-          { role: 'system', content: sysPrompt },
-          { role: 'user', content: userPrompt }
-        ]
-      });
-      raw = resp.content?.[0]?.text || '';
-    } else if (openai) {
-      const resp = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        temperature: 0,
-        max_tokens: 1200,
-        messages: [
-          { role: 'system', content: sysPrompt },
-          { role: 'user', content: userPrompt }
-        ]
-      });
-      raw = resp.choices?.[0]?.message?.content || '';
-    } else {
-      return [];
+    try {
+      if (anthropic) {
+        console.log('🔍 [DEBUG] Attempting Anthropic API call...');
+        const resp = await anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 1200,
+          temperature: 0,
+          messages: [
+            { role: 'system', content: sysPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        });
+        raw = resp.content?.[0]?.text || '';
+        console.log('🔍 [DEBUG] Anthropic API successful, response length:', raw.length);
+      } else if (openai) {
+        console.log('🔍 [DEBUG] Attempting OpenAI API call...');
+        const resp = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          temperature: 0,
+          max_tokens: 1200,
+          messages: [
+            { role: 'system', content: sysPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        });
+        raw = resp.choices?.[0]?.message?.content || '';
+        console.log('🔍 [DEBUG] OpenAI API successful, response length:', raw.length);
+      } else {
+        console.log('🔍 [DEBUG] No AI clients available, returning empty array');
+        return [];
+      }
+    } catch (apiError) {
+      console.error('🔍 [DEBUG] API call failed:', apiError.message);
+      console.error('🔍 [DEBUG] API error details:', JSON.stringify(apiError, null, 2));
+      throw apiError;  // Re-throw to trigger emergency fallback
     }
 
+    console.log('🔍 [DEBUG] Processing AI response...');
     const json = this.extractJsonArray(raw);
-    if (!json) return [];
-    return json
+    if (!json) {
+      console.log('🔍 [DEBUG] Failed to extract JSON from response');
+      return [];
+    }
+    
+    const processed = json
       .map(obj => this.normalizeAIProduct(obj))
       .filter(Boolean)
       .map(p => ({ ...p, confidence: Math.min(0.95, (p.confidence || 0.8)) }));
+      
+    console.log('🔍 [DEBUG] Successfully processed', processed.length, 'products from AI');
+    return processed;
   }
 
   extractJsonArray(text) {
