@@ -13,6 +13,7 @@ import AIParsingSettings from './AIParsingSettings';
 // import confetti from 'canvas-confetti'; // REMOVED - Not used in AI-only mode
 import { unified as unifiedRecipeService } from '../services/unifiedRecipeService';
 import persistenceService from '../services/persistenceService';
+import { generateAIMealPlan, parseAIMealPlan, saveParsedMealPlan, bulkImportRecipes } from '../services/aiMealPlanService';
 
 // Helper functions
 // eslint-disable-next-line no-unused-vars
@@ -313,6 +314,16 @@ function GroceryListForm({
   const [importingRecipe, setImportingRecipe] = useState(false);
   const [recipeUrl, setRecipeUrl] = useState('');
   const [aiRecipeText, setAiRecipeText] = useState('');
+  const [generatingMealPlan, setGeneratingMealPlan] = useState(false);
+  const [mealPlanPreferences, setMealPlanPreferences] = useState({
+    familySize: 4,
+    dietaryRestrictions: [],
+    mealPreferences: [],
+    budget: 'moderate',
+    prepTimePreference: 'balanced',
+    includeSnacks: true,
+    daysCount: 7
+  });
   const { currentUser, isAdmin } = useAuth();
   const textareaRef = useRef(null);
 
@@ -615,8 +626,10 @@ function GroceryListForm({
     {
       id: 'weekly-meal',
       icon: '📅',
-      title: 'Weekly Meal Plan',
-      description: 'Create a healthy 7-day meal plan with complete grocery shopping list for a family of 4.',
+      title: 'AI Meal Plan Generator',
+      description: 'Generate a complete 7-day meal plan with recipes and shopping list using AI.',
+      isFunction: true,
+      action: generateCompleteMealPlan,
       prompt: `Create a detailed 7-day meal plan with MULTIPLE SEPARATE RECIPES for a family of 4. Format as follows:
 
 **Day 1**
@@ -671,12 +684,18 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
   ];
 
   const handleTemplateClick = (template) => {
-    setInputText(template.prompt);
-    setWaitingForAIResponse(false);
-    // Trigger textarea expansion after template content loads
-    setTimeout(() => {
-      expandTextarea();
-    }, 50);
+    if (template.isFunction && template.action) {
+      // Call the function directly for function-based templates
+      template.action();
+    } else {
+      // Use the prompt for text-based templates
+      setInputText(template.prompt);
+      setWaitingForAIResponse(false);
+      // Trigger textarea expansion after template content loads
+      setTimeout(() => {
+        expandTextarea();
+      }, 50);
+    }
   };
 
   const extractAIResponseText = (aiData) => {
@@ -1099,21 +1118,16 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
     }
   };
 
-  // Pure AI-only generation with better prompting and validation
+  // Pure AI-only generation with better prompting and validation - NO MANUAL FALLBACKS
   const generateDetailedRecipeWithAI = async (recipeName, retryCount = 0) => {
-    const MAX_RETRIES = 3;
+    const MAX_RETRIES = 2;
     
     console.log('🤖 AI-ONLY generation for:', recipeName);
     console.log('📊 Attempt:', retryCount + 1, 'of', MAX_RETRIES);
     
     if (retryCount >= MAX_RETRIES) {
       console.error(`❌ AI failed after ${MAX_RETRIES} attempts for: ${recipeName}`);
-      return {
-        ingredients: [`Unable to generate ingredients for ${recipeName}`],
-        instructions: [`AI generation failed. Please try again or try a different recipe name.`],
-        success: false,
-        error: 'AI generation failed after multiple attempts'
-      };
+      throw new Error(`AI generation failed for "${recipeName}" after ${MAX_RETRIES} attempts. Please try again with a different recipe name.`);
     }
 
     try {
@@ -1298,17 +1312,88 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
         return await generateDetailedRecipeWithAI(recipeName, retryCount + 1);
       }
       
-      // Final failure - no manual fallback
-      return {
-        ingredients: [`Failed to generate ingredients for ${recipeName}`],
-        instructions: [`AI was unable to generate detailed instructions. Please try again.`],
-        success: false,
-        error: error.message
-      };
+      // Final failure - throw error instead of manual fallback
+      throw new Error(`AI generation failed for "${recipeName}": ${error.message}`);
     }
   };
 
   // REMOVED: All manual parsing functions - AI-ONLY mode enforced
+
+  // Generate a complete meal plan using the dedicated AI meal plan service
+  const generateCompleteMealPlan = async () => {
+    if (generatingMealPlan) {
+      console.log('🚫 Meal plan generation already in progress');
+      return;
+    }
+
+    setGeneratingMealPlan(true);
+    setError('');
+    setIsLoading(true);
+    setShowProgress(true);
+    setParsingProgress(0);
+
+    try {
+      console.log('🍽️ Starting complete AI meal plan generation with preferences:', mealPlanPreferences);
+
+      // Clear existing recipes to make room for new meal plan
+      setParsedRecipes([]);
+      setRecipes([]);
+
+      // Call the dedicated AI meal plan service
+      const mealPlanResult = await generateAIMealPlan(mealPlanPreferences, currentUser);
+
+      console.log('✅ AI meal plan generated successfully:', mealPlanResult);
+
+      if (mealPlanResult.success && mealPlanResult.mealPlan) {
+        const { mealPlan } = mealPlanResult;
+
+        // Set the recipes from the meal plan
+        if (mealPlan.recipes && mealPlan.recipes.length > 0) {
+          console.log(`📋 Displaying ${mealPlan.recipes.length} meal plan recipes`);
+          setRecipes(mealPlan.recipes);
+        }
+
+        // Set the shopping list from the meal plan
+        if (mealPlan.shoppingList && mealPlan.shoppingList.length > 0) {
+          console.log(`🛒 Setting shopping list with ${mealPlan.shoppingList.length} items`);
+          const shoppingListText = mealPlan.shoppingList.map(item => {
+            const quantity = item.quantity || '1';
+            const unit = item.unit ? ` ${item.unit}` : '';
+            const name = item.item || item.name;
+            return `• ${quantity}${unit} ${name}`;
+          }).join('\n');
+
+          setInputText(shoppingListText);
+          if (textareaRef.current) {
+            textareaRef.current.value = shoppingListText;
+          }
+        }
+
+        // If there's a saveMealPlan prop function, save the meal plan
+        if (saveMealPlan && typeof saveMealPlan === 'function') {
+          try {
+            await saveMealPlan(mealPlan);
+            console.log('💾 Meal plan saved successfully');
+          } catch (saveError) {
+            console.error('❌ Failed to save meal plan:', saveError);
+          }
+        }
+
+        console.log('✅ Complete meal plan generation finished successfully');
+      } else {
+        throw new Error(mealPlanResult.error || 'Failed to generate meal plan');
+      }
+
+    } catch (error) {
+      console.error('❌ Meal plan generation failed:', error);
+      setError(`Failed to generate meal plan: ${error.message}`);
+    } finally {
+      setGeneratingMealPlan(false);
+      setIsLoading(false);
+      setShowProgress(false);
+      setParsingProgress(0);
+    }
+  };
 
   // Handle adding recipe to recipe library
   // eslint-disable-next-line no-unused-vars
@@ -1425,18 +1510,18 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
             if (currentRecipe.ingredients.length === 0 || currentRecipe.instructions.length === 0) {
               console.log('🤖 AI generation required for:', currentRecipe.title);
               
-              const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
-              
-              if (aiRecipe.success) {
+              try {
+                const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
+                
                 if (currentRecipe.ingredients.length === 0) {
                   currentRecipe.ingredients = aiRecipe.ingredients;
                 }
                 if (currentRecipe.instructions.length === 0) {
                   currentRecipe.instructions = aiRecipe.instructions;
                 }
-              } else if (aiRecipe.error) {
+              } catch (error) {
                 // Show error to user instead of using fallbacks
-                console.error('❌ Recipe generation failed for:', currentRecipe.title);
+                console.error('❌ Recipe generation failed for:', currentRecipe.title, error.message);
                 currentRecipe.ingredients = currentRecipe.ingredients.length === 0 ? ['⚠️ Failed to generate ingredients - please retry'] : currentRecipe.ingredients;
                 currentRecipe.instructions = currentRecipe.instructions.length === 0 ? ['⚠️ Failed to generate instructions - please retry'] : currentRecipe.instructions;
                 currentRecipe.error = true;
@@ -1496,18 +1581,18 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
           if (currentRecipe.ingredients.length === 0 || currentRecipe.instructions.length === 0) {
             console.log('🤖 AI generation required for:', currentRecipe.title);
             
-            const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
-            
-            if (aiRecipe.success) {
+            try {
+              const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
+              
               if (currentRecipe.ingredients.length === 0) {
                 currentRecipe.ingredients = aiRecipe.ingredients;
               }
               if (currentRecipe.instructions.length === 0) {
                 currentRecipe.instructions = aiRecipe.instructions;
               }
-            } else if (aiRecipe.error) {
+            } catch (error) {
               // Show error to user instead of using fallbacks
-              console.error('❌ Recipe generation failed for:', currentRecipe.title);
+              console.error('❌ Recipe generation failed for:', currentRecipe.title, error.message);
               currentRecipe.ingredients = currentRecipe.ingredients.length === 0 ? ['⚠️ Failed to generate ingredients - please retry'] : currentRecipe.ingredients;
               currentRecipe.instructions = currentRecipe.instructions.length === 0 ? ['⚠️ Failed to generate instructions - please retry'] : currentRecipe.instructions;
               currentRecipe.error = true;
@@ -1684,18 +1769,18 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
       if (currentRecipe.ingredients.length === 0 || currentRecipe.instructions.length === 0) {
         console.log('🤖 AI generation required for final recipe:', currentRecipe.title);
         
-        const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
-        
-        if (aiRecipe.success) {
+        try {
+          const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
+          
           if (currentRecipe.ingredients.length === 0) {
             currentRecipe.ingredients = aiRecipe.ingredients;
           }
           if (currentRecipe.instructions.length === 0) {
             currentRecipe.instructions = aiRecipe.instructions;
           }
-        } else if (aiRecipe.error) {
+        } catch (error) {
           // Show error to user instead of using fallbacks
-          console.error('❌ Recipe generation failed for final recipe:', currentRecipe.title);
+          console.error('❌ Recipe generation failed for final recipe:', currentRecipe.title, error.message);
           currentRecipe.ingredients = currentRecipe.ingredients.length === 0 ? ['⚠️ Failed to generate ingredients - please retry'] : currentRecipe.ingredients;
           currentRecipe.instructions = currentRecipe.instructions.length === 0 ? ['⚠️ Failed to generate instructions - please retry'] : currentRecipe.instructions;
           currentRecipe.error = true;
