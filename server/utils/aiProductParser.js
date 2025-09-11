@@ -145,8 +145,22 @@ class AIProductParser {
         }
       };
     } catch (error) {
-      // If AI fails, throw error - no manual fallback in AI-only mode
-      throw new Error(`AI processing failed: ${error.message}`);
+      // EMERGENCY FALLBACK: Use basic parsing when AI APIs are invalid/unavailable
+      console.log('🔄 AI failed, using emergency basic parsing...');
+      const emergencyProducts = this.emergencyBasicParsing(textToParse);
+      
+      return {
+        products: emergencyProducts,
+        totalCandidates: emergencyProducts.length,
+        validProducts: emergencyProducts.length,
+        averageConfidence: 0.6, // Lower confidence for basic parsing
+        meta: { 
+          aiTried: true, 
+          aiUsed: false, 
+          emergencyMode: true,
+          errorMessage: error.message
+        }
+      };
     }
   }
 
@@ -499,6 +513,28 @@ Rules:
     }
     
     return Math.min(confidence, 1.0);
+  }
+
+  emergencyBasicParsing(text) {
+    console.log('🚨 EMERGENCY MODE: Basic parsing active - AI APIs unavailable');
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    const products = [];
+    
+    for (const line of lines) {
+      if (this.isExcludedLine(line)) continue;
+      
+      // Use existing parseLine method which has all the logic
+      const parsed = this.parseLine(line, { section: 'emergency' });
+      if (parsed) {
+        // Lower confidence for emergency parsing
+        parsed.confidence = Math.max(0.4, parsed.confidence - 0.2);
+        parsed.emergencyParsed = true;
+        products.push(parsed);
+      }
+    }
+    
+    console.log(`🔄 Emergency parsing extracted ${products.length} items`);
+    return products;
   }
 
   getParsingStats(results) {
