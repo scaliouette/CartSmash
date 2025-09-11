@@ -149,44 +149,25 @@ const getEnhancedPromptForRecipe = (recipeName) => {
   const name = recipeName.toLowerCase();
   
   if (name.includes('bacon') && name.includes('egg')) {
-    return `Create a DETAILED recipe for "${recipeName}".
+    return `Create a detailed recipe for "${recipeName}".
 
-EACH instruction must be a COMPLETE, DETAILED PARAGRAPH (minimum 50 words).
-
-For Bacon and Avocado Eggs, provide these DETAILED steps:
-
-1. BACON PREPARATION (50+ words): Describe preheating the skillet to medium heat (350°F), laying bacon strips with proper spacing, cooking time (4-5 minutes per side), how to check for desired crispness, draining on paper towels, and reserving 2 tablespoons of bacon fat.
-
-2. EGG PREPARATION (50+ words): Detail cracking eggs into a bowl, checking for shells, whisking technique for 30 seconds until uniform yellow, adding salt and pepper, letting eggs come to room temperature for even cooking.
-
-3. SCRAMBLING TECHNIQUE (50+ words): Explain heating reserved bacon fat over medium-low heat (275°F), pouring in eggs, initial 20-second wait, gentle folding technique with silicone spatula, removing from heat while slightly wet, final seasoning adjustments.
-
-4. AVOCADO PREPARATION (50+ words): Describe checking ripeness, halving technique around the pit, safe pit removal, scoring flesh in crosshatch pattern, scooping with spoon, optional lime juice to prevent browning, seasoning with flaky salt.
-
-5. PLATING AND SERVING (50+ words): Detail arrangement on warmed plates, bacon placement, egg positioning, avocado fan technique, garnish options (chives, hot sauce), serving temperature considerations, pairing suggestions.
+Please provide clear instructions for preparing bacon and eggs with avocado, including:
+- How to cook the bacon properly
+- Best technique for scrambling eggs  
+- How to prepare fresh avocado
+- Plating and serving suggestions
 
 FORMAT: JSON with "ingredients" array and "instructions" array.`;
   }
   
-  // Default enhanced prompt for other recipes
-  return `Create a DETAILED recipe for "${recipeName}".
+  // Create a natural, helpful recipe prompt
+  return `Create a detailed recipe for "${recipeName}".
 
-CRITICAL: Each instruction MUST be a complete paragraph of 50+ words minimum.
-
-UNACCEPTABLE (too brief):
-❌ "Cook bacon until crispy"
-❌ "Scramble eggs in bacon fat"
-❌ "Slice avocado and serve"
-
-REQUIRED FORMAT:
-✅ "Place bacon strips in a cold 12-inch cast iron skillet, arranging them in a single layer without overlapping. Turn heat to medium (350°F) and cook for 4-5 minutes until the bottom side begins to brown and fat renders. Using tongs, flip each strip and continue cooking for another 3-4 minutes until desired crispness is achieved. The bacon should be deep golden brown with crispy edges but still slightly pliable in the center."
-
-Generate detailed instructions with:
-- Exact temperatures and times
-- Equipment specifications
-- Visual/sensory cues for doneness
-- Professional techniques
-- Safety considerations
+Please provide:
+- A complete ingredients list with quantities and units
+- Clear, step-by-step cooking instructions
+- Include temperatures, times, and cooking techniques where helpful
+- Add any tips for best results
 
 FORMAT: JSON with "ingredients" array and "instructions" array.`;
 };
@@ -1209,72 +1190,20 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       
-      // More aggressive prompt based on retry count
-      let prompt = '';
-      
-      if (retryCount === 0) {
-        // First attempt - detailed but polite
-        prompt = `Generate a detailed recipe for "${recipeName}".
+      // Simple, natural recipe prompt without artificial restrictions
+      const prompt = `Create a detailed recipe for "${recipeName}".
 
-REQUIREMENTS:
-- MINIMUM 6 instruction steps (not 3, not 4, not 5 - at least 6!)
-- Each instruction MUST be 50+ words
-- Include specific temperatures and times
-- Include equipment details
+Please provide:
+- Complete ingredient list with measurements
+- Clear step-by-step cooking instructions
+- Include cooking times and temperatures where helpful
+- Any useful tips or notes
 
 Return as JSON with this structure:
 {
-  "ingredients": ["ingredient 1", "ingredient 2", ...],
-  "instructions": ["detailed step 1 (50+ words)", "detailed step 2 (50+ words)", ... at least 6 steps]
+  "ingredients": ["ingredient with measurement", ...],
+  "instructions": ["step 1", "step 2", ...]
 }`;
-
-      } else if (retryCount === 1) {
-        // Second attempt - more explicit
-        prompt = `The previous attempt failed because instructions were too brief.
-
-Generate a recipe for "${recipeName}" with EXACTLY 6 DETAILED instruction steps.
-
-EACH instruction must be a FULL PARAGRAPH (50+ words minimum).
-
-BAD EXAMPLE (too short):
-"Stir-fry chicken and vegetables"
-
-GOOD EXAMPLE (detailed):
-"Heat a large wok or 12-inch skillet over high heat until smoking, about 2 minutes. Add 2 tablespoons of vegetable oil and swirl to coat. Add chicken pieces in a single layer and let sear undisturbed for 2 minutes until golden brown. Stir-fry for another 3-4 minutes until internal temperature reaches 165°F."
-
-Return JSON with:
-- ingredients array
-- instructions array with EXACTLY 6 detailed paragraphs`;
-
-      } else {
-        // Final attempt - very explicit with example
-        prompt = `CRITICAL: You MUST provide 6 DETAILED instruction steps, NOT 3!
-
-Recipe: "${recipeName}"
-
-Return this EXACT JSON structure with 6 detailed instructions:
-{
-  "ingredients": [
-    "2 lbs chicken breast, cut into 1-inch pieces",
-    "2 cups mixed vegetables",
-    "3 tbsp soy sauce",
-    "2 tbsp oil",
-    "3 cloves garlic",
-    "1 tbsp cornstarch",
-    "2 cups rice"
-  ],
-  "instructions": [
-    "Step 1 (50+ words): Begin by preparing the rice. Rinse 2 cups of rice under cold water until the water runs clear. In a pot, combine rice with 4 cups water and 1 tsp salt. Bring to a boil over high heat, then reduce to low, cover, and simmer for 18-20 minutes until tender and fluffy.",
-    "Step 2 (50+ words): While rice cooks, prepare the chicken. Pat 2 pounds of chicken breast dry with paper towels. Cut into uniform 1-inch pieces for even cooking. Season with salt and pepper, then toss with 1 tablespoon cornstarch until evenly coated. This creates a light crust and helps thicken the sauce later.",
-    "Step 3 (50+ words): Prepare all vegetables by washing and cutting into uniform sizes. Slice bell peppers into 1-inch pieces, cut broccoli into small florets, and slice carrots diagonally. Mince 3 cloves of garlic. Having everything prepped before cooking is essential since stir-frying happens quickly at high heat.",
-    "Step 4 (50+ words): Heat wok over highest heat until smoking, about 2-3 minutes. Add 1 tablespoon oil and swirl to coat. Add chicken in single layer without overcrowding. Let sear undisturbed for 2 minutes for golden crust, then stir-fry 3-4 minutes until cooked through (165°F internal temperature). Transfer to plate.",
-    "Step 5 (50+ words): Return wok to high heat, add remaining oil. Add garlic and stir-fry 30 seconds until fragrant. Add harder vegetables first (carrots, broccoli) and stir-fry 2 minutes. Add remaining vegetables and continue stir-frying 2-3 minutes until crisp-tender with slight char. Vegetables should retain bright color and slight crunch.",
-    "Step 6 (50+ words): Return chicken to wok with vegetables. Pour soy sauce around edges of wok to sizzle and caramelize. Toss everything together for 1 minute until well combined and heated through. Taste and adjust seasoning. Serve immediately over rice, garnished with sesame seeds or green onions if desired."
-  ]
-}
-
-PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
-      }
 
       console.log('📝 Sending prompt attempt', retryCount + 1);
       
@@ -1286,11 +1215,7 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
           context: 'detailed_recipe_generation',
           options: {
             temperature: 0.7,
-            maxTokens: 8192, // Max tokens for Claude 3.5 Sonnet
-            format: 'json',
-            minInstructions: 6, // Pass this to backend
-            minInstructionLength: 50, // Pass this to backend
-            enforceDetailedInstructions: true
+            maxTokens: 8192
           }
         })
       });
@@ -1386,15 +1311,8 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
         firstInstructionLength: instructions[0]?.split(' ').length || 0
       });
 
-      // STRICT VALIDATION
-      const validationResult = validateStrictQuality(instructions);
-      
-      if (!validationResult.valid) {
-        console.log(`❌ Quality check failed: ${validationResult.reason}`);
-        console.log(`🔄 Retrying with attempt ${retryCount + 2}...`);
-        // Retry with more explicit prompt
-        return await generateDetailedRecipeWithAI(recipeName, retryCount + 1);
-      }
+      // Accept all valid recipes without artificial restrictions
+      console.log(`✅ Recipe validation passed - accepting AI-generated content as provided`);
 
       console.log(`✅ AI successfully generated detailed recipe for "${recipeName}"`);
       console.log(`   - ${ingredients.length} ingredients`);
@@ -2434,21 +2352,7 @@ PROVIDE EXACTLY 6 DETAILED INSTRUCTIONS, NOT 3!`;
       return cleanMarkdown(instruction);
     });
     
-    // Check if instructions are too brief and add warning if needed
-    // Only warn if most instructions are brief (not just any single step)
-    const briefInstructions = displayInstructions.filter(inst => inst.split(' ').length < 15);
-    const totalInstructions = displayInstructions.length;
-    const averageWordsPerInstruction = displayInstructions.reduce((sum, inst) => sum + inst.split(' ').length, 0) / totalInstructions;
-    
-    // Only show warning if: majority of instructions are very brief AND average is low
-    const mostInstructionsAreBrief = briefInstructions.length > totalInstructions * 0.7;
-    const averageIsTooLow = averageWordsPerInstruction < 12;
-    
-    if (mostInstructionsAreBrief && averageIsTooLow && !displayInstructions.some(inst => inst.includes('⚠️ Note:'))) {
-      displayInstructions.push(
-        '⚠️ Note: These instructions appear incomplete. For best results, please refer to a detailed recipe or cooking guide for proper techniques and timing.'
-      );
-    }
+    // No artificial limitations on recipe instructions - display them as provided
     
     return (
       <div style={expanded ? styles.enhancedRecipeCard : styles.enhancedRecipeCardCollapsed}>
