@@ -2193,7 +2193,60 @@ Return as JSON with this structure:
   const handleAddToRecipeLibrary = (recipe) => {
     // Safely handle ingredients and instructions that might be arrays or strings
     const ingredientsText = Array.isArray(recipe.ingredients) 
-      ? recipe.ingredients.join('\n')
+      ? recipe.ingredients.map((ingredient, index) => {
+          console.log(`🔍 [DEBUG] Processing recipe library ingredient ${index}:`, ingredient);
+          
+          if (typeof ingredient === 'string') {
+            return ingredient;
+          }
+          
+          // Handle structured ingredient objects with multiple possible formats
+          if (typeof ingredient === 'object' && ingredient !== null) {
+            // Check for original text format
+            if (ingredient.original) {
+              return ingredient.original;
+            }
+            
+            // Check for quantity + unit + item format
+            if (ingredient.quantity && ingredient.item) {
+              const unit = ingredient.unit || '';
+              return `${ingredient.quantity}${unit ? ' ' + unit : ''} ${ingredient.item}`;
+            }
+            
+            // Check for quantity + unit + name format
+            if (ingredient.quantity && ingredient.name) {
+              const unit = ingredient.unit || '';
+              return `${ingredient.quantity}${unit ? ' ' + unit : ''} ${ingredient.name}`;
+            }
+            
+            // Check for amount + ingredient format
+            if (ingredient.amount && ingredient.ingredient) {
+              return `${ingredient.amount} ${ingredient.ingredient}`;
+            }
+            
+            // Check for text field
+            if (ingredient.text) {
+              return ingredient.text;
+            }
+            
+            // Check for description field
+            if (ingredient.description) {
+              return ingredient.description;
+            }
+            
+            // Last resort: try to construct from available fields
+            const qty = ingredient.qty || ingredient.quantity || '';
+            const unit = ingredient.unit || '';
+            const name = ingredient.name || ingredient.item || ingredient.ingredient || '';
+            
+            if (name) {
+              return `${qty}${unit ? ' ' + unit : ''} ${name}`.trim();
+            }
+          }
+          
+          console.warn(`⚠️ Could not parse recipe library ingredient at index ${index}:`, ingredient);
+          return `• Unknown ingredient`;
+        }).filter(ingredient => ingredient && ingredient.trim() !== '').join('\n')
       : recipe.ingredients || '';
     
     const instructionsText = Array.isArray(recipe.instructions)
@@ -3503,7 +3556,7 @@ Return as JSON with this structure:
           <div style={styles.settings}>
             {/* Merge/Replace Toggle */}
             <div style={styles.settingGroup}>
-              <label style={styles.settingLabel}>Mode:</label>
+              <label style={styles.settingLabel}>List Option:</label>
               <div style={styles.toggleButtons}>
                 <button
                   onClick={() => setMergeCart(true)}
@@ -3530,7 +3583,7 @@ Return as JSON with this structure:
 
             {/* Ingredient Style */}
             <div style={styles.settingGroup}>
-              <label style={styles.settingLabel}>Style:</label>
+              <label style={styles.settingLabel}>Ingredients:</label>
               <div style={styles.toggleButtons}>
                 <button
                   onClick={() => setIngredientStyle('basic')}
