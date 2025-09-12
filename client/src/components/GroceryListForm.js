@@ -1364,7 +1364,7 @@ Return as JSON with this structure:
       if (mealTypeMatch) {
         captureNextAsRecipeName = true;
         currentSection = ''; // Reset section when new meal starts
-        console.log('🍽️ Found meal type header:', mealTypeMatch[1]);
+        console.log('Found meal type header:', mealTypeMatch[1]);
         continue;
       }
       
@@ -3053,7 +3053,7 @@ Or paste any grocery list directly!"
             <div style={styles.headerLeft}>
               <h3 style={styles.recipesTitle}>
                 {(parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) || recipes.some(r => r.mealType || r.tags?.includes('meal plan'))) ? 
-                  '📋 Meal Plan Ideas' : '🍳 Recipes Found'}
+                  '📋 Meal Plan Ideas' : 'Recipes Found'}
               </h3>
               <span style={styles.recipeCounter}>
                 ({parsedRecipes.length + recipes.length} recipe{parsedRecipes.length + recipes.length !== 1 ? 's' : ''})
@@ -3708,7 +3708,7 @@ const styles = {
   },
 
   collapseButton: {
-    background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
+    background: 'linear-gradient(135deg, #002244 0%, #0066CC 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -3717,7 +3717,7 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
-    boxShadow: '0 2px 6px rgba(255, 107, 53, 0.3)',
+    boxShadow: '0 2px 6px rgba(0, 34, 68, 0.3)',
     display: 'flex',
     alignItems: 'center',
     gap: '6px'
@@ -4402,7 +4402,7 @@ const styles = {
   
   expandButton: {
     padding: '8px 16px',
-    background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
+    background: 'linear-gradient(135deg, #1E90FF 0%, #4169E1 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -4410,7 +4410,7 @@ const styles = {
     fontSize: '14px',
     fontWeight: '600',
     transition: 'all 0.3s ease',
-    boxShadow: '0 2px 6px rgba(255, 107, 53, 0.3)',
+    boxShadow: '0 2px 6px rgba(30, 144, 255, 0.3)',
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
