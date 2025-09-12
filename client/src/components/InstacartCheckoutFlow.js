@@ -585,7 +585,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 2, 68, 0.7)',
+        backgroundColor: 'rgba(0, 34, 68, 0.7)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -598,7 +598,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         backgroundColor: 'white',
         borderRadius: '20px',
         overflow: 'hidden',
-        boxShadow: '0 20px 60px rgba(0, 2, 68, 0.3)',
+        boxShadow: '0 20px 60px rgba(0, 34, 68, 0.3)',
         display: 'flex',
         flexDirection: 'column'
       }}>
@@ -606,7 +606,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         <div 
           className="instacart-checkout-header"
           style={{
-            background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
+            background: 'linear-gradient(135deg, #002244 0%, #003366 100%)',
             padding: '32px',
             color: 'white',
             position: 'relative'
@@ -728,7 +728,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             }}>
               {currentStep !== 'store' ? '✓' : '1'}
             </div>
-            <span style={{ fontSize: '14px', fontWeight: '500', color: '#FF6B35' }}>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#FB4F14' }}>
               Select Store
             </span>
           </div>
@@ -749,7 +749,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             }}>
               {currentStep === 'complete' ? '✓' : '2'}
             </div>
-            <span style={{ fontSize: '14px', fontWeight: '500', color: '#FF6B35' }}>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#FB4F14' }}>
               Match Items
             </span>
           </div>
@@ -770,7 +770,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             }}>
               3
             </div>
-            <span style={{ fontSize: '14px', fontWeight: '500', color: '#FF6B35' }}>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#FB4F14' }}>
               Complete
             </span>
           </div>
@@ -780,7 +780,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         <div style={{ flex: 1, padding: '32px', overflowY: 'auto' }}>
           {currentStep === 'store' && (
             <>
-              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FB4F14', marginBottom: '16px' }}>
                 Choose Your Store
               </h2>
               <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
@@ -788,7 +788,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               </p>
 
               <div style={{ marginBottom: '32px' }}>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#FF6B35', marginBottom: '8px' }}>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: '#FB4F14', marginBottom: '8px' }}>
                   Delivery Location
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -800,7 +800,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                         padding: '12px 16px',
                         fontSize: '16px',
                         backgroundColor: 'white',
-                        color: '#FF6B35',
+                        color: '#FB4F14',
                         border: '2px solid #FF6B35',
                         borderRadius: '8px',
                         cursor: searchingStores ? 'not-allowed' : 'pointer',
@@ -831,7 +831,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                     style={{
                       padding: '12px 16px',
                       backgroundColor: 'white',
-                      color: '#FF6B35',
+                      color: '#FB4F14',
                       border: '2px solid #FF6B35',
                       borderRadius: '8px',
                       fontSize: '16px',
@@ -846,7 +846,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
               {stores.length > 0 && (
                 <>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#FF6B35', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#FB4F14', marginBottom: '16px' }}>
                     Available Stores
                   </div>
                   <div style={{
@@ -943,7 +943,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               {!selectedStore && stores.length === 0 && (
                 <div style={{ textAlign: 'center', marginTop: '32px', padding: '24px', backgroundColor: '#f8f9fa', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
                   <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
-                  <h3 style={{ color: '#FF6B35', marginBottom: '8px', fontSize: '18px' }}>No stores found</h3>
+                  <h3 style={{ color: '#FB4F14', marginBottom: '8px', fontSize: '18px' }}>No stores found</h3>
                   <p style={{ color: '#666', fontSize: '14px', lineHeight: '1.5' }}>
                     Enter your ZIP code above to find Instacart retailers in your area. We'll show you all available stores with real-time delivery options.
                   </p>
@@ -955,7 +955,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
           {currentStep === 'match' && (
             <>
 
-              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FB4F14', marginBottom: '16px' }}>
                 Enhanced Product Matching
               </h2>
               <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
@@ -965,7 +965,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               {isResolvingProducts && (
                 <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#FFF5F2', borderRadius: '12px', marginBottom: '24px' }}>
                   <div style={{ fontSize: '48px', marginBottom: '16px' }}>🧠</div>
-                  <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '8px' }}>
+                  <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#FB4F14', marginBottom: '8px' }}>
                     Resolving Products...
                   </p>
                   <p style={{ color: '#666' }}>
@@ -1129,8 +1129,92 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                                   </div>
                                 </div>
                                 
-                                {/* Price Display - Prominent */}
+                                {/* Price Display with Quantity - Prominent */}
                                 <div style={{ textAlign: 'right', marginLeft: '16px', flexShrink: 0 }}>
+                                  {/* Quantity Selector - Compact */}
+                                  <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    gap: '6px',
+                                    marginBottom: '8px'
+                                  }}>
+                                    <button 
+                                      onClick={() => {
+                                        const newQty = Math.max(1, (productQuantities[itemId] || item.originalItem.quantity || 1) - 1);
+                                        setProductQuantities(prev => ({ ...prev, [itemId]: newQty }));
+                                      }}
+                                      style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        border: '1px solid #FB4F14',
+                                        backgroundColor: '#FFF',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 'bold',
+                                        color: '#FB4F14',
+                                        transition: 'all 0.2s'
+                                      }}
+                                      onMouseOver={(e) => {
+                                        e.target.style.backgroundColor = '#FEF2F2';
+                                      }}
+                                      onMouseOut={(e) => {
+                                        e.target.style.backgroundColor = '#FFF';
+                                      }}
+                                    >
+                                      -
+                                    </button>
+                                    
+                                    <div style={{ 
+                                      minWidth: '40px',
+                                      textAlign: 'center',
+                                      fontSize: '16px',
+                                      fontWeight: 'bold',
+                                      color: '#1F2937',
+                                      padding: '4px 8px',
+                                      backgroundColor: '#F9FAFB',
+                                      borderRadius: '4px',
+                                      border: '1px solid #D1D5DB'
+                                    }}>
+                                      {productQuantities[itemId] || item.originalItem.quantity || 1}
+                                    </div>
+                                    
+                                    <button 
+                                      onClick={() => {
+                                        const newQty = (productQuantities[itemId] || item.originalItem.quantity || 1) + 1;
+                                        setProductQuantities(prev => ({ ...prev, [itemId]: newQty }));
+                                      }}
+                                      style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        border: '1px solid #FB4F14',
+                                        backgroundColor: '#FFF',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 'bold',
+                                        color: '#FB4F14',
+                                        transition: 'all 0.2s'
+                                      }}
+                                      onMouseOver={(e) => {
+                                        e.target.style.backgroundColor = '#FEF2F2';
+                                      }}
+                                      onMouseOut={(e) => {
+                                        e.target.style.backgroundColor = '#FFF';
+                                      }}
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+
+                                  {/* Price Display */}
                                   <div style={{ 
                                     backgroundColor: '#F0FDF4',
                                     padding: '8px 12px',
@@ -1431,128 +1515,6 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                                 </div>
                               )}
 
-                              {/* Quantity Selector - Clean and Organized */}
-                              <div style={{ 
-                                display: 'flex', 
-                                justifyContent: 'center',
-                                marginTop: '12px',
-                                padding: '12px',
-                                backgroundColor: '#F9FAFB',
-                                borderRadius: '8px',
-                                border: '1px solid #E5E7EB'
-                              }}>
-                                <div style={{ 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  gap: '12px',
-                                  backgroundColor: 'white',
-                                  padding: '8px 16px',
-                                  borderRadius: '8px',
-                                  border: '1px solid #D1D5DB'
-                                }}>
-                                  <span style={{ 
-                                    fontSize: '14px', 
-                                    color: '#374151', 
-                                    fontWeight: '600',
-                                    minWidth: '60px'
-                                  }}>
-                                    Quantity:
-                                  </span>
-                                  
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <button 
-                                      onClick={() => {
-                                        const newQty = Math.max(1, (productQuantities[itemId] || item.originalItem.quantity || 1) - 1);
-                                        setProductQuantities(prev => ({ ...prev, [itemId]: newQty }));
-                                      }}
-                                      style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        border: '2px solid #E5E7EB',
-                                        backgroundColor: '#FFF',
-                                        borderRadius: '6px',
-                                        cursor: 'pointer',
-                                        fontSize: '16px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontWeight: 'bold',
-                                        color: '#6B7280',
-                                        transition: 'all 0.2s'
-                                      }}
-                                      onMouseOver={(e) => {
-                                        e.target.style.borderColor = '#10B981';
-                                        e.target.style.backgroundColor = '#F0FDF4';
-                                      }}
-                                      onMouseOut={(e) => {
-                                        e.target.style.borderColor = '#E5E7EB';
-                                        e.target.style.backgroundColor = '#FFF';
-                                      }}
-                                    >
-                                      -
-                                    </button>
-                                    
-                                    <div style={{ 
-                                      minWidth: '80px',
-                                      textAlign: 'center',
-                                      fontSize: '18px',
-                                      fontWeight: 'bold',
-                                      color: '#1F2937',
-                                      padding: '8px 12px',
-                                      backgroundColor: '#F3F4F6',
-                                      borderRadius: '6px',
-                                      border: '1px solid #D1D5DB'
-                                    }}>
-                                      {productQuantities[itemId] || item.originalItem.quantity || 1}
-                                      {item.resolvedDetails?.unit && item.resolvedDetails.unit !== 'each' && (
-                                        <div style={{ 
-                                          fontSize: '11px', 
-                                          color: '#6B7280',
-                                          fontWeight: 'normal',
-                                          marginTop: '2px'
-                                        }}>
-                                          {item.resolvedDetails.measurement && item.resolvedDetails.measurement > 1 
-                                            ? `${item.resolvedDetails.measurement} ${item.resolvedDetails.unit}` 
-                                            : item.originalItem.unit || 'each'
-                                          }
-                                        </div>
-                                      )}
-                                    </div>
-                                    
-                                    <button 
-                                      onClick={() => {
-                                        const newQty = (productQuantities[itemId] || item.originalItem.quantity || 1) + 1;
-                                        setProductQuantities(prev => ({ ...prev, [itemId]: newQty }));
-                                      }}
-                                      style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        border: '2px solid #E5E7EB',
-                                        backgroundColor: '#FFF',
-                                        borderRadius: '6px',
-                                        cursor: 'pointer',
-                                        fontSize: '16px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontWeight: 'bold',
-                                        color: '#6B7280',
-                                        transition: 'all 0.2s'
-                                      }}
-                                      onMouseOver={(e) => {
-                                        e.target.style.borderColor = '#10B981';
-                                        e.target.style.backgroundColor = '#F0FDF4';
-                                      }}
-                                      onMouseOut={(e) => {
-                                        e.target.style.borderColor = '#E5E7EB';
-                                        e.target.style.backgroundColor = '#FFF';
-                                      }}
-                                    >
-                                      +
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
                             </div>
                           );
                         })}
@@ -1675,7 +1637,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '24px', height: '100%' }}>
                 {/* Left Column - Cart Details */}
                 <div>
-                  <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '16px' }}>
+                  <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FB4F14', marginBottom: '16px' }}>
                     Finalize Your Order
                   </h2>
                   <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
@@ -1693,7 +1655,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                       <div style={{ fontSize: '32px' }}>{selectedStore?.logo}</div>
                       <div>
-                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#FF6B35' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#FB4F14' }}>
                           {selectedStore?.name}
                         </div>
                         <div style={{ fontSize: '13px', color: '#6B7280' }}>
@@ -1910,7 +1872,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                                       </span>
                                     )}
                                   </div>
-                                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#FF6B35' }}>
+                                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#FB4F14' }}>
                                     ${itemTotal}
                                   </div>
                                 </div>
@@ -2104,7 +2066,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                   gap: '8px',
                   padding: '12px 20px',
                   backgroundColor: 'white',
-                  color: '#FF6B35',
+                  color: '#FB4F14',
                   border: '2px solid #FF6B35',
                   borderRadius: '8px',
                   fontSize: '14px',
@@ -2130,7 +2092,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               style={{
                 padding: '12px 24px',
                 backgroundColor: 'white',
-                color: '#FF6B35',
+                color: '#FB4F14',
                 border: '2px solid #FF6B35',
                 borderRadius: '8px',
                 fontSize: '16px',
