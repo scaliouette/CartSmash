@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { InlineSpinner } from './LoadingSpinner';
 import KrogerOrderFlow from './KrogerOrderFlow';
 import ProductValidator from './ProductValidator';
+import RecipeManager from './RecipeManager';
 
 
 
@@ -57,6 +58,8 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   const [newListName, setNewListName] = useState('');
   const [showValidationPage, setShowValidationPage] = useState(false);
   const [validatingAll, setValidatingAll] = useState(false);
+  const [showRecipeEditor, setShowRecipeEditor] = useState(false);
+  const [editingRecipeData, setEditingRecipeData] = useState(null);
   
   // Enhanced catalog data state
   const [catalogData, setCatalogData] = useState({});
@@ -555,49 +558,28 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     return recipes;
   };
 
-  // Save individual recipe
+  // Save individual recipe - now opens recipe editor first
   const handleSaveRecipe = async (content) => {
     if (!content) return;
     
     try {
+      // Parse the recipe content to extract structured data
       const recipe = parseRecipeContent(content);
-      const currentSavedRecipes = savedRecipes || [];
       
-      const newRecipe = {
-        id: `recipe_${Date.now()}`,
-        ...recipe,
-        savedAt: new Date().toISOString(),
-        source: 'ai_generated'
+      // Prepare recipe data for editing
+      const recipeForEditing = {
+        name: recipe.title || 'Untitled Recipe',
+        ingredients: recipe.ingredients?.join('\n') || content,
+        instructions: recipe.instructions?.join('\n') || ''
       };
       
-      const updatedRecipes = [...currentSavedRecipes, newRecipe];
-      
-      // Update parent state - parent handles Firestore persistence
-      if (setSavedRecipes) {
-        setSavedRecipes(updatedRecipes);
-        console.log('✅ Recipe delegated to parent component for Firestore storage');
-      } else {
-        console.warn('⚠️ No setSavedRecipes callback provided - recipe not saved');
-      }
-      
-      // Show success message
-      alert('✅ Recipe saved successfully!');
-      
-      // Optional: Save to Firebase if user is logged in
-      if (currentUser) {
-        try {
-          const userDataService = (await import('../services/userDataService')).default;
-          await userDataService.saveUserRecipe(newRecipe);
-          console.log('Recipe saved to Firebase');
-        } catch (firebaseError) {
-          console.error('Failed to save recipe to Firebase:', firebaseError);
-          // Don't fail the whole operation if Firebase save fails
-        }
-      }
+      // Show the recipe editor with parsed data
+      setEditingRecipeData(recipeForEditing);
+      setShowRecipeEditor(true);
       
     } catch (error) {
-      console.error('Error saving recipe:', error);
-      alert('❌ Failed to save recipe. Please try again.');
+      console.error('❌ Error parsing recipe:', error);
+      alert('❌ Failed to parse recipe. Please try again.');
     }
   };
 
@@ -1587,6 +1569,32 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
             // ✅ REMOVED: Direct localStorage write - cart authority handles persistence
           }}
           onClose={() => setShowValidationPage(false)}
+        />
+      )}
+
+      {/* Recipe Editor Modal */}
+      {showRecipeEditor && (
+        <RecipeManager
+          onClose={() => {
+            setShowRecipeEditor(false);
+            setEditingRecipeData(null);
+          }}
+          onRecipeSelect={() => {}} // Not used in this context
+          savedRecipes={savedRecipes}
+          onRecipeSave={(recipe) => {
+            // Handle recipe save - delegate to parent component
+            if (setSavedRecipes) {
+              const currentSavedRecipes = savedRecipes || [];
+              const updatedRecipes = [...currentSavedRecipes, recipe];
+              setSavedRecipes(updatedRecipes);
+              console.log('✅ Recipe saved through RecipeManager');
+            }
+            setShowRecipeEditor(false);
+            setEditingRecipeData(null);
+          }}
+          onRecipeDelete={() => {}} // Not used in this context
+          editingRecipe={editingRecipeData}
+          initialTab="edit"
         />
       )}
 
