@@ -2299,7 +2299,7 @@ Return as JSON with this structure:
     const [selectedMealType, setSelectedMealType] = useState(recipe.mealType || 'Dinner');
     const [saveToLibrary, setSaveToLibrary] = useState(true);
     const [quickAddMode, setQuickAddMode] = useState(false);
-    const [customName, setCustomName] = useState(recipe.title || '');
+    const [customName, setCustomName] = useState(recipe.title || recipe.name || '');
     
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -2310,7 +2310,7 @@ Return as JSON with this structure:
         if (saveToLibrary) {
           handleAddToRecipeLibrary({
             ...recipe,
-            title: customName || recipe.title,
+            title: customName || recipe.title || recipe.name,
             mealType: selectedMealType
           });
         }
@@ -2318,13 +2318,13 @@ Return as JSON with this structure:
         // Create meal plan
         const mealPlan = {
           id: `mealplan_${Date.now()}`,
-          name: `${selectedDay} ${selectedMealType} - ${customName || recipe.title}`,
+          name: `${selectedDay} ${selectedMealType} - ${customName || recipe.title || recipe.name}`,
           weekOf: new Date().toISOString().split('T')[0],
           days: {
             [selectedDay]: {
               [selectedMealType]: [{
                 id: `recipe_${Date.now()}`,
-                title: customName || recipe.title,
+                title: customName || recipe.title || recipe.name,
                 ingredients: recipe.ingredients || [],
                 instructions: recipe.instructions || [],
                 mealType: selectedMealType,
@@ -2335,7 +2335,7 @@ Return as JSON with this structure:
           totalMeals: 1,
           recipes: [{
             id: `recipe_${Date.now()}`,
-            title: customName || recipe.title,
+            title: customName || recipe.title || recipe.name,
             ingredients: recipe.ingredients || [],
             instructions: recipe.instructions || [],
             mealType: selectedMealType,
@@ -2353,7 +2353,7 @@ Return as JSON with this structure:
                 category: 'Other'
               };
             }) || [],
-            name: `${customName || recipe.title} - Shopping List`
+            name: `${customName || recipe.title || recipe.name} - Shopping List`
           },
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -2482,7 +2482,7 @@ Return as JSON with this structure:
                 <h4 style={styles.previewTitle}>Preview:</h4>
                 <p style={styles.previewTextBasic}>
                   📅 <strong>{selectedDay}</strong> - {selectedMealType}<br/>
-                  🍳 <strong>{customName || recipe.title}</strong><br/>
+                  🍳 <strong>{customName || recipe.title || recipe.name}</strong><br/>
                   {recipe.ingredients?.length > 0 && (
                     <>📝 {recipe.ingredients.length} ingredients</>
                   )}
