@@ -174,7 +174,54 @@ When modifying routes in `instacartRoutes.js`, restart the server to reload the 
 - **Environment**: Development
 - **Status**: All routes loaded and functional
 
+## AI Meal Plan Recipe Generation
+
+### Overview
+The CartSmash application includes AI-powered meal plan generation that creates detailed, restaurant-quality recipes using advanced prompt engineering and quality validation.
+
+### Quality Improvements Implemented (2025-09-12)
+
+#### Problem Solved
+**Issue**: AI was generating overly brief recipe instructions for complex dishes like "Pan-Seared Filet Mignon with Truffle Risotto"
+
+**Root Cause**: Route conflict and insufficient prompt engineering
+
+#### Solution Implemented
+
+**1. Fixed AI Service Integration**
+- **Issue**: Route conflict between `/api/ai` endpoints
+- **Solution**: Moved meal plan routes to `/api/meal-plans/*` 
+- **AI Provider**: Direct integration with Claude, OpenAI, or Google Gemini APIs
+- **File**: `server/services/aiService.js` - Complete rewrite for direct AI integration
+
+**2. Enhanced AI Prompts**
+- **File**: `server/routes/aiMealPlanRoutes.js`
+- **Lines**: 309-324 (main meal plan), 344-355 (single meal regeneration)
+- **Improvement**: Added explicit requirements for 6-8+ detailed steps, cooking temperatures, timing, equipment, and chef tips
+
+**3. Recipe Quality Validation System**
+- **File**: `server/routes/aiMealPlanRoutes.js:484-520`
+- **Function**: `validateRecipeQuality(recipe)`
+- **Features**:
+  - Automatic quality scoring (0-100)
+  - Detects missing temperatures, timing, equipment
+  - Flags insufficient step count or brief instructions
+  - Returns detailed quality report with issues and warnings
+
+**4. Enhanced API Endpoints**
+- `POST /api/meal-plans/generate-meal-plan` - Generate complete meal plan with quality validation
+- `POST /api/meal-plans/parse-meal-plan` - Parse AI response 
+- `POST /api/meal-plans/regenerate-meal` - Regenerate specific meals
+- `POST /api/meal-plans/rate-recipe-quality` - User feedback and regeneration system
+
+#### Status
+- **Implementation**: Complete (2025-09-12)
+- **AI Integration**: Fixed - now uses direct AI provider APIs
+- **Route Conflict**: Resolved - meal plans moved to `/api/meal-plans/*`
+- **Quality System**: Active - automatic validation and scoring
+- **Ready for Testing**: AI should now generate detailed, restaurant-quality recipes
+
 ---
 
-*Last Updated: 2025-09-11*
+*Last Updated: 2025-09-12*
 *Integration Status: Production Ready (Pending Approval)*

@@ -27,7 +27,7 @@ export async function generateAIMealPlan(preferences, currentUser = null) {
       headers.Authorization = `Bearer ${token}`;
     }
     
-    const response = await fetch(`${API_URL}/api/ai/generate-meal-plan`, {
+    const response = await fetch(`${API_URL}/api/meal-plans/generate-meal-plan`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -56,7 +56,7 @@ export async function parseAIMealPlan(aiResponse, userId) {
   try {
     const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
     
-    const response = await fetch(`${API_URL}/api/ai/parse-meal-plan`, {
+    const response = await fetch(`${API_URL}/api/meal-plans/parse-meal-plan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ aiResponse, userId })
@@ -363,7 +363,7 @@ export async function regenerateMeal(uid, mealPlanId, day, mealType, preferences
       headers.Authorization = `Bearer ${token}`;
     }
     
-    const response = await fetch(`${API_URL}/api/ai/regenerate-meal`, {
+    const response = await fetch(`${API_URL}/api/meal-plans/regenerate-meal`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
