@@ -3210,38 +3210,6 @@ Return as JSON with this structure:
     setCurrentCart([...updatedItems]);
   };
 
-  // Manual cleanup function for corrupted localStorage data
-  const manualCleanupLocalStorage = useCallback(() => {
-    const confirmed = window.confirm(
-      '🧹 This will remove all corrupted meal plan data from localStorage. This includes any recipes with "Failed to generate" messages. Continue?'
-    );
-    
-    if (confirmed) {
-      console.log('🧹 Manual localStorage cleanup initiated...');
-      
-      // Clear all potential recipe storage
-      const keysToRemove = [
-        'cartsmash-recipes', 
-        'cart-smash-recipes', 
-        'cartsmash-meal-plan',
-        'parsedRecipes',
-        'saved-recipes',
-        'meal-plan-cache',
-        'recipe-cache'
-      ];
-      
-      keysToRemove.forEach(key => {
-        if (localStorage.getItem(key)) {
-          localStorage.removeItem(key);
-          console.log(`🗑️ Removed localStorage key: ${key}`);
-        }
-      });
-      
-      // Force page reload to start fresh
-      console.log('🔄 Reloading page to start with clean data...');
-      window.location.reload();
-    }
-  }, []);
 
   // Debug delete function to test individual item removal
   const debugDeleteItem = useCallback((itemId) => {
@@ -3732,13 +3700,6 @@ Or paste any grocery list directly!"
                 title="Clear all recipes from the list"
               >
                 🗑️
-              </button>
-              <button
-                style={styles.cleanupButton}
-                onClick={manualCleanupLocalStorage}
-                title="Fix corrupted recipe data (removes 'Failed to generate' errors)"
-              >
-                🧹 Fix Data
               </button>
             </div>
           </div>
@@ -4384,22 +4345,6 @@ const styles = {
     gap: '6px'
   },
 
-  cleanupButton: {
-    background: 'linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '8px 12px',
-    fontSize: '12px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 2px 6px rgba(155, 89, 182, 0.3)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    marginLeft: '8px'
-  },
 
   compactRecipeList: {
     background: '#f8f9fa',

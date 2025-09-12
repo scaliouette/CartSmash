@@ -393,6 +393,39 @@ class InstacartService {
           estimated_delivery: '2-4 hours',
           logo_url: '/instacart-logos/costco.png',
           available: true
+        },
+        {
+          id: 'whole_foods_1',
+          name: 'Whole Foods Market',
+          address: '321 Organic Way, Sacramento, CA 95670',
+          distance: 1.5,
+          delivery_fee: 6.99,
+          minimum_order: 35.00,
+          estimated_delivery: '1-2 hours',
+          logo_url: '/instacart-logos/whole-foods.png',
+          available: true
+        },
+        {
+          id: 'target_1',
+          name: 'Target',
+          address: '654 Shopping Center, Sacramento, CA 95670',
+          distance: 1.8,
+          delivery_fee: 5.99,
+          minimum_order: 35.00,
+          estimated_delivery: '2-3 hours',
+          logo_url: '/instacart-logos/target.png',
+          available: true
+        },
+        {
+          id: 'albertsons_1',
+          name: 'Albertsons',
+          address: '987 Grocery Lane, Sacramento, CA 95670',
+          distance: 1.1,
+          delivery_fee: 4.49,
+          minimum_order: 35.00,
+          estimated_delivery: '2-3 hours',
+          logo_url: '/instacart-logos/albertsons.png',
+          available: true
         }
       ]
     };

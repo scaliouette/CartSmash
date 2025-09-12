@@ -261,12 +261,12 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               address: retailer.address,
               distanceText: retailer.distance ? `${retailer.distance.toFixed(1)} miles` : 'Distance N/A'
             }))
-            .filter(store => store.distance && store.distance <= 25) // Only show stores within 25 miles
+            .filter(store => !store.distance || store.distance <= 50) // Show stores within 50 miles, or all stores if no distance data
             .sort((a, b) => (a.distance || 999) - (b.distance || 999)); // Sort by distance
           
           // Production: Only use API stores, no fallback
           setStores(mappedStores);
-          console.log(`📍 Found ${mappedStores.length} stores within 25 miles`);
+          console.log(`📍 Found ${mappedStores.length} stores (expanded search to 50 miles or all available stores)`);
         } else {
           console.log('⚠️ No retailers found for this location');
           setStores([]);

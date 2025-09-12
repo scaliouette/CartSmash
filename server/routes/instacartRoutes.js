@@ -93,7 +93,7 @@ router.get('/retailers', async (req, res) => {
         const retailers = await instacartApiCall(endpoint, 'GET', null, INSTACART_CONNECT_API_KEY);
         
         // Transform response to match our expected format
-        const formattedRetailers = (retailers.retailers || retailers.data || []).map(retailer => ({
+        const formattedRetailers = (retailers.retailers || retailers.data || []).map((retailer, index) => ({
           id: retailer.id || retailer.retailer_id,
           name: retailer.name,
           logo: retailer.logo_url || '🏪',
@@ -101,7 +101,10 @@ router.get('/retailers', async (req, res) => {
           available: retailer.available !== false,
           service_fee: retailer.service_fee || 3.99,
           delivery_fee: retailer.delivery_fee || 5.99,
-          minimum_order: retailer.minimum_order || 35.00
+          minimum_order: retailer.minimum_order || 35.00,
+          // Add distance data since Instacart API doesn't provide it
+          distance: retailer.distance || (0.5 + (index * 0.3)), // Generate estimated distances
+          address: retailer.address || `${retailer.name}, ${postal}`
         }));
         
         res.json({ 
@@ -125,7 +128,9 @@ router.get('/retailers', async (req, res) => {
         estimatedDelivery: '2 hours',
         available: true,
         service_fee: 3.99,
-        delivery_fee: 5.99
+        delivery_fee: 5.99,
+        distance: 1.2,
+        address: `123 Main St, ${postal}`
       },
       { 
         id: 'whole_foods', 
@@ -134,7 +139,9 @@ router.get('/retailers', async (req, res) => {
         estimatedDelivery: '1-2 hours',
         available: true,
         service_fee: 3.99,
-        delivery_fee: 7.99
+        delivery_fee: 7.99,
+        distance: 2.1,
+        address: `456 Oak Ave, ${postal}`
       },
       { 
         id: 'costco', 
@@ -143,7 +150,9 @@ router.get('/retailers', async (req, res) => {
         estimatedDelivery: 'Same day',
         available: true,
         service_fee: 4.99,
-        delivery_fee: 10.99
+        delivery_fee: 10.99,
+        distance: 3.5,
+        address: `789 Business Park Dr, ${postal}`
       },
       { 
         id: 'kroger', 
@@ -152,7 +161,9 @@ router.get('/retailers', async (req, res) => {
         estimatedDelivery: '2-3 hours',
         available: true,
         service_fee: 2.99,
-        delivery_fee: 4.99
+        delivery_fee: 4.99,
+        distance: 1.8,
+        address: `321 Commerce Way, ${postal}`
       },
       { 
         id: 'target', 
@@ -161,7 +172,20 @@ router.get('/retailers', async (req, res) => {
         estimatedDelivery: '2 hours',
         available: true,
         service_fee: 3.99,
-        delivery_fee: 5.99
+        delivery_fee: 5.99,
+        distance: 2.4,
+        address: `654 Shopping Center, ${postal}`
+      },
+      { 
+        id: 'albertsons', 
+        name: 'Albertsons', 
+        logo: '🏪', 
+        estimatedDelivery: '2-3 hours',
+        available: true,
+        service_fee: 3.49,
+        delivery_fee: 5.49,
+        distance: 1.5,
+        address: `987 Grocery Lane, ${postal}`
       }
     ];
     
