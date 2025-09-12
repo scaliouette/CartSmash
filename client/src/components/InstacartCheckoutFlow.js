@@ -99,16 +99,8 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     };
   }, []);
 
-  // Initialize default stores on component mount
-  useEffect(() => {
-    // Show default stores immediately when component loads
-    if (stores.length === 0) {
-      console.log('📍 Loading default stores for immediate display');
-      enhanceFallbackStoresWithDistance(availableStores).then(enhancedStores => {
-        setStores(enhancedStores);
-      });
-    }
-  }, []);
+  // Production: No default stores - user must search for location
+  // Stores will be populated when user searches by ZIP code
 
   // Persist checkout state
   useEffect(() => {
@@ -210,55 +202,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     };
   }, [currentCart]);
 
-  const availableStores = [
-    { 
-      id: 'safeway', 
-      name: 'Safeway', 
-      logo: '🏪', 
-      price: '$4.99', 
-      hasAPI: true,
-      address: '2150 Broadway, Sacramento, CA 95818',
-      hours: '7:00 AM - 10:00 PM',
-      deliverySlots: ['9:00-11:00 AM', '1:00-3:00 PM', '5:00-7:00 PM']
-    },
-    { 
-      id: 'whole-foods', 
-      name: 'Whole Foods', 
-      logo: '🌿', 
-      price: '$4.99',
-      address: '4315 Arden Way, Sacramento, CA 95864',
-      hours: '8:00 AM - 9:00 PM',
-      deliverySlots: ['10:00-12:00 PM', '2:00-4:00 PM', '6:00-8:00 PM']
-    },
-    { 
-      id: 'costco', 
-      name: 'Costco', 
-      logo: '📦', 
-      price: 'Free', 
-      membership: true,
-      address: '4000 Innovation Dr, Sacramento, CA 95834',
-      hours: '10:00 AM - 8:30 PM',
-      deliverySlots: ['11:00-1:00 PM', '3:00-5:00 PM']
-    },
-    { 
-      id: 'target', 
-      name: 'Target', 
-      logo: '🎯', 
-      price: '$5.99',
-      address: '8198 Laguna Blvd, Elk Grove, CA 95758',
-      hours: '8:00 AM - 10:00 PM',
-      deliverySlots: ['9:00-11:00 AM', '1:00-3:00 PM', '5:00-7:00 PM', '7:00-9:00 PM']
-    },
-    { 
-      id: 'walmart', 
-      name: 'Walmart', 
-      logo: '🏬', 
-      price: '$7.95',
-      address: '8881 Madison Ave, Fair Oaks, CA 95628',
-      hours: '6:00 AM - 11:00 PM',
-      deliverySlots: ['8:00-10:00 AM', '12:00-2:00 PM', '4:00-6:00 PM', '8:00-10:00 PM']
-    }
-  ];
+  // Production version: No fallback stores - use only real API data
 
   // Calculate cart totals
   const calculateCartTotals = () => {
@@ -291,58 +235,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     };
   };
 
-  // Enhanced fallback stores with distance calculation
-  const enhanceFallbackStoresWithDistance = async (stores) => {
-    try {
-      // Try to get current location if available
-      let userLocation = currentLocation;
-      if (!userLocation) {
-        try {
-          userLocation = await locationService.getCurrentLocation();
-          setCurrentLocation(userLocation);
-        } catch (error) {
-          console.log('📍 Could not get current location for distance calculation:', error.message);
-          return stores; // Return stores without distance info
-        }
-      }
-
-      // Sample coordinates for major retailers (approximate locations in Sacramento area)
-      const storeCoordinates = {
-        'kroger': { lat: 38.7084, lng: -121.1561 },
-        'safeway': { lat: 38.6882, lng: -121.1761 },
-        'whole-foods': { lat: 38.7223, lng: -121.1944 },
-        'costco': { lat: 38.6596, lng: -121.1758 },
-        'target': { lat: 38.7012, lng: -121.1345 },
-        'walmart': { lat: 38.6789, lng: -121.1456 }
-      };
-
-      const enhancedStores = stores.map(store => {
-        const storeCoords = storeCoordinates[store.id];
-        if (storeCoords && userLocation) {
-          const distance = locationService.calculateDistance(
-            userLocation.latitude, 
-            userLocation.longitude, 
-            storeCoords.lat, 
-            storeCoords.lng
-          );
-          
-          return {
-            ...store,
-            distance: distance,
-            distanceText: `${distance.toFixed(1)} miles`,
-            address: `Estimated location (${distance.toFixed(1)}mi away)`
-          };
-        }
-        return store;
-      }).sort((a, b) => (a.distance || 999) - (b.distance || 999));
-
-      console.log(`📍 Enhanced ${enhancedStores.filter(s => s.distance).length} fallback stores with distance info`);
-      return enhancedStores;
-    } catch (error) {
-      console.error('❌ Error enhancing stores with distance:', error);
-      return stores; // Return original stores if enhancement fails
-    }
-  };
+  // Production: No mock store enhancement - real API provides all store data
 
   const handleZipSearch = async () => {
     if (zipCode.length === 5) {
@@ -371,19 +264,16 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             .filter(store => store.distance && store.distance <= 25) // Only show stores within 25 miles
             .sort((a, b) => (a.distance || 999) - (b.distance || 999)); // Sort by distance
           
-          // Add fallback stores only if no API stores found or if user wants more options
-          const allStores = mappedStores.length > 0 ? mappedStores : availableStores;
-          setStores(allStores);
+          // Production: Only use API stores, no fallback
+          setStores(mappedStores);
           console.log(`📍 Found ${mappedStores.length} stores within 25 miles`);
         } else {
-          console.log('⚠️ API call failed, using fallback stores');
-          const enhancedFallbackStores = await enhanceFallbackStoresWithDistance(availableStores);
-          setStores(enhancedFallbackStores);
+          console.log('⚠️ No retailers found for this location');
+          setStores([]);
         }
       } catch (error) {
         console.error('❌ Error fetching retailers:', error);
-        const enhancedFallbackStores = await enhanceFallbackStoresWithDistance(availableStores);
-        setStores(enhancedFallbackStores);
+        setStores([]);
       }
       
       setSearchingStores(false);
@@ -898,35 +788,29 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               </p>
 
               <div style={{ marginBottom: '32px' }}>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
-                  marginBottom: '8px' 
-                }}>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#FF6B35' }}>
-                    Delivery Location
-                  </div>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: '#FF6B35', marginBottom: '8px' }}>
+                  Delivery Location
+                </div>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                   {locationPermission !== 'denied' && (
                     <button
                       onClick={handleUseCurrentLocation}
                       disabled={searchingStores}
                       style={{
-                        padding: '4px 12px',
-                        fontSize: '12px',
-                        backgroundColor: '#F7931E',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
+                        padding: '12px 16px',
+                        fontSize: '16px',
+                        backgroundColor: 'white',
+                        color: '#FF6B35',
+                        border: '2px solid #FF6B35',
+                        borderRadius: '8px',
                         cursor: searchingStores ? 'not-allowed' : 'pointer',
-                        opacity: searchingStores ? 0.7 : 1
+                        opacity: searchingStores ? 0.7 : 1,
+                        fontWeight: 'bold'
                       }}
                     >
                       {searchingStores ? '📍...' : '📍'}
                     </button>
                   )}
-                </div>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                   <input
                     type="text"
                     placeholder="Enter ZIP code"
@@ -945,10 +829,10 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                   <button 
                     onClick={handleZipSearch} 
                     style={{
-                      padding: '12px 24px',
-                      backgroundColor: '#FF6B35',
-                      color: 'white',
-                      border: 'none',
+                      padding: '12px 16px',
+                      backgroundColor: 'white',
+                      color: '#FF6B35',
+                      border: '2px solid #FF6B35',
                       borderRadius: '8px',
                       fontSize: '16px',
                       fontWeight: 'bold',
@@ -1031,12 +915,13 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                         )}
                         {store.address && (
                           <div style={{
-                            fontSize: '10px',
-                            color: store.featured ? 'rgba(255,255,255,0.7)' : '#999',
-                            marginTop: '4px',
-                            lineHeight: '1.2'
+                            fontSize: '12px',
+                            color: store.featured ? 'rgba(255,255,255,0.9)' : '#666',
+                            marginTop: '6px',
+                            lineHeight: '1.3',
+                            fontWeight: '500'
                           }}>
-                            {store.address}
+                            📍 {store.address}
                           </div>
                         )}
                         {store.hours && (
@@ -1056,9 +941,13 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
 
               {!selectedStore && stores.length === 0 && (
-                <p style={{ textAlign: 'center', color: '#666', marginTop: '32px' }}>
-                  Enter your ZIP code to find nearby stores, or choose from the available options above
-                </p>
+                <div style={{ textAlign: 'center', marginTop: '32px', padding: '24px', backgroundColor: '#f8f9fa', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
+                  <h3 style={{ color: '#FF6B35', marginBottom: '8px', fontSize: '18px' }}>No stores found</h3>
+                  <p style={{ color: '#666', fontSize: '14px', lineHeight: '1.5' }}>
+                    Enter your ZIP code above to find Instacart retailers in your area. We'll show you all available stores with real-time delivery options.
+                  </p>
+                </div>
               )}
             </>
           )}
