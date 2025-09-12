@@ -15,6 +15,35 @@ import { unified as unifiedRecipeService } from '../services/unifiedRecipeServic
 import persistenceService from '../services/persistenceService';
 import { generateAIMealPlan } from '../services/aiMealPlanService';
 
+// Recipe Validation Utility
+const isValidRecipe = (recipe) => {
+  if (!recipe) return false;
+  
+  // Check for error indicators
+  const hasErrorMarkers = (arr) => {
+    if (!Array.isArray(arr)) return true;
+    return arr.some(item => 
+      typeof item === 'string' && (
+        item.includes('Failed to generate') ||
+        item.includes('⚠️') ||
+        item.includes('please retry') ||
+        item.toLowerCase().includes('error')
+      )
+    );
+  };
+  
+  // Recipe must have valid ingredients and instructions
+  const hasValidIngredients = recipe.ingredients && 
+                             recipe.ingredients.length > 0 && 
+                             !hasErrorMarkers(recipe.ingredients);
+                             
+  const hasValidInstructions = recipe.instructions && 
+                               recipe.instructions.length > 0 && 
+                               !hasErrorMarkers(recipe.instructions);
+  
+  return hasValidIngredients && hasValidInstructions;
+};
+
 // Helper functions
 // eslint-disable-next-line no-unused-vars
 function getTimeAgo(date) {
@@ -223,6 +252,22 @@ function GroceryListForm({
   const [recipeUrl, setRecipeUrl] = useState('');
   const [aiRecipeText, setAiRecipeText] = useState('');
   const [generatingMealPlan, setGeneratingMealPlan] = useState(false);
+
+  // Validation wrapper functions for state setters
+  const setValidParsedRecipes = useCallback((recipes) => {
+    const valid = Array.isArray(recipes) ? recipes.filter(isValidRecipe) : [];
+    setParsedRecipes(valid);
+  }, [setParsedRecipes]);
+
+  const setValidRecipes = useCallback((recipes) => {
+    const valid = Array.isArray(recipes) ? recipes.filter(isValidRecipe) : [];
+    setRecipes(valid);
+  }, [setRecipes]);
+
+  const setValidSavedRecipes = useCallback((recipes) => {
+    const valid = Array.isArray(recipes) ? recipes.filter(isValidRecipe) : [];
+    setSavedRecipes(valid);
+  }, [setSavedRecipes]);
   // eslint-disable-next-line no-unused-vars
   const [mealPlanPreferences, setMealPlanPreferences] = useState({
     familySize: 4,
@@ -255,32 +300,37 @@ function GroceryListForm({
         'cart-smash-recipes', 
         'cartsmash-meal-plan',
         'parsedRecipes',
-        'saved-recipes'
+        'saved-recipes',
+        'parsed_recipes',
+        'session_parsed_recipes'
       ];
       
       keysToCheck.forEach(key => {
         try {
           const data = localStorage.getItem(key);
-          if (data) {
-            const parsed = JSON.parse(data);
-            let isCorrupted = false;
-            
-            // Check if data contains error messages
-            if (Array.isArray(parsed)) {
-              parsed.forEach(item => {
-                if (item.ingredients && Array.isArray(item.ingredients) && 
-                    item.ingredients.some(ing => ing.includes('⚠️ Failed to generate'))) {
-                  isCorrupted = true;
-                }
-                if (item.instructions && Array.isArray(item.instructions) && 
-                    item.instructions.some(inst => inst.includes('⚠️ Failed to generate'))) {
-                  isCorrupted = true;
-                }
-              });
-            }
-            
-            if (isCorrupted) {
-              console.log(`🗑️ Removing corrupted data from localStorage key: ${key}`);
+          if (data && (data.includes('Failed to generate') || data.includes('⚠️') || data.includes('please retry'))) {
+            console.log(`🧹 Removing corrupted ${key} on mount`);
+            localStorage.removeItem(key);
+          } else if (data) {
+            try {
+              const parsed = JSON.parse(data);
+              let isCorrupted = false;
+              
+              // Check if data contains error messages
+              if (Array.isArray(parsed)) {
+                parsed.forEach(item => {
+                  if (!isValidRecipe(item)) {
+                    isCorrupted = true;
+                  }
+                });
+              }
+              
+              if (isCorrupted) {
+                console.log(`🗑️ Removing corrupted data from localStorage key: ${key}`);
+                localStorage.removeItem(key);
+              }
+            } catch (parseError) {
+              console.log(`🗑️ Removing invalid JSON from localStorage key: ${key}`);
               localStorage.removeItem(key);
             }
           }
@@ -328,18 +378,36 @@ function GroceryListForm({
       setCurrentCart(persistedCart);
     }
     
-    // Load saved recipes
+    // Load saved recipes WITH VALIDATION
     const persistedRecipes = persistenceService.loadRecipes();
     if (persistedRecipes && persistedRecipes.length > 0) {
-      console.log('📖 Loading persisted recipes:', persistedRecipes.length, 'recipes');
-      setSavedRecipes(persistedRecipes);
+      // Filter out corrupted recipes
+      const validRecipes = persistedRecipes.filter(recipe => isValidRecipe(recipe));
+      console.log(`📖 Loading recipes: ${validRecipes.length} valid out of ${persistedRecipes.length} total`);
+      
+      if (validRecipes.length !== persistedRecipes.length) {
+        // Clean corrupted recipes from storage
+        console.log('🧹 Cleaning corrupted recipes from storage');
+        persistenceService.saveRecipes(validRecipes, 24);
+      }
+      
+      setSavedRecipes(validRecipes);
     }
     
-    // Load parsed recipes
+    // Load parsed recipes WITH VALIDATION
     const persistedParsedRecipes = persistenceService.loadSessionData('parsed_recipes', []);
     if (persistedParsedRecipes && persistedParsedRecipes.length > 0) {
-      console.log('📖 Loading persisted parsed recipes:', persistedParsedRecipes.length, 'recipes');
-      setParsedRecipes(persistedParsedRecipes);
+      // Filter out corrupted recipes
+      const validParsedRecipes = persistedParsedRecipes.filter(recipe => isValidRecipe(recipe));
+      console.log(`📖 Loading parsed recipes: ${validParsedRecipes.length} valid out of ${persistedParsedRecipes.length} total`);
+      
+      if (validParsedRecipes.length !== persistedParsedRecipes.length) {
+        // Clean corrupted recipes from storage
+        console.log('🧹 Cleaning corrupted parsed recipes from storage');
+        persistenceService.saveSessionData('parsed_recipes', validParsedRecipes, 2);
+      }
+      
+      setParsedRecipes(validParsedRecipes);
     }
     
     // Load last AI response text
@@ -360,19 +428,27 @@ function GroceryListForm({
     }
   }, [currentCart]);
 
-  // Auto-save recipes when they change
+  // Auto-save recipes when they change - WITH VALIDATION
   useEffect(() => {
     if (savedRecipes && savedRecipes.length > 0) {
-      console.log('💾 Auto-saving recipes:', savedRecipes.length, 'recipes');
-      persistenceService.saveRecipes(savedRecipes, 24); // 24-hour expiration
+      // Only save valid recipes
+      const validRecipes = savedRecipes.filter(recipe => isValidRecipe(recipe));
+      if (validRecipes.length > 0) {
+        console.log(`💾 Auto-saving ${validRecipes.length} valid recipes`);
+        persistenceService.saveRecipes(validRecipes, 24);
+      }
     }
   }, [savedRecipes]);
 
-  // Auto-save parsed recipes when they change
+  // Auto-save parsed recipes when they change - WITH VALIDATION
   useEffect(() => {
     if (parsedRecipes && parsedRecipes.length > 0) {
-      console.log('💾 Auto-saving parsed recipes:', parsedRecipes.length, 'recipes');
-      persistenceService.saveSessionData('parsed_recipes', parsedRecipes, 2); // 2-hour expiration
+      // Only save valid recipes
+      const validRecipes = parsedRecipes.filter(recipe => isValidRecipe(recipe));
+      if (validRecipes.length > 0) {
+        console.log(`💾 Auto-saving ${validRecipes.length} valid parsed recipes`);
+        persistenceService.saveSessionData('parsed_recipes', validRecipes, 2);
+      }
     }
   }, [parsedRecipes]);
 
@@ -924,7 +1000,7 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
                 const recipeResult = await extractMealPlanRecipes(aiResponseText);
                 if (recipeResult.recipes && recipeResult.recipes.length > 0) {
                   console.log('🍳 Parsed recipes from AI response:', recipeResult.recipes);
-                  setParsedRecipes(recipeResult.recipes);
+                  setValidParsedRecipes(recipeResult.recipes);
                 }
               } catch (recipeError) {
                 console.error('❌ Failed to parse recipes from AI response:', recipeError);
@@ -1473,9 +1549,14 @@ Return as JSON with this structure:
                 continue; // Skip this recipe instead of saving it with error messages
               }
             }
-            console.log('💾 Saving recipe:', currentRecipe.title, 
-                       `(${currentRecipe.ingredients.length} ingredients)`);
-            recipes.push(currentRecipe);
+            // Validate the recipe before adding it
+            if (isValidRecipe(currentRecipe)) {
+              console.log('💾 Saving recipe:', currentRecipe.title, 
+                         `(${currentRecipe.ingredients.length} ingredients)`);
+              recipes.push(currentRecipe);
+            } else {
+              console.log('🚫 Skipping invalid recipe:', currentRecipe.title);
+            }
           }
           
           // Extract recipe info based on pattern
@@ -1537,14 +1618,21 @@ Return as JSON with this structure:
                 currentRecipe.instructions = aiRecipe.instructions;
               }
             } catch (error) {
-              // Show error to user instead of using fallbacks
               console.error('❌ Recipe generation failed for:', currentRecipe.title, error.message);
-              currentRecipe.ingredients = currentRecipe.ingredients.length === 0 ? ['⚠️ Failed to generate ingredients - please retry'] : currentRecipe.ingredients;
-              currentRecipe.instructions = currentRecipe.instructions.length === 0 ? ['⚠️ Failed to generate instructions - please retry'] : currentRecipe.instructions;
-              currentRecipe.error = true;
+              // Don't add corrupted recipe - just skip it
+              console.log('🚫 Skipping failed recipe to prevent corruption');
+              // Continue to next recipe without adding this one
+              continue; 
             }
           }
-          recipes.push(currentRecipe);
+          
+          // Validate the recipe before adding it
+          if (isValidRecipe(currentRecipe)) {
+            console.log('💾 Saving recipe:', currentRecipe.title);
+            recipes.push(currentRecipe);
+          } else {
+            console.log('🚫 Skipping invalid recipe:', currentRecipe.title);
+          }
         }
         
         // Create new recipe
@@ -2725,7 +2813,7 @@ Return as JSON with this structure:
         console.log('✅ Successfully imported recipes:', importedRecipes);
         
         // Add to parsed recipes to display them
-        setParsedRecipes(prev => [...prev, ...importedRecipes]);
+        setValidParsedRecipes([...parsedRecipes, ...importedRecipes]);
         
         // Clear the URL input
         setRecipeUrl('');
@@ -2766,7 +2854,7 @@ Return as JSON with this structure:
         console.log('✅ Successfully imported recipes from AI:', importedRecipes);
         
         // Add to parsed recipes to display them
-        setParsedRecipes(prev => [...prev, ...importedRecipes]);
+        setValidParsedRecipes([...parsedRecipes, ...importedRecipes]);
         
         // Clear the text input
         setAiRecipeText('');
