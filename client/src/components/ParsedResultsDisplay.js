@@ -726,17 +726,15 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     setUpdatingItems(prev => new Set([...prev, itemId]));
     
     try {
-      // If parent provided onDeleteItem handler, use it (more robust)
+      // Always use parent onDeleteItem handler for consistent state management
       if (onDeleteItem && typeof onDeleteItem === 'function') {
-        console.log('✅ Using parent onDeleteItem handler');
+        console.log('✅ Using parent onDeleteItem handler for proper hydration');
         onDeleteItem(itemId);
       } else {
-        console.log('✅ Using local onItemsChange handler');
-        // Remove from local state immediately
+        console.warn('⚠️ No parent onDeleteItem handler - using local fallback');
+        // Fallback: Remove from local state immediately
         const updatedItems = items.filter(item => item.id !== itemId);
         onItemsChange(updatedItems);
-        
-        // ✅ REMOVED: Direct localStorage write - cart authority handles persistence
       }
       
       // Clear any ongoing price fetch for this item
@@ -750,6 +748,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     } catch (error) {
       console.error('❌ Error removing item from display:', error);
     } finally {
+      // Always clear updating state
       setUpdatingItems(prev => {
         const newSet = new Set(prev);
         newSet.delete(itemId);

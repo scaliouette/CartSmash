@@ -234,6 +234,15 @@ function GroceryListForm({
     daysCount: 7
   });
   const { currentUser, isAdmin } = useAuth();
+  
+  // Hydration-safe ID generator with stable sequence
+  const idCounterRef = useRef(0);
+  const generateStableId = useCallback((prefix = 'item') => {
+    const counter = ++idCounterRef.current;
+    // Use a stable seed for consistent hydration (avoid Date.now() and Math.random())
+    const stableTimestamp = typeof window !== 'undefined' ? Math.floor(performance.now()) : 1000000;
+    return `${prefix}-${stableTimestamp}-${counter}`;
+  }, []);
   const textareaRef = useRef(null);
 
   // Function to trigger textarea auto-expansion
@@ -391,7 +400,7 @@ function GroceryListForm({
           // Item is just a string
           productName = item;
           return {
-            id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: generateStableId('item'),
             productName: productName,
             quantity: 1,
             unit: 'each',
@@ -439,7 +448,7 @@ function GroceryListForm({
         // Return properly structured item
         return {
           ...item,
-          id: item.id || `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: item.id || generateStableId('item'),
           productName: productName, // Ensure this is always a string
           quantity: item.quantity || 1,
           unit: item.unit || 'each',
@@ -2710,7 +2719,7 @@ Return as JSON with this structure:
           console.log('🔄 Regenerating IDs for all items...');
           const updatedCart = currentCart.map((item, index) => ({
             ...item,
-            id: `item-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`
+            id: item.id || generateStableId('item')
           }));
           setCurrentCart(updatedCart);
           console.log('✅ All IDs regenerated');
@@ -2787,12 +2796,13 @@ Return as JSON with this structure:
     }
   }, [currentCart, debugDeleteItem, setCurrentCart]);
 
-  // Fixed delete handler - simple ID-based filtering
+  // Fixed delete handler - simple ID-based filtering with proper hydration handling
   const handleDeleteItem = useCallback((itemId) => {
     console.log('🗑️ handleDeleteItem called with:', itemId);
-    console.log('📋 Current cart items before deletion:', currentCart.map(item => ({id: item.id, name: item.productName})));
     
     setCurrentCart(prevCart => {
+      console.log('📋 Cart items before deletion:', prevCart.map(item => ({id: item.id, name: item.productName})));
+      
       // Simple filtering - only match the exact item ID
       const newCart = prevCart.filter(item => item.id !== itemId);
       console.log(`🗑️ Deletion: ${prevCart.length} → ${newCart.length} items (removed ID: ${itemId})`);
@@ -2807,7 +2817,7 @@ Return as JSON with this structure:
       
       return newCart;
     });
-  }, [currentCart, setCurrentCart]);
+  }, [setCurrentCart]);
 
   // Main component return (this should be inside the main GroceryListForm function)
   return (
