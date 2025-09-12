@@ -653,7 +653,12 @@ class MealPlanParser {
     
     return {
       planId: `meal-plan-${Date.now()}`,
-      metadata: parsedMealPlan.metadata,
+      metadata: parsedMealPlan.metadata || {
+        title: 'AI-Generated Meal Plan',
+        familySize: 4,
+        generatedAt: new Date().toISOString(),
+        source: 'ai-generated'
+      },
       recipes: (parsedMealPlan.recipes || []).map(recipe => ({
         id: recipe.id,
         title: recipe.name,
