@@ -2649,23 +2649,85 @@ Return as JSON with this structure:
 
     try {
       // Convert ingredients array to text format, handling both string and object formats
-      const ingredientsText = recipe.ingredients.map(ingredient => {
+      const ingredientsText = recipe.ingredients.map((ingredient, index) => {
+        console.log(`🔍 [DEBUG] Processing ingredient ${index}:`, ingredient);
+        
         if (typeof ingredient === 'string') {
           return ingredient;
         }
-        // Handle structured ingredient objects
-        if (ingredient.original) {
-          return ingredient.original;
+        
+        // Handle structured ingredient objects with multiple possible formats
+        if (typeof ingredient === 'object' && ingredient !== null) {
+          // Check for original text format
+          if (ingredient.original) {
+            return ingredient.original;
+          }
+          
+          // Check for quantity + unit + item format
+          if (ingredient.quantity && ingredient.item) {
+            const unit = ingredient.unit || '';
+            return `${ingredient.quantity}${unit ? ' ' + unit : ''} ${ingredient.item}`;
+          }
+          
+          // Check for quantity + unit + name format
+          if (ingredient.quantity && ingredient.name) {
+            const unit = ingredient.unit || '';
+            return `${ingredient.quantity}${unit ? ' ' + unit : ''} ${ingredient.name}`;
+          }
+          
+          // Check for just item/name
+          if (ingredient.item) {
+            return ingredient.item;
+          }
+          
+          if (ingredient.name) {
+            return ingredient.name;
+          }
+          
+          // Try to extract meaningful content from the object
+          const keys = Object.keys(ingredient);
+          console.log(`🔍 [DEBUG] Ingredient object keys:`, keys);
+          
+          // Look for common ingredient property names
+          const commonProps = ['ingredient', 'product', 'food', 'description'];
+          for (const prop of commonProps) {
+            if (ingredient[prop] && typeof ingredient[prop] === 'string') {
+              return ingredient[prop];
+            }
+          }
+          
+          // If it's an object with useful properties, try to format it
+          if (keys.length > 0) {
+            const meaningfulKeys = keys.filter(k => 
+              typeof ingredient[k] === 'string' || 
+              typeof ingredient[k] === 'number'
+            );
+            
+            if (meaningfulKeys.length > 0) {
+              // Try to construct a meaningful ingredient string
+              const parts = meaningfulKeys.map(key => `${ingredient[key]}`).filter(part => part && part.trim());
+              if (parts.length > 0) {
+                return parts.join(' ');
+              }
+            }
+          }
         }
-        if (ingredient.quantity && ingredient.unit && ingredient.item) {
-          return `${ingredient.quantity} ${ingredient.unit} ${ingredient.item}`;
-        }
-        if (ingredient.item) {
-          return ingredient.item;
-        }
-        // Fallback to string representation
-        return String(ingredient);
-      }).join('\n');
+        
+        // Last resort: if we can't extract anything meaningful, skip this ingredient
+        console.warn(`⚠️ Could not parse ingredient at index ${index}:`, ingredient);
+        return null;
+      }).filter(ingredient => ingredient !== null && ingredient.trim() !== '').join('\n');
+      
+      console.log('📝 [DEBUG] Final ingredients text to send to API:');
+      console.log(ingredientsText);
+      console.log('📝 [DEBUG] Length:', ingredientsText.length);
+      
+      // Check if we have any ingredients to send
+      if (!ingredientsText.trim()) {
+        console.error('❌ No valid ingredients found to send to API');
+        alert('❌ Could not extract ingredients from this recipe. Please check the recipe format.');
+        return;
+      }
       
       // Use the same API endpoint as regular grocery list parsing
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3048';
