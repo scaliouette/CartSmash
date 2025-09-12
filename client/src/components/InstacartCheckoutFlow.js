@@ -99,6 +99,17 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     };
   }, []);
 
+  // Initialize default stores on component mount
+  useEffect(() => {
+    // Show default stores immediately when component loads
+    if (stores.length === 0) {
+      console.log('📍 Loading default stores for immediate display');
+      enhanceFallbackStoresWithDistance(availableStores).then(enhancedStores => {
+        setStores(enhancedStores);
+      });
+    }
+  }, []);
+
   // Persist checkout state
   useEffect(() => {
     persistenceService.saveSessionData('checkout_state', {
@@ -1049,149 +1060,10 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                 </>
               )}
 
-              <div style={{
-                backgroundColor: '#FFF5F2',
-                borderRadius: '12px',
-                padding: '20px',
-                marginTop: '24px',
-                border: '2px solid #FF6B35'
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
-                  marginBottom: '16px' 
-                }}>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#FF6B35' }}>
-                    Your Cart Items ({currentCart.length})
-                  </div>
-                  <button
-                    onClick={() => setShowDebug(!showDebug)}
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '12px',
-                      backgroundColor: showDebug ? '#FF6B35' : '#F7931E',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {showDebug ? 'Hide Debug' : 'Verify Instacart Matching'}
-                  </button>
-                </div>
-                
-                {!showDebug ? (
-                  <div style={{ fontSize: '14px', color: '#333', lineHeight: '1.8' }}>
-                    {currentCart.slice(0, 5).map((item, idx) => (
-                      <div key={idx}>• {item.productName}</div>
-                    ))}
-                    {currentCart.length > 5 && (
-                      <div style={{ fontStyle: 'italic', marginTop: '8px' }}>
-                        ... and {currentCart.length - 5} more items
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{
-                    maxHeight: '300px',
-                    overflowY: 'auto',
-                    backgroundColor: 'white',
-                    border: '1px solid #ddd',
-                    borderRadius: '8px',
-                    padding: '12px'
-                  }}>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: '#666' }}>
-                      Instacart Matching Verification:
-                    </div>
-                    {currentCart.map((item, idx) => (
-                      <div key={idx} style={{
-                        padding: '8px',
-                        borderBottom: '1px solid #eee',
-                        fontSize: '12px'
-                      }}>
-                        <div style={{ fontWeight: 'bold', color: '#FF6B35' }}>
-                          Item #{idx + 1}: {item.productName}
-                        </div>
-                        <div style={{ color: '#666', marginTop: '4px' }}>
-                          ID: {item.id ? `"${item.id}"` : '❌ NO ID'} ({typeof item.id})
-                        </div>
-                        <div style={{ color: '#666' }}>
-                          Quantity: {item.quantity || 'N/A'}
-                        </div>
-                        <div style={{ color: '#666' }}>
-                          Instacart Matchable: {item.productName && item.productName.length > 2 ? '✅ YES' : '❌ TOO SHORT'}
-                        </div>
-                        <div style={{ color: '#666' }}>
-                          Has undefined values: {Object.values(item).includes(undefined) ? '❌ YES' : '✅ NO'}
-                        </div>
-                        {!item.id && (
-                          <div style={{ 
-                            color: '#ff0000', 
-                            fontWeight: 'bold', 
-                            marginTop: '4px' 
-                          }}>
-                            ⚠️ This item may not be deletable - missing ID
-                          </div>
-                        )}
-                        {(!item.productName || item.productName.length <= 2) && (
-                          <div style={{ 
-                            color: '#ff6600', 
-                            fontWeight: 'bold', 
-                            marginTop: '4px' 
-                          }}>
-                            ⚠️ Product name too short for reliable Instacart matching
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    <div style={{ 
-                      marginTop: '12px', 
-                      padding: '8px', 
-                      backgroundColor: '#f8f9fa', 
-                      borderRadius: '4px' 
-                    }}>
-                      <div style={{ fontSize: '11px', color: '#666' }}>
-                        Console Commands Available:
-                      </div>
-                      <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#333' }}>
-                        • window.checkoutDebug.inspectItems()<br/>
-                        • window.checkoutDebug.findProblematicItems()<br/>
-                        • window.checkoutDebug.verifyInstacartCompatibility()<br/>
-                        • window.checkoutDebug.simulateInstacartSearch()<br/>
-                        • window.checkoutDebug.checkLocationServices()<br/>
-                        • window.checkoutDebug.testLocationAPI()<br/>
-                        • window.debugCart.checkLocalStorage()<br/>
-                        • window.debugCart.compareWithLocalStorage()<br/>
-                        • window.debugCart.nuclearClear() ⚠️ CLEARS ALL
-                      </div>
-                      <div style={{ 
-                        marginTop: '8px', 
-                        padding: '8px', 
-                        backgroundColor: '#ffe6e6', 
-                        borderRadius: '4px',
-                        border: '1px solid #ffcccc'
-                      }}>
-                        <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#cc0000' }}>
-                          🔍 SYSTEM STATUS:
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#cc0000', marginTop: '4px' }}>
-                          ✅ Product Names: {currentCart.filter(item => item.productName && item.productName.length > 2).length}/{currentCart.length} items ready<br/>
-                          ✅ Valid IDs: {currentCart.filter(item => item.id).length}/{currentCart.length} items have IDs<br/>
-                          ✅ Connection: {isOnline ? 'Online' : 'Offline'} {connectionInfo ? `(${connectionInfo.effectiveType})` : ''}<br/>
-                          ✅ Location: {locationPermission === 'granted' ? 'Enabled' : locationPermission === 'denied' ? 'Denied' : 'Unknown'}<br/>
-                          ✅ ZIP Code: {zipCode || 'Not set'}<br/>
-                          Use checkLocationServices() and verifyInstacartCompatibility() for detailed analysis.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {!selectedStore && stores.length === 0 && (
                 <p style={{ textAlign: 'center', color: '#666', marginTop: '32px' }}>
-                  Please enter your ZIP code to see available stores
+                  Enter your ZIP code to find nearby stores, or choose from the available options above
                 </p>
               )}
             </>
