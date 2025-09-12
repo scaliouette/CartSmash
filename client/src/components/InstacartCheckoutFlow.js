@@ -1006,37 +1006,6 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               
               {resolutionResult && !isResolvingProducts && (
                 <div style={{ marginBottom: '24px' }}>
-                  <div style={{ 
-                    backgroundColor: '#F0F9FF', 
-                    border: '1px solid #3B82F6', 
-                    borderRadius: '12px', 
-                    padding: '20px',
-                    marginBottom: '16px'
-                  }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1E40AF', marginBottom: '12px' }}>
-                      🎯 Resolution Summary
-                    </h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#059669' }}>
-                          {resolutionResult.resolved.length}
-                        </div>
-                        <div style={{ fontSize: '14px', color: '#6B7280' }}>Resolved</div>
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#DC2626' }}>
-                          {resolutionResult.unresolved.length}
-                        </div>
-                        <div style={{ fontSize: '14px', color: '#6B7280' }}>Unresolved</div>
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#7C3AED' }}>
-                          {resolutionResult.stats.resolutionRate}
-                        </div>
-                        <div style={{ fontSize: '14px', color: '#6B7280' }}>Success Rate</div>
-                      </div>
-                    </div>
-                  </div>
                   
                   {resolutionResult.resolved.length > 0 && (
                     <div style={{ marginBottom: '16px' }}>
@@ -1082,45 +1051,6 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                               
                               {/* Clean Product Display Card */}
                               <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '16px' }}>
-                                {/* Product Image */}
-                                <div style={{
-                                  width: '72px',
-                                  height: '72px',
-                                  borderRadius: '8px',
-                                  overflow: 'hidden',
-                                  marginRight: '16px',
-                                  border: '2px solid #E5E7EB',
-                                  flexShrink: 0,
-                                  backgroundColor: '#F9FAFB'
-                                }}>
-                                  {item.instacartProduct.image_url && item.instacartProduct.image_url !== '/placeholder-product.jpg' ? (
-                                    <img 
-                                      src={item.instacartProduct.image_url} 
-                                      alt={item.instacartProduct.name}
-                                      style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        objectFit: 'cover'
-                                      }}
-                                      onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.nextSibling.style.display = 'flex';
-                                      }}
-                                    />
-                                  ) : null}
-                                  <div style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    backgroundColor: '#F3F4F6',
-                                    display: item.instacartProduct.image_url && item.instacartProduct.image_url !== '/placeholder-product.jpg' ? 'none' : 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '28px'
-                                  }}>
-                                    🛒
-                                  </div>
-                                </div>
-                                
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   {/* Original Item Label */}
                                   <div style={{ 
@@ -1143,6 +1073,45 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                                     lineHeight: '1.3'
                                   }}>
                                     {item.instacartProduct.name}
+                                  </div>
+                                  
+                                  {/* Product Image - After Name */}
+                                  <div style={{
+                                    width: '72px',
+                                    height: '72px',
+                                    borderRadius: '8px',
+                                    overflow: 'hidden',
+                                    marginBottom: '12px',
+                                    border: '2px solid #E5E7EB',
+                                    flexShrink: 0,
+                                    backgroundColor: '#F9FAFB'
+                                  }}>
+                                    {item.instacartProduct.image_url && item.instacartProduct.image_url !== '/placeholder-product.jpg' ? (
+                                      <img 
+                                        src={item.instacartProduct.image_url} 
+                                        alt={item.instacartProduct.name}
+                                        style={{
+                                          width: '100%',
+                                          height: '100%',
+                                          objectFit: 'cover'
+                                        }}
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                          e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                      />
+                                    ) : null}
+                                    <div style={{
+                                      width: '100%',
+                                      height: '100%',
+                                      backgroundColor: '#F3F4F6',
+                                      display: item.instacartProduct.image_url && item.instacartProduct.image_url !== '/placeholder-product.jpg' ? 'none' : 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '28px'
+                                    }}>
+                                      🛒
+                                    </div>
                                   </div>
                                   
                                   {/* Product Details Grid - Organized */}
@@ -1226,7 +1195,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                                   border: '1px solid #E2E8F0',
                                   borderRadius: '8px', 
                                   marginTop: '8px',
-                                  fontSize: '12px'
+                                  fontSize: '16px'
                                 }}>
                                   <div 
                                     style={{ 
@@ -1245,7 +1214,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                                   >
                                     <div style={{ color: '#475569', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                       <span>🔍</span>
-                                      <span>Search Details</span>
+                                      <span style={{ fontSize: '16px' }}>Search Details</span>
                                       <span style={{ 
                                         backgroundColor: '#10B981', 
                                         color: 'white', 
