@@ -2348,7 +2348,26 @@ Return as JSON with this structure:
           </div>
         </div>
         
-        {/* CRITICAL CHANGE: Only show content when expanded */}
+        {/* Show preview when collapsed, full content when expanded */}
+        {!expanded && (
+          <div style={styles.recipePreview}>
+            {/* Show brief preview of ingredients and first instruction */}
+            {displayIngredients && displayIngredients.length > 0 && (
+              <p style={styles.previewText}>
+                <strong>Ingredients:</strong> {displayIngredients.slice(0, 3).join(', ')}
+                {displayIngredients.length > 3 && '...'}
+              </p>
+            )}
+            {displayInstructions && displayInstructions.length > 0 && (
+              <p style={styles.previewText}>
+                <strong>Instructions:</strong> {displayInstructions[0].substring(0, 100)}
+                {displayInstructions[0].length > 100 && '...'}
+              </p>
+            )}
+          </div>
+        )}
+        
+        {/* Full content when expanded */}
         {expanded && (
           <div style={styles.recipeContent}>
           {/* Recipe Metadata */}
@@ -4732,6 +4751,25 @@ const styles = {
     border: '2px solid #FB4F14',
     boxShadow: '0 2px 8px rgba(251,79,20,0.1)',
     transition: 'all 0.3s ease'
+  },
+
+  recipePreview: {
+    padding: '12px',
+    backgroundColor: '#FAFAFA',
+    borderRadius: '8px',
+    marginTop: '8px',
+    border: '1px solid #E0E0E0'
+  },
+
+  previewText: {
+    margin: '4px 0',
+    fontSize: '14px',
+    lineHeight: '1.4',
+    color: '#555',
+    overflow: 'hidden',
+    display: '-webkit-box',
+    WebkitLineClamp: 1,
+    WebkitBoxOrient: 'vertical'
   }
 };
 
