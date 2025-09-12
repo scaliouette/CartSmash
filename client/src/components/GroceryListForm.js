@@ -657,13 +657,26 @@ function GroceryListForm({
   }, []);
   const textareaRef = useRef(null);
 
-  // Function to trigger textarea auto-expansion
+  // Function to trigger textarea auto-expansion (dynamic based on text content)
   const expandTextarea = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = Math.max(80, textareaRef.current.scrollHeight) + 'px';
+      
+      // Dynamic height based on content:
+      // - No text: small default height (40px for single line)
+      // - With text: expand to fit content with minimum of 60px
+      const hasText = textareaRef.current.value.trim().length > 0;
+      const minHeight = hasText ? 60 : 40;
+      const newHeight = Math.max(minHeight, textareaRef.current.scrollHeight);
+      
+      textareaRef.current.style.height = newHeight + 'px';
     }
   };
+
+  // Effect to handle dynamic textarea resizing
+  useEffect(() => {
+    expandTextarea();
+  }, [inputText]);
 
   // Auto-save hooks
   const { 
@@ -3594,7 +3607,7 @@ Examples:
 Or paste any grocery list directly!"
             style={{
               ...styles.mainTextarea,
-              minHeight: '80px', // About 3-4 lines
+              minHeight: inputText.trim().length > 0 ? '60px' : '40px', // Dynamic based on content
               height: 'auto',
               resize: 'none'
             }}
