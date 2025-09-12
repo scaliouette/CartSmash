@@ -123,8 +123,8 @@ Rules:
       throw new Error('Failed to extract JSON from AI response');
     }
 
-    // Ensure required fields
-    return {
+    // Ensure required fields and debug output
+    const result = {
       qty: json.qty || 1,
       unit: json.unit || 'unit',
       name: json.name || ingredientText,
@@ -133,6 +133,14 @@ Rules:
       notes: json.notes || '',
       original: ingredientText
     };
+    
+    console.log('🔍 [DEBUG] Ingredient parsing result:', {
+      input: ingredientText,
+      aiResponse: raw?.substring(0, 200),
+      parsed: result
+    });
+    
+    return result;
   }
 
   extractJSON(text) {

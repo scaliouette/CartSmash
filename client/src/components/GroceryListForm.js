@@ -590,7 +590,12 @@ function GroceryListForm({
         
         // Skip items with invalid names or corrupted error messages
         if (invalidNames.includes(productName) || productName.includes('⚠️') || productName.includes('failed to generate')) {
-          console.warn('🗑️ Filtering out corrupted cart item:', item.productName);
+          console.warn('🗑️ Filtering out corrupted cart item:', {
+            originalProductName: item.productName,
+            convertedProductName: productName,
+            itemKeys: Object.keys(item),
+            fullItem: JSON.stringify(item, null, 2)
+          });
           return false;
         }
         
@@ -2682,11 +2687,28 @@ Return as JSON with this structure:
         // Fix cart item structure before setting
         const fixedCart = fixCartItemStructure(data.cart);
         
-        console.log('Original cart:', data.cart);
-        console.log('Fixed cart:', fixedCart);
+        console.log('🔍 [DEBUG] Recipe API Response:', {
+          success: data.success,
+          cartLength: data.cart?.length,
+          fullResponse: data
+        });
+        console.log('🔍 [DEBUG] Original cart items:', data.cart?.map(item => ({
+          productName: item.productName,
+          quantity: item.quantity,
+          unit: item.unit,
+          keys: Object.keys(item)
+        })));
+        console.log('🔍 [DEBUG] Fixed cart items:', fixedCart?.map(item => ({
+          productName: item.productName,
+          quantity: item.quantity,
+          unit: item.unit
+        })));
         
         // Debug each item before setting
-        data.cart.forEach((item, index) => debugCartItem(item));
+        data.cart.forEach((item, index) => {
+          console.log(`🔍 [DEBUG] Raw cart item ${index}:`, item);
+          debugCartItem(item);
+        });
         
         // Update the cart with properly structured items
         setCurrentCart(fixedCart);
