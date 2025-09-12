@@ -1003,11 +1003,11 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
                 textareaRef.current.value = cleanGroceryList;
               }
               
-              // Parse and display recipes from AI response
+              // Parse and display recipes from AI response  WHERE THE MAGIC HAPPENS FOR RECIPES
               try {
                 const recipeResult = await extractMealPlanRecipes(aiResponseText);
                 if (recipeResult.recipes && recipeResult.recipes.length > 0) {
-                  console.log('🍳 Parsed recipes from AI response:', recipeResult.recipes);
+                  console.log('Parsed recipes from AI response:', recipeResult.recipes);
                   setValidParsedRecipes(recipeResult.recipes);
                 }
               } catch (recipeError) {
@@ -2866,7 +2866,7 @@ Return as JSON with this structure:
 
     setImportingRecipe(true);
     try {
-      console.log('🤖 Importing recipe from AI text:', aiRecipeText.substring(0, 100) + '...');
+      console.log('🤖 Importing recipe from AI text:', aiRecipeText.substring(0, 300) + '...');
       
       const result = await unifiedRecipeService.importOne({
         source: 'ai-text',
@@ -3281,7 +3281,7 @@ Or paste any grocery list directly!"
             <div style={styles.headerLeft}>
               <h3 style={styles.recipesTitle}>
                 {(parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) || recipes.some(r => r.mealType || r.tags?.includes('meal plan'))) ? 
-                  '📋 Meal Plan Ideas' : 'Recipes Found'}
+                  'Meal Plan Ideas' : 'Recipes Found'}
               </h3>
               <span style={styles.recipeCounter}>
                 ({parsedRecipes.length + recipes.length} recipe{parsedRecipes.length + recipes.length !== 1 ? 's' : ''})

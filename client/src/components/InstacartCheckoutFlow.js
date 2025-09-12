@@ -1654,10 +1654,10 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                 {/* Left Column - Cart Details */}
                 <div>
                   <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '16px' }}>
-                    Review Your Cart
+                    Finalize Your Order
                   </h2>
                   <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
-                    Review items, quantities, and delivery details before checkout
+                    Your items have been matched with {selectedStore?.name || 'vendor'} products. Review quantities and delivery details before checkout.
                   </p>
 
                   {/* Store Info */}
@@ -1711,7 +1711,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                     )}
                   </div>
 
-                  {/* Cart Items */}
+                  {/* Cart Items - Vendor Products */}
                   {resolutionResult && resolutionResult.resolved.length > 0 && (
                     <div style={{
                       backgroundColor: 'white',
@@ -1722,11 +1722,21 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                       <div style={{ 
                         padding: '16px', 
                         borderBottom: '1px solid #E9ECEF',
-                        fontSize: '16px', 
-                        fontWeight: 'bold', 
-                        color: '#374151' 
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
                       }}>
-                        Cart Items ({resolutionResult.resolved.length})
+                        <div>
+                          <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#374151' }}>
+                            {selectedStore?.name || 'Vendor'} Products ({resolutionResult.resolved.length})
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
+                            Ready to add to your cart
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '24px' }}>
+                          {selectedStore?.logo || '🛒'}
+                        </div>
                       </div>
                       <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
                         {resolutionResult.resolved.map((item, index) => {
@@ -1739,34 +1749,71 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                               padding: '16px',
                               borderBottom: index < resolutionResult.resolved.length - 1 ? '1px solid #F3F4F6' : 'none',
                               display: 'flex',
-                              alignItems: 'center',
-                              gap: '12px'
+                              alignItems: 'flex-start',
+                              gap: '16px'
                             }}>
-                              {/* Product Image Placeholder */}
+                              {/* Product Image */}
                               <div style={{
-                                width: '60px',
-                                height: '60px',
-                                backgroundColor: '#F3F4F6',
+                                width: '80px',
+                                height: '80px',
                                 borderRadius: '8px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '24px'
+                                overflow: 'hidden',
+                                border: '1px solid #E5E7EB',
+                                flexShrink: 0
                               }}>
-                                🏪
+                                {item.instacartProduct.image_url && item.instacartProduct.image_url !== '/placeholder-product.jpg' ? (
+                                  <img 
+                                    src={item.instacartProduct.image_url} 
+                                    alt={item.instacartProduct.name}
+                                    style={{
+                                      width: '100%',
+                                      height: '100%',
+                                      objectFit: 'cover'
+                                    }}
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                  />
+                                ) : null}
+                                <div style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  backgroundColor: '#F3F4F6',
+                                  display: item.instacartProduct.image_url && item.instacartProduct.image_url !== '/placeholder-product.jpg' ? 'none' : 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '32px'
+                                }}>
+                                  🛒
+                                </div>
                               </div>
                               
-                              {/* Product Info */}
+                              {/* Vendor Product Info */}
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#374151', marginBottom: '4px' }}>
+                                <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#374151', marginBottom: '6px' }}>
                                   {item.instacartProduct.name}
                                 </div>
-                                <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>
-                                  Originally: {item.originalItem.productName || item.originalItem.name}
+                                {item.instacartProduct.brand && (
+                                  <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '4px' }}>
+                                    <strong>Brand:</strong> {item.instacartProduct.brand}
+                                  </div>
+                                )}
+                                {item.instacartProduct.size && (
+                                  <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '4px' }}>
+                                    <strong>Size:</strong> {item.instacartProduct.size}
+                                  </div>
+                                )}
+                                <div style={{ fontSize: '12px', color: '#059669', marginBottom: '4px' }}>
+                                  <strong>Status:</strong> {item.instacartProduct.availability === 'in_stock' ? '✅ In Stock' : 
+                                   item.instacartProduct.availability === 'limited_stock' ? '⚠️ Limited Stock' : 
+                                   item.instacartProduct.availability === 'out_of_stock' ? '❌ Out of Stock' : '🔍 Available'}
                                 </div>
-                                <div style={{ fontSize: '12px', color: '#059669' }}>
-                                  {item.confidence || 'N/A'}% match confidence
-                                </div>
+                                {item.instacartProduct.sku && (
+                                  <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                                    SKU: {item.instacartProduct.sku}
+                                  </div>
+                                )}
                               </div>
                               
                               {/* Quantity Controls */}
@@ -1821,14 +1868,30 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                                 </button>
                               </div>
                               
-                              {/* Price */}
-                              <div style={{ textAlign: 'right', minWidth: '80px' }}>
-                                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#374151' }}>
+                              {/* Price & Quantity Section */}
+                              <div style={{ textAlign: 'right', minWidth: '100px' }}>
+                                <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '4px', fontWeight: 'bold' }}>
+                                  Qty: {quantity}
+                                  {item.resolvedDetails?.unit && item.resolvedDetails.unit !== 'each' && (
+                                    <span style={{ fontSize: '9px', marginLeft: '4px' }}>
+                                      ({item.resolvedDetails.measurement && item.resolvedDetails.measurement > 1 
+                                        ? `${item.resolvedDetails.measurement} ${item.resolvedDetails.unit}` 
+                                        : item.originalItem.unit || 'each'
+                                      } ea)
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '2px' }}>
                                   ${itemTotal}
                                 </div>
-                                <div style={{ fontSize: '12px', color: '#6B7280' }}>
-                                  ${price.toFixed(2)} each
+                                <div style={{ fontSize: '11px', color: '#6B7280' }}>
+                                  ${price.toFixed(2)} per item
                                 </div>
+                                {item.instacartProduct.size && (
+                                  <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '2px' }}>
+                                    Size: {item.instacartProduct.size}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );
