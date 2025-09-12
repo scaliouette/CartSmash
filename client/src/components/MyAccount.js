@@ -28,9 +28,23 @@ const safeExtractIngredientString = (ingredient) => {
   
   // If ingredient is an object, try to extract string representation
   if (typeof ingredient === 'object') {
+    // Debug log to see what properties the ingredient object has
+    console.log('🔍 Ingredient object structure:', Object.keys(ingredient), ingredient);
+    
     // First try common ingredient properties
     if (ingredient.original) {
       return safeToString(ingredient.original);
+    }
+    
+    // Try productName (common in cart items)
+    if (ingredient.productName) {
+      const productName = safeToString(ingredient.productName);
+      const quantity = safeToString(ingredient.quantity);
+      const unit = safeToString(ingredient.unit);
+      
+      // Build ingredient string from parts
+      const parts = [quantity, unit, productName].filter(part => part && part.trim());
+      return parts.join(' ').trim();
     }
     
     if (ingredient.item) {
@@ -58,11 +72,25 @@ const safeExtractIngredientString = (ingredient) => {
     if (parts.length > 0) {
       return parts.join(' ').trim();
     }
+    
+    // Last resort: try to JSON stringify and extract meaningful info
+    try {
+      const jsonString = JSON.stringify(ingredient);
+      console.log('🔍 Ingredient JSON:', jsonString);
+      
+      // If it's a simple object with just a few properties, show them
+      const keys = Object.keys(ingredient);
+      if (keys.length <= 3) {
+        return keys.map(key => `${key}: ${ingredient[key]}`).join(', ');
+      }
+    } catch (e) {
+      console.warn('Failed to JSON stringify ingredient:', e);
+    }
   }
   
   // Fallback: convert directly to string, but avoid "[object Object]"
   const result = safeToString(ingredient);
-  return result || '';
+  return result || 'Unknown ingredient';
 };
 
 function MyAccount({ 
