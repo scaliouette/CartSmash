@@ -159,7 +159,11 @@ function AppContent({
         userDataService.getShoppingLists().catch(() => []),
         userDataService.getRecipes().catch(() => []),
         userDataService.getMealPlans().catch(() => []),
-        userDataService.getParsedRecipes().catch(() => [])
+        userDataService.getParsedRecipes().catch((error) => {
+          console.warn('Failed to load parsed recipes from Firebase:', error);
+          // Don't clear existing recipes on Firebase error - return current state
+          return parsedRecipes;
+        })
       ]);
       
       // 🔒 Do NOT set currentCart here. Cart now hydrates from carts/{uid} only.
@@ -175,7 +179,7 @@ function AppContent({
       console.error('Firebase sync error:', error);
       setSyncStatus('error');
     }
-  }, [setSyncStatus, setSavedLists, setSavedRecipes, setMealPlans]);
+  }, [setSyncStatus, setSavedLists, setSavedRecipes, setMealPlans, setParsedRecipes, parsedRecipes]);
   
   // Enhanced cart hydration with race condition protection
   const hydrateCartFromFirestore = useCallback(async () => {
