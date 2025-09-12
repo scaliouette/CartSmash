@@ -954,36 +954,6 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
           {currentStep === 'match' && (
             <>
-              {/* Back Button */}
-              <button
-                onClick={handleGoBack}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 16px',
-                  backgroundColor: 'white',
-                  color: '#FF6B35',
-                  border: '2px solid #FF6B35',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  marginBottom: '24px',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#FF6B35';
-                  e.target.style.color = 'white';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'white';
-                  e.target.style.color = '#FF6B35';
-                }}
-              >
-                <span style={{ fontSize: '16px' }}>←</span>
-                Back to Store Selection
-              </button>
 
               <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '16px' }}>
                 Enhanced Product Matching
@@ -1701,36 +1671,6 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
           {currentStep === 'complete' && (
             <>
-              {/* Back Button */}
-              <button
-                onClick={handleGoBack}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 16px',
-                  backgroundColor: 'white',
-                  color: '#FF6B35',
-                  border: '2px solid #FF6B35',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  marginBottom: '24px',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#FF6B35';
-                  e.target.style.color = 'white';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'white';
-                  e.target.style.color = '#FF6B35';
-                }}
-              >
-                <span style={{ fontSize: '16px' }}>←</span>
-                Back to Product Matching
-              </button>
 
               <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '24px', height: '100%' }}>
                 {/* Left Column - Cart Details */}
@@ -2146,21 +2086,53 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <button 
-            onClick={onClose} 
-            style={{
-              padding: '12px 24px',
-              backgroundColor: 'white',
-              color: '#FF6B35',
-              border: '2px solid #FF6B35',
-              borderRadius: '8px',
-              fontSize: '16px',
-              fontWeight: '500',
-              cursor: 'pointer'
-            }}
-          >
-            Cancel
-          </button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            {(currentStep === 'match' || currentStep === 'complete') && (
+              <button
+                onClick={handleGoBack}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px 20px',
+                  backgroundColor: 'white',
+                  color: '#FF6B35',
+                  border: '2px solid #FF6B35',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#FF6B35';
+                  e.target.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'white';
+                  e.target.style.color = '#FF6B35';
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>←</span>
+                {currentStep === 'match' ? 'Back to Store Selection' : 'Back to Product Matching'}
+              </button>
+            )}
+            <button 
+              onClick={onClose} 
+              style={{
+                padding: '12px 24px',
+                backgroundColor: 'white',
+                color: '#FF6B35',
+                border: '2px solid #FF6B35',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
+          </div>
           <button
             onClick={currentStep === 'complete' ? handleFinalCheckout : handleContinue}
             disabled={currentStep === 'store' && !selectedStore}
