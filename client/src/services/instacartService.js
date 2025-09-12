@@ -268,6 +268,11 @@ class InstacartService {
     
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      
+      // Add timeout controller for API calls
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(`${apiUrl}/api/instacart/cart/create`, {
         method: 'POST',
         headers: {
@@ -282,8 +287,11 @@ class InstacartService {
             source: 'CartSmash',
             ...metadata
           }
-        })
+        }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId); // Clear timeout if request completes
 
       console.log('📞 API Response status:', response.status);
       console.log('📞 API Response headers:', Object.fromEntries(response.headers.entries()));
@@ -313,12 +321,19 @@ class InstacartService {
       }
     } catch (error) {
       console.error('❌ ===== INSTACART API ERROR =====');
-      console.error('💥 Error creating direct cart via backend:', error);
-      console.error('🔍 Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack?.split('\n').slice(0, 5) // First 5 lines of stack trace
-      });
+      
+      if (error.name === 'AbortError') {
+        console.error('⏰ Request timed out after 30 seconds');
+        console.error('🌐 This is likely due to the remote API being slow or unresponsive');
+      } else {
+        console.error('💥 Error creating direct cart via backend:', error);
+        console.error('🔍 Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 5) // First 5 lines of stack trace
+        });
+      }
+      
       console.log('🔄 Falling back to mock response for development');
       
       // Return mock response for development

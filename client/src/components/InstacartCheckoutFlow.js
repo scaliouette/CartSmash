@@ -29,6 +29,9 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   const [productQuantities, setProductQuantities] = useState({});
   const [selectedDeliverySlot, setSelectedDeliverySlot] = useState(null);
   const [storeHours, setStoreHours] = useState(null);
+  const [itemApprovals, setItemApprovals] = useState({});
+  const [showingAlternatives, setShowingAlternatives] = useState({});
+  const [pendingApprovals, setPendingApprovals] = useState(new Set());
 
   // Initialize location and connection monitoring
   useEffect(() => {
@@ -55,6 +58,12 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         // Try to get current location automatically if permission granted
         console.log('📍 Permission granted, attempting to get current location...');
         try {
+          // Get current location first for distance calculations
+          const location = await locationService.getCurrentLocation();
+          setCurrentLocation(location);
+          console.log('✅ Current location acquired for distance calculations');
+          
+          // Then try to get ZIP code
           const currentZip = await locationService.getZipFromCurrentLocation();
           if (currentZip && currentZip !== savedZip) {
             setZipCode(currentZip);
@@ -65,6 +74,14 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
           }
         } catch (error) {
           console.log('⚠️ Could not auto-detect location:', error.message);
+          // Even if ZIP detection fails, try to get location for distance calculations
+          try {
+            const location = await locationService.getCurrentLocation();
+            setCurrentLocation(location);
+            console.log('✅ Got current location for distance calculations (ZIP detection failed)');
+          } catch (locationError) {
+            console.log('⚠️ Could not get current location for distance calculations:', locationError.message);
+          }
         }
       }
     };
@@ -268,6 +285,59 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     };
   };
 
+  // Enhanced fallback stores with distance calculation
+  const enhanceFallbackStoresWithDistance = async (stores) => {
+    try {
+      // Try to get current location if available
+      let userLocation = currentLocation;
+      if (!userLocation) {
+        try {
+          userLocation = await locationService.getCurrentLocation();
+          setCurrentLocation(userLocation);
+        } catch (error) {
+          console.log('📍 Could not get current location for distance calculation:', error.message);
+          return stores; // Return stores without distance info
+        }
+      }
+
+      // Sample coordinates for major retailers (approximate locations in Sacramento area)
+      const storeCoordinates = {
+        'kroger': { lat: 38.7084, lng: -121.1561 },
+        'safeway': { lat: 38.6882, lng: -121.1761 },
+        'whole-foods': { lat: 38.7223, lng: -121.1944 },
+        'costco': { lat: 38.6596, lng: -121.1758 },
+        'target': { lat: 38.7012, lng: -121.1345 },
+        'walmart': { lat: 38.6789, lng: -121.1456 }
+      };
+
+      const enhancedStores = stores.map(store => {
+        const storeCoords = storeCoordinates[store.id];
+        if (storeCoords && userLocation) {
+          const distance = locationService.calculateDistance(
+            userLocation.latitude, 
+            userLocation.longitude, 
+            storeCoords.lat, 
+            storeCoords.lng
+          );
+          
+          return {
+            ...store,
+            distance: distance,
+            distanceText: `${distance.toFixed(1)} miles`,
+            address: `Estimated location (${distance.toFixed(1)}mi away)`
+          };
+        }
+        return store;
+      }).sort((a, b) => (a.distance || 999) - (b.distance || 999));
+
+      console.log(`📍 Enhanced ${enhancedStores.filter(s => s.distance).length} fallback stores with distance info`);
+      return enhancedStores;
+    } catch (error) {
+      console.error('❌ Error enhancing stores with distance:', error);
+      return stores; // Return original stores if enhancement fails
+    }
+  };
+
   const handleZipSearch = async () => {
     if (zipCode.length === 5) {
       setSearchingStores(true);
@@ -301,11 +371,13 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
           console.log(`📍 Found ${mappedStores.length} stores within 25 miles`);
         } else {
           console.log('⚠️ API call failed, using fallback stores');
-          setStores(availableStores);
+          const enhancedFallbackStores = await enhanceFallbackStoresWithDistance(availableStores);
+          setStores(enhancedFallbackStores);
         }
       } catch (error) {
         console.error('❌ Error fetching retailers:', error);
-        setStores(availableStores);
+        const enhancedFallbackStores = await enhanceFallbackStoresWithDistance(availableStores);
+        setStores(enhancedFallbackStores);
       }
       
       setSearchingStores(false);
@@ -942,6 +1014,26 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                         }}>
                           {store.special || store.price}
                         </div>
+                        {store.distanceText && (
+                          <div style={{
+                            fontSize: '12px',
+                            color: store.featured ? 'rgba(255,255,255,0.9)' : '#FF6B35',
+                            marginTop: '4px',
+                            fontWeight: 'bold'
+                          }}>
+                            📍 {store.distanceText}
+                          </div>
+                        )}
+                        {store.address && (
+                          <div style={{
+                            fontSize: '10px',
+                            color: store.featured ? 'rgba(255,255,255,0.7)' : '#999',
+                            marginTop: '4px',
+                            lineHeight: '1.2'
+                          }}>
+                            {store.address}
+                          </div>
+                        )}
                         {store.hours && (
                           <div style={{
                             fontSize: '11px',
@@ -1163,97 +1255,292 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                   {resolutionResult.resolved.length > 0 && (
                     <div style={{ marginBottom: '16px' }}>
                       <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#059669', marginBottom: '8px' }}>
-                        ✅ Successfully Resolved Items:
+                        ✅ Successfully Resolved Items ({selectedStore?.name || 'Selected Vendor'}):
                       </h4>
-                      <div style={{ maxHeight: showAllResolved ? 'none' : '300px', overflowY: showAllResolved ? 'visible' : 'auto', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '12px' }}>
-                        {(showAllResolved ? resolutionResult.resolved : resolutionResult.resolved.slice(0, 5)).map((item, index) => (
-                          <div key={index} style={{ 
-                            fontSize: '14px', 
-                            color: '#166534', 
-                            marginBottom: '8px',
-                            padding: '8px',
-                            backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                            borderRadius: '6px',
-                            border: '1px solid #D1FAE5'
-                          }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 'bold', color: '#059669' }}>
-                                  {item.originalItem.productName || item.originalItem.name}
-                                </div>
-                                <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
-                                  → {item.instacartProduct.name}
-                                </div>
-                              </div>
-                              <div style={{ textAlign: 'right', marginLeft: '12px' }}>
-                                <div style={{ fontWeight: 'bold', color: '#059669' }}>
-                                  ${item.instacartProduct.price}
-                                </div>
-                                <div style={{ fontSize: '11px', color: '#6B7280' }}>
-                                  {item.confidence || 'N/A'}% match
-                                </div>
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '12px', color: '#6B7280' }}>Qty:</span>
-                                <button 
-                                  onClick={() => {
-                                    const newQty = Math.max(1, (productQuantities[item.instacartProduct.id] || item.originalItem.quantity || 1) - 1);
-                                    setProductQuantities(prev => ({ ...prev, [item.instacartProduct.id]: newQty }));
-                                  }}
-                                  style={{
-                                    width: '24px',
-                                    height: '24px',
-                                    border: '1px solid #D1FAE5',
-                                    backgroundColor: '#FFF',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                  }}
-                                >
-                                  -
-                                </button>
-                                <span style={{ 
-                                  minWidth: '30px',
-                                  textAlign: 'center',
-                                  fontSize: '14px',
+                      <div style={{ maxHeight: showAllResolved ? 'none' : '400px', overflowY: showAllResolved ? 'visible' : 'auto', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '12px' }}>
+                        {(showAllResolved ? resolutionResult.resolved : resolutionResult.resolved.slice(0, 5)).map((item, index) => {
+                          const needsApproval = item.vendorSpecific?.needsApproval;
+                          const itemId = item.instacartProduct.id;
+                          const isApproved = itemApprovals[itemId];
+                          const showAlternatives = showingAlternatives[itemId];
+                          const isPending = pendingApprovals.has(itemId);
+                          
+                          return (
+                            <div key={index} style={{ 
+                              fontSize: '14px', 
+                              color: '#166534', 
+                              marginBottom: '12px',
+                              padding: '12px',
+                              backgroundColor: needsApproval && !isApproved ? 'rgba(255, 240, 200, 0.5)' : 'rgba(255, 255, 255, 0.5)',
+                              borderRadius: '8px',
+                              border: needsApproval && !isApproved ? '2px solid #F59E0B' : '1px solid #D1FAE5',
+                              position: 'relative'
+                            }}>
+                              {/* Vendor-specific badge */}
+                              {item.vendorSpecific?.retailerId && (
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '8px',
+                                  right: '8px',
+                                  fontSize: '10px',
+                                  backgroundColor: '#E5E7EB',
+                                  color: '#374151',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
                                   fontWeight: 'bold'
                                 }}>
-                                  {productQuantities[item.instacartProduct.id] || item.originalItem.quantity || 1}
-                                </span>
-                                <button 
-                                  onClick={() => {
-                                    const newQty = (productQuantities[item.instacartProduct.id] || item.originalItem.quantity || 1) + 1;
-                                    setProductQuantities(prev => ({ ...prev, [item.instacartProduct.id]: newQty }));
-                                  }}
-                                  style={{
-                                    width: '24px',
-                                    height: '24px',
-                                    border: '1px solid #D1FAE5',
-                                    backgroundColor: '#FFF',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                  }}
-                                >
-                                  +
-                                </button>
+                                  🏪 {selectedStore?.name?.split(' ')[0] || 'Vendor'}
+                                </div>
+                              )}
+                              
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                <div style={{ flex: 1, paddingRight: '60px' }}>
+                                  <div style={{ fontWeight: 'bold', color: needsApproval && !isApproved ? '#D97706' : '#059669' }}>
+                                    {item.originalItem.productName || item.originalItem.name}
+                                  </div>
+                                  <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
+                                    → {item.instacartProduct.name}
+                                  </div>
+                                  {item.instacartProduct.brand && (
+                                    <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '1px' }}>
+                                      Brand: {item.instacartProduct.brand}
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{ textAlign: 'right', marginLeft: '12px' }}>
+                                  <div style={{ fontWeight: 'bold', color: '#059669' }}>
+                                    ${item.instacartProduct.price}
+                                  </div>
+                                  <div style={{ fontSize: '11px', color: '#6B7280' }}>
+                                    {item.confidence || 'N/A'} match
+                                  </div>
+                                </div>
                               </div>
-                              <div style={{ fontSize: '11px', color: '#6B7280' }}>
-                                {item.instacartProduct.availability === 'in_stock' ? '✅ In Stock' : 
-                                 item.instacartProduct.availability === 'limited_stock' ? '⚠️ Limited' : 
-                                 item.instacartProduct.availability === 'out_of_stock' ? '❌ Out of Stock' : '🔍 Checking...'}
+
+                              {/* Vendor-specific match information */}
+                              {item.vendorSpecific && (
+                                <div style={{ 
+                                  backgroundColor: 'rgba(0,0,0,0.05)', 
+                                  padding: '8px', 
+                                  borderRadius: '4px', 
+                                  marginBottom: '8px',
+                                  fontSize: '11px',
+                                  color: '#6B7280'
+                                }}>
+                                  <div style={{ marginBottom: '4px' }}>
+                                    <strong>Match Reason:</strong> {item.vendorSpecific.matchReason}
+                                  </div>
+                                  <div>
+                                    <strong>Search Results:</strong> {item.vendorSpecific.totalSearchResults} products found
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Approval workflow for items that need validation */}
+                              {needsApproval && !isApproved && (
+                                <div style={{ 
+                                  backgroundColor: '#FEF3C7', 
+                                  border: '1px solid #F59E0B',
+                                  borderRadius: '6px', 
+                                  padding: '8px', 
+                                  marginBottom: '8px' 
+                                }}>
+                                  <div style={{ fontSize: '12px', color: '#92400E', fontWeight: 'bold', marginBottom: '6px' }}>
+                                    ⚠️ Please Review This Match
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                    <button
+                                      onClick={() => {
+                                        setItemApprovals(prev => ({ ...prev, [itemId]: true }));
+                                        const newPending = new Set(pendingApprovals);
+                                        newPending.delete(itemId);
+                                        setPendingApprovals(newPending);
+                                      }}
+                                      style={{
+                                        padding: '4px 12px',
+                                        backgroundColor: '#059669',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        fontSize: '11px',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold'
+                                      }}
+                                    >
+                                      ✅ Approve Match
+                                    </button>
+                                    <button
+                                      onClick={() => setShowingAlternatives(prev => ({ ...prev, [itemId]: !prev[itemId] }))}
+                                      style={{
+                                        padding: '4px 12px',
+                                        backgroundColor: '#F59E0B',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        fontSize: '11px',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold'
+                                      }}
+                                    >
+                                      🔍 {showAlternatives ? 'Hide' : 'Show'} Alternatives
+                                    </button>
+                                  </div>
+                                  
+                                  {/* Alternative matches */}
+                                  {showAlternatives && item.vendorSpecific?.alternativeMatches?.length > 0 && (
+                                    <div style={{ 
+                                      backgroundColor: 'white',
+                                      border: '1px solid #E5E7EB',
+                                      borderRadius: '4px',
+                                      padding: '8px',
+                                      marginTop: '8px'
+                                    }}>
+                                      <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#374151', marginBottom: '6px' }}>
+                                        Alternative Options:
+                                      </div>
+                                      {item.vendorSpecific.alternativeMatches.map((alt, altIndex) => (
+                                        <div key={altIndex} style={{
+                                          display: 'flex',
+                                          justifyContent: 'space-between',
+                                          alignItems: 'center',
+                                          padding: '4px 6px',
+                                          backgroundColor: '#F9FAFB',
+                                          borderRadius: '3px',
+                                          marginBottom: '4px',
+                                          fontSize: '10px'
+                                        }}>
+                                          <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 'bold', color: '#374151' }}>{alt.name}</div>
+                                            {alt.brand && <div style={{ color: '#6B7280' }}>Brand: {alt.brand}</div>}
+                                          </div>
+                                          <div style={{ textAlign: 'right', marginLeft: '8px' }}>
+                                            <div style={{ fontWeight: 'bold' }}>${alt.price}</div>
+                                            <button
+                                              onClick={() => {
+                                                // Switch to this alternative
+                                                setItemApprovals(prev => ({ ...prev, [itemId]: true }));
+                                                const newPending = new Set(pendingApprovals);
+                                                newPending.delete(itemId);
+                                                setPendingApprovals(newPending);
+                                                // TODO: Update the main product with this alternative
+                                                console.log('Selected alternative:', alt);
+                                              }}
+                                              style={{
+                                                padding: '2px 6px',
+                                                backgroundColor: '#3B82F6',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '3px',
+                                                fontSize: '9px',
+                                                cursor: 'pointer'
+                                              }}
+                                            >
+                                              Select
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Approved indicator */}
+                              {needsApproval && isApproved && (
+                                <div style={{ 
+                                  backgroundColor: '#D1FAE5', 
+                                  color: '#059669',
+                                  padding: '4px 8px', 
+                                  borderRadius: '4px', 
+                                  fontSize: '11px',
+                                  fontWeight: 'bold',
+                                  marginBottom: '8px'
+                                }}>
+                                  ✅ Match Approved by User
+                                </div>
+                              )}
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontSize: '12px', color: '#6B7280' }}>Qty:</span>
+                                  <button 
+                                    onClick={() => {
+                                      const newQty = Math.max(1, (productQuantities[itemId] || item.originalItem.quantity || 1) - 1);
+                                      setProductQuantities(prev => ({ ...prev, [itemId]: newQty }));
+                                    }}
+                                    style={{
+                                      width: '24px',
+                                      height: '24px',
+                                      border: '1px solid #D1FAE5',
+                                      backgroundColor: '#FFF',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      fontSize: '14px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center'
+                                    }}
+                                  >
+                                    -
+                                  </button>
+                                  <span style={{ 
+                                    minWidth: '30px',
+                                    textAlign: 'center',
+                                    fontSize: '14px',
+                                    fontWeight: 'bold'
+                                  }}>
+                                    {productQuantities[itemId] || item.originalItem.quantity || 1}
+                                  </span>
+                                  <button 
+                                    onClick={() => {
+                                      const newQty = (productQuantities[itemId] || item.originalItem.quantity || 1) + 1;
+                                      setProductQuantities(prev => ({ ...prev, [itemId]: newQty }));
+                                    }}
+                                    style={{
+                                      width: '24px',
+                                      height: '24px',
+                                      border: '1px solid #D1FAE5',
+                                      backgroundColor: '#FFF',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      fontSize: '14px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center'
+                                    }}
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#6B7280' }}>
+                                  {item.instacartProduct.availability === 'in_stock' ? '✅ In Stock' : 
+                                   item.instacartProduct.availability === 'limited_stock' ? '⚠️ Limited' : 
+                                   item.instacartProduct.availability === 'out_of_stock' ? '❌ Out of Stock' : '🔍 Checking...'}
+                                </div>
                               </div>
                             </div>
+                          );
+                        })}
+                        
+                        {/* Pending approvals summary */}
+                        {resolutionResult.resolved.filter(item => item.vendorSpecific?.needsApproval && !itemApprovals[item.instacartProduct.id]).length > 0 && (
+                          <div style={{ 
+                            backgroundColor: '#FEF3C7', 
+                            border: '2px solid #F59E0B',
+                            borderRadius: '8px', 
+                            padding: '12px', 
+                            marginBottom: '12px',
+                            textAlign: 'center'
+                          }}>
+                            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#92400E', marginBottom: '6px' }}>
+                              ⏳ {resolutionResult.resolved.filter(item => item.vendorSpecific?.needsApproval && !itemApprovals[item.instacartProduct.id]).length} items need your approval
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#6B7280' }}>
+                              Please review the highlighted matches above before proceeding to checkout
+                            </div>
                           </div>
-                        ))}
+                        )}
+                        
                         {resolutionResult.resolved.length > 5 && (
                           <div style={{ textAlign: 'center', marginTop: '12px' }}>
                             <button

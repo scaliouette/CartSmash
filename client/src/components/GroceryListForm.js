@@ -594,6 +594,9 @@ function GroceryListForm({
             originalProductName: item.productName,
             convertedProductName: productName,
             itemKeys: Object.keys(item),
+            matchedInvalidName: invalidNames.find(name => name === productName),
+            containsWarning: productName.includes('⚠️'),
+            containsFailedGenerate: productName.includes('failed to generate'),
             fullItem: JSON.stringify(item, null, 2)
           });
           return false;
@@ -2637,7 +2640,7 @@ Return as JSON with this structure:
       return;
     }
 
-    console.log('🛒 Adding recipe to cart:', recipe.title);
+    console.log('🛒 Adding recipe to cart:', recipe.title || recipe.name || 'Unnamed Recipe');
     console.log('🥕 Recipe ingredients:', recipe.ingredients);
     
     // Debug: Check if ingredients need conversion

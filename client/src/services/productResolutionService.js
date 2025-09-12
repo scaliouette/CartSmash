@@ -118,14 +118,14 @@ class ProductResolutionService {
     };
   }
 
-  // Resolve individual CartSmash item to Instacart product
+  // Resolve individual CartSmash item to Instacart product with vendor-specific validation
   async resolveItem(item, retailerId = null) {
     const cacheKey = this.getCacheKey(item, retailerId);
     
     // Check cache first
     const cached = this.getCachedResult(cacheKey);
     if (cached) {
-      console.log('📦 Using cached result for:', item.name || item.item);
+      console.log('📦 Using cached result for:', item.productName || item.name || item.item || 'unknown item');
       return cached;
     }
 
@@ -134,12 +134,13 @@ class ProductResolutionService {
       const itemDetails = this.parseItemDetails(item);
       console.log('📝 Parsed item details:', itemDetails);
 
-      // Search for matching products in Instacart
+      // Search for matching products in Instacart with vendor-specific context
       const searchResults = await this.searchInstacartProducts(itemDetails, retailerId);
       
       if (searchResults.products && searchResults.products.length > 0) {
-        // Find best match
+        // Find best match with vendor-specific scoring
         const bestMatch = this.findBestMatch(itemDetails, searchResults.products);
+        const alternativeMatches = this.getAlternativeMatches(itemDetails, searchResults.products, 3);
         
         const resolved = {
           success: true,
@@ -164,6 +165,14 @@ class ProductResolutionService {
               ? `${itemDetails.measurement} ${itemDetails.unit} ${itemDetails.cleanName}` 
               : itemDetails.cleanName,
             totalPrice: (bestMatch.price * itemDetails.quantity).toFixed(2)
+          },
+          vendorSpecific: {
+            retailerId: retailerId,
+            searchQuery: itemDetails.searchQuery,
+            totalSearchResults: searchResults.products.length,
+            alternativeMatches: alternativeMatches,
+            needsApproval: this.requiresUserApproval(itemDetails, bestMatch),
+            matchReason: this.getMatchReason(itemDetails, bestMatch)
           },
           confidence: this.calculateConfidence(itemDetails, bestMatch)
         };
@@ -394,6 +403,87 @@ class ProductResolutionService {
       size: this.cache.size,
       keys: Array.from(this.cache.keys())
     };
+  }
+
+  // Get alternative matches for user approval
+  getAlternativeMatches(itemDetails, products, limit = 3) {
+    const scoredProducts = products.map(product => ({
+      ...product,
+      score: this.calculateMatchScore(itemDetails, product)
+    }));
+
+    // Sort by score and return top alternatives (excluding the best match)
+    scoredProducts.sort((a, b) => b.score - a.score);
+    return scoredProducts.slice(1, limit + 1).map(product => ({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      size: product.size,
+      score: product.score,
+      availability: product.availability || 'unknown'
+    }));
+  }
+
+  // Determine if user approval is required
+  requiresUserApproval(itemDetails, bestMatch) {
+    const confidence = this.calculateConfidence(itemDetails, bestMatch);
+    const score = this.calculateMatchScore(itemDetails, bestMatch);
+    
+    // Require approval for low confidence matches or significant price differences
+    if (confidence === 'low' || confidence === 'very_low') {
+      return true;
+    }
+
+    // Require approval if the match seems questionable
+    const itemName = itemDetails.cleanName.toLowerCase();
+    const productName = (bestMatch.name || '').toLowerCase();
+    
+    // Check for potential category mismatches
+    const foodCategories = ['meat', 'dairy', 'produce', 'frozen', 'canned', 'bakery', 'snack'];
+    const itemHasCategory = foodCategories.some(cat => itemName.includes(cat));
+    const productHasCategory = foodCategories.some(cat => productName.includes(cat));
+    
+    if (itemHasCategory && productHasCategory) {
+      // Both have categories - check if they're different
+      for (const cat of foodCategories) {
+        if (itemName.includes(cat) && !productName.includes(cat)) {
+          return true; // Potential category mismatch
+        }
+      }
+    }
+
+    // Check for unusual price points (very cheap or very expensive)
+    if (bestMatch.price && (bestMatch.price < 0.99 || bestMatch.price > 25.00)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  // Get human-readable match reason
+  getMatchReason(itemDetails, bestMatch) {
+    const score = this.calculateMatchScore(itemDetails, bestMatch);
+    const productName = (bestMatch.name || '').toLowerCase();
+    const itemName = itemDetails.cleanName.toLowerCase();
+
+    if (productName.includes(itemName)) {
+      return 'Exact name match found in product title';
+    }
+
+    if (score >= 75) {
+      return 'High confidence match based on keywords and brand';
+    }
+
+    if (score >= 50) {
+      return 'Good match based on product name similarity';
+    }
+
+    if (score >= 25) {
+      return 'Potential match found, please verify details';
+    }
+
+    return 'Low confidence match, manual review recommended';
   }
 }
 
