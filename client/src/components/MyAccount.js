@@ -802,8 +802,8 @@ function MyAccount({
               alert(`✅ Meal plan "${plan.name}" saved successfully!`);
               
             } catch (error) {
-              console.error('Error saving meal plan:', error);
-              alert('Failed to save meal plan to cloud, but saved locally');
+              console.error('❌ Failed to save meal plan to cloud:', error);
+              alert('❌ Failed to save meal plan. Please check your connection and try again.');
             }
           }}
         />

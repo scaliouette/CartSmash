@@ -596,13 +596,15 @@ function AppContent({
   
   const saveMealPlan = async (mealPlan) => {
     try {
-      // Save to Firebase if user is authenticated
-      if (currentUser) {
-        await userDataService.saveMealPlan(mealPlan);
-        console.log('✅ Meal plan saved to Firebase');
+      // Only save to Firebase - no local storage
+      if (!currentUser) {
+        throw new Error('User must be authenticated to save meal plans');
       }
       
-      // Update local state
+      await userDataService.saveMealPlan(mealPlan);
+      console.log('✅ Meal plan saved to Firebase');
+      
+      // Update local state only after successful cloud save
       const existingIndex = mealPlans.findIndex(p => p.id === mealPlan.id);
       let updatedPlans;
       
@@ -621,9 +623,9 @@ function AppContent({
       return mealPlan;
       
     } catch (error) {
-      console.error('Error saving meal plan:', error);
-      alert('Failed to save meal plan to cloud, but saved locally');
-      return mealPlan;
+      console.error('❌ Failed to save meal plan to cloud:', error);
+      alert('❌ Failed to save meal plan. Please check your connection and try again.');
+      throw error; // Don't return the meal plan on failure
     }
   };
   

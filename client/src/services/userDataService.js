@@ -164,16 +164,10 @@ class UserDataService {
   async saveMealPlan(mealPlan) {
     await this.init();
     if (!this.userId) {
-      // ✅ REMOVED: No localStorage for unauthenticated users - session state only
-      console.log('👤 User not authenticated - meal plan not persisted');
-      return mealPlan;
+      throw new Error('User must be authenticated to save meal plans');
     }
 
     try {
-      if (!this.userId) {
-        throw new Error('User ID is not available for Firebase operation');
-      }
-      
       if (!mealPlan.id) {
         throw new Error('Meal plan ID is required for save operation');
       }
