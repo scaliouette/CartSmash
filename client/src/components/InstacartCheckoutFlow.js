@@ -1166,21 +1166,69 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                               )}
                               
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                {/* Product Image */}
+                                <div style={{
+                                  width: '80px',
+                                  height: '80px',
+                                  borderRadius: '8px',
+                                  overflow: 'hidden',
+                                  marginRight: '12px',
+                                  border: '1px solid #E5E7EB',
+                                  flexShrink: 0
+                                }}>
+                                  {item.instacartProduct.image_url && item.instacartProduct.image_url !== '/placeholder-product.jpg' ? (
+                                    <img 
+                                      src={item.instacartProduct.image_url} 
+                                      alt={item.instacartProduct.name}
+                                      style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        objectFit: 'cover'
+                                      }}
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    backgroundColor: '#F3F4F6',
+                                    display: item.instacartProduct.image_url && item.instacartProduct.image_url !== '/placeholder-product.jpg' ? 'none' : 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '32px'
+                                  }}>
+                                    🛒
+                                  </div>
+                                </div>
+                                
                                 <div style={{ flex: 1, paddingRight: '60px' }}>
-                                  <div style={{ fontWeight: 'bold', color: needsApproval && !isApproved ? '#D97706' : '#059669' }}>
+                                  <div style={{ fontWeight: 'bold', color: needsApproval && !isApproved ? '#D97706' : '#059669', marginBottom: '4px' }}>
                                     {item.originalItem.productName || item.originalItem.name}
                                   </div>
-                                  <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
+                                  <div style={{ fontSize: '14px', color: '#374151', marginTop: '2px', fontWeight: 'bold' }}>
                                     → {item.instacartProduct.name}
                                   </div>
                                   {item.instacartProduct.brand && (
-                                    <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '1px' }}>
+                                    <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
                                       Brand: {item.instacartProduct.brand}
+                                    </div>
+                                  )}
+                                  {item.instacartProduct.size && (
+                                    <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
+                                      Size: {item.instacartProduct.size}
+                                    </div>
+                                  )}
+                                  {item.resolvedDetails?.displayName && item.resolvedDetails.displayName !== (item.originalItem.productName || item.originalItem.name) && (
+                                    <div style={{ fontSize: '11px', color: '#059669', marginTop: '4px', fontStyle: 'italic' }}>
+                                      Recommended: {item.resolvedDetails.displayName}
                                     </div>
                                   )}
                                 </div>
                                 <div style={{ textAlign: 'right', marginLeft: '12px' }}>
-                                  <div style={{ fontWeight: 'bold', color: '#059669' }}>
+                                  <div style={{ fontWeight: 'bold', color: '#059669', fontSize: '16px' }}>
                                     ${item.instacartProduct.price}
                                   </div>
                                   <div style={{ fontSize: '11px', color: '#6B7280' }}>
@@ -1189,22 +1237,54 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                                 </div>
                               </div>
 
-                              {/* Vendor-specific match information */}
+                              {/* Vendor-specific match information with expanded search results */}
                               {item.vendorSpecific && (
                                 <div style={{ 
-                                  backgroundColor: 'rgba(0,0,0,0.05)', 
-                                  padding: '8px', 
-                                  borderRadius: '4px', 
+                                  backgroundColor: '#F0F9FF', 
+                                  padding: '12px', 
+                                  borderRadius: '6px', 
                                   marginBottom: '8px',
-                                  fontSize: '11px',
-                                  color: '#6B7280'
+                                  fontSize: '12px',
+                                  border: '1px solid #BFDBFE'
                                 }}>
-                                  <div style={{ marginBottom: '4px' }}>
+                                  <div style={{ marginBottom: '6px', color: '#1E40AF', fontWeight: 'bold' }}>
+                                    🔍 Search Analysis:
+                                  </div>
+                                  <div style={{ marginBottom: '4px', color: '#374151' }}>
                                     <strong>Match Reason:</strong> {item.vendorSpecific.matchReason}
                                   </div>
-                                  <div>
-                                    <strong>Search Results:</strong> {item.vendorSpecific.totalSearchResults} products found
+                                  <div style={{ marginBottom: '4px', color: '#374151' }}>
+                                    <strong>Search Query:</strong> "{item.vendorSpecific.searchQuery}"
                                   </div>
+                                  <div style={{ color: '#059669', fontWeight: 'bold' }}>
+                                    <strong>Found:</strong> {item.vendorSpecific.totalSearchResults} products available
+                                  </div>
+                                  
+                                  {/* Show alternative matches if available */}
+                                  {item.vendorSpecific.alternativeMatches && item.vendorSpecific.alternativeMatches.length > 0 && (
+                                    <div style={{ marginTop: '8px' }}>
+                                      <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#7C3AED', marginBottom: '6px' }}>
+                                        Other options from search ({item.vendorSpecific.alternativeMatches.length} more):
+                                      </div>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        {item.vendorSpecific.alternativeMatches.slice(0, 2).map((alt, altIndex) => (
+                                          <div key={altIndex} style={{
+                                            fontSize: '10px',
+                                            color: '#6B7280',
+                                            backgroundColor: 'white',
+                                            padding: '4px 6px',
+                                            borderRadius: '4px',
+                                            border: '1px solid #E5E7EB'
+                                          }}>
+                                            <span style={{ fontWeight: 'bold' }}>{alt.name}</span>
+                                            {alt.brand && <span> • {alt.brand}</span>}
+                                            {alt.size && <span> • {alt.size}</span>}
+                                            <span style={{ color: '#059669', fontWeight: 'bold' }}> • ${alt.price}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               )}
 
@@ -1267,26 +1347,58 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                                       padding: '8px',
                                       marginTop: '8px'
                                     }}>
-                                      <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#374151', marginBottom: '6px' }}>
-                                        Alternative Options:
+                                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#374151', marginBottom: '8px' }}>
+                                        🔄 Alternative Product Options:
                                       </div>
                                       {item.vendorSpecific.alternativeMatches.map((alt, altIndex) => (
                                         <div key={altIndex} style={{
                                           display: 'flex',
-                                          justifyContent: 'space-between',
-                                          alignItems: 'center',
-                                          padding: '4px 6px',
+                                          alignItems: 'flex-start',
+                                          padding: '8px',
                                           backgroundColor: '#F9FAFB',
-                                          borderRadius: '3px',
-                                          marginBottom: '4px',
-                                          fontSize: '10px'
+                                          borderRadius: '6px',
+                                          marginBottom: '6px',
+                                          border: '1px solid #E5E7EB',
+                                          fontSize: '11px'
                                         }}>
+                                          {/* Alternative product image placeholder */}
+                                          <div style={{
+                                            width: '40px',
+                                            height: '40px',
+                                            backgroundColor: '#E5E7EB',
+                                            borderRadius: '4px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            marginRight: '8px',
+                                            fontSize: '16px',
+                                            flexShrink: 0
+                                          }}>
+                                            🛒
+                                          </div>
                                           <div style={{ flex: 1 }}>
-                                            <div style={{ fontWeight: 'bold', color: '#374151' }}>{alt.name}</div>
-                                            {alt.brand && <div style={{ color: '#6B7280' }}>Brand: {alt.brand}</div>}
+                                            <div style={{ fontWeight: 'bold', color: '#374151', marginBottom: '2px' }}>
+                                              {alt.name}
+                                            </div>
+                                            {alt.brand && (
+                                              <div style={{ color: '#6B7280', fontSize: '10px', marginBottom: '1px' }}>
+                                                Brand: {alt.brand}
+                                              </div>
+                                            )}
+                                            {alt.size && (
+                                              <div style={{ color: '#6B7280', fontSize: '10px', marginBottom: '2px' }}>
+                                                Size: {alt.size}
+                                              </div>
+                                            )}
+                                            <div style={{ color: alt.availability === 'in_stock' ? '#059669' : '#DC2626', fontSize: '10px' }}>
+                                              {alt.availability === 'in_stock' ? '✅ In Stock' : 
+                                               alt.availability === 'limited_stock' ? '⚠️ Limited Stock' : '❓ Check Availability'}
+                                            </div>
                                           </div>
                                           <div style={{ textAlign: 'right', marginLeft: '8px' }}>
-                                            <div style={{ fontWeight: 'bold' }}>${alt.price}</div>
+                                            <div style={{ fontWeight: 'bold', fontSize: '12px', color: '#059669', marginBottom: '4px' }}>
+                                              ${alt.price}
+                                            </div>
                                             <button
                                               onClick={() => {
                                                 // Switch to this alternative
@@ -1298,16 +1410,17 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                                                 console.log('Selected alternative:', alt);
                                               }}
                                               style={{
-                                                padding: '2px 6px',
+                                                padding: '4px 8px',
                                                 backgroundColor: '#3B82F6',
                                                 color: 'white',
                                                 border: 'none',
-                                                borderRadius: '3px',
-                                                fontSize: '9px',
-                                                cursor: 'pointer'
+                                                borderRadius: '4px',
+                                                fontSize: '10px',
+                                                cursor: 'pointer',
+                                                fontWeight: 'bold'
                                               }}
                                             >
-                                              Select
+                                              Choose This
                                             </button>
                                           </div>
                                         </div>
@@ -1334,60 +1447,89 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <span style={{ fontSize: '12px', color: '#6B7280' }}>Qty:</span>
-                                  <button 
-                                    onClick={() => {
-                                      const newQty = Math.max(1, (productQuantities[itemId] || item.originalItem.quantity || 1) - 1);
-                                      setProductQuantities(prev => ({ ...prev, [itemId]: newQty }));
-                                    }}
-                                    style={{
-                                      width: '24px',
-                                      height: '24px',
-                                      border: '1px solid #D1FAE5',
-                                      backgroundColor: '#FFF',
-                                      borderRadius: '4px',
-                                      cursor: 'pointer',
-                                      fontSize: '14px',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center'
-                                    }}
-                                  >
-                                    -
-                                  </button>
-                                  <span style={{ 
-                                    minWidth: '30px',
-                                    textAlign: 'center',
-                                    fontSize: '14px',
-                                    fontWeight: 'bold'
-                                  }}>
-                                    {productQuantities[itemId] || item.originalItem.quantity || 1}
-                                  </span>
-                                  <button 
-                                    onClick={() => {
-                                      const newQty = (productQuantities[itemId] || item.originalItem.quantity || 1) + 1;
-                                      setProductQuantities(prev => ({ ...prev, [itemId]: newQty }));
-                                    }}
-                                    style={{
-                                      width: '24px',
-                                      height: '24px',
-                                      border: '1px solid #D1FAE5',
-                                      backgroundColor: '#FFF',
-                                      borderRadius: '4px',
-                                      cursor: 'pointer',
-                                      fontSize: '14px',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center'
-                                    }}
-                                  >
-                                    +
-                                  </button>
+                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                    <span style={{ fontSize: '12px', color: '#6B7280', marginBottom: '2px' }}>
+                                      Quantity:
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <button 
+                                        onClick={() => {
+                                          const newQty = Math.max(1, (productQuantities[itemId] || item.originalItem.quantity || 1) - 1);
+                                          setProductQuantities(prev => ({ ...prev, [itemId]: newQty }));
+                                        }}
+                                        style={{
+                                          width: '24px',
+                                          height: '24px',
+                                          border: '1px solid #D1FAE5',
+                                          backgroundColor: '#FFF',
+                                          borderRadius: '4px',
+                                          cursor: 'pointer',
+                                          fontSize: '14px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center'
+                                        }}
+                                      >
+                                        -
+                                      </button>
+                                      <div style={{ 
+                                        minWidth: '60px',
+                                        textAlign: 'center',
+                                        fontSize: '14px',
+                                        fontWeight: 'bold',
+                                        color: '#374151',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center'
+                                      }}>
+                                        <span>{productQuantities[itemId] || item.originalItem.quantity || 1}</span>
+                                        {item.resolvedDetails?.unit && item.resolvedDetails.unit !== 'each' && (
+                                          <span style={{ 
+                                            fontSize: '10px', 
+                                            color: '#6B7280',
+                                            fontWeight: 'normal' 
+                                          }}>
+                                            {item.resolvedDetails.measurement && item.resolvedDetails.measurement > 1 
+                                              ? `${item.resolvedDetails.measurement} ${item.resolvedDetails.unit}` 
+                                              : item.originalItem.unit || 'each'
+                                            }
+                                          </span>
+                                        )}
+                                      </div>
+                                      <button 
+                                        onClick={() => {
+                                          const newQty = (productQuantities[itemId] || item.originalItem.quantity || 1) + 1;
+                                          setProductQuantities(prev => ({ ...prev, [itemId]: newQty }));
+                                        }}
+                                        style={{
+                                          width: '24px',
+                                          height: '24px',
+                                          border: '1px solid #D1FAE5',
+                                          backgroundColor: '#FFF',
+                                          borderRadius: '4px',
+                                          cursor: 'pointer',
+                                          fontSize: '14px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center'
+                                        }}
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div style={{ fontSize: '11px', color: '#6B7280' }}>
-                                  {item.instacartProduct.availability === 'in_stock' ? '✅ In Stock' : 
-                                   item.instacartProduct.availability === 'limited_stock' ? '⚠️ Limited' : 
-                                   item.instacartProduct.availability === 'out_of_stock' ? '❌ Out of Stock' : '🔍 Checking...'}
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '2px' }}>
+                                    {item.instacartProduct.availability === 'in_stock' ? '✅ In Stock' : 
+                                     item.instacartProduct.availability === 'limited_stock' ? '⚠️ Limited' : 
+                                     item.instacartProduct.availability === 'out_of_stock' ? '❌ Out of Stock' : '🔍 Checking...'}
+                                  </div>
+                                  {item.instacartProduct.size && (
+                                    <div style={{ fontSize: '10px', color: '#9CA3AF' }}>
+                                      Per unit: {item.instacartProduct.size}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
