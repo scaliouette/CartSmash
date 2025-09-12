@@ -367,9 +367,11 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
       try {
         console.log('🔄 Calling real Claude API...');
         
+        // Dynamic token allocation based on request type for optimal UX
+        const baseTokenLimit = options.includeRecipes ? 4000 : 2000; // More tokens for complete recipes
         const response = await anthropic.messages.create({
           model: 'claude-3-5-sonnet-20241022',
-          max_tokens: Math.min(options.maxTokens || 2000, 8192), // Respect client's maxTokens but cap at Claude 3.5 Sonnet limit
+          max_tokens: Math.min(options.maxTokens || baseTokenLimit, 8192), // Respect client's maxTokens but cap at Claude 3.5 Sonnet limit
           temperature: options.temperature || 0.7,
           messages: [{ 
             role: 'user', 
