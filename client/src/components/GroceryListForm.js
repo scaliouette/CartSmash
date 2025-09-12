@@ -15,6 +15,317 @@ import { unified as unifiedRecipeService } from '../services/unifiedRecipeServic
 import persistenceService from '../services/persistenceService';
 import { generateAIMealPlan } from '../services/aiMealPlanService';
 
+// MixingBowlLoader Component
+const MixingBowlLoader = ({ text = "CARTSMASH AI is preparing your meal plan..." }) => {
+  return (
+    <>
+      <style>{`
+        @keyframes swirl {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes orbit1 {
+          0% { transform: rotate(0deg) translateX(40px) rotate(0deg); }
+          100% { transform: rotate(360deg) translateX(40px) rotate(-360deg); }
+        }
+        
+        @keyframes orbit2 {
+          0% { transform: rotate(90deg) translateX(35px) rotate(-90deg); }
+          100% { transform: rotate(450deg) translateX(35px) rotate(-450deg); }
+        }
+        
+        @keyframes orbit3 {
+          0% { transform: rotate(180deg) translateX(45px) rotate(-180deg); }
+          100% { transform: rotate(540deg) translateX(45px) rotate(-540deg); }
+        }
+        
+        @keyframes orbit4 {
+          0% { transform: rotate(270deg) translateX(30px) rotate(-270deg); }
+          100% { transform: rotate(630deg) translateX(30px) rotate(-630deg); }
+        }
+        
+        @keyframes floatAndSpin {
+          0%, 100% { 
+            transform: translateY(0) rotate(0deg) scale(1);
+          }
+          25% {
+            transform: translateY(-8px) rotate(90deg) scale(1.1);
+          }
+          50% { 
+            transform: translateY(-3px) rotate(180deg) scale(0.95);
+          }
+          75% {
+            transform: translateY(-10px) rotate(270deg) scale(1.05);
+          }
+        }
+        
+        @keyframes mixingVortex {
+          0% { 
+            transform: translateX(-50%) scale(1) rotate(0deg);
+            opacity: 0.3;
+          }
+          50% { 
+            transform: translateX(-50%) scale(1.2) rotate(180deg);
+            opacity: 0.1;
+          }
+          100% { 
+            transform: translateX(-50%) scale(1) rotate(360deg);
+            opacity: 0.3;
+          }
+        }
+        
+        @keyframes fall {
+          0% {
+            transform: translateY(-150px) rotate(0deg) scale(0);
+            opacity: 0;
+          }
+          20% {
+            transform: translateY(-80px) rotate(120deg) scale(1);
+            opacity: 1;
+          }
+          85% {
+            transform: translateY(180px) rotate(480deg) scale(1);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(200px) rotate(540deg) scale(0);
+            opacity: 0;
+          }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { 
+            opacity: 0.2; 
+            transform: scale(1);
+          }
+          50% { 
+            opacity: 1; 
+            transform: scale(1.3);
+          }
+        }
+        
+        @keyframes shimmer {
+          0% { background-position: -200px 0; }
+          100% { background-position: 200px 0; }
+        }
+      `}</style>
+      
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'linear-gradient(135deg, #002244 0%, #003366 50%, #001833 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10000,
+      }}>
+        <div style={{
+          position: 'relative',
+          width: '350px',
+          height: '350px',
+        }}>
+          {/* CARTSMASH-colored Mixing Bowl */}
+          <div style={{
+            position: 'absolute',
+            bottom: '50px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '240px',
+            height: '120px',
+            background: 'linear-gradient(to bottom, #FB4F14 0%, #FF6B35 30%, #E74C0C 70%, #C73E0A 100%)',
+            borderRadius: '0 0 120px 120px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.4), inset 0 -5px 20px rgba(0,0,0,0.3), 0 0 80px rgba(251, 79, 20, 0.3)',
+            overflow: 'hidden',
+          }}>
+            {/* Inner shadow for depth */}
+            <div style={{
+              position: 'absolute',
+              width: '100%',
+              height: '100%',
+              background: 'radial-gradient(ellipse at center top, transparent 30%, rgba(0,0,0,0.2) 100%)',
+            }}></div>
+            
+            {/* Bowl rim with shimmer effect */}
+            <div style={{
+              position: 'absolute',
+              width: '244px',
+              height: '12px',
+              background: 'linear-gradient(90deg, #FF6B35 0%, #FFB380 45%, #FFFFFF 50%, #FFB380 55%, #FF6B35 100%)',
+              backgroundSize: '200px 100%',
+              animation: 'shimmer 3s infinite linear',
+              top: '-6px',
+              left: '-2px',
+              borderRadius: '50%',
+              boxShadow: '0 3px 10px rgba(251, 79, 20, 0.5), inset 0 2px 4px rgba(255,255,255,0.7)',
+            }}></div>
+            
+            {/* Mixing contents container */}
+            <div style={{
+              position: 'absolute',
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              {/* Central batter mixture */}
+              <div style={{
+                position: 'absolute',
+                width: '200px',
+                height: '80px',
+                background: 'radial-gradient(ellipse at center, #FFF8DC 0%, #FFE4B5 40%, #DEB887 80%, #BC9A6A 100%)',
+                borderRadius: '50%',
+                top: '20px',
+                left: '20px',
+                opacity: 0.95,
+                boxShadow: 'inset 0 4px 12px rgba(0,0,0,0.15)',
+                animation: 'swirl 4s infinite linear',
+              }}>
+                {/* Swirl pattern overlay */}
+                <div style={{
+                  position: 'absolute',
+                  width: '100%',
+                  height: '100%',
+                  background: 'conic-gradient(from 0deg, transparent, rgba(139, 69, 19, 0.15), transparent, rgba(139, 69, 19, 0.15))',
+                  borderRadius: '50%',
+                  animation: 'swirl 2.5s infinite linear reverse',
+                }}></div>
+              </div>
+              
+              {/* Ingredients with unique orbiting paths */}
+              <div style={{
+                position: 'absolute',
+                fontSize: '26px',
+                animation: 'orbit1 3s infinite linear',
+                filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))',
+              }}>
+                <span style={{ display: 'inline-block', animation: 'floatAndSpin 2s infinite ease-in-out' }}>
+                  🥕
+                </span>
+              </div>
+              
+              <div style={{
+                position: 'absolute',
+                fontSize: '24px',
+                animation: 'orbit2 3.5s infinite linear',
+                filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))',
+              }}>
+                <span style={{ display: 'inline-block', animation: 'floatAndSpin 2.5s infinite ease-in-out' }}>
+                  🥬
+                </span>
+              </div>
+              
+              <div style={{
+                position: 'absolute',
+                fontSize: '28px',
+                animation: 'orbit3 4s infinite linear',
+                filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))',
+              }}>
+                <span style={{ display: 'inline-block', animation: 'floatAndSpin 2.2s infinite ease-in-out' }}>
+                  🍅
+                </span>
+              </div>
+              
+              <div style={{
+                position: 'absolute',
+                fontSize: '25px',
+                animation: 'orbit4 2.8s infinite linear',
+                filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))',
+              }}>
+                <span style={{ display: 'inline-block', animation: 'floatAndSpin 2.8s infinite ease-in-out' }}>
+                  🧅
+                </span>
+              </div>
+            </div>
+            
+            {/* Multiple vortex rings for depth */}
+            <div style={{
+              position: 'absolute',
+              width: '80px',
+              height: '80px',
+              border: '3px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '50%',
+              top: '20px',
+              left: '50%',
+              animation: 'mixingVortex 3s infinite ease-in-out',
+              borderStyle: 'dashed',
+            }}></div>
+            
+            <div style={{
+              position: 'absolute',
+              width: '50px',
+              height: '50px',
+              border: '2px solid rgba(251, 79, 20, 0.2)',
+              borderRadius: '50%',
+              top: '35px',
+              left: '50%',
+              animation: 'mixingVortex 2s infinite ease-in-out reverse',
+              borderStyle: 'dotted',
+            }}></div>
+          </div>
+          
+          {/* Falling ingredients with varied timing */}
+          <div style={{
+            position: 'absolute',
+            top: '0',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '300px',
+          }}>
+            <span style={{
+              position: 'absolute',
+              fontSize: '32px',
+              animation: 'fall 2.5s infinite ease-in',
+              left: '20%',
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+            }}>🥒</span>
+            <span style={{
+              position: 'absolute',
+              fontSize: '30px',
+              animation: 'fall 2.5s infinite ease-in 0.8s',
+              left: '50%',
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+            }}>🌽</span>
+            <span style={{
+              position: 'absolute',
+              fontSize: '34px',
+              animation: 'fall 2.5s infinite ease-in 1.6s',
+              left: '75%',
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+            }}>🥔</span>
+          </div>
+        </div>
+        
+        <h3 style={{
+          color: 'white',
+          marginTop: '40px',
+          fontSize: '26px',
+          fontWeight: '700',
+          textAlign: 'center',
+          textShadow: '3px 3px 6px rgba(0,0,0,0.5)',
+          letterSpacing: '1px',
+        }}>{text}</h3>
+        
+        <div style={{
+          fontSize: '36px',
+          color: '#FB4F14',
+          fontWeight: 'bold',
+          textShadow: '0 0 20px rgba(251, 79, 20, 0.5)',
+        }}>
+          <span style={{ animation: 'pulse 1.5s infinite ease-in-out' }}>.</span>
+          <span style={{ animation: 'pulse 1.5s infinite ease-in-out 0.3s' }}>.</span>
+          <span style={{ animation: 'pulse 1.5s infinite ease-in-out 0.6s' }}>.</span>
+        </div>
+      </div>
+    </>
+  );
+};
+
 // Recipe Validation Utility
 const isValidRecipe = (recipe) => {
   if (!recipe) return false;
@@ -2099,7 +2410,7 @@ Return as JSON with this structure:
             {!quickAddMode && (
               <div style={styles.preview}>
                 <h4 style={styles.previewTitle}>Preview:</h4>
-                <p style={styles.previewText}>
+                <p style={styles.previewTextBasic}>
                   📅 <strong>{selectedDay}</strong> - {selectedMealType}<br/>
                   🍳 <strong>{customName || recipe.title}</strong><br/>
                   {recipe.ingredients?.length > 0 && (
@@ -3112,17 +3423,12 @@ Return as JSON with this structure:
   // Main component return (this should be inside the main GroceryListForm function)
   return (
     <div className="container">
-      {isLoading && (
-        <OverlaySpinner text={waitingForAIResponse ? "AI is generating your list..." : "CARTSMASH is processing your list..."} />
-      )}
-
-      {showProgress && (
-        <div className="progress-overlay">
-          <ProgressSpinner 
-            progress={parsingProgress} 
-            text={waitingForAIResponse ? "AI is thinking..." : "Parsing your grocery list..."}
-          />
-        </div>
+      {(isLoading || showProgress) && (
+        <MixingBowlLoader text={
+          waitingForAIResponse ? "CARTSMASH AI is generating your list..." :
+          showProgress ? "CARTSMASH AI is parsing your grocery list..." :
+          "CARTSMASH is processing your list..."
+        } />
       )}
 
       <div className="hero-section" style={styles.heroSectionMinimal}>
@@ -4465,7 +4771,7 @@ const styles = {
     color: '#002244'
   },
   
-  previewText: {
+  previewTextBasic: {
     margin: 0,
     fontSize: '14px',
     lineHeight: '1.6',
