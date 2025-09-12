@@ -231,6 +231,9 @@ const corsOptions = {
       'https://cartsmash.vercel.app',
       'http://localhost:3000',
       'http://localhost:3001',
+      'http://localhost:3044',
+      'http://localhost:3045',
+      'http://localhost:3047',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:3001',
       process.env.CLIENT_URL

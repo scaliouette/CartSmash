@@ -79,26 +79,29 @@ export async function parseAIMealPlan(aiResponse, userId) {
  */
 export async function saveParsedMealPlan(uid, mealPlan) {
   try {
-    // Create main meal plan document
+    // Create main meal plan document with safe metadata access
+    const metadata = mealPlan.metadata || {};
     const mealPlanRef = await addDoc(collection(db, 'users', uid, 'mealPlans'), {
-      name: mealPlan.metadata.title,
-      familySize: mealPlan.metadata.familySize,
+      name: metadata.title || 'AI Generated Meal Plan',
+      familySize: metadata.familySize || 4,
       source: 'ai-generated',
       status: 'draft',
-      weekSchedule: mealPlan.weekSchedule,
+      weekSchedule: mealPlan.weekSchedule || {},
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
 
-    // Save recipes to user's recipe library
-    const recipePromises = mealPlan.recipes.map(recipe => 
+    // Save recipes to user's recipe library (with safety check)
+    const recipes = mealPlan.recipes || [];
+    const recipePromises = recipes.map(recipe => 
       saveRecipeWithAssignment(uid, recipe, mealPlanRef.id)
     );
     
     await Promise.all(recipePromises);
 
-    // Save shopping list
-    await saveShoppingList(uid, mealPlanRef.id, mealPlan.shoppingList);
+    // Save shopping list (with safety check)
+    const shoppingList = mealPlan.shoppingList || [];
+    await saveShoppingList(uid, mealPlanRef.id, shoppingList);
 
     return mealPlanRef.id;
   } catch (error) {
