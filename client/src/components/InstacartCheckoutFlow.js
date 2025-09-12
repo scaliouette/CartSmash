@@ -954,6 +954,37 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
           {currentStep === 'match' && (
             <>
+              {/* Back Button */}
+              <button
+                onClick={handleGoBack}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 16px',
+                  backgroundColor: 'white',
+                  color: '#FF6B35',
+                  border: '2px solid #FF6B35',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  marginBottom: '24px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#FF6B35';
+                  e.target.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'white';
+                  e.target.style.color = '#FF6B35';
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>←</span>
+                Back to Store Selection
+              </button>
+
               <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '16px' }}>
                 Enhanced Product Matching
               </h2>
@@ -1701,6 +1732,37 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
           {currentStep === 'complete' && (
             <>
+              {/* Back Button */}
+              <button
+                onClick={handleGoBack}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 16px',
+                  backgroundColor: 'white',
+                  color: '#FF6B35',
+                  border: '2px solid #FF6B35',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  marginBottom: '24px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#FF6B35';
+                  e.target.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'white';
+                  e.target.style.color = '#FF6B35';
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>←</span>
+                Back to Product Matching
+              </button>
+
               <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '24px', height: '100%' }}>
                 {/* Left Column - Cart Details */}
                 <div>
