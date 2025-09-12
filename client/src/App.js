@@ -155,10 +155,11 @@ function AppContent({
       await userDataService.init();
       
       // Load all data from Firebase
-      const [firebaseLists, firebaseRecipes, firebaseMealPlans] = await Promise.all([
+      const [firebaseLists, firebaseRecipes, firebaseMealPlans, firebaseParsedRecipes] = await Promise.all([
         userDataService.getShoppingLists().catch(() => []),
         userDataService.getRecipes().catch(() => []),
-        userDataService.getMealPlans().catch(() => [])
+        userDataService.getMealPlans().catch(() => []),
+        userDataService.getParsedRecipes().catch(() => [])
       ]);
       
       // 🔒 Do NOT set currentCart here. Cart now hydrates from carts/{uid} only.
@@ -166,6 +167,7 @@ function AppContent({
       setSavedLists(firebaseLists);
       setSavedRecipes(firebaseRecipes);
       setMealPlans(firebaseMealPlans);
+      setParsedRecipes(firebaseParsedRecipes);
       
       setSyncStatus('synced');
       console.log('✅ Successfully synced with Firebase');
@@ -366,6 +368,24 @@ function AppContent({
       return () => clearTimeout(saveTimer);
     }
   }, [currentCart, currentUser, saveCartToFirebase, setCurrentCartWithTracking]);
+  
+  // Auto-save parsed recipes to Firebase when they change (debounced)
+  useEffect(() => {
+    if (!currentUser || !parsedRecipes) {
+      return;
+    }
+
+    const saveTimer = setTimeout(async () => {
+      try {
+        // Save even if empty array to ensure proper persistence
+        await userDataService.saveParsedRecipes(parsedRecipes);
+      } catch (error) {
+        console.error('Error auto-saving parsed recipes:', error);
+      }
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(saveTimer);
+  }, [parsedRecipes, currentUser]);
   
   // CONNECTED FUNCTIONS
   const loadRecipeToCart = async (recipe, merge = false) => {

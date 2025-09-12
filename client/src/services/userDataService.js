@@ -361,6 +361,62 @@ class UserDataService {
     }
   }
 
+  // Save parsed recipes (meal plan ideas)
+  async saveParsedRecipes(parsedRecipes) {
+    await this.init();
+    if (!this.userId) {
+      console.log('👤 User not authenticated - parsed recipes saved to session only');
+      return parsedRecipes;
+    }
+
+    try {
+      // Use a single document to store all parsed recipes for simplicity
+      const parsedRecipesRef = doc(this.db, 'users', this.userId, 'parsedRecipes', 'current');
+      
+      // Sanitize data for Firestore
+      const sanitizedRecipes = this.sanitizeForFirestore(parsedRecipes);
+      
+      await setDoc(parsedRecipesRef, {
+        recipes: sanitizedRecipes,
+        userId: this.userId,
+        updatedAt: new Date().toISOString()
+      }, { merge: false }); // Use merge: false to replace the entire array
+
+      console.log('✅ Parsed recipes saved to Firestore:', parsedRecipes.length, 'recipes');
+      return parsedRecipes;
+    } catch (error) {
+      console.error('Error saving parsed recipes to Firestore:', error);
+      throw error;
+    }
+  }
+
+  // Get parsed recipes (meal plan ideas)
+  async getParsedRecipes() {
+    await this.init();
+    if (!this.userId) {
+      console.log('👤 User not authenticated - returning empty parsed recipes array');
+      return [];
+    }
+
+    try {
+      const parsedRecipesRef = doc(this.db, 'users', this.userId, 'parsedRecipes', 'current');
+      const snapshot = await getDoc(parsedRecipesRef);
+      
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        const recipes = data.recipes || [];
+        console.log(`✅ Loaded ${recipes.length} parsed recipes from Firestore`);
+        return recipes;
+      }
+      
+      console.log('ℹ️ No parsed recipes found in Firestore');
+      return [];
+    } catch (error) {
+      console.error('Error fetching parsed recipes from Firestore:', error);
+      return [];
+    }
+  }
+
   // Helper method to sanitize data for Firestore (removes undefined values)
   sanitizeForFirestore(obj) {
     if (obj === null || obj === undefined) {
