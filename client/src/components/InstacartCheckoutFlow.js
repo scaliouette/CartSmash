@@ -471,13 +471,19 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       // Prepare cart items with resolved product IDs
       const cartItems = resolution.resolved.map(item => ({
         product_id: item.instacartProduct.id,
-        retailer_sku: item.instacartProduct.sku || item.instacartProduct.id,
-        quantity: item.resolvedDetails.quantity || 1,
-        name: item.resolvedDetails.name,
+        retailer_sku: item.instacartProduct.retailer_sku || item.instacartProduct.sku || item.instacartProduct.id,
+        quantity: item.resolvedDetails?.quantity || item.originalItem?.quantity || 1,
+        name: item.instacartProduct.name || item.resolvedDetails?.name,
         price: item.instacartProduct.price
       }));
       
-      console.log('📦 Cart items prepared:', cartItems);
+      console.log('📦 Prepared cart items for Instacart API:', cartItems.map(item => ({
+        product_id: item.product_id,
+        retailer_sku: item.retailer_sku,
+        quantity: item.quantity,
+        name: item.name,
+        price: item.price
+      })));
       
       // Use InstacartService to create direct cart via backend API
       const cartResult = await instacartService.createDirectCart(

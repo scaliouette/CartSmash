@@ -335,9 +335,12 @@ class InstacartService {
   }
 
   getMockProductSearch(query) {
+    const baseId = Date.now();
     const mockProducts = [
       {
-        id: 'prod_1',
+        id: `instacart_${baseId}_1`,
+        sku: `sku_${baseId}_1`,
+        retailer_sku: `retailer_sku_${baseId}_1`,
         name: `Organic ${query}`,
         brand: 'Generic Brand',
         size: '1 lb',
@@ -346,15 +349,31 @@ class InstacartService {
         availability: 'in_stock'
       },
       {
-        id: 'prod_2', 
+        id: `instacart_${baseId}_2`,
+        sku: `sku_${baseId}_2`, 
+        retailer_sku: `retailer_sku_${baseId}_2`,
         name: `Fresh ${query}`,
         brand: 'Store Brand',
         size: '2 lbs',
         price: 5.49,
         image_url: '/placeholder-product.jpg',
         availability: 'limited_stock'
+      },
+      {
+        id: `instacart_${baseId}_3`,
+        sku: `sku_${baseId}_3`,
+        retailer_sku: `retailer_sku_${baseId}_3`,
+        name: `${query}`,
+        brand: 'Best Choice',
+        size: '1 unit',
+        price: 2.99,
+        image_url: '/placeholder-product.jpg',
+        availability: 'in_stock'
       }
     ];
+
+    console.log(`🔍 Mock search for "${query}" returned ${mockProducts.length} products with IDs:`, 
+                mockProducts.map(p => p.id));
 
     return {
       success: true,
