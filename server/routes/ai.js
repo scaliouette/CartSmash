@@ -1438,5 +1438,163 @@ router.post('/cache/clear', async (req, res) => {
   }
 });
 
-console.log('✅ Enhanced AI routes loaded with intelligent parsing');
+// AI-Enhanced Product Matching Endpoint
+router.post('/enhance-product-match', async (req, res) => {
+  try {
+    const { prompt, itemDetails, candidates } = req.body;
+    
+    if (!prompt || !itemDetails || !candidates) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: prompt, itemDetails, candidates'
+      });
+    }
+    
+    console.log('🤖 AI Product Matching Request:', {
+      ingredient: itemDetails.cleanName,
+      candidateCount: candidates.length
+    });
+    
+    // Use Anthropic if available, otherwise fallback to mock
+    let aiResponse;
+    
+    if (anthropic) {
+      try {
+        const response = await anthropic.messages.create({
+          model: "claude-3-haiku-20240307",
+          max_tokens: 500,
+          temperature: 0.1,
+          messages: [{
+            role: "user",
+            content: prompt
+          }]
+        });
+        
+        const responseText = response.content[0].text;
+        console.log('🤖 Raw AI response:', responseText);
+        
+        // Parse JSON response
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          aiResponse = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No JSON found in AI response');
+        }
+        
+      } catch (aiError) {
+        console.warn('🤖 Anthropic AI failed, using fallback logic:', aiError.message);
+        aiResponse = generateFallbackMatch(itemDetails, candidates);
+      }
+    } else {
+      console.log('🤖 No AI available, using intelligent fallback logic');
+      aiResponse = generateFallbackMatch(itemDetails, candidates);
+    }
+    
+    res.json({
+      success: true,
+      bestMatch: aiResponse.bestMatch,
+      processingTime: Date.now() - new Date().getTime(),
+      aiProvider: anthropic ? 'anthropic' : 'fallback'
+    });
+    
+  } catch (error) {
+    console.error('❌ AI Product Matching Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'AI product matching failed',
+      message: error.message
+    });
+  }
+});
+
+// Intelligent fallback logic for product matching
+function generateFallbackMatch(itemDetails, candidates) {
+  console.log('🧠 Using intelligent fallback matching logic');
+  
+  // Advanced scoring that considers multiple factors
+  const scoredCandidates = candidates.map(candidate => {
+    let score = candidate.basicScore || 0;
+    
+    // Enhanced name matching
+    const itemName = itemDetails.cleanName.toLowerCase();
+    const productName = (candidate.name || '').toLowerCase();
+    
+    // Exact substring match bonus
+    if (productName.includes(itemName)) {
+      score += 30;
+    }
+    
+    // Word overlap bonus
+    const itemWords = itemName.split(/\s+/);
+    const productWords = productName.split(/\s+/);
+    const overlapCount = itemWords.filter(word => productWords.some(pWord => pWord.includes(word) || word.includes(pWord))).length;
+    score += (overlapCount / itemWords.length) * 20;
+    
+    // Size/quantity appropriateness
+    if (candidate.size) {
+      const sizeText = candidate.size.toLowerCase();
+      const needsLargeSize = itemDetails.quantity > 2 || itemDetails.measurement > 2;
+      
+      if (needsLargeSize && (sizeText.includes('large') || sizeText.includes('family') || sizeText.includes('bulk'))) {
+        score += 10;
+      } else if (!needsLargeSize && (sizeText.includes('small') || sizeText.includes('regular'))) {
+        score += 5;
+      }
+    }
+    
+    // Availability preference
+    if (candidate.availability === 'in_stock') {
+      score += 15;
+    } else if (candidate.availability === 'limited_stock') {
+      score += 5;
+    }
+    
+    // Price reasonableness (avoid extremely cheap or expensive)
+    if (candidate.price && candidate.price > 0.99 && candidate.price < 25.00) {
+      score += 8;
+    }
+    
+    return {
+      ...candidate,
+      enhancedScore: Math.round(score)
+    };
+  });
+  
+  // Sort by enhanced score
+  scoredCandidates.sort((a, b) => b.enhancedScore - a.enhancedScore);
+  
+  const best = scoredCandidates[0];
+  
+  // Determine confidence level
+  let confidence = 'low';
+  if (best.enhancedScore >= 80) confidence = 'high';
+  else if (best.enhancedScore >= 60) confidence = 'medium';
+  
+  // Generate reason
+  const reasons = [];
+  if (best.name.toLowerCase().includes(itemDetails.cleanName.toLowerCase())) {
+    reasons.push('name similarity');
+  }
+  if (best.availability === 'in_stock') {
+    reasons.push('available in stock');
+  }
+  if (best.basicScore >= 50) {
+    reasons.push('high basic score');
+  }
+  
+  const reason = reasons.length > 0 
+    ? `Selected based on: ${reasons.join(', ')}` 
+    : 'Best available match from options';
+  
+  return {
+    bestMatch: {
+      id: best.id || best.name,
+      aiScore: best.enhancedScore,
+      confidence: confidence,
+      reason: reason
+    }
+  };
+}
+
+console.log('✅ Enhanced AI routes loaded with intelligent parsing and product matching');
 module.exports = router;

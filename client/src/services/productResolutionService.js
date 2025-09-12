@@ -138,8 +138,8 @@ class ProductResolutionService {
       const searchResults = await this.searchInstacartProducts(itemDetails, retailerId);
       
       if (searchResults.products && searchResults.products.length > 0) {
-        // Find best match with vendor-specific scoring
-        const bestMatch = this.findBestMatch(itemDetails, searchResults.products);
+        // Find best match with AI-enhanced vendor-specific scoring
+        const bestMatch = await this.findBestMatch(itemDetails, searchResults.products);
         const alternativeMatches = this.getAlternativeMatches(itemDetails, searchResults.products, 3);
         
         const resolved = {
@@ -289,23 +289,43 @@ class ProductResolutionService {
   }
 
   // Find best matching product from search results
-  findBestMatch(itemDetails, products) {
+  async findBestMatch(itemDetails, products) {
     if (products.length === 1) {
       return products[0];
     }
 
-    // Score products based on relevance
+    // First, use basic scoring to narrow down candidates
     const scoredProducts = products.map(product => ({
       ...product,
-      score: this.calculateMatchScore(itemDetails, product)
+      basicScore: this.calculateMatchScore(itemDetails, product)
     }));
 
-    // Sort by score (highest first)
-    scoredProducts.sort((a, b) => b.score - a.score);
+    // Sort by basic score (highest first)
+    scoredProducts.sort((a, b) => b.basicScore - a.basicScore);
     
-    console.log('🎯 Best match for', itemDetails.cleanName, ':', scoredProducts[0].name, 'Score:', scoredProducts[0].score);
+    // Take top 3 candidates for AI evaluation if we have multiple good matches
+    const topCandidates = scoredProducts.slice(0, Math.min(3, scoredProducts.length));
     
-    return scoredProducts[0];
+    // If top candidate has very high confidence or only one candidate, skip AI
+    if (topCandidates.length === 1 || topCandidates[0].basicScore >= 75) {
+      console.log('🎯 Best match for', itemDetails.cleanName, ':', topCandidates[0].name, 'Score:', topCandidates[0].basicScore);
+      return topCandidates[0];
+    }
+    
+    // Use AI to determine best match among top candidates
+    try {
+      const aiEnhancedMatch = await this.getAIEnhancedMatch(itemDetails, topCandidates);
+      if (aiEnhancedMatch) {
+        console.log('🤖 AI-enhanced match for', itemDetails.cleanName, ':', aiEnhancedMatch.name, 'AI Score:', aiEnhancedMatch.aiScore);
+        return aiEnhancedMatch;
+      }
+    } catch (error) {
+      console.warn('🤖 AI matching failed, falling back to basic scoring:', error);
+    }
+    
+    // Fallback to basic scoring
+    console.log('🎯 Best match for', itemDetails.cleanName, ':', topCandidates[0].name, 'Score:', topCandidates[0].basicScore);
+    return topCandidates[0];
   }
 
   // Calculate match score for product relevance
@@ -484,6 +504,103 @@ class ProductResolutionService {
     }
 
     return 'Low confidence match, manual review recommended';
+  }
+
+  // AI-Enhanced Product Matching
+  async getAIEnhancedMatch(itemDetails, candidates) {
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3048';
+    
+    try {
+      console.log('🤖 Requesting AI product matching for:', itemDetails.cleanName);
+      
+      const prompt = this.buildAIMatchingPrompt(itemDetails, candidates);
+      
+      const response = await fetch(`${API_URL}/api/ai/enhance-product-match`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: prompt,
+          itemDetails: itemDetails,
+          candidates: candidates.map(candidate => ({
+            id: candidate.id,
+            name: candidate.name,
+            brand: candidate.brand,
+            size: candidate.size,
+            price: candidate.price,
+            availability: candidate.availability,
+            basicScore: candidate.basicScore
+          }))
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`AI matching API failed: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.bestMatch) {
+        // Find the full product object that matches the AI selection
+        const selectedProduct = candidates.find(candidate => 
+          candidate.id === result.bestMatch.id || candidate.name === result.bestMatch.name
+        );
+        
+        if (selectedProduct) {
+          return {
+            ...selectedProduct,
+            aiScore: result.bestMatch.aiScore || 95,
+            aiReason: result.bestMatch.reason || 'AI selected as best match',
+            aiConfidence: result.bestMatch.confidence || 'high'
+          };
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('🤖 AI product matching error:', error);
+      throw error;
+    }
+  }
+
+  // Build AI prompt for product matching
+  buildAIMatchingPrompt(itemDetails, candidates) {
+    return `You are a grocery product matching expert. Help me find the best match for a recipe ingredient.
+
+INGREDIENT TO MATCH:
+- Name: "${itemDetails.cleanName}"
+- Quantity: ${itemDetails.quantity} ${itemDetails.unit}
+- Original: "${itemDetails.originalName}"
+- Search Query: "${itemDetails.searchQuery}"
+
+VENDOR PRODUCT OPTIONS:
+${candidates.map((candidate, index) => `
+${index + 1}. ${candidate.name}
+   - Brand: ${candidate.brand || 'N/A'}
+   - Size: ${candidate.size || 'N/A'}
+   - Price: $${candidate.price || 'N/A'}
+   - Availability: ${candidate.availability || 'unknown'}
+   - Basic Score: ${candidate.basicScore}
+`).join('')}
+
+INSTRUCTIONS:
+Analyze which vendor product best matches the recipe ingredient considering:
+1. Product name similarity and relevance
+2. Appropriate size/quantity for the recipe
+3. Brand quality and recognition
+4. Price reasonableness
+5. Availability
+
+Respond with ONLY a JSON object:
+{
+  "bestMatch": {
+    "id": "selected_product_id_or_name",
+    "aiScore": 85,
+    "confidence": "high|medium|low",
+    "reason": "Brief explanation of why this is the best match"
+  }
+}`;
   }
 }
 
