@@ -906,7 +906,7 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
         setParsingProgress(prev => Math.min(prev + 10, 90));
       }, 200);
       
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3048';
       
       // STEP 1: Generate with AI (first click)
       if (useAI && selectedAI && !waitingForAIResponse) {
@@ -2668,7 +2668,7 @@ Return as JSON with this structure:
       }).join('\n');
       
       // Use the same API endpoint as regular grocery list parsing
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3048';
       const response = await fetch(`${API_URL}/api/cart/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3337,37 +3337,6 @@ Or paste any grocery list directly!"
             hideExportButton={true}
           />
           
-          {/* Quick Save Actions */}
-          <div style={styles.quickSaveSection}>
-            <div style={styles.quickSaveTitle}>Save Your Shopping List</div>
-            <div style={styles.quickSaveActions}>
-              <QuickSaveListButton
-                items={currentCart}
-                onSave={saveCartAsList}
-                disabled={!saveCartAsList}
-              />
-              <button
-                onClick={() => setShowShoppingListManager(true)}
-                style={styles.customSaveButton}
-                disabled={currentCart.length === 0}
-                onMouseEnter={(e) => {
-                  if (currentCart.length > 0) {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 79, 20, 0.3)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (currentCart.length > 0) {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(251, 79, 20, 0.2)';
-                  }
-                }}
-              >
-                <span style={styles.customSaveIcon}>⚙️</span>
-                <span>Custom Save</span>
-              </button>
-            </div>
-          </div>
           
           {/* Single Unified Checkout Button */}
           <div style={styles.checkoutSection}>

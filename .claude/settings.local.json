@@ -449,7 +449,8 @@
       "Bash(NODE_ENV=development PORT=3048 npm start)",
       "Bash(REACT_APP_API_URL=http://localhost:3048 PORT=3049 npm start)",
       "Bash(start http://localhost:3049)",
-      "Bash(REACT_APP_API_URL=http://localhost:3048 PORT=3050 npm start)"
+      "Bash(REACT_APP_API_URL=http://localhost:3048 PORT=3050 npm start)",
+      "Bash(del test-recipe-cart.js)"
     ],
     "deny": [],
     "ask": []

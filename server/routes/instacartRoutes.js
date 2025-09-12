@@ -6,6 +6,9 @@ const { authenticateUser } = require('../middleware/auth');
 
 // Instacart API configuration - UPDATED 2025
 const INSTACART_API_KEY = process.env.INSTACART_API_KEY;
+const INSTACART_CONNECT_API_KEY = process.env.INSTACART_CONNECT_API_KEY || INSTACART_API_KEY;
+const INSTACART_CATALOG_API_KEY = process.env.INSTACART_CATALOG_API_KEY || INSTACART_API_KEY;
+const INSTACART_DEVELOPER_API_KEY = process.env.INSTACART_DEVELOPER_API_KEY || INSTACART_API_KEY;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Updated API endpoint configurations for 2025
@@ -17,16 +20,19 @@ const API_ENDPOINTS = {
 const BASE_URL = NODE_ENV === 'production' ? API_ENDPOINTS.PRODUCTION : API_ENDPOINTS.DEVELOPMENT;
 
 // Helper function to make authenticated Instacart API calls with updated 2025 format
-const instacartApiCall = async (endpoint, method = 'GET', data = null) => {
+const instacartApiCall = async (endpoint, method = 'GET', data = null, apiKey = null) => {
   try {
     // Ensure endpoint starts with / but don't double it
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    
+    // Use provided API key or default to main one
+    const keyToUse = apiKey || INSTACART_API_KEY;
     
     const config = {
       method,
       url: `${BASE_URL}${cleanEndpoint}`,
       headers: {
-        'Authorization': `Bearer ${INSTACART_API_KEY}`,
+        'Authorization': `Bearer ${keyToUse}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Accept-Language': 'en-US',
@@ -39,7 +45,7 @@ const instacartApiCall = async (endpoint, method = 'GET', data = null) => {
     }
     
     console.log(`📡 Making ${method} request to: ${config.url}`);
-    console.log(`🔑 Using API key: ${INSTACART_API_KEY ? 'CONFIGURED' : 'MISSING'}`);
+    console.log(`🔑 Using API key: ${keyToUse ? keyToUse.substring(0, 20) + '...' : 'MISSING'}`);
     
     const response = await axios(config);
     return response.data;
@@ -84,7 +90,7 @@ router.get('/retailers', async (req, res) => {
       try {
         // Use official Connect API parameters: postal_code and country_code
         const endpoint = `/retailers?postal_code=${postal}&country_code=${countryCode}`;
-        const retailers = await instacartApiCall(endpoint, 'GET', null);
+        const retailers = await instacartApiCall(endpoint, 'GET', null, INSTACART_CONNECT_API_KEY);
         
         // Transform response to match our expected format
         const formattedRetailers = (retailers.retailers || retailers.data || []).map(retailer => ({
@@ -291,7 +297,7 @@ router.post('/cart/create', async (req, res) => {
         
         console.log('🛒 Creating cart with data:', cartData);
         
-        const cartResponse = await instacartApiCall('/carts', 'POST', cartData);
+        const cartResponse = await instacartApiCall('/carts', 'POST', cartData, INSTACART_CONNECT_API_KEY);
         const cartId = cartResponse.id || cartResponse.cart_id;
         
         console.log(`✅ Created cart: ${cartId}`);
@@ -309,7 +315,8 @@ router.post('/cart/create', async (req, res) => {
         const addItemsResponse = await instacartApiCall(
           `/carts/${cartId}/items`, 
           'POST', 
-          { items: cartItems }
+          { items: cartItems },
+          INSTACART_CONNECT_API_KEY
         );
         
         console.log(`✅ Added ${cartItems.length} items to cart`);
@@ -592,7 +599,7 @@ router.get('/test', async (req, res) => {
     // Try to make a simple API call to test connectivity
     if (testResults.apiKeys) {
       try {
-        await instacartApiCall('/retailers?limit=1', 'GET', null);
+        await instacartApiCall('/retailers?postal_code=95670&country_code=US', 'GET', null, INSTACART_CONNECT_API_KEY);
         testResults.connectivity = 'success';
       } catch (error) {
         testResults.connectivity = 'failed';

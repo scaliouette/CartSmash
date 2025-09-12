@@ -264,10 +264,10 @@ class InstacartService {
       price: item.price,
       hasRequiredFields: !!(item.product_id && item.retailer_sku && item.quantity && item.name)
     })));
-    console.log(`🔧 API URL: ${process.env.REACT_APP_API_URL || 'http://localhost:3001'}`);
+    console.log(`🔧 API URL: ${process.env.REACT_APP_API_URL || 'http://localhost:3048'}`);
     
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3048';
       
       // Add timeout controller for API calls
       const controller = new AbortController();
