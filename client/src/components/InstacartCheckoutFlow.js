@@ -422,7 +422,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     console.log('🛒 ===== FINAL CHECKOUT DEBUG =====');
     console.log('📝 Checkout state:', {
       currentStep,
-      selectedRetailer,
+      selectedStore,
       zipCode,
       cartItemsCount: currentCart?.length || 0,
       timestamp: new Date().toISOString()

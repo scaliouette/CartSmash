@@ -243,6 +243,57 @@ function GroceryListForm({
     const stableTimestamp = typeof window !== 'undefined' ? Math.floor(performance.now()) : 1000000;
     return `${prefix}-${stableTimestamp}-${counter}`;
   }, []);
+
+  // Clean up corrupted localStorage data on component mount
+  useEffect(() => {
+    const cleanupCorruptedData = () => {
+      console.log('🧹 Checking for corrupted localStorage data...');
+      
+      // List of localStorage keys that might contain corrupted meal plan data
+      const keysToCheck = [
+        'cartsmash-recipes', 
+        'cart-smash-recipes', 
+        'cartsmash-meal-plan',
+        'parsedRecipes',
+        'saved-recipes'
+      ];
+      
+      keysToCheck.forEach(key => {
+        try {
+          const data = localStorage.getItem(key);
+          if (data) {
+            const parsed = JSON.parse(data);
+            let isCorrupted = false;
+            
+            // Check if data contains error messages
+            if (Array.isArray(parsed)) {
+              parsed.forEach(item => {
+                if (item.ingredients && Array.isArray(item.ingredients) && 
+                    item.ingredients.some(ing => ing.includes('⚠️ Failed to generate'))) {
+                  isCorrupted = true;
+                }
+                if (item.instructions && Array.isArray(item.instructions) && 
+                    item.instructions.some(inst => inst.includes('⚠️ Failed to generate'))) {
+                  isCorrupted = true;
+                }
+              });
+            }
+            
+            if (isCorrupted) {
+              console.log(`🗑️ Removing corrupted data from localStorage key: ${key}`);
+              localStorage.removeItem(key);
+            }
+          }
+        } catch (error) {
+          console.log(`🗑️ Removing invalid JSON from localStorage key: ${key}`);
+          localStorage.removeItem(key);
+        }
+      });
+    };
+    
+    // Run cleanup on mount
+    cleanupCorruptedData();
+  }, []);
   const textareaRef = useRef(null);
 
   // Function to trigger textarea auto-expansion
@@ -1405,9 +1456,9 @@ Return as JSON with this structure:
               } catch (error) {
                 // Show error to user instead of using fallbacks
                 console.error('❌ Recipe generation failed for:', currentRecipe.title, error.message);
-                currentRecipe.ingredients = currentRecipe.ingredients.length === 0 ? ['⚠️ Failed to generate ingredients - please retry'] : currentRecipe.ingredients;
-                currentRecipe.instructions = currentRecipe.instructions.length === 0 ? ['⚠️ Failed to generate instructions - please retry'] : currentRecipe.instructions;
-                currentRecipe.error = true;
+                // Don't save corrupted recipes to avoid localStorage pollution
+                console.log('🚫 Skipping corrupted recipe to prevent localStorage pollution');
+                continue; // Skip this recipe instead of saving it with error messages
               }
             }
             console.log('💾 Saving recipe:', currentRecipe.title, 
@@ -2591,6 +2642,39 @@ Return as JSON with this structure:
     setCurrentCart([...updatedItems]);
   };
 
+  // Manual cleanup function for corrupted localStorage data
+  const manualCleanupLocalStorage = useCallback(() => {
+    const confirmed = window.confirm(
+      '🧹 This will remove all corrupted meal plan data from localStorage. This includes any recipes with "Failed to generate" messages. Continue?'
+    );
+    
+    if (confirmed) {
+      console.log('🧹 Manual localStorage cleanup initiated...');
+      
+      // Clear all potential recipe storage
+      const keysToRemove = [
+        'cartsmash-recipes', 
+        'cart-smash-recipes', 
+        'cartsmash-meal-plan',
+        'parsedRecipes',
+        'saved-recipes',
+        'meal-plan-cache',
+        'recipe-cache'
+      ];
+      
+      keysToRemove.forEach(key => {
+        if (localStorage.getItem(key)) {
+          localStorage.removeItem(key);
+          console.log(`🗑️ Removed localStorage key: ${key}`);
+        }
+      });
+      
+      // Force page reload to start fresh
+      console.log('🔄 Reloading page to start with clean data...');
+      window.location.reload();
+    }
+  }, []);
+
   // Debug delete function to test individual item removal
   const debugDeleteItem = useCallback((itemId) => {
     console.log('🗑️ Attempting to delete item:', itemId);
@@ -3085,6 +3169,13 @@ Or paste any grocery list directly!"
                 title="Clear all recipes from the list"
               >
                 🗑️
+              </button>
+              <button
+                style={styles.cleanupButton}
+                onClick={manualCleanupLocalStorage}
+                title="Fix corrupted recipe data (removes 'Failed to generate' errors)"
+              >
+                🧹 Fix Data
               </button>
             </div>
           </div>
@@ -3756,6 +3847,23 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '6px'
+  },
+
+  cleanupButton: {
+    background: 'linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '8px 12px',
+    fontSize: '12px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 2px 6px rgba(155, 89, 182, 0.3)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    marginLeft: '8px'
   },
 
   compactRecipeList: {
