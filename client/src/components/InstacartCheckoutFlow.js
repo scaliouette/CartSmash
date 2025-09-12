@@ -419,6 +419,24 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   };
 
   const handleFinalCheckout = async () => {
+    console.log('🛒 ===== FINAL CHECKOUT DEBUG =====');
+    console.log('📝 Checkout state:', {
+      currentStep,
+      selectedRetailer,
+      zipCode,
+      cartItemsCount: currentCart?.length || 0,
+      timestamp: new Date().toISOString()
+    });
+    console.log('📋 Current cart items:', currentCart?.map((item, index) => ({
+      index,
+      productName: item.productName || item.name,
+      quantity: item.quantity,
+      unit: item.unit,
+      price: item.price,
+      id: item.id,
+      hasRequiredFields: !!(item.productName || item.name) && !!item.quantity
+    })));
+    
     setIsProcessing(true);
     
     try {

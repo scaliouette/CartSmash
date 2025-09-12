@@ -253,6 +253,23 @@ router.post('/cart/create', async (req, res) => {
   try {
     const { retailerId, zipCode, items, userId, metadata } = req.body;
     
+    console.log('🛒 ===== INSTACART CART CREATION DEBUG =====');
+    console.log(`📝 Request body:`, {
+      retailerId,
+      zipCode,
+      userId,
+      itemsCount: items?.length || 0,
+      metadata: metadata ? Object.keys(metadata) : null
+    });
+    console.log(`📦 Items received:`, items?.map((item, index) => ({
+      index,
+      product_id: item.product_id,
+      retailer_sku: item.retailer_sku,
+      quantity: item.quantity,
+      name: item.name,
+      price: item.price,
+      hasAllRequiredFields: !!(item.product_id && item.retailer_sku && item.quantity && item.name)
+    })));
     console.log(`🛒 Creating Instacart cart for user ${userId} with ${items?.length || 0} items`);
     
     if (!retailerId || !items || items.length === 0) {
@@ -340,9 +357,13 @@ router.post('/cart/create', async (req, res) => {
     
     // Mock response for development (both when no API keys or when API fails)
     const mockCartId = `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const mockCheckoutUrl = `https://www.instacart.com/checkout?cart_id=${mockCartId}&retailer=${retailerId}&source=CartSmash`;
+    // Use Instacart main page with store selection since mock cart URLs don't work
+    const mockCheckoutUrl = `https://www.instacart.com/store/${retailerId}/storefront?utm_source=CartSmash&utm_medium=integration`;
     
+    console.log('📋 ===== MOCK CART RESPONSE DEBUG =====');
     console.log(`✅ Mock cart created: ${mockCartId}`);
+    console.log(`🔗 Mock checkout URL: ${mockCheckoutUrl}`);
+    console.log(`📊 Mock totals calculation for ${items.length} items`);
     
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000));

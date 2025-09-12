@@ -46,11 +46,38 @@ class ProductResolutionService {
 
   // Main method to resolve CartSmash items to Instacart products
   async resolveCartSmashItems(cartItems, retailerId = null) {
-    console.log('🔍 Resolving', cartItems.length, 'CartSmash items to Instacart products');
+    console.log('🔍 ===== PRODUCT RESOLUTION DEBUG =====');
+    console.log(`📝 Input: ${cartItems.length} CartSmash items to resolve`);
+    console.log(`🏪 Retailer: ${retailerId || 'default'}`);
+    console.log('📋 Items to resolve:', cartItems.map((item, index) => ({
+      index,
+      productName: item.productName || item.name,
+      quantity: item.quantity,
+      unit: item.unit,
+      category: item.category,
+      hasRequiredFields: !!(item.productName || item.name)
+    })));
     console.log('🛒 Using direct Instacart API search for product matching');
     
     // Use the legacy resolution method as primary method since catalog service doesn't exist
-    return await this.legacyResolveCartSmashItems(cartItems, retailerId);
+    const result = await this.legacyResolveCartSmashItems(cartItems, retailerId);
+    
+    console.log('✅ ===== PRODUCT RESOLUTION RESULTS =====');
+    console.log(`📊 Resolution stats:`, result.stats);
+    console.log(`✅ Resolved items (${result.resolved.length}):`, result.resolved.map(item => ({
+      originalName: item.originalItem?.productName || item.originalItem?.name,
+      resolvedName: item.instacartProduct?.name,
+      productId: item.instacartProduct?.id,
+      retailerSku: item.instacartProduct?.retailer_sku,
+      price: item.instacartProduct?.price,
+      confidence: item.confidence
+    })));
+    console.log(`❌ Unresolved items (${result.unresolved.length}):`, result.unresolved.map(item => ({
+      originalName: item.originalItem?.productName || item.originalItem?.name,
+      reason: item.reason
+    })));
+    
+    return result;
   }
 
   // Legacy resolution method as fallback

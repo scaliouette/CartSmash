@@ -247,8 +247,24 @@ class InstacartService {
 
   // 🆕 CREATE DIRECT CART - Via CartSmash backend API
   async createDirectCart(cartItems, retailerId, zipCode, metadata = {}) {
-    console.log('🛒 InstacartService: Creating direct cart via backend API');
-    console.log(`📦 Items: ${cartItems.length}, Retailer: ${retailerId}, ZIP: ${zipCode}`);
+    console.log('🛒 ===== INSTACART SERVICE DEBUG =====');
+    console.log('📝 createDirectCart called with:', {
+      cartItemsCount: cartItems.length,
+      retailerId,
+      zipCode,
+      metadataKeys: Object.keys(metadata),
+      timestamp: new Date().toISOString()
+    });
+    console.log('📦 Cart items to send:', cartItems.map((item, index) => ({
+      index,
+      product_id: item.product_id,
+      retailer_sku: item.retailer_sku,
+      quantity: item.quantity,
+      name: item.name,
+      price: item.price,
+      hasRequiredFields: !!(item.product_id && item.retailer_sku && item.quantity && item.name)
+    })));
+    console.log(`🔧 API URL: ${process.env.REACT_APP_API_URL || 'http://localhost:3001'}`);
     
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
@@ -269,10 +285,19 @@ class InstacartService {
         })
       });
 
+      console.log('📞 API Response status:', response.status);
+      console.log('📞 API Response headers:', Object.fromEntries(response.headers.entries()));
+      
       const data = await response.json();
+      console.log('📞 API Response data:', data);
       
       if (data.success) {
-        console.log('✅ Direct cart created successfully via backend');
+        console.log('✅ ===== CART CREATION SUCCESS =====');
+        console.log('🎉 Direct cart created successfully via backend');
+        console.log('🔗 Checkout URL:', data.checkoutUrl);
+        console.log('📊 Items added:', data.itemsAdded);
+        console.log('💰 Totals:', data.totals);
+        
         return {
           success: true,
           cartId: data.cartId,
@@ -282,13 +307,24 @@ class InstacartService {
           metadata: data.metadata
         };
       } else {
-        console.error('❌ Backend cart creation failed:', data.error);
+        console.error('❌ ===== CART CREATION FAILED =====');
+        console.error('💥 Backend cart creation failed:', data.error);
         throw new Error(data.error || 'Cart creation failed');
       }
     } catch (error) {
-      console.error('❌ Error creating direct cart via backend:', error);
+      console.error('❌ ===== INSTACART API ERROR =====');
+      console.error('💥 Error creating direct cart via backend:', error);
+      console.error('🔍 Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack?.split('\n').slice(0, 5) // First 5 lines of stack trace
+      });
+      console.log('🔄 Falling back to mock response for development');
+      
       // Return mock response for development
-      return this.getMockCartCreation(cartItems, retailerId, zipCode);
+      const mockResult = this.getMockCartCreation(cartItems, retailerId, zipCode);
+      console.log('📋 Mock result:', mockResult);
+      return mockResult;
     }
   }
 
@@ -427,7 +463,7 @@ class InstacartService {
     return {
       success: true,
       cartId: cartId,
-      checkoutUrl: `https://www.instacart.com/store/checkout_v3/${cartId}?partner=CartSmash&utm_source=CartSmash`,
+      checkoutUrl: `https://www.instacart.com/store/${retailerId}/storefront?utm_source=CartSmash&utm_medium=integration`,
       itemsAdded: cartItems.length,
       totals: {
         subtotal: estimatedTotal,

@@ -3991,9 +3991,9 @@ const styles = {
 
   wideDeleteButton: {
     padding: '8px 16px',
-    background: '#dc3545',
-    color: 'white',
-    border: 'none',
+    background: 'white',
+    color: '#dc3545',
+    border: '2px solid #dc3545',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '14px',
@@ -4001,7 +4001,8 @@ const styles = {
     transition: 'all 0.2s',
     minWidth: '100px',
     ':hover': {
-      background: '#c82333',
+      background: '#dc3545',
+      color: 'white',
       transform: 'translateY(-1px)',
       boxShadow: '0 2px 4px rgba(220,53,69,0.3)'
     }
