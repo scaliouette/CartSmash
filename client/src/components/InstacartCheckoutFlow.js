@@ -1890,21 +1890,29 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                                 </button>
                               </div>
                               
-                              {/* Price & Quantity Section */}
-                              <div style={{ textAlign: 'right', minWidth: '100px' }}>
-                                <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '4px', fontWeight: 'bold' }}>
-                                  Qty: {quantity}
-                                  {item.resolvedDetails?.unit && item.resolvedDetails.unit !== 'each' && (
-                                    <span style={{ fontSize: '9px', marginLeft: '4px' }}>
-                                      ({item.resolvedDetails.measurement && item.resolvedDetails.measurement > 1 
-                                        ? `${item.resolvedDetails.measurement} ${item.resolvedDetails.unit}` 
-                                        : item.originalItem.unit || 'each'
-                                      } ea)
-                                    </span>
-                                  )}
-                                </div>
-                                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '2px' }}>
-                                  ${itemTotal}
+                              {/* Quantity & Price Section */}
+                              <div style={{ textAlign: 'right', minWidth: '140px' }}>
+                                <div style={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'flex-end', 
+                                  gap: '12px',
+                                  marginBottom: '4px'
+                                }}>
+                                  <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: 'bold' }}>
+                                    Qty: {quantity}
+                                    {item.resolvedDetails?.unit && item.resolvedDetails.unit !== 'each' && (
+                                      <span style={{ fontSize: '9px', marginLeft: '4px' }}>
+                                        ({item.resolvedDetails.measurement && item.resolvedDetails.measurement > 1 
+                                          ? `${item.resolvedDetails.measurement} ${item.resolvedDetails.unit}` 
+                                          : item.originalItem.unit || 'each'
+                                        } ea)
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#FF6B35' }}>
+                                    ${itemTotal}
+                                  </div>
                                 </div>
                                 <div style={{ fontSize: '11px', color: '#6B7280' }}>
                                   ${price.toFixed(2)} per item
