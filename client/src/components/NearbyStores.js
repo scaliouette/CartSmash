@@ -189,15 +189,20 @@ const NearbyStores = ({ onStoreSelect }) => {
         <div className="stores-error">
           <span className="error-icon">⚠️</span>
           <span>{error}</span>
-          <button onClick={() => getCurrentLocation()} className="retry-btn">
-            Retry
-          </button>
         </div>
       )}
 
-      {/* ZIP Code Search */}
+      {/* ZIP Code Search with Location and Search buttons */}
       <div className="zip-search">
         <form onSubmit={handleZipSearch} className="zip-form">
+          <button 
+            type="button" 
+            onClick={() => getCurrentLocation()} 
+            className="location-btn"
+            title="Use current location"
+          >
+            📍 Location
+          </button>
           <input
             type="text"
             name="zipCode"
@@ -207,7 +212,7 @@ const NearbyStores = ({ onStoreSelect }) => {
             className="zip-input"
           />
           <button type="submit" className="search-btn">
-            Search
+            🔍 Search
           </button>
         </form>
       </div>
@@ -338,16 +343,6 @@ const NearbyStores = ({ onStoreSelect }) => {
           color: #dc2626;
         }
 
-        .retry-btn {
-          background: #dc2626;
-          color: white;
-          border: none;
-          padding: 0.25rem 0.75rem;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 0.875rem;
-          margin-left: auto;
-        }
 
         .zip-search {
           margin-bottom: 2rem;
@@ -356,8 +351,27 @@ const NearbyStores = ({ onStoreSelect }) => {
         .zip-form {
           display: flex;
           gap: 0.5rem;
-          max-width: 300px;
+          max-width: 450px;
           margin: 0 auto;
+          align-items: center;
+        }
+
+        .location-btn {
+          background: white;
+          color: #374151;
+          border: 1px solid #d1d5db;
+          padding: 0.75rem 1rem;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: 500;
+          font-size: 0.875rem;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+
+        .location-btn:hover {
+          background: #f9fafb;
+          border-color: #9ca3af;
         }
 
         .zip-input {
@@ -369,13 +383,21 @@ const NearbyStores = ({ onStoreSelect }) => {
         }
 
         .search-btn {
-          background: #0070f3;
-          color: white;
-          border: none;
+          background: white;
+          color: #374151;
+          border: 1px solid #d1d5db;
           padding: 0.75rem 1rem;
           border-radius: 6px;
           cursor: pointer;
           font-weight: 500;
+          font-size: 0.875rem;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+
+        .search-btn:hover {
+          background: #f9fafb;
+          border-color: #9ca3af;
         }
 
         .stores-list {

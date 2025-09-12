@@ -239,7 +239,7 @@ function GroceryListForm({
   const [showProgress, setShowProgress] = useState(false);
   const [ingredientStyle, setIngredientStyle] = useState('basic');
   const [selectedAI] = useState('claude');
-  const [mealPlanExpanded, setMealPlanExpanded] = useState(true);
+  const [mealPlanExpanded, setMealPlanExpanded] = useState(false);
   const [individualExpansionStates, setIndividualExpansionStates] = useState({});
   // eslint-disable-next-line no-unused-vars
   const [recipes, setRecipes] = useState([]);
@@ -3389,7 +3389,7 @@ Or paste any grocery list directly!"
               <div style={styles.buttonContentOriginal}>
                 <div style={styles.buttonTitle}>CARTSMASH to Instacart</div>
                 <div style={styles.buttonSubtitle}>
-                  Send {currentCart.length} items to your Instacart cart
+                  Send items to your Instacart cart
                 </div>
               </div>
               <div style={styles.buttonArrow}>→</div>

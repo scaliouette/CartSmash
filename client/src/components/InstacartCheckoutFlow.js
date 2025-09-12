@@ -418,6 +418,19 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     }
   };
 
+  const handleGoBack = () => {
+    if (currentStep === 'match') {
+      setCurrentStep('store');
+      // Clear resolution results when going back
+      setResolutionResult(null);
+      setIsResolvingProducts(false);
+    } else if (currentStep === 'complete') {
+      setCurrentStep('match');
+      // Clear cart totals when going back
+      setCartTotals(null);
+    }
+  };
+
   const handleFinalCheckout = async () => {
     console.log('🛒 ===== FINAL CHECKOUT DEBUG =====');
     console.log('📝 Checkout state:', {
@@ -555,7 +568,9 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       
       // Add successfully resolved items with detailed info
       resolution.resolved.forEach(item => {
-        const ingredient = `${item.resolvedDetails.quantity} ${item.resolvedDetails.unit} ${item.resolvedDetails.name}`;
+        // Use displayName if available (includes measurement), otherwise construct from parts
+        const ingredient = item.resolvedDetails.displayName || 
+          `${item.resolvedDetails.measurement || item.resolvedDetails.quantity} ${item.resolvedDetails.unit} ${item.resolvedDetails.name}`;
         enhancedIngredients.push(ingredient);
         console.log(`✅ Recipe ingredient: ${ingredient} ($${item.resolvedDetails.price})`);
       });
@@ -610,9 +625,9 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         zIndex: 1000
       }}>
       <div style={{
-        width: '90%',
-        maxWidth: '800px',
-        maxHeight: '90vh',
+        width: '95%',
+        maxWidth: '1200px',
+        maxHeight: '95vh',
         backgroundColor: 'white',
         borderRadius: '20px',
         overflow: 'hidden',
@@ -629,6 +644,39 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             color: 'white',
             position: 'relative'
           }}>
+          {/* Back Button */}
+          {currentStep !== 'store' && (
+            <button 
+              onClick={handleGoBack} 
+              style={{
+                position: 'absolute',
+                top: '16px',
+                left: '16px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: 'none',
+                color: 'white',
+                fontSize: '18px',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.background = 'rgba(255, 255, 255, 0.3)';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+              }}
+            >
+              ←
+            </button>
+          )}
+          
+          {/* Close Button */}
           <button 
             onClick={onClose} 
             style={{
@@ -645,7 +693,14 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseOver={(e) => {
+              e.target.style.background = 'rgba(255, 255, 255, 0.3)';
+            }}
+            onMouseOut={(e) => {
+              e.target.style.background = 'rgba(255, 255, 255, 0.2)';
             }}
           >
             ✕
@@ -1294,7 +1349,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
           {currentStep === 'complete' && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', height: '100%' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '24px', height: '100%' }}>
                 {/* Left Column - Cart Details */}
                 <div>
                   <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B35', marginBottom: '16px' }}>
@@ -1372,7 +1427,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                       }}>
                         Cart Items ({resolutionResult.resolved.length})
                       </div>
-                      <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                      <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
                         {resolutionResult.resolved.map((item, index) => {
                           const quantity = productQuantities[item.instacartProduct.id] || item.originalItem.quantity || 1;
                           const price = parseFloat(item.instacartProduct.price) || 0;

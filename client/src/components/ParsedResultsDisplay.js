@@ -1030,7 +1030,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         ...(isMobile ? styles.headerMobile : {})
       }}>
         <h3 style={styles.title}>
-          🛒 Shopping List Results ({items.length} items)
+          🛒 Shopping List
           {parsingStats?.meta?.aiUsed && (
             <span style={styles.aiIndicator}> ✨ Parsed with AI</span>
           )}

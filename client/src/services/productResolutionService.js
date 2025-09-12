@@ -157,8 +157,12 @@ class ProductResolutionService {
             brand: bestMatch.brand,
             size: bestMatch.size,
             price: bestMatch.price,
-            quantity: itemDetails.quantity,
+            quantity: itemDetails.quantity, // Number of items to purchase
+            measurement: itemDetails.measurement, // Size/weight of each item
             unit: itemDetails.unit,
+            displayName: itemDetails.measurement > 1 && ['pound', 'ounce', 'kilogram', 'gram', 'cup', 'teaspoon', 'tablespoon'].includes(itemDetails.unit) 
+              ? `${itemDetails.measurement} ${itemDetails.unit} ${itemDetails.cleanName}` 
+              : itemDetails.cleanName,
             totalPrice: (bestMatch.price * itemDetails.quantity).toFixed(2)
           },
           confidence: this.calculateConfidence(itemDetails, bestMatch)
@@ -200,16 +204,17 @@ class ProductResolutionService {
     
     // Extract quantity and unit from name if not separate
     let cleanName = rawName;
-    let quantity = parseFloat(rawQuantity) || 1;
+    let measurement = parseFloat(rawQuantity) || 1;
     let unit = rawUnit.toLowerCase();
+    let itemCount = 1; // Default to 1 item
 
-    // Parse patterns like "2 lbs apples" or "1 cup flour"
+    // Parse patterns like "2 lbs apples" or "1 cup flour" or "20 oz chicken breast"
     const quantityPattern = /^(\d+(?:\.\d+)?)\s*([a-zA-Z]+)?\s+(.+)$/;
     const match = rawName.match(quantityPattern);
     
     if (match && !rawUnit) {
       const [, extractedQty, extractedUnit, extractedName] = match;
-      quantity = parseFloat(extractedQty) || quantity;
+      measurement = parseFloat(extractedQty) || measurement;
       unit = extractedUnit ? extractedUnit.toLowerCase() : unit;
       cleanName = extractedName;
     }
@@ -217,13 +222,33 @@ class ProductResolutionService {
     // Normalize unit
     const normalizedUnit = this.unitMappings[unit] || unit || 'each';
 
-    // Create search query
-    const searchQuery = this.createSearchQuery(cleanName);
+    // Determine if this is a measurement (weight/volume) or item count
+    // Weight/volume units should be treated as measurements, not item counts
+    const measurementUnits = ['pound', 'ounce', 'kilogram', 'gram', 'cup', 'teaspoon', 'tablespoon'];
+    
+    if (measurementUnits.includes(normalizedUnit)) {
+      // This is a measurement - keep itemCount as 1, measurement as the amount
+      itemCount = 1;
+      // Keep measurement as is for product description
+    } else {
+      // This is a count-based unit (each, piece, bottle, etc.)
+      itemCount = measurement;
+      measurement = 1; // Reset measurement since it's about count
+    }
+
+    // Create search query - include measurement in product name for weight/volume items
+    let searchQuery;
+    if (measurementUnits.includes(normalizedUnit) && measurement > 1) {
+      searchQuery = this.createSearchQuery(`${measurement} ${unit} ${cleanName}`);
+    } else {
+      searchQuery = this.createSearchQuery(cleanName);
+    }
 
     return {
       originalName: rawName,
       cleanName: cleanName.trim(),
-      quantity,
+      quantity: itemCount, // Number of items to purchase
+      measurement, // Size/weight/volume of each item
       unit: normalizedUnit,
       searchQuery,
       category: item.category || '',

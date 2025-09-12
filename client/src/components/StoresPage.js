@@ -1,5 +1,5 @@
 // client/src/components/StoresPage.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSmashCart } from '../contexts/SmashCartContext';
 import { getActiveStores, getPlannedStores, STORE_STATUS } from '../config/storeConfig';
@@ -19,6 +19,10 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
   const [selectedRetailer, setSelectedRetailer] = useState(null);
   const [isLoadingRetailers, setIsLoadingRetailers] = useState(false);
   const [instacartActive, setInstacartActive] = useState(false);
+
+  // Location state for distance calculation
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationLoaded, setLocationLoaded] = useState(false);
 
   // Handle successful Kroger authentication
   const handleKrogerAuthSuccess = (authData) => {
@@ -47,6 +51,137 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
     if (onStoreSelect) {
       onStoreSelect(store);
     }
+  };
+
+  // Get user's current location for distance calculation
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationLoaded(true);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setLocationLoaded(true);
+      },
+      (error) => {
+        console.log('Location access denied or failed:', error);
+        setLocationLoaded(true);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 5000,
+        maximumAge: 300000 // 5 minutes
+      }
+    );
+  }, []);
+
+  // Calculate approximate distance based on store regions and user location
+  const calculateStoreDistance = (store) => {
+    if (!userLocation || !store.regions || store.regions.length === 0) {
+      return null;
+    }
+
+    // Major US cities coordinates for approximate distance calculation
+    const regionCenters = {
+      'California': { lat: 36.7783, lng: -119.4179 },
+      'Nevada': { lat: 38.8026, lng: -116.4194 },
+      'Arizona': { lat: 34.2744, lng: -111.6602 },
+      'Colorado': { lat: 39.0646, lng: -105.3272 },
+      'Texas': { lat: 31.8160, lng: -99.5120 },
+      'Florida': { lat: 27.7663, lng: -82.6404 },
+      'New York': { lat: 43.2994, lng: -74.2179 },
+      'Washington': { lat: 47.7511, lng: -120.7401 },
+      'Oregon': { lat: 44.9776, lng: -123.0351 },
+      'Illinois': { lat: 40.0417, lng: -89.1965 },
+      'Pennsylvania': { lat: 41.2033, lng: -77.1945 },
+      'Ohio': { lat: 40.2677, lng: -82.9988 },
+      'Georgia': { lat: 32.3617, lng: -83.3132 },
+      'North Carolina': { lat: 35.2271, lng: -80.8431 },
+      'Virginia': { lat: 37.5407, lng: -78.8346 },
+      'Maryland': { lat: 38.9072, lng: -76.7728 },
+      'Michigan': { lat: 44.9537, lng: -84.5467 },
+      'Wisconsin': { lat: 44.2619, lng: -89.6179 },
+      'Minnesota': { lat: 45.0928, lng: -93.3651 },
+      'Missouri': { lat: 38.3566, lng: -92.4580 },
+      'Tennessee': { lat: 35.8580, lng: -86.3505 },
+      'Indiana': { lat: 39.7910, lng: -86.1480 },
+      'Kentucky': { lat: 37.5347, lng: -85.3021 },
+      'South Carolina': { lat: 33.8361, lng: -81.1637 },
+      'Louisiana': { lat: 31.2400, lng: -92.4426 },
+      'Oklahoma': { lat: 35.0074, lng: -97.0929 },
+      'Kansas': { lat: 38.4937, lng: -98.3804 },
+      'Utah': { lat: 39.3210, lng: -111.0937 },
+      'New Mexico': { lat: 34.5199, lng: -105.8701 },
+      'Nebraska': { lat: 41.5378, lng: -99.7951 },
+      'West Virginia': { lat: 38.6409, lng: -80.6227 },
+      'Idaho': { lat: 44.0682, lng: -114.7420 },
+      'Hawaii': { lat: 19.8968, lng: -155.5828 },
+      'Alaska': { lat: 66.1605, lng: -153.3691 },
+      'Delaware': { lat: 38.9108, lng: -75.5277 },
+      'Montana': { lat: 47.0527, lng: -109.6333 },
+      'Wyoming': { lat: 42.9957, lng: -107.5512 },
+      'South Dakota': { lat: 44.2126, lng: -100.2471 },
+      'North Dakota': { lat: 47.6201, lng: -100.5407 },
+      'Vermont': { lat: 44.5588, lng: -72.5805 },
+      'New Hampshire': { lat: 43.6805, lng: -71.5811 },
+      'Maine': { lat: 45.3695, lng: -69.2169 },
+      'Rhode Island': { lat: 41.6762, lng: -71.5562 },
+      'Connecticut': { lat: 41.6219, lng: -72.7273 },
+      'Massachusetts': { lat: 42.4072, lng: -71.3824 },
+      'New Jersey': { lat: 40.0583, lng: -74.4057 },
+      'Arkansas': { lat: 34.7519, lng: -92.1313 },
+      'Iowa': { lat: 42.0046, lng: -93.2140 },
+      'Mississippi': { lat: 32.3547, lng: -89.3985 },
+      'Alabama': { lat: 32.7794, lng: -86.8287 },
+      'Nationwide': null // Special case for nationwide stores
+    };
+
+    // For nationwide stores, return a default "Available" indicator
+    if (store.regions.includes('Nationwide')) {
+      return 'Available';
+    }
+
+    // Find the closest region
+    let minDistance = Infinity;
+    
+    for (const region of store.regions) {
+      const regionCenter = regionCenters[region];
+      if (regionCenter) {
+        const distance = calculateDistance(userLocation.lat, userLocation.lng, regionCenter.lat, regionCenter.lng);
+        minDistance = Math.min(minDistance, distance);
+      }
+    }
+
+    return minDistance === Infinity ? null : Math.round(minDistance);
+  };
+
+  // Haversine formula to calculate distance between two coordinates
+  const calculateDistance = (lat1, lng1, lat2, lng2) => {
+    const R = 3959; // Earth's radius in miles
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const toRad = (value) => {
+    return value * Math.PI / 180;
+  };
+
+  // Get distance display string
+  const getDistanceString = (distance) => {
+    if (!distance) return '';
+    if (distance === 'Available') return 'Available Nationwide';
+    return `~${distance} mi from region center`;
   };
 
   // Check if user is signed in
@@ -219,6 +354,7 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
         <div className="stores-grid">
           {allStores.map((store) => {
             const status = STORE_STATUS[store.status];
+            const distance = calculateStoreDistance(store);
             return (
               <div 
                 key={store.id} 
@@ -226,8 +362,15 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
                 onClick={() => handleStoreCardClick(store)}
               >
                 <div className="store-header" style={{ backgroundColor: store.branding.primaryColor }}>
-                  <div className="store-icon">{store.branding.icon}</div>
-                  <div className="store-name">{store.displayName}</div>
+                  <div className="store-header-content">
+                    <div className="store-icon">{store.branding.icon}</div>
+                    <div className="store-name">{store.displayName}</div>
+                  </div>
+                  {distance && locationLoaded && (
+                    <div className="store-distance">
+                      <span className="distance-text">{getDistanceString(distance)}</span>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="store-info">
@@ -501,8 +644,8 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
           padding: 1.5rem;
           color: white;
           display: flex;
+          justify-content: space-between;
           align-items: center;
-          gap: 1rem;
           position: relative;
         }
 
@@ -516,6 +659,12 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
           background: rgba(255,255,255,0.3);
         }
 
+        .store-header-content {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
         .store-icon {
           font-size: 2rem;
         }
@@ -524,6 +673,20 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
           font-size: 1.25rem;
           font-weight: 600;
           text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .store-distance {
+          text-align: right;
+        }
+
+        .distance-text {
+          background: rgba(255, 255, 255, 0.2);
+          padding: 0.25rem 0.75rem;
+          border-radius: 12px;
+          font-size: 0.875rem;
+          font-weight: 500;
+          backdrop-filter: blur(4px);
+          border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
         .store-info {
@@ -949,6 +1112,20 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
           .stores-grid {
             grid-template-columns: 1fr;
             padding: 0 1rem;
+          }
+
+          .store-header {
+            flex-direction: column;
+            gap: 1rem;
+            text-align: center;
+          }
+
+          .store-header-content {
+            justify-content: center;
+          }
+
+          .store-distance {
+            text-align: center;
           }
 
           .step-indicator {
