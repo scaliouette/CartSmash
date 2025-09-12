@@ -1064,6 +1064,10 @@ function GroceryListForm({
         // If there's a saveMealPlan prop function, save the meal plan
         if (typeof saveMealPlan === 'function') {
           try {
+            // Generate ID if meal plan doesn't have one
+            if (!mealPlan.id) {
+              mealPlan.id = `meal_plan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
             await saveMealPlan(mealPlan);
             console.log('💾 Meal plan saved successfully');
           } catch (saveError) {
@@ -3716,6 +3720,9 @@ Or paste any grocery list directly!"
             saveCartAsList={saveCartAsList}
             // Pass a prop to hide the export button in ParsedResultsDisplay
             hideExportButton={true}
+            // Pass user's retailer preference and zip code for catalog searches
+            selectedRetailer={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'kroger'}
+            userZipCode={currentUser?.zipCode || currentUser?.postalCode || '95670'}
           />
           
           

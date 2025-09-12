@@ -7,7 +7,7 @@ import ProductValidator from './ProductValidator';
 
 
 
-function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser, parsingStats, savedRecipes, setSavedRecipes, saveCartAsList }) {
+function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser, parsingStats, savedRecipes, setSavedRecipes, saveCartAsList, selectedRetailer, userZipCode }) {
   const isDev = process.env.NODE_ENV !== 'production';
   const recipeLogOnceRef = useRef(false);
   const [recipeExpanded, setRecipeExpanded] = useState(false);
@@ -57,6 +57,11 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   const [newListName, setNewListName] = useState('');
   const [showValidationPage, setShowValidationPage] = useState(false);
   const [validatingAll, setValidatingAll] = useState(false);
+  
+  // Enhanced catalog data state
+  const [catalogData, setCatalogData] = useState({});
+  const [fetchingCatalogData, setFetchingCatalogData] = useState(new Set());
+  const [expandedCatalogItems, setExpandedCatalogItems] = useState(new Set());
 
   // Safe function to get product display name for rendering
   const getProductDisplayName = (item) => {
@@ -260,6 +265,113 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
       }
     }
   }, [items]);
+
+  // Fetch catalog data from vendor APIs (Kroger, Instacart)
+  const fetchCatalogData = useCallback(async (itemsToFetch) => {
+    const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+    
+    if (!itemsToFetch || itemsToFetch.length === 0) return;
+    
+    // Prevent duplicate API calls
+    const itemIds = itemsToFetch.map(item => item.id);
+    const alreadyFetching = itemIds.some(id => fetchingCatalogData.has(id));
+    
+    if (alreadyFetching) {
+      if (isDev) console.debug('Some catalog data is already being fetched, skipping duplicate request');
+      return;
+    }
+    
+    if (isDev) console.debug(`🔍 Fetching catalog data for ${itemsToFetch.length} items`);
+    
+    // Mark items as being fetched
+    setFetchingCatalogData(prev => {
+      const newSet = new Set(prev);
+      itemIds.forEach(id => newSet.add(id));
+      return newSet;
+    });
+    
+    try {
+      // Try multiple APIs for comprehensive catalog data
+      const promises = itemsToFetch.map(async (item) => {
+        const productName = item.productName || item.itemName;
+        const results = {
+          itemId: item.id,
+          productName,
+          vendors: {}
+        };
+        
+        // Fetch from Kroger API
+        try {
+          const krogerResponse = await fetch(`${API_URL}/api/kroger/products/search?q=${encodeURIComponent(productName)}&limit=3`);
+          if (krogerResponse.ok) {
+            const krogerData = await krogerResponse.json();
+            results.vendors.kroger = {
+              success: true,
+              products: krogerData.products || [],
+              count: krogerData.count || 0
+            };
+          }
+        } catch (krogerError) {
+          if (isDev) console.warn(`Kroger API failed for "${productName}":`, krogerError.message);
+          results.vendors.kroger = { success: false, error: krogerError.message };
+        }
+        
+        // Fetch from Instacart API
+        try {
+          const instacartResponse = await fetch(`${API_URL}/api/instacart/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              query: productName,
+              retailerId: selectedRetailer || 'kroger', // Use user's selected retailer
+              zipCode: userZipCode || '95670', // Use user's zip code
+              originalItem: item
+            })
+          });
+          if (instacartResponse.ok) {
+            const instacartData = await instacartResponse.json();
+            results.vendors.instacart = {
+              success: true,
+              products: instacartData.products || [],
+              count: instacartData.products?.length || 0
+            };
+          }
+        } catch (instacartError) {
+          if (isDev) console.warn(`Instacart API failed for "${productName}":`, instacartError.message);
+          results.vendors.instacart = { success: false, error: instacartError.message };
+        }
+        
+        return results;
+      });
+      
+      const allResults = await Promise.all(promises);
+      
+      // Update catalog data state
+      setCatalogData(prev => {
+        const updated = { ...prev };
+        allResults.forEach(result => {
+          updated[result.itemId] = {
+            ...result,
+            fetchedAt: new Date().toISOString(),
+            hasData: Object.values(result.vendors).some(vendor => vendor.success && vendor.products?.length > 0)
+          };
+        });
+        return updated;
+      });
+      
+      if (isDev) console.debug(`✅ Catalog data fetched for ${allResults.length} items`);
+      
+    } catch (error) {
+      console.error('Failed to fetch catalog data:', error);
+    } finally {
+      // Remove items from fetching state
+      setFetchingCatalogData(prev => {
+        const newSet = new Set(prev);
+        itemIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+    }
+  }, [fetchingCatalogData, isDev, selectedRetailer, userZipCode]);
 
   // Smart unit detection using AI logic
   const smartDetectUnit = (itemText) => {
@@ -909,13 +1021,40 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
                 autoFocus
               />
             ) : (
-              <span
-                onClick={() => setEditingItem(item.id)}
-                style={styles.itemNameText}
-                title="Click to edit"
-              >
-                {getProductDisplayName(item)}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                <span
+                  onClick={() => setEditingItem(item.id)}
+                  style={styles.itemNameText}
+                  title="Click to edit"
+                >
+                  {getProductDisplayName(item)}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newExpanded = new Set(expandedCatalogItems);
+                    if (expandedCatalogItems.has(item.id)) {
+                      newExpanded.delete(item.id);
+                    } else {
+                      newExpanded.add(item.id);
+                      // Auto-fetch catalog data if not already fetched
+                      const itemCatalog = catalogData[item.id];
+                      if (!itemCatalog && !fetchingCatalogData.has(item.id)) {
+                        fetchCatalogData([item]);
+                      }
+                    }
+                    setExpandedCatalogItems(newExpanded);
+                  }}
+                  style={{
+                    ...styles.catalogButton,
+                    ...(expandedCatalogItems.has(item.id) ? styles.catalogButtonActive : {}),
+                    ...(fetchingCatalogData.has(item.id) ? styles.catalogButtonLoading : {})
+                  }}
+                  title="View vendor matches and prices"
+                >
+                  {fetchingCatalogData.has(item.id) ? '⏳' : '🛍️'}
+                </button>
+              </div>
             )}
           </div>
 
@@ -1012,6 +1151,104 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
                   {history.salePrice && <span style={styles.salePrice}>Sale: ${history.salePrice.toFixed(2)}</span>}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Enhanced Catalog Data Display */}
+        {renderCatalogData(item)}
+      </div>
+    );
+  };
+
+  // Component to render enhanced catalog data for an item
+  const renderCatalogData = (item) => {
+    const itemCatalog = catalogData[item.id];
+    const isFetching = fetchingCatalogData.has(item.id);
+    const isExpanded = expandedCatalogItems.has(item.id);
+    
+    if (!itemCatalog && !isFetching) {
+      return null;
+    }
+    
+    return (
+      <div style={styles.catalogPanel}>
+        <div 
+          style={styles.catalogHeader}
+          onClick={() => {
+            const newExpanded = new Set(expandedCatalogItems);
+            if (isExpanded) {
+              newExpanded.delete(item.id);
+            } else {
+              newExpanded.add(item.id);
+              // Auto-fetch catalog data if not already fetched
+              if (!itemCatalog && !isFetching) {
+                fetchCatalogData([item]);
+              }
+            }
+            setExpandedCatalogItems(newExpanded);
+          }}
+        >
+          <span style={styles.catalogIcon}>🛍️</span>
+          <span style={styles.catalogTitle}>Vendor Matches</span>
+          {isFetching && <InlineSpinner text="Loading..." color="#002244" />}
+          {itemCatalog && (
+            <span style={styles.catalogCount}>
+              ({Object.values(itemCatalog.vendors).reduce((acc, vendor) => 
+                acc + (vendor.success ? vendor.products?.length || 0 : 0), 0)} matches)
+            </span>
+          )}
+          <span style={styles.catalogToggle}>{isExpanded ? '▼' : '▶'}</span>
+        </div>
+        
+        {isExpanded && itemCatalog && (
+          <div style={styles.catalogContent}>
+            {Object.entries(itemCatalog.vendors).map(([vendorName, vendorData]) => {
+              if (!vendorData.success || !vendorData.products?.length) {
+                return (
+                  <div key={vendorName} style={styles.vendorSection}>
+                    <div style={styles.vendorHeader}>
+                      <span style={styles.vendorName}>{vendorName.toUpperCase()}</span>
+                      <span style={styles.vendorStatus}>No matches found</span>
+                    </div>
+                  </div>
+                );
+              }
+              
+              return (
+                <div key={vendorName} style={styles.vendorSection}>
+                  <div style={styles.vendorHeader}>
+                    <span style={styles.vendorName}>{vendorName.toUpperCase()}</span>
+                    <span style={styles.vendorCount}>{vendorData.products.length} matches</span>
+                  </div>
+                  <div style={styles.productsList}>
+                    {vendorData.products.slice(0, 3).map((product, idx) => (
+                      <div key={idx} style={styles.productItem}>
+                        <div style={styles.productName}>{product.name || product.display_name}</div>
+                        <div style={styles.productDetails}>
+                          {product.price && (
+                            <span style={styles.productPrice}>${parseFloat(product.price).toFixed(2)}</span>
+                          )}
+                          {product.size && (
+                            <span style={styles.productSize}>{product.size}</span>
+                          )}
+                          {product.sku && (
+                            <span style={styles.productSku}>SKU: {product.sku}</span>
+                          )}
+                        </div>
+                        {product.brand && (
+                          <div style={styles.productBrand}>{product.brand}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            <div style={styles.catalogFooter}>
+              <small style={styles.catalogTimestamp}>
+                Updated: {new Date(itemCatalog.fetchedAt).toLocaleString()}
+              </small>
             </div>
           </div>
         )}
@@ -2150,6 +2387,171 @@ const styles = {
     backgroundColor: '#002244',
     color: 'white',
     boxShadow: '0 2px 8px rgba(0,34,68,0.2)'
+  },
+
+  // Enhanced Catalog Data Styles
+  catalogButton: {
+    padding: '4px 8px',
+    border: '1px solid #e0e0e0',
+    borderRadius: '4px',
+    backgroundColor: 'white',
+    cursor: 'pointer',
+    fontSize: '12px',
+    transition: 'all 0.2s',
+    minWidth: '24px',
+    height: '24px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  catalogButtonActive: {
+    backgroundColor: '#FB4F14',
+    borderColor: '#FB4F14',
+    color: 'white'
+  },
+
+  catalogButtonLoading: {
+    backgroundColor: '#f8f9fa',
+    borderColor: '#dee2e6'
+  },
+
+  catalogPanel: {
+    marginTop: '8px',
+    border: '1px solid #e0e0e0',
+    borderRadius: '8px',
+    backgroundColor: '#f8f9fa'
+  },
+
+  catalogHeader: {
+    padding: '12px 16px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    cursor: 'pointer',
+    borderBottom: '1px solid #e0e0e0',
+    transition: 'background-color 0.2s'
+  },
+
+  catalogIcon: {
+    fontSize: '16px'
+  },
+
+  catalogTitle: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#002244',
+    flex: 1
+  },
+
+  catalogCount: {
+    fontSize: '12px',
+    color: '#666',
+    fontWeight: '500'
+  },
+
+  catalogToggle: {
+    fontSize: '12px',
+    color: '#666'
+  },
+
+  catalogContent: {
+    padding: '16px'
+  },
+
+  vendorSection: {
+    marginBottom: '16px',
+    '&:last-child': {
+      marginBottom: 0
+    }
+  },
+
+  vendorHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '8px',
+    paddingBottom: '4px',
+    borderBottom: '1px solid #dee2e6'
+  },
+
+  vendorName: {
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#002244'
+  },
+
+  vendorCount: {
+    fontSize: '12px',
+    color: '#666',
+    fontWeight: '500'
+  },
+
+  vendorStatus: {
+    fontSize: '12px',
+    color: '#999',
+    fontStyle: 'italic'
+  },
+
+  productsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+
+  productItem: {
+    padding: '8px 12px',
+    backgroundColor: 'white',
+    border: '1px solid #e0e0e0',
+    borderRadius: '6px',
+    fontSize: '13px'
+  },
+
+  productName: {
+    fontWeight: '600',
+    color: '#002244',
+    marginBottom: '4px'
+  },
+
+  productDetails: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+    flexWrap: 'wrap'
+  },
+
+  productPrice: {
+    color: '#FB4F14',
+    fontWeight: '700'
+  },
+
+  productSize: {
+    color: '#666',
+    fontSize: '12px'
+  },
+
+  productSku: {
+    color: '#999',
+    fontSize: '11px'
+  },
+
+  productBrand: {
+    color: '#666',
+    fontSize: '12px',
+    marginTop: '2px',
+    fontStyle: 'italic'
+  },
+
+  catalogFooter: {
+    marginTop: '12px',
+    paddingTop: '8px',
+    borderTop: '1px solid #e0e0e0',
+    textAlign: 'center'
+  },
+
+  catalogTimestamp: {
+    color: '#999',
+    fontSize: '11px'
   }
 
 };
