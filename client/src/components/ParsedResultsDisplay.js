@@ -1,7 +1,6 @@
 // client/src/components/ParsedResultsDisplay.js
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { InlineSpinner } from './LoadingSpinner';
-import KrogerOrderFlow from './KrogerOrderFlow';
 import ProductValidator from './ProductValidator';
 import RecipeManager from './RecipeManager';
 
@@ -47,7 +46,6 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   const [showStats, setShowStats] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [showKroger, setShowKroger] = useState(false);
   const [updatingItems, setUpdatingItems] = useState(new Set());
   const [fetchingPrices, setFetchingPrices] = useState(new Set());
   const [exportingCSV, setExportingCSV] = useState(false);
@@ -62,9 +60,6 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   const [editingRecipeData, setEditingRecipeData] = useState(null);
   
   // Enhanced catalog data state
-  const [catalogData, setCatalogData] = useState({});
-  const [fetchingCatalogData, setFetchingCatalogData] = useState(new Set());
-  const [expandedCatalogItems, setExpandedCatalogItems] = useState(new Set());
 
   // Safe function to get product display name for rendering
   const getProductDisplayName = (item) => {
@@ -189,10 +184,9 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
               realPrice: priceData.price,
               salePrice: priceData.salePrice,
               availability: priceData.availability,
-              // Add Kroger product data needed for cart adding
+              // Add product data needed for cart adding
               upc: priceData.upc,
               productId: priceData.productId,
-              krogerProduct: priceData.krogerProduct,
               matchedName: priceData.matchedName,
               brand: priceData.brand,
               size: priceData.size,
@@ -209,7 +203,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
           
           const itemsWithPrices = updatedItems.filter(item => item.realPrice).length;
           if (isDev) console.debug(`Updated ${updatedItems.length} items with price data`);
-          if (isDev) console.debug(`${itemsWithPrices} items now have Kroger pricing and can be added to cart`);
+          if (isDev) console.debug(`${itemsWithPrices} items now have pricing and can be added to cart`);
         }
       } else {
         console.error(`💰 [FETCH DEBUG] Request failed with status: ${response.status}`);
@@ -269,112 +263,6 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     }
   }, [items]);
 
-  // Fetch catalog data from vendor APIs (Kroger, Instacart)
-  const fetchCatalogData = useCallback(async (itemsToFetch) => {
-    const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-    
-    if (!itemsToFetch || itemsToFetch.length === 0) return;
-    
-    // Prevent duplicate API calls
-    const itemIds = itemsToFetch.map(item => item.id);
-    const alreadyFetching = itemIds.some(id => fetchingCatalogData.has(id));
-    
-    if (alreadyFetching) {
-      if (isDev) console.debug('Some catalog data is already being fetched, skipping duplicate request');
-      return;
-    }
-    
-    if (isDev) console.debug(`🔍 Fetching catalog data for ${itemsToFetch.length} items`);
-    
-    // Mark items as being fetched
-    setFetchingCatalogData(prev => {
-      const newSet = new Set(prev);
-      itemIds.forEach(id => newSet.add(id));
-      return newSet;
-    });
-    
-    try {
-      // Try multiple APIs for comprehensive catalog data
-      const promises = itemsToFetch.map(async (item) => {
-        const productName = item.productName || item.itemName;
-        const results = {
-          itemId: item.id,
-          productName,
-          vendors: {}
-        };
-        
-        // Fetch from Kroger API
-        try {
-          const krogerResponse = await fetch(`${API_URL}/api/kroger/products/search?q=${encodeURIComponent(productName)}&limit=3`);
-          if (krogerResponse.ok) {
-            const krogerData = await krogerResponse.json();
-            results.vendors.kroger = {
-              success: true,
-              products: krogerData.products || [],
-              count: krogerData.count || 0
-            };
-          }
-        } catch (krogerError) {
-          if (isDev) console.warn(`Kroger API failed for "${productName}":`, krogerError.message);
-          results.vendors.kroger = { success: false, error: krogerError.message };
-        }
-        
-        // Fetch from Instacart API
-        try {
-          const instacartResponse = await fetch(`${API_URL}/api/instacart/search`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              query: productName,
-              retailerId: selectedRetailer || 'kroger', // Use user's selected retailer
-              zipCode: userZipCode || '95670', // Use user's zip code
-              originalItem: item
-            })
-          });
-          if (instacartResponse.ok) {
-            const instacartData = await instacartResponse.json();
-            results.vendors.instacart = {
-              success: true,
-              products: instacartData.products || [],
-              count: instacartData.products?.length || 0
-            };
-          }
-        } catch (instacartError) {
-          if (isDev) console.warn(`Instacart API failed for "${productName}":`, instacartError.message);
-          results.vendors.instacart = { success: false, error: instacartError.message };
-        }
-        
-        return results;
-      });
-      
-      const allResults = await Promise.all(promises);
-      
-      // Update catalog data state
-      setCatalogData(prev => {
-        const updated = { ...prev };
-        allResults.forEach(result => {
-          updated[result.itemId] = {
-            ...result,
-            fetchedAt: new Date().toISOString(),
-            hasData: Object.values(result.vendors).some(vendor => vendor.success && vendor.products?.length > 0)
-          };
-        });
-        return updated;
-      });
-      
-      if (isDev) console.debug(`✅ Catalog data fetched for ${allResults.length} items`);
-      
-    } catch (error) {
-      console.error('Failed to fetch catalog data:', error);
-    } finally {
-      // Remove items from fetching state
-      setFetchingCatalogData(prev => {
-        const newSet = new Set(prev);
-        itemIds.forEach(id => newSet.delete(id));
-        return newSet;
-      });
-    }
-  }, [fetchingCatalogData, isDev, selectedRetailer, userZipCode]);
 
   // Smart unit detection using AI logic
   const smartDetectUnit = (itemText) => {
@@ -1011,31 +899,6 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
                 >
                   {getProductDisplayName(item)}
                 </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const newExpanded = new Set(expandedCatalogItems);
-                    if (expandedCatalogItems.has(item.id)) {
-                      newExpanded.delete(item.id);
-                    } else {
-                      newExpanded.add(item.id);
-                      // Auto-fetch catalog data if not already fetched
-                      const itemCatalog = catalogData[item.id];
-                      if (!itemCatalog && !fetchingCatalogData.has(item.id)) {
-                        fetchCatalogData([item]);
-                      }
-                    }
-                    setExpandedCatalogItems(newExpanded);
-                  }}
-                  style={{
-                    ...styles.catalogButton,
-                    ...(expandedCatalogItems.has(item.id) ? styles.catalogButtonActive : {}),
-                    ...(fetchingCatalogData.has(item.id) ? styles.catalogButtonLoading : {})
-                  }}
-                  title="View vendor matches and prices"
-                >
-                  {fetchingCatalogData.has(item.id) ? '⏳' : '🛍️'}
-                </button>
               </div>
             )}
           </div>
@@ -1137,106 +1000,10 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
           </div>
         )}
         
-        {/* Enhanced Catalog Data Display */}
-        {renderCatalogData(item)}
       </div>
     );
   };
 
-  // Component to render enhanced catalog data for an item
-  const renderCatalogData = (item) => {
-    const itemCatalog = catalogData[item.id];
-    const isFetching = fetchingCatalogData.has(item.id);
-    const isExpanded = expandedCatalogItems.has(item.id);
-    
-    if (!itemCatalog && !isFetching) {
-      return null;
-    }
-    
-    return (
-      <div style={styles.catalogPanel}>
-        <div 
-          style={styles.catalogHeader}
-          onClick={() => {
-            const newExpanded = new Set(expandedCatalogItems);
-            if (isExpanded) {
-              newExpanded.delete(item.id);
-            } else {
-              newExpanded.add(item.id);
-              // Auto-fetch catalog data if not already fetched
-              if (!itemCatalog && !isFetching) {
-                fetchCatalogData([item]);
-              }
-            }
-            setExpandedCatalogItems(newExpanded);
-          }}
-        >
-          <span style={styles.catalogIcon}>🛍️</span>
-          <span style={styles.catalogTitle}>Vendor Matches</span>
-          {isFetching && <InlineSpinner text="Loading..." color="#002244" />}
-          {itemCatalog && (
-            <span style={styles.catalogCount}>
-              ({Object.values(itemCatalog.vendors).reduce((acc, vendor) => 
-                acc + (vendor.success ? vendor.products?.length || 0 : 0), 0)} matches)
-            </span>
-          )}
-          <span style={styles.catalogToggle}>{isExpanded ? '▼' : '▶'}</span>
-        </div>
-        
-        {isExpanded && itemCatalog && (
-          <div style={styles.catalogContent}>
-            {Object.entries(itemCatalog.vendors).map(([vendorName, vendorData]) => {
-              if (!vendorData.success || !vendorData.products?.length) {
-                return (
-                  <div key={vendorName} style={styles.vendorSection}>
-                    <div style={styles.vendorHeader}>
-                      <span style={styles.vendorName}>{vendorName.toUpperCase()}</span>
-                      <span style={styles.vendorStatus}>No matches found</span>
-                    </div>
-                  </div>
-                );
-              }
-              
-              return (
-                <div key={vendorName} style={styles.vendorSection}>
-                  <div style={styles.vendorHeader}>
-                    <span style={styles.vendorName}>{vendorName.toUpperCase()}</span>
-                    <span style={styles.vendorCount}>{vendorData.products.length} matches</span>
-                  </div>
-                  <div style={styles.productsList}>
-                    {vendorData.products.slice(0, 3).map((product, idx) => (
-                      <div key={idx} style={styles.productItem}>
-                        <div style={styles.productName}>{product.name || product.display_name}</div>
-                        <div style={styles.productDetails}>
-                          {product.price && (
-                            <span style={styles.productPrice}>${parseFloat(product.price).toFixed(2)}</span>
-                          )}
-                          {product.size && (
-                            <span style={styles.productSize}>{product.size}</span>
-                          )}
-                          {product.sku && (
-                            <span style={styles.productSku}>SKU: {product.sku}</span>
-                          )}
-                        </div>
-                        {product.brand && (
-                          <div style={styles.productBrand}>{product.brand}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-            <div style={styles.catalogFooter}>
-              <small style={styles.catalogTimestamp}>
-                Updated: {new Date(itemCatalog.fetchedAt).toLocaleString()}
-              </small>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div style={{
@@ -1512,14 +1279,6 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
 
 
 
-      {/* Kroger Modal */}
-      {showKroger && (
-        <KrogerOrderFlow
-          cartItems={items}
-          currentUser={currentUser}
-          onClose={() => setShowKroger(false)}
-        />
-      )}
 
       {/* List Creator Modal */}
       {showListCreator && (
