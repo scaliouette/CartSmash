@@ -19,6 +19,7 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
   const [selectedRetailer, setSelectedRetailer] = useState(null);
   const [isLoadingRetailers, setIsLoadingRetailers] = useState(false);
   const [instacartActive, setInstacartActive] = useState(false);
+  const [userZipCode, setUserZipCode] = useState(localStorage.getItem('userZipCode') || '');
 
   // Location state for distance calculation
   const [userLocation, setUserLocation] = useState(null);
@@ -217,7 +218,11 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
       // For Instacart, load nearby retailers
       setInstacartActive(true);
       setKrogerAuthComplete(false); // Clear Kroger state
-      loadInstacartRetailers();
+      
+      // Automatically load retailers if ZIP code is available
+      if (userZipCode) {
+        loadInstacartRetailers();
+      }
     } else {
       // For planned stores, show coming soon message
       console.log(`${store.name} coming soon!`);
@@ -225,12 +230,18 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
   };
 
   // Load Instacart retailers when user selects Instacart
-  const loadInstacartRetailers = async () => {
+  const loadInstacartRetailers = async (zipCode = null) => {
+    const zipToUse = zipCode || userZipCode || '95670';
     setIsLoadingRetailers(true);
     
     try {
-      const userZipCode = localStorage.getItem('userZipCode') || '95670';
-      const response = await instacartService.getNearbyRetailers(userZipCode);
+      // Save ZIP code to localStorage and state
+      if (zipCode) {
+        setUserZipCode(zipCode);
+        localStorage.setItem('userZipCode', zipCode);
+      }
+      
+      const response = await instacartService.getNearbyRetailers(zipToUse);
       
       if (response.success) {
         setInstacartRetailers(response.retailers);
@@ -269,6 +280,14 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
     // Notify parent component
     if (onStoreSelect) {
       onStoreSelect(storeData);
+    }
+  };
+
+  // Handle ZIP code input and search
+  const handleZipCodeSearch = async (e) => {
+    e.preventDefault();
+    if (userZipCode && userZipCode.length >= 5) {
+      await loadInstacartRetailers(userZipCode);
     }
   };
 
@@ -503,6 +522,28 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
               <p>Choose from available retailers in your area through Instacart</p>
             </div>
             
+            {/* ZIP Code Input */}
+            <div className="zip-code-section">
+              <form onSubmit={handleZipCodeSearch} className="zip-code-form">
+                <label htmlFor="zipCode">Enter your ZIP code to find Instacart retailers in your area:</label>
+                <div className="zip-input-group">
+                  <input
+                    type="text"
+                    id="zipCode"
+                    value={userZipCode}
+                    onChange={(e) => setUserZipCode(e.target.value)}
+                    placeholder="e.g. 95670"
+                    maxLength="5"
+                    pattern="[0-9]{5}"
+                    className="zip-input"
+                  />
+                  <button type="submit" className="search-btn" disabled={userZipCode.length < 5}>
+                    🔍 Find Stores
+                  </button>
+                </div>
+              </form>
+            </div>
+            
             {isLoadingRetailers ? (
               <div className="loading-retailers">
                 <div className="loading-spinner"></div>
@@ -533,8 +574,9 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
               </div>
             ) : (
               <div className="no-retailers">
-                <p>No Instacart retailers found in your area.</p>
-                <button onClick={loadInstacartRetailers} className="retry-btn">
+                <p>No Instacart retailers found for this area.</p>
+                <p>We'll show you all available stores with real-time delivery options.</p>
+                <button onClick={() => loadInstacartRetailers()} className="retry-btn">
                   🔄 Try Again
                 </button>
               </div>

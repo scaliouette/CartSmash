@@ -32,7 +32,7 @@ class InstacartService {
     };
   }
 
-  // Find nearby retailers using Instacart API
+  // Find nearby retailers using backend API
   async getNearbyRetailers(zipCode = '95670') {
     console.log('🏪 InstacartService: Getting nearby retailers for', zipCode);
     
@@ -41,19 +41,32 @@ class InstacartService {
     }
 
     try {
-      const response = await fetch(`${this.baseURL}/retailers?zip_code=${zipCode}`, {
+      // Call the backend API instead of Instacart directly to avoid CORS issues
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/instacart/retailers?postalCode=${zipCode}&countryCode=US`, {
         method: 'GET',
-        headers: this.getHeaders()
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       });
 
       if (!response.ok) {
-        throw new Error(`Instacart API error: ${response.status}`);
+        throw new Error(`Backend API error: ${response.status}`);
       }
 
       const data = await response.json();
-      return this.formatRetailersResponse(data);
+      
+      if (data.success && data.retailers) {
+        return {
+          success: true,
+          retailers: data.retailers
+        };
+      } else {
+        throw new Error('Invalid response format from backend');
+      }
     } catch (error) {
-      console.error('❌ Error fetching Instacart retailers:', error);
+      console.error('❌ Error fetching Instacart retailers from backend:', error);
       // Fallback to mock data
       return this.getMockRetailers();
     }
