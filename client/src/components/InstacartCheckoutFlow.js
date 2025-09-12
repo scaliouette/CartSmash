@@ -212,21 +212,12 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
 
   const availableStores = [
     { 
-      id: 'kroger', 
-      name: 'Kroger', 
-      logo: '🛒', 
-      price: null, 
-      special: 'Click to Connect', 
-      featured: true,
-      hours: '6:00 AM - 11:00 PM',
-      deliverySlots: ['8:00-10:00 AM', '12:00-2:00 PM', '4:00-6:00 PM', '6:00-8:00 PM']
-    },
-    { 
       id: 'safeway', 
       name: 'Safeway', 
       logo: '🏪', 
       price: '$4.99', 
       hasAPI: true,
+      address: '2150 Broadway, Sacramento, CA 95818',
       hours: '7:00 AM - 10:00 PM',
       deliverySlots: ['9:00-11:00 AM', '1:00-3:00 PM', '5:00-7:00 PM']
     },
@@ -235,6 +226,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       name: 'Whole Foods', 
       logo: '🌿', 
       price: '$4.99',
+      address: '4315 Arden Way, Sacramento, CA 95864',
       hours: '8:00 AM - 9:00 PM',
       deliverySlots: ['10:00-12:00 PM', '2:00-4:00 PM', '6:00-8:00 PM']
     },
@@ -244,6 +236,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       logo: '📦', 
       price: 'Free', 
       membership: true,
+      address: '4000 Innovation Dr, Sacramento, CA 95834',
       hours: '10:00 AM - 8:30 PM',
       deliverySlots: ['11:00-1:00 PM', '3:00-5:00 PM']
     },
@@ -252,6 +245,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       name: 'Target', 
       logo: '🎯', 
       price: '$5.99',
+      address: '8198 Laguna Blvd, Elk Grove, CA 95758',
       hours: '8:00 AM - 10:00 PM',
       deliverySlots: ['9:00-11:00 AM', '1:00-3:00 PM', '5:00-7:00 PM', '7:00-9:00 PM']
     },
@@ -260,6 +254,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       name: 'Walmart', 
       logo: '🏬', 
       price: '$7.95',
+      address: '8881 Madison Ave, Fair Oaks, CA 95628',
       hours: '6:00 AM - 11:00 PM',
       deliverySlots: ['8:00-10:00 AM', '12:00-2:00 PM', '4:00-6:00 PM', '8:00-10:00 PM']
     }
@@ -398,7 +393,6 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   const getRetailerLogo = (name) => {
     const logos = {
       'Safeway': '🏪',
-      'Kroger': '🛒',
       'Costco': '📦',
       'Target': '🎯',
       'Walmart': '🏬',
