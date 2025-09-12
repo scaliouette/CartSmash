@@ -43,6 +43,15 @@ router.post('/generate-meal-plan', authenticateUser, async (req, res) => {
     const parsedPlan = parser.parseMealPlan(aiResponse);
     const cartsmashFormat = parser.toCartsmashFormat(parsedPlan);
 
+    // Validate recipe quality
+    const recipeValidations = (cartsmashFormat.recipes || []).map(recipe => ({
+      recipeId: recipe.id,
+      recipeName: recipe.title || recipe.name,
+      validation: validateRecipeQuality(recipe)
+    }));
+
+    const lowQualityRecipes = recipeValidations.filter(rv => rv.validation.qualityScore < 70);
+    
     // Save to database
     const planId = await saveMealPlanToUser(req.user.uid, cartsmashFormat);
 
@@ -50,7 +59,20 @@ router.post('/generate-meal-plan', authenticateUser, async (req, res) => {
       success: true,
       planId,
       mealPlan: cartsmashFormat,
-      rawResponse: aiResponse // Optional: for debugging
+      qualityReport: {
+        totalRecipes: recipeValidations.length,
+        lowQualityCount: lowQualityRecipes.length,
+        averageQualityScore: Math.round(
+          recipeValidations.reduce((sum, rv) => sum + rv.validation.qualityScore, 0) / recipeValidations.length
+        ),
+        lowQualityRecipes: lowQualityRecipes.map(rv => ({
+          name: rv.recipeName,
+          score: rv.validation.qualityScore,
+          issues: rv.validation.issues,
+          warnings: rv.validation.warnings
+        }))
+      },
+      rawResponse: process.env.NODE_ENV === 'development' ? aiResponse : undefined // Optional: for debugging
     });
 
   } catch (error) {
@@ -246,6 +268,81 @@ router.get('/meal-plan/:planId', authenticateUser, async (req, res) => {
 });
 
 /**
+ * POST /api/ai/rate-recipe-quality
+ * User feedback on recipe quality with option to regenerate
+ */
+router.post('/rate-recipe-quality', authenticateUser, async (req, res) => {
+  try {
+    const { recipeId, rating, feedback, requestRegeneration } = req.body;
+
+    if (!recipeId || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid recipeId and rating (1-5) required'
+      });
+    }
+
+    // Save feedback to database (implementation depends on your DB schema)
+    // await saveRecipeFeedback(req.user.uid, recipeId, { rating, feedback });
+
+    let regeneratedRecipe = null;
+    
+    if (requestRegeneration && rating <= 3) {
+      // Get the original recipe to understand what needs improvement
+      // const originalRecipe = await getRecipe(req.user.uid, recipeId);
+      
+      // Create enhanced prompt based on user feedback
+      const enhancedPrompt = `Regenerate this recipe with much more detailed instructions.
+        User feedback: "${feedback}"
+        User rated the previous version ${rating}/5 stars.
+        
+        CRITICAL: Provide extremely detailed step-by-step instructions with:
+        - Exact cooking times and temperatures
+        - Visual cues for doneness
+        - Professional cooking techniques
+        - Equipment details and alternatives  
+        - Chef tips and common mistakes to avoid
+        - Minimum 8-12 detailed steps for complex dishes
+        
+        Make this a restaurant-quality recipe that any home cook can follow successfully.`;
+
+      try {
+        const aiResponse = await generateWithAI(enhancedPrompt);
+        const parser = new MealPlanParser();
+        regeneratedRecipe = parser.parseSingleRecipe(aiResponse);
+        
+        // Validate the regenerated recipe
+        const validation = validateRecipeQuality(regeneratedRecipe);
+        regeneratedRecipe.qualityScore = validation.qualityScore;
+        regeneratedRecipe.qualityIssues = validation.issues;
+        regeneratedRecipe.qualityWarnings = validation.warnings;
+      } catch (regenError) {
+        console.error('Failed to regenerate recipe:', regenError);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Feedback recorded successfully',
+      regeneratedRecipe,
+      improvementTips: rating <= 3 ? [
+        'Request more detailed cooking steps',
+        'Ask for specific temperatures and timing',
+        'Request professional chef techniques',
+        'Ask for equipment alternatives'
+      ] : null
+    });
+
+  } catch (error) {
+    console.error('Error processing recipe feedback:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * POST /api/ai/analyze-nutrition
  * Analyze nutritional balance of meal plan
  */
@@ -308,14 +405,20 @@ function buildMealPlanPrompt(preferences) {
   
   prompt += `For each recipe, provide:
     - Recipe name
-    - List of ingredients with quantities
-    - Prep time and cook time
-    - Estimated calories per serving
+    - Complete list of ingredients with exact quantities and measurements
+    - Detailed step-by-step cooking instructions (minimum 6-8 detailed steps for complex dishes)
+    - Cooking techniques, temperatures, and timing for each step
+    - Required equipment and tools
+    - Prep time and total cook time
+    - Estimated calories and basic nutrition per serving
+    - Chef tips, tricks, and troubleshooting advice
     - Tags (e.g., vegetarian, quick, make-ahead)
+    
+  IMPORTANT: For complex recipes like steaks, risottos, or elaborate dishes, provide comprehensive instructions that would allow a home cook to successfully execute the recipe. Include specific temperatures (e.g., "sear until internal temperature reaches 135°F"), timing details, and cooking techniques.
     
   Also provide a complete grocery shopping list organized by category.
   
-  Format the output with clear day headers and recipe sections.`;
+  Format the output with clear day headers and detailed recipe sections.`;
   
   return prompt;
 }
@@ -335,7 +438,18 @@ function buildSingleMealPrompt({ day, mealType, familySize, existingMeals, prefe
           ${preferences.avoidIngredients ? `Avoid: ${preferences.avoidIngredients}.` : ''}
           ${preferences.maxPrepTime ? `Maximum prep time: ${preferences.maxPrepTime} minutes.` : ''}
           
-          Provide recipe name, ingredients with quantities, prep/cook time, calories, and tags.`;
+          Provide:
+          - Recipe name
+          - Complete ingredients list with exact quantities
+          - Detailed step-by-step cooking instructions (minimum 6-8 steps for complex dishes)
+          - Specific cooking techniques, temperatures, and timing
+          - Required equipment and tools
+          - Prep time and total cook time
+          - Estimated calories and nutrition per serving
+          - Professional chef tips and troubleshooting advice
+          - Tags (dietary, skill level, etc.)
+          
+          IMPORTANT: Provide restaurant-quality detailed instructions that ensure successful execution by home cooks.`;
 }
 
 /**
@@ -458,6 +572,47 @@ function parseNutritionRecommendations(aiResponse) {
     gaps: [],
     suggestions: [],
     improvements: []
+  };
+}
+
+/**
+ * Recipe quality validation function
+ */
+function validateRecipeQuality(recipe) {
+  const issues = [];
+  const warnings = [];
+  
+  // Check for minimum instruction length
+  if (!recipe.instructions || recipe.instructions.length < 100) {
+    issues.push('Instructions too brief - needs more detailed cooking steps');
+  }
+  
+  // Check for step count
+  const stepCount = (recipe.instructions || '').split(/Step \d+|^\d+\./).length - 1;
+  if (stepCount < 4) {
+    issues.push(`Only ${stepCount} steps found - complex recipes need 6-8+ detailed steps`);
+  }
+  
+  // Check for cooking temperatures
+  if (!/\d+°?[FC]|\d+\s?degrees/.test(recipe.instructions || '')) {
+    warnings.push('No cooking temperatures specified');
+  }
+  
+  // Check for timing details
+  if (!/\d+\s?(minutes?|mins?|hours?|hrs?)/.test(recipe.instructions || '')) {
+    warnings.push('Missing specific timing information');
+  }
+  
+  // Check for equipment mentions
+  if (!/\b(pan|skillet|oven|pot|bowl|whisk|spatula)\b/i.test(recipe.instructions || '')) {
+    warnings.push('No cooking equipment specified');
+  }
+  
+  return {
+    isValid: issues.length === 0,
+    issues,
+    warnings,
+    qualityScore: Math.max(0, 100 - (issues.length * 25) - (warnings.length * 10))
   };
 }
 
