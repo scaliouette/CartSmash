@@ -507,6 +507,18 @@ function GroceryListForm({
           confidence: item.confidence || 'medium',
           category: item.category || 'Other'
         };
+      }).filter(item => {
+        // Filter out invalid/corrupted items
+        const invalidNames = ['error', 'undefined', 'null', '', '⚠️ Failed to generate ingredients - please retry'];
+        const productName = (item.productName || '').toLowerCase().trim();
+        
+        // Skip items with invalid names or corrupted error messages
+        if (invalidNames.includes(productName) || productName.includes('⚠️') || productName.includes('failed to generate')) {
+          console.warn('🗑️ Filtering out corrupted cart item:', item.productName);
+          return false;
+        }
+        
+        return true;
       });
     }
     

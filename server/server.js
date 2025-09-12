@@ -1058,7 +1058,7 @@ const routes = [
   { path: '/api/stores', module: './routes/stores' },
   { path: '/api/settings', module: './routes/settings' },  // Admin settings management
   { path: '/api/analytics', module: './routes/analytics' },  // Admin dashboard analytics
-  { path: '/api/ai-meal-plan', module: './routes/aiMealPlanRoutes' },  // AI meal plan generation
+  { path: '/api/ai', module: './routes/aiMealPlanRoutes' },  // AI meal plan generation
   { path: '/api/recipes', module: './routes/recipeImportRoutes' },  // Recipe import functionality
   { path: '/api/recipes', module: './routes/unifiedRoutes' },  // Unified recipe management system
   { path: '/api/unified', module: './routes/unifiedRoutes' }  // Unified recipe system (also at /unified)
