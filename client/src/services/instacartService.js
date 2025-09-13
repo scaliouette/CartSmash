@@ -162,29 +162,54 @@ class InstacartService {
   async searchProducts(query, retailerId = null) {
     console.log('🔍 InstacartService: Searching for products:', query);
     
-    if (this.useMockData) {
-      return this.getMockProductSearch(query);
-    }
-
     try {
-      let url = `${this.baseURL}/catalog/search?q=${encodeURIComponent(query)}`;
-      if (retailerId) {
-        url += `&retailer_id=${retailerId}`;
-      }
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: this.getHeaders()
+      // Always try backend API first (regardless of client API key configuration)
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      console.log('📡 Calling backend search API:', `${API_URL}/api/instacart/search`);
+      
+      const requestBody = {
+        query: query,
+        retailerId: retailerId,
+        originalItem: { productName: query } // Add context for better matching
+      };
+      
+      const response = await fetch(`${API_URL}/api/instacart/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
-        throw new Error(`Instacart search error: ${response.status}`);
+        console.warn(`⚠️ Backend search API returned ${response.status}, falling back to mock data`);
+        throw new Error(`Backend API error: ${response.status}`);
       }
 
       const data = await response.json();
-      return this.formatProductsResponse(data);
+      console.log('✅ Backend search API response:', data);
+      
+      if (data.success && data.products) {
+        console.log(`🔍 Found ${data.products.length} products with real Instacart data`);
+        // Transform to expected format with enhanced image support
+        const products = data.products.map(product => ({
+          ...product,
+          image_url: product.image || product.image_url, // Support both field names
+          success: true
+        }));
+        
+        return {
+          success: true,
+          products: products,
+          results: products // Legacy compatibility
+        };
+      } else {
+        throw new Error('Invalid response format from backend');
+      }
     } catch (error) {
-      console.error('❌ Error searching Instacart products:', error);
+      console.error('❌ Error searching Instacart products from backend:', error);
+      console.log('🔄 Falling back to mock data');
       return this.getMockProductSearch(query);
     }
   }

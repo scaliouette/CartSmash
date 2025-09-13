@@ -465,7 +465,11 @@
       "Bash(del test-enhanced-recipe.js)",
       "Bash(NODE_ENV=development PORT=3059 npm start)",
       "Bash(REACT_APP_API_URL=http://localhost:3059 PORT=3060 npm start)",
-      "Bash(start http://localhost:3060)"
+      "Bash(start http://localhost:3060)",
+      "Bash(NODE_ENV=development PORT=3061 npm start)",
+      "Bash(REACT_APP_API_URL=http://localhost:3061 PORT=3062 npm start)",
+      "Bash(REACT_APP_API_URL=http://localhost:3063 PORT=3064 npm start)",
+      "Bash(start http://localhost:3064)"
     ],
     "deny": [],
     "ask": []

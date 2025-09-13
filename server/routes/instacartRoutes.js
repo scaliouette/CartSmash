@@ -549,32 +549,47 @@ function calculateConfidence(originalItem, instacartProduct) {
 function generateMockProducts(query, originalItem, retailerId) {
   const queryLower = query.toLowerCase();
   
-  // Common product mappings
+  // Common product mappings with realistic product images
   const productTemplates = {
     'chicken': [
-      { name: 'Fresh Chicken Breast', basePrice: 6.99, confidence: 0.95 },
-      { name: 'Organic Chicken Breast', basePrice: 9.99, confidence: 0.75 },
-      { name: 'Chicken Thighs', basePrice: 4.99, confidence: 0.60 }
+      { name: 'Fresh Chicken Breast', basePrice: 6.99, confidence: 0.95, image: 'https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=400&h=400&fit=crop' },
+      { name: 'Organic Chicken Breast', basePrice: 9.99, confidence: 0.75, image: 'https://images.unsplash.com/photo-1615485500704-8e990f9900f7?w=400&h=400&fit=crop' },
+      { name: 'Chicken Thighs', basePrice: 4.99, confidence: 0.60, image: 'https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=400&h=400&fit=crop' }
     ],
     'milk': [
-      { name: 'Whole Milk, 1 Gallon', basePrice: 3.99, confidence: 0.90 },
-      { name: 'Organic Milk, 1 Gallon', basePrice: 6.99, confidence: 0.85 },
-      { name: '2% Milk, 1 Gallon', basePrice: 3.79, confidence: 0.70 }
+      { name: 'Whole Milk, 1 Gallon', basePrice: 3.99, confidence: 0.90, image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&h=400&fit=crop' },
+      { name: 'Organic Milk, 1 Gallon', basePrice: 6.99, confidence: 0.85, image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&h=400&fit=crop' },
+      { name: '2% Milk, 1 Gallon', basePrice: 3.79, confidence: 0.70, image: 'https://images.unsplash.com/photo-1596618036688-bf31007ee99a?w=400&h=400&fit=crop' }
     ],
     'banana': [
-      { name: 'Bananas, per lb', basePrice: 0.68, confidence: 0.95 },
-      { name: 'Organic Bananas, per lb', basePrice: 0.99, confidence: 0.80 },
-      { name: 'Baby Bananas, 2 lb bag', basePrice: 2.99, confidence: 0.60 }
+      { name: 'Bananas, per lb', basePrice: 0.68, confidence: 0.95, image: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop' },
+      { name: 'Organic Bananas, per lb', basePrice: 0.99, confidence: 0.80, image: 'https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=400&h=400&fit=crop' },
+      { name: 'Baby Bananas, 2 lb bag', basePrice: 2.99, confidence: 0.60, image: 'https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=400&h=400&fit=crop' }
     ],
     'bread': [
-      { name: 'Whole Wheat Bread', basePrice: 2.99, confidence: 0.90 },
-      { name: 'White Bread', basePrice: 2.49, confidence: 0.75 },
-      { name: 'Sourdough Bread', basePrice: 3.99, confidence: 0.65 }
+      { name: 'Whole Wheat Bread', basePrice: 2.99, confidence: 0.90, image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&h=400&fit=crop' },
+      { name: 'White Bread', basePrice: 2.49, confidence: 0.75, image: 'https://images.unsplash.com/photo-1549931319-a545dcf3bc73?w=400&h=400&fit=crop' },
+      { name: 'Sourdough Bread', basePrice: 3.99, confidence: 0.65, image: 'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=400&h=400&fit=crop' }
     ],
     'egg': [
-      { name: 'Large Eggs, 12 count', basePrice: 2.99, confidence: 0.95 },
-      { name: 'Organic Eggs, 12 count', basePrice: 4.99, confidence: 0.85 },
-      { name: 'Free Range Eggs, 12 count', basePrice: 5.99, confidence: 0.80 }
+      { name: 'Large Eggs, 12 count', basePrice: 2.99, confidence: 0.95, image: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&h=400&fit=crop' },
+      { name: 'Organic Eggs, 12 count', basePrice: 4.99, confidence: 0.85, image: 'https://images.unsplash.com/photo-1574849147620-6a99ee72a302?w=400&h=400&fit=crop' },
+      { name: 'Free Range Eggs, 12 count', basePrice: 5.99, confidence: 0.80, image: 'https://images.unsplash.com/photo-1599811632456-5ad3b9306e1e?w=400&h=400&fit=crop' }
+    ],
+    'apple': [
+      { name: 'Gala Apples, 3 lb bag', basePrice: 3.99, confidence: 0.90, image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=400&fit=crop' },
+      { name: 'Organic Red Delicious', basePrice: 5.99, confidence: 0.85, image: 'https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=400&h=400&fit=crop' },
+      { name: 'Granny Smith Apples', basePrice: 4.49, confidence: 0.80, image: 'https://images.unsplash.com/photo-1579613832111-ac4df7ced2a6?w=400&h=400&fit=crop' }
+    ],
+    'tomato': [
+      { name: 'Roma Tomatoes, per lb', basePrice: 2.99, confidence: 0.90, image: 'https://images.unsplash.com/photo-1546470427-227986a4feec?w=400&h=400&fit=crop' },
+      { name: 'Organic Cherry Tomatoes', basePrice: 4.99, confidence: 0.85, image: 'https://images.unsplash.com/photo-1582779002835-0ac9b2d13c9d?w=400&h=400&fit=crop' },
+      { name: 'Beefsteak Tomatoes', basePrice: 3.99, confidence: 0.75, image: 'https://images.unsplash.com/photo-1607305387299-a3d9611cd469?w=400&h=400&fit=crop' }
+    ],
+    'cheese': [
+      { name: 'Sharp Cheddar Cheese', basePrice: 4.99, confidence: 0.90, image: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=400&h=400&fit=crop' },
+      { name: 'Organic Mozzarella', basePrice: 6.99, confidence: 0.85, image: 'https://images.unsplash.com/photo-1624978463583-2534075b1ac4?w=400&h=400&fit=crop' },
+      { name: 'Swiss Cheese Slices', basePrice: 5.49, confidence: 0.80, image: 'https://images.unsplash.com/photo-1610106738809-ab093abeb8c7?w=400&h=400&fit=crop' }
     ]
   };
   
@@ -589,10 +604,15 @@ function generateMockProducts(query, originalItem, retailerId) {
   
   // Generate generic products if no specific template found
   if (templates.length === 0) {
+    const genericImages = [
+      'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&h=400&fit=crop',
+      'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&h=400&fit=crop',
+      'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=400&h=400&fit=crop'
+    ];
     templates = [
-      { name: `${query} - Store Brand`, basePrice: 3.99, confidence: 0.70 },
-      { name: `${query} - Premium`, basePrice: 6.99, confidence: 0.65 },
-      { name: `${query} - Value Pack`, basePrice: 8.99, confidence: 0.60 }
+      { name: `${query} - Store Brand`, basePrice: 3.99, confidence: 0.70, image: genericImages[0] },
+      { name: `${query} - Premium`, basePrice: 6.99, confidence: 0.65, image: genericImages[1] },
+      { name: `${query} - Value Pack`, basePrice: 8.99, confidence: 0.60, image: genericImages[2] }
     ];
   }
   
@@ -614,10 +634,14 @@ function generateMockProducts(query, originalItem, retailerId) {
     price: Math.round(template.basePrice * multiplier * 100) / 100,
     size: originalItem?.amount || '1 unit',
     brand: index === 0 ? 'Store Brand' : (index === 1 ? 'Premium Brand' : 'Value Brand'),
-    image: null, // In real implementation, this would be the product image URL
+    image: template.image || `https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&h=400&fit=crop&t=${Date.now()}`,
+    image_url: template.image || `https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&h=400&fit=crop&t=${Date.now()}`, // Support both field names
     availability: 'in_stock',
     confidence: template.confidence,
-    category: originalItem?.category || 'other'
+    category: originalItem?.category || 'other',
+    description: `High-quality ${template.name.toLowerCase()} available at ${retailerId}`,
+    unit_price: Math.round(template.basePrice * multiplier * 100) / 100,
+    retailer_id: retailerId
   }));
 }
 
