@@ -558,12 +558,35 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
                     onClick={() => handleRetailerSelect(retailer)}
                   >
                     <div className="retailer-info">
+                      <div className="retailer-logo">
+                        {retailer.logo && retailer.logo.startsWith('http') ? (
+                          <img 
+                            src={retailer.logo} 
+                            alt={retailer.name}
+                            style={{ 
+                              maxHeight: '32px', 
+                              maxWidth: '64px', 
+                              objectFit: 'contain'
+                            }}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'block';
+                            }}
+                          />
+                        ) : null}
+                        <div style={{ 
+                          fontSize: '24px',
+                          display: retailer.logo && retailer.logo.startsWith('http') ? 'none' : 'block'
+                        }}>
+                          {retailer.logo && !retailer.logo.startsWith('http') ? retailer.logo : '🏪'}
+                        </div>
+                      </div>
                       <div className="retailer-name">{retailer.name}</div>
                       <div className="retailer-address">{retailer.address}</div>
                       <div className="retailer-details">
-                        <span className="delivery-time">🚚 {retailer.estimated_delivery}</span>
-                        <span className="delivery-fee">💰 ${retailer.delivery_fee}</span>
-                        <span className="distance">📍 {retailer.distance} mi</span>
+                        <span className="delivery-time">🚚 {retailer.estimated_delivery || 'Standard'}</span>
+                        <span className="delivery-fee">💰 ${retailer.delivery_fee || '5.99'}</span>
+                        <span className="distance">📍 {retailer.distance || '?'} mi</span>
                       </div>
                     </div>
                     {selectedRetailer?.id === retailer.id && (
