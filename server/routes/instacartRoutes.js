@@ -138,9 +138,9 @@ router.get('/retailers', async (req, res) => {
     // Check if we have valid API keys
     if (validateApiKeys()) {
       try {
-        // Use official Connect API parameters: postal_code and country_code
+        // Use the same working API key as the recipe API
         const endpoint = `/retailers?postal_code=${postal}&country_code=${countryCode}`;
-        const retailers = await instacartApiCall(endpoint, 'GET', null, INSTACART_CONNECT_API_KEY);
+        const retailers = await instacartApiCall(endpoint, 'GET', null, INSTACART_API_KEY);
         
         console.log('🔍 Raw Instacart API response sample:', JSON.stringify(retailers.retailers?.slice(0, 2), null, 2));
         
@@ -1196,6 +1196,221 @@ router.post('/recipe/create', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to create recipe',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/instacart/shopping-list/create - Create shopping list page using Instacart Products Link API
+router.post('/shopping-list/create', async (req, res) => {
+  try {
+    const { 
+      title, 
+      imageUrl, 
+      lineItems,
+      partnerUrl,
+      expiresIn,
+      instructions
+    } = req.body;
+    
+    console.log(`🛒 Creating Instacart shopping list: "${title}"`);
+    
+    if (!title || !lineItems || lineItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Title and line_items are required'
+      });
+    }
+    
+    // Check cache first using similar caching strategy as recipes
+    const cacheKey = generateRecipeCacheKey({ title, ingredients: lineItems, instructions });
+    const cachedResult = getCachedRecipeUrl(cacheKey);
+    
+    if (cachedResult) {
+      return res.json({
+        ...cachedResult,
+        cached: true,
+        cacheAge: Math.round((Date.now() - cachedResult.timestamp) / 1000 / 60), // minutes
+      });
+    }
+
+    // Check if we have valid API keys
+    if (validateApiKeys()) {
+      try {
+        // Transform lineItems to Instacart shopping list format
+        const formattedLineItems = lineItems.map(item => {
+          const formatted = {
+            name: item.name || item.productName,
+            quantity: parseFloat(item.quantity) || 1.0,
+            unit: item.unit || 'each'
+          };
+          
+          // Add display text if provided
+          if (item.displayText || item.display_text) {
+            formatted.display_text = item.displayText || item.display_text;
+          }
+          
+          // Add multiple measurements using line_item_measurements
+          if (item.line_item_measurements && Array.isArray(item.line_item_measurements)) {
+            formatted.line_item_measurements = item.line_item_measurements.map(m => ({
+              quantity: parseFloat(m.quantity) || 1.0,
+              unit: m.unit || 'each'
+            }));
+          } else if (item.measurements && Array.isArray(item.measurements)) {
+            // Convert from recipe-style measurements to shopping list measurements
+            formatted.line_item_measurements = item.measurements.map(m => ({
+              quantity: parseFloat(m.quantity) || 1.0,
+              unit: m.unit || 'each'
+            }));
+          }
+          
+          // Add UPCs if provided
+          if (item.upcs) {
+            formatted.upcs = Array.isArray(item.upcs) ? item.upcs : [item.upcs];
+          }
+          
+          // Add product IDs if provided
+          if (item.product_ids || item.productIds) {
+            formatted.product_ids = Array.isArray(item.product_ids || item.productIds) 
+              ? (item.product_ids || item.productIds) 
+              : [item.product_ids || item.productIds];
+          }
+          
+          // Add filters
+          if (item.filters || item.brandFilters || item.healthFilters) {
+            formatted.filters = {};
+            
+            // Brand filters
+            if (item.filters?.brand_filters || item.brandFilters) {
+              const brands = item.filters?.brand_filters || item.brandFilters;
+              formatted.filters.brand_filters = Array.isArray(brands) ? brands : [brands];
+            }
+            
+            // Health filters
+            if (item.filters?.health_filters || item.healthFilters) {
+              const health = item.filters?.health_filters || item.healthFilters;
+              formatted.filters.health_filters = Array.isArray(health) ? health : [health];
+            }
+          }
+          
+          return formatted;
+        });
+        
+        // Build shopping list payload according to official API spec
+        const shoppingListPayload = {
+          title,
+          image_url: imageUrl || `https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&h=500&fit=crop`,
+          link_type: 'shopping_list',
+          expires_in: expiresIn || 365, // Default to 365 days for shopping lists
+          instructions: Array.isArray(instructions) ? instructions : (instructions ? [instructions] : undefined),
+          line_items: formattedLineItems,
+          landing_page_configuration: {
+            partner_linkback_url: partnerUrl || 'https://cartsmash.com'
+          }
+        };
+        
+        // Remove undefined/null values
+        Object.keys(shoppingListPayload).forEach(key => {
+          if (shoppingListPayload[key] === undefined || shoppingListPayload[key] === null) {
+            delete shoppingListPayload[key];
+          }
+        });
+        
+        console.log('📝 Shopping list payload:', JSON.stringify(shoppingListPayload, null, 2));
+        
+        // Make API call to create shopping list
+        const response = await instacartApiCall('/products/products_link', 'POST', shoppingListPayload);
+        
+        console.log('✅ Shopping list API response:', response);
+        
+        if (response && response.products_link_url) {
+          const result = {
+            success: true,
+            shoppingListId: `shopping-list-${Date.now()}`,
+            instacartUrl: response.products_link_url,
+            title: title,
+            itemsCount: formattedLineItems.length,
+            createdAt: new Date().toISOString(),
+            type: 'shopping_list'
+          };
+          
+          // Cache the result
+          cacheRecipeUrl(cacheKey, result);
+          
+          res.json(result);
+        } else {
+          console.log('⚠️ Unexpected API response format:', response);
+          throw new Error('Invalid API response format');
+        }
+      } catch (error) {
+        console.error('❌ Shopping list API failed:', error);
+        
+        // Fallback to recipe API if shopping list fails
+        console.log('🔄 Falling back to recipe API...');
+        
+        // Convert shopping list items to recipe ingredients
+        const recipeIngredients = lineItems.map(item => ({
+          name: item.name || item.productName,
+          display_text: item.displayText || item.display_text || item.name || item.productName,
+          measurements: item.measurements || [{
+            quantity: parseFloat(item.quantity) || 1.0,
+            unit: item.unit || 'each'
+          }],
+          filters: item.filters,
+          upcs: item.upcs,
+          product_ids: item.product_ids || item.productIds
+        }));
+        
+        const recipePayload = {
+          title: title + ' (Shopping List)',
+          author: 'CartSmash AI',
+          servings: 1,
+          image_url: imageUrl || `https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&h=500&fit=crop`,
+          instructions: Array.isArray(instructions) ? instructions : (instructions ? [instructions] : [
+            'This is a shopping list created with CartSmash.',
+            'Add these items to your cart and proceed to checkout.'
+          ]),
+          ingredients: recipeIngredients,
+          expires_in: expiresIn || 365,
+          landing_page_configuration: {
+            partner_linkback_url: partnerUrl || 'https://cartsmash.com',
+            enable_pantry_items: false
+          }
+        };
+        
+        const fallbackResponse = await instacartApiCall('/products/recipe', 'POST', recipePayload);
+        
+        if (fallbackResponse && fallbackResponse.products_link_url) {
+          const result = {
+            success: true,
+            shoppingListId: `recipe-fallback-${Date.now()}`,
+            instacartUrl: fallbackResponse.products_link_url,
+            title: title,
+            itemsCount: recipeIngredients.length,
+            createdAt: new Date().toISOString(),
+            type: 'recipe_fallback',
+            fallback: true
+          };
+          
+          cacheRecipeUrl(cacheKey, result);
+          res.json(result);
+        } else {
+          throw new Error('Both shopping list and recipe APIs failed');
+        }
+      }
+    } else {
+      // No API keys available
+      res.status(503).json({
+        success: false,
+        error: 'Instacart API not available',
+        message: 'API keys not configured'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error creating shopping list:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create shopping list',
       message: error.message
     });
   }

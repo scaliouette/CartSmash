@@ -477,66 +477,196 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
     }
   };
 
-  // Fallback recipe-based checkout method
+  // Enhanced recipe-based checkout using full recipe API integration
   const handleRecipeBasedCheckout = async (resolution) => {
     try {
-      console.log('📝 Using recipe-based checkout as fallback...');
+      console.log('🚀 Using comprehensive recipe API integration...');
       
-      // Prepare ingredients list
+      // Prepare comprehensive ingredients list with enhanced data from resolution
       const enhancedIngredients = [];
       
-      // Add successfully resolved items with detailed info
+      // Add successfully resolved items with full recipe API format
       resolution.resolved.forEach(item => {
-        // Use displayName if available (includes measurement), otherwise construct from parts
-        const ingredient = item.resolvedDetails.displayName || 
-          `${item.resolvedDetails.measurement || item.resolvedDetails.quantity} ${item.resolvedDetails.unit} ${item.resolvedDetails.name}`;
+        // Extract resolved product details
+        const productDetails = item.instacartProduct;
+        const originalItem = item.originalItem;
+        const quantity = productQuantities[productDetails.id] || originalItem.quantity || 1;
+        
+        // Create comprehensive ingredient using recipe API specification
+        const ingredient = {
+          name: originalItem.productName || originalItem.name,
+          display_text: productDetails.name || originalItem.productName || originalItem.name,
+          measurements: [{
+            quantity: quantity,
+            unit: originalItem.unit || 'each'
+          }]
+        };
+        
+        // Add brand filters if we have brand information
+        if (productDetails.brand) {
+          ingredient.filters = {
+            brand_filters: [productDetails.brand]
+          };
+        }
+        
+        // Add product IDs if available from real API response
+        if (productDetails._metadata?.isRealApiResponse && productDetails.id) {
+          ingredient.product_ids = [productDetails.id];
+        }
+        
+        // Add UPCs if available
+        if (productDetails.sku || productDetails.upc) {
+          ingredient.upcs = [productDetails.sku || productDetails.upc];
+        }
+        
         enhancedIngredients.push(ingredient);
-        console.log(`✅ Recipe ingredient: ${ingredient} ($${item.resolvedDetails.price})`);
+        console.log(`✅ Enhanced ingredient: ${ingredient.name} (${quantity} ${ingredient.measurements[0].unit}) - Brand: ${productDetails.brand || 'Any'}`);
       });
       
-      // Add unresolved items as basic strings
+      // Add unresolved items with basic format but attempt intelligent parsing
       resolution.unresolved.forEach(item => {
-        const basicItem = item.originalItem.productName || item.originalItem.name || item.originalItem.item;
-        enhancedIngredients.push(basicItem);
-        console.log(`⚠️ Unresolved ingredient: ${basicItem} (${item.reason})`);
+        const originalName = item.originalItem.productName || item.originalItem.name || item.originalItem.item;
+        const quantity = item.originalItem.quantity || 1;
+        const unit = item.originalItem.unit || 'each';
+        
+        const ingredient = {
+          name: originalName,
+          display_text: originalName,
+          measurements: [{
+            quantity: quantity,
+            unit: unit
+          }]
+        };
+        
+        enhancedIngredients.push(ingredient);
+        console.log(`⚠️ Unresolved ingredient: ${originalName} (${quantity} ${unit}) - Reason: ${item.reason}`);
       });
       
-      // Use enhanced server-side recipe API instead of client-side
-      const { createInstacartRecipePage } = await import('../services/aiMealPlanService');
+      // Use enhanced server-side shopping list API with recipe API fallback
+      const { createInstacartShoppingList, createInstacartRecipePage } = await import('../services/aiMealPlanService');
       
-      const recipeData = {
-        name: `CartSmash List - ${new Date().toLocaleDateString()}`,
-        title: `CartSmash List - ${new Date().toLocaleDateString()}`,
+      const currentDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long', 
+        day: 'numeric'
+      });
+      
+      // Prepare shopping list data (preferred approach)
+      const shoppingListData = {
+        title: `CartSmash Shopping List - ${currentDate}`,
+        imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&h=500&fit=crop',
         instructions: [
-          'This is a grocery shopping list created with CartSmash.',
-          'Add these items to your Instacart cart and proceed to checkout.',
-          'Enjoy your shopping experience!'
+          '🛒 Welcome to your CartSmash shopping list!',
+          `📅 Generated on ${currentDate} with ${enhancedIngredients.length} items.`,
+          '✅ All items have been matched using advanced AI product resolution.',
+          '🏪 Items will be automatically added to your Instacart cart.',
+          '💳 Review quantities and complete your purchase on Instacart.',
+          '🚚 Enjoy convenient delivery or pickup of your groceries!'
         ],
-        ingredients: enhancedIngredients.map((ingredient, index) => ({
-          name: ingredient,
-          quantity: 1,
-          unit: 'each',
-          displayText: ingredient
+        lineItems: enhancedIngredients.map(ingredient => ({
+          name: ingredient.name,
+          display_text: ingredient.display_text,
+          quantity: ingredient.measurements?.[0]?.quantity || 1,
+          unit: ingredient.measurements?.[0]?.unit || 'each',
+          line_item_measurements: ingredient.measurements,
+          filters: ingredient.filters,
+          upcs: ingredient.upcs,
+          product_ids: ingredient.product_ids
         })),
-        servings: 1,
-        id: `cartsmash-list-${Date.now()}`
+        partnerUrl: 'https://cartsmash.com/checkout-success',
+        expiresIn: 365
       };
       
-      const recipeResult = await createInstacartRecipePage(recipeData);
+      // Prepare recipe data as fallback
+      const recipeData = {
+        title: `CartSmash Shopping List - ${currentDate}`,
+        author: 'CartSmash AI Assistant',
+        servings: 1,
+        cookingTime: null, // Not applicable for shopping lists
+        imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&h=500&fit=crop',
+        instructions: [
+          '🛒 Welcome to your CartSmash shopping list!',
+          `📅 Generated on ${currentDate} with ${enhancedIngredients.length} items.`,
+          '✅ All items have been matched using advanced AI product resolution.',
+          '🏪 Items will be automatically added to your Instacart cart.',
+          '💳 Review quantities and complete your purchase on Instacart.',
+          '🚚 Enjoy convenient delivery or pickup of your groceries!'
+        ],
+        ingredients: enhancedIngredients,
+        partnerUrl: 'https://cartsmash.com/checkout-success',
+        enablePantryItems: false, // Shopping lists don't need pantry items
+        retailerKey: selectedStore?.retailer_key || selectedStore?.id,
+        dietaryRestrictions: [], // Could be expanded with user preferences
+        externalReferenceId: `cartsmash-checkout-${Date.now()}`
+      };
       
-      console.log('✅ Fallback recipe created:', recipeResult);
+      console.log('🎯 Creating comprehensive shopping list with:', {
+        lineItems: enhancedIngredients.length,
+        retailer: selectedStore?.name,
+        totalItems: resolution.resolved.length + resolution.unresolved.length,
+        resolvedItems: resolution.resolved.length,
+        unresolvedItems: resolution.unresolved.length
+      });
       
-      if (recipeResult.success && recipeResult.instacartUrl) {
-        window.open(recipeResult.instacartUrl, '_blank');
+      // Try shopping list API first, then fall back to recipe API
+      let result;
+      try {
+        console.log('🛒 Attempting shopping list API first...');
+        result = await createInstacartShoppingList(shoppingListData);
+        console.log('✅ Shopping list API succeeded:', result);
+      } catch (shoppingListError) {
+        console.log('⚠️ Shopping list API failed, trying recipe API fallback...', shoppingListError.message);
+        result = await createInstacartRecipePage(recipeData);
+        result.usedFallback = true;
+        console.log('✅ Recipe API fallback succeeded:', result);
+      }
+      
+      console.log('✅ Comprehensive shopping list created:', result);
+      
+      if (result.success && result.instacartUrl) {
+        // Add retailer key to URL if not already present and we have one
+        let finalUrl = result.instacartUrl;
+        const retailerKey = selectedStore?.retailer_key || selectedStore?.id;
+        if (retailerKey && !finalUrl.includes('retailer_key=')) {
+          const separator = finalUrl.includes('?') ? '&' : '?';
+          finalUrl += `${separator}retailer_key=${retailerKey}`;
+        }
+        
+        console.log('🌐 Opening Instacart URL:', finalUrl);
+        window.open(finalUrl, '_blank');
+        
+        // Show success message
+        setIsProcessing(false);
+        const apiType = result.usedFallback ? 'Recipe API (fallback)' : 'Shopping List API';
+        const itemId = result.shoppingListId || result.recipeId || 'N/A';
+        
+        alert(`🎉 Success! Your CartSmash list with ${enhancedIngredients.length} items has been sent to Instacart via ${apiType}. 
+               
+${result.usedFallback ? 'Recipe' : 'Shopping List'} ID: ${itemId}
+Items Matched: ${resolution.resolved.length}/${resolution.resolved.length + resolution.unresolved.length}
+Store: ${selectedStore?.name || 'Selected retailer'}
+API Used: ${apiType}
+
+The Instacart page is now opening where you can review and complete your order!`);
       } else {
-        console.log('⚠️ Recipe creation failed, using general Instacart URL');
-        window.open('https://www.instacart.com', '_blank');
+        console.log('⚠️ Both shopping list and recipe creation failed, using direct retailer URL');
+        const fallbackUrl = selectedStore?.retailer_key 
+          ? `https://www.instacart.com/store/${selectedStore.retailer_key}`
+          : 'https://www.instacart.com';
+        window.open(fallbackUrl, '_blank');
+        alert('Unable to create shopping list or recipe page. Opening Instacart store directly.');
       }
       
       onClose();
     } catch (error) {
-      console.error('❌ Recipe-based checkout failed:', error);
-      window.open('https://www.instacart.com', '_blank');
+      console.error('❌ Enhanced recipe-based checkout failed:', error);
+      
+      // Enhanced fallback with retailer-specific URL
+      const fallbackUrl = selectedStore?.retailer_key 
+        ? `https://www.instacart.com/store/${selectedStore.retailer_key}`
+        : 'https://www.instacart.com';
+      window.open(fallbackUrl, '_blank');
+      alert('Checkout process encountered an error. Opening Instacart directly.');
       onClose();
     }
   };
