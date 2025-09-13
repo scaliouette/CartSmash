@@ -254,7 +254,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
             .map(retailer => ({
               id: retailer.id,
               name: retailer.name,
-              logo: getRetailerLogo(retailer.name),
+              logo: retailer.logo || getRetailerLogo(retailer.name),
               price: retailer.delivery_fee ? `$${retailer.delivery_fee}` : 'Free',
               hasAPI: true,
               distance: retailer.distance,
@@ -901,7 +901,29 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                             API
                           </div>
                         )}
-                        <div style={{ fontSize: '32px', marginBottom: '8px' }}>{store.logo}</div>
+                        <div style={{ marginBottom: '8px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {store.logo && store.logo.startsWith('http') ? (
+                            <img 
+                              src={store.logo} 
+                              alt={store.name}
+                              style={{ 
+                                maxHeight: '48px', 
+                                maxWidth: '80px', 
+                                objectFit: 'contain'
+                              }}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'block';
+                              }}
+                            />
+                          ) : null}
+                          <div style={{ 
+                            fontSize: '32px',
+                            display: store.logo && store.logo.startsWith('http') ? 'none' : 'block'
+                          }}>
+                            {store.logo && !store.logo.startsWith('http') ? store.logo : '🏪'}
+                          </div>
+                        </div>
                         <div style={{
                           fontSize: '16px',
                           fontWeight: 'bold',
