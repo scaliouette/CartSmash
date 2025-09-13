@@ -142,21 +142,39 @@ router.get('/retailers', async (req, res) => {
         const endpoint = `/retailers?postal_code=${postal}&country_code=${countryCode}`;
         const retailers = await instacartApiCall(endpoint, 'GET', null, INSTACART_CONNECT_API_KEY);
         
-        // Transform response to match official Instacart API format
-        const formattedRetailers = (retailers.retailers || []).map((retailer, index) => ({
-          id: retailer.retailer_key || `retailer_${index}`,
-          retailer_key: retailer.retailer_key,
-          name: retailer.name,
-          logo: retailer.retailer_logo_url || '🏪',
-          estimatedDelivery: retailer.estimated_delivery || '2-4 hours',
-          available: retailer.available !== false,
-          service_fee: retailer.service_fee || 3.99,
-          delivery_fee: retailer.delivery_fee || 5.99,
-          minimum_order: retailer.minimum_order || 35.00,
-          // Add distance data since Instacart API doesn't provide it
-          distance: retailer.distance || (0.5 + (index * 0.3)), // Generate estimated distances
-          address: retailer.address || `${retailer.name}, ${postal}`
-        }));
+        console.log('🔍 Raw Instacart API response sample:', JSON.stringify(retailers.retailers?.slice(0, 2), null, 2));
+        
+        // Transform response to match official Instacart API format with robust field mapping
+        const formattedRetailers = (retailers.retailers || []).map((retailer, index) => {
+          // Try multiple possible field names for retailer identifier
+          const retailerId = retailer.retailer_key || 
+                           retailer.id || 
+                           retailer.retailer_id || 
+                           retailer.key || 
+                           `retailer_${index}`;
+          
+          const retailerName = retailer.name || 
+                             retailer.retailer_name || 
+                             retailer.display_name || 
+                             `Retailer ${index + 1}`;
+          
+          return {
+            id: retailerId,
+            retailer_key: retailer.retailer_key || retailerId,
+            name: retailerName,
+            logo: retailer.retailer_logo_url || retailer.logo_url || retailer.logo || '🏪',
+            estimatedDelivery: retailer.estimated_delivery || retailer.delivery_time || '2-4 hours',
+            available: retailer.available !== false,
+            service_fee: parseFloat(retailer.service_fee) || 3.99,
+            delivery_fee: parseFloat(retailer.delivery_fee) || 5.99,
+            minimum_order: parseFloat(retailer.minimum_order) || 35.00,
+            // Add distance data since Instacart API doesn't provide it
+            distance: retailer.distance || (0.5 + (index * 0.3)), // Generate estimated distances
+            address: retailer.address || `${retailerName}, ${postal}`,
+            // Include raw data for debugging
+            _raw: process.env.NODE_ENV === 'development' ? retailer : undefined
+          };
+        });
         
         res.json({ 
           success: true, 

@@ -36,13 +36,11 @@ class InstacartService {
   async getNearbyRetailers(zipCode = '95670') {
     console.log('🏪 InstacartService: Getting nearby retailers for', zipCode);
     
-    if (this.useMockData) {
-      return this.getMockRetailers();
-    }
-
     try {
-      // Call the backend API instead of Instacart directly to avoid CORS issues
+      // Always try backend API first (regardless of client API key configuration)
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      console.log('📡 Calling backend retailer API:', `${API_URL}/api/instacart/retailers?postalCode=${zipCode}`);
+      
       const response = await fetch(`${API_URL}/api/instacart/retailers?postalCode=${zipCode}&countryCode=US`, {
         method: 'GET',
         headers: {
@@ -52,12 +50,15 @@ class InstacartService {
       });
 
       if (!response.ok) {
+        console.warn(`⚠️ Backend API returned ${response.status}, falling back to mock data`);
         throw new Error(`Backend API error: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('✅ Backend API response:', data);
       
       if (data.success && data.retailers) {
+        console.log(`🏪 Found ${data.retailers.length} real retailers from Instacart API`);
         return {
           success: true,
           retailers: data.retailers
@@ -67,6 +68,7 @@ class InstacartService {
       }
     } catch (error) {
       console.error('❌ Error fetching Instacart retailers from backend:', error);
+      console.log('🔄 Falling back to mock data');
       // Fallback to mock data
       return this.getMockRetailers();
     }
