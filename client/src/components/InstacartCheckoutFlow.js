@@ -458,57 +458,9 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       console.log('🎯 Product resolution completed:', resolution.stats);
       console.log(`✅ Resolved ${resolution.resolved.length}/${resolution.stats.total} items (${resolution.stats.resolutionRate})`);
       
-      if (resolution.resolved.length === 0) {
-        console.log('⚠️ No items were resolved, falling back to recipe-based approach...');
-        return handleRecipeBasedCheckout(resolution);
-      }
-      
-      // Step 2: Create direct Instacart cart with resolved products
-      console.log('🛒 Step 2: Creating direct Instacart cart...');
-      
-      // Prepare cart items with resolved product IDs
-      const cartItems = resolution.resolved.map(item => ({
-        product_id: item.instacartProduct.id,
-        retailer_sku: item.instacartProduct.retailer_sku || item.instacartProduct.sku || item.instacartProduct.id,
-        quantity: item.resolvedDetails?.quantity || item.originalItem?.quantity || 1,
-        name: item.instacartProduct.name || item.resolvedDetails?.name,
-        price: item.instacartProduct.price
-      }));
-      
-      console.log('📦 Prepared cart items for Instacart API:', cartItems.map(item => ({
-        product_id: item.product_id,
-        retailer_sku: item.retailer_sku,
-        quantity: item.quantity,
-        name: item.name,
-        price: item.price
-      })));
-      
-      // Use InstacartService to create direct cart via backend API
-      const cartResult = await instacartService.createDirectCart(
-        cartItems,
-        selectedStore?.id,
-        zipCode,
-        {
-          userId: 'cartsmash_user', // You might want to get this from auth context
-          resolutionStats: resolution.stats,
-          originalItemCount: currentCart.length,
-          resolvedItemCount: resolution.resolved.length
-        }
-      );
-      
-      if (cartResult.success && cartResult.checkoutUrl) {
-        console.log('✅ Direct cart created successfully:', cartResult);
-        console.log(`🛒 Cart ID: ${cartResult.cartId}`);
-        console.log(`📦 Items added: ${cartResult.itemsAdded}`);
-        
-        // Open the direct checkout URL with items pre-added
-        window.open(cartResult.checkoutUrl, '_blank');
-      } else {
-        console.log('⚠️ Direct cart creation failed, falling back to recipe-based approach...');
-        return handleRecipeBasedCheckout(resolution);
-      }
-      
-      onClose();
+      // Skip direct cart creation and use recipe-based approach for reliable results
+      console.log('🛒 Step 2: Using recipe-based approach for reliable Instacart integration...');
+      return handleRecipeBasedCheckout(resolution);
     } catch (error) {
       console.error('❌ Error in direct cart checkout:', error);
       console.log('🔄 Falling back to recipe-based checkout...');
