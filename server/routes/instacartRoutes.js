@@ -92,11 +92,12 @@ router.get('/retailers', async (req, res) => {
         const endpoint = `/retailers?postal_code=${postal}&country_code=${countryCode}`;
         const retailers = await instacartApiCall(endpoint, 'GET', null, INSTACART_CONNECT_API_KEY);
         
-        // Transform response to match our expected format
-        const formattedRetailers = (retailers.retailers || retailers.data || []).map((retailer, index) => ({
-          id: retailer.id || retailer.retailer_id,
+        // Transform response to match official Instacart API format
+        const formattedRetailers = (retailers.retailers || []).map((retailer, index) => ({
+          id: retailer.retailer_key || `retailer_${index}`,
+          retailer_key: retailer.retailer_key,
           name: retailer.name,
-          logo: retailer.logo_url || '🏪',
+          logo: retailer.retailer_logo_url || '🏪',
           estimatedDelivery: retailer.estimated_delivery || '2-4 hours',
           available: retailer.available !== false,
           service_fee: retailer.service_fee || 3.99,

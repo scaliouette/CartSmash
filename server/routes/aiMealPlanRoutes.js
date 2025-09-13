@@ -405,7 +405,7 @@ function buildMealPlanPrompt(preferences) {
   
   prompt += `For each recipe, provide:
     - Recipe name
-    - Complete list of ingredients with exact quantities and measurements
+    - Complete list of ingredients with exact quantities using STANDARD MEASUREMENT UNITS
     - Detailed step-by-step cooking instructions (minimum 6-8 detailed steps for complex dishes)
     - Cooking techniques, temperatures, and timing for each step
     - Required equipment and tools
@@ -414,9 +414,14 @@ function buildMealPlanPrompt(preferences) {
     - Chef tips, tricks, and troubleshooting advice
     - Tags (e.g., vegetarian, quick, make-ahead)
     
+  MEASUREMENT UNITS: Use only these standard units for ingredients:
+  - Liquids: cups, fl oz, tablespoons (tbs), teaspoons (tsp), gallons, pint, quart, milliliters (ml), liters (l)
+  - Solids: pounds (lb), ounces (oz), grams (g), kilograms (kg)  
+  - Count: each, bunch, can, head, package, small, medium, large
+  
   IMPORTANT: For complex recipes like steaks, risottos, or elaborate dishes, provide comprehensive instructions that would allow a home cook to successfully execute the recipe. Include specific temperatures (e.g., "sear until internal temperature reaches 135°F"), timing details, and cooking techniques.
     
-  Also provide a complete grocery shopping list organized by category.
+  Also provide a complete grocery shopping list organized by category using the same measurement standards.
   
   Format the output with clear day headers and detailed recipe sections.`;
   
@@ -440,7 +445,7 @@ function buildSingleMealPrompt({ day, mealType, familySize, existingMeals, prefe
           
           Provide:
           - Recipe name
-          - Complete ingredients list with exact quantities
+          - Complete ingredients list with exact quantities using STANDARD MEASUREMENT UNITS
           - Detailed step-by-step cooking instructions (minimum 6-8 steps for complex dishes)
           - Specific cooking techniques, temperatures, and timing
           - Required equipment and tools
@@ -448,6 +453,11 @@ function buildSingleMealPrompt({ day, mealType, familySize, existingMeals, prefe
           - Estimated calories and nutrition per serving
           - Professional chef tips and troubleshooting advice
           - Tags (dietary, skill level, etc.)
+          
+          MEASUREMENT UNITS: Use only standard units for ingredients:
+          - Liquids: cups, fl oz, tablespoons (tbs), teaspoons (tsp), gallons, pint, quart, milliliters (ml), liters (l)
+          - Solids: pounds (lb), ounces (oz), grams (g), kilograms (kg)  
+          - Count: each, bunch, can, head, package, small, medium, large
           
           IMPORTANT: Provide restaurant-quality detailed instructions that ensure successful execution by home cooks.`;
 }

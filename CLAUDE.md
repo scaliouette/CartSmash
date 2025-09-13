@@ -139,10 +139,17 @@ curl "http://localhost:3037/api/instacart/retailers?postalCode=95670&countryCode
 
 #### Recently Completed (2025-09-11)
 - ✅ Fixed retailers endpoint to use official API parameters (`postal_code`, `country_code`)
+- ✅ Updated response mapping to use official Instacart field names (`retailer_key`, `retailer_logo_url`)
 - ✅ Resolved recipe endpoint 404 errors
 - ✅ Updated API calls to match official Instacart specification
 - ✅ Successfully created test recipes (IDs: 8083325, 8083327)
 - ✅ Verified real API integration working
+
+#### Measurement Standards Integration (2025-09-12)
+- ✅ Implemented official Instacart measurement units in AI meal plan generation
+- ✅ Standardized ingredient units: cups, fl oz, lb, oz, each, bunch, can, head, etc.
+- ✅ Updated both meal plan and single recipe generation prompts
+- ✅ Ensures seamless integration with Instacart recipe creation API
 
 #### Current Integration Status
 - **Status**: Fully functional with development API
@@ -196,8 +203,9 @@ The CartSmash application includes AI-powered meal plan generation that creates 
 
 **2. Enhanced AI Prompts**
 - **File**: `server/routes/aiMealPlanRoutes.js`
-- **Lines**: 309-324 (main meal plan), 344-355 (single meal regeneration)
+- **Lines**: 417-426 (main meal plan), 457-462 (single meal regeneration)
 - **Improvement**: Added explicit requirements for 6-8+ detailed steps, cooking temperatures, timing, equipment, and chef tips
+- **Measurement Standards**: Enforced Instacart-compatible units (cups, fl oz, lb, oz, each, bunch, etc.)
 
 **3. Recipe Quality Validation System**
 - **File**: `server/routes/aiMealPlanRoutes.js:484-520`
