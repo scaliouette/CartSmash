@@ -3746,27 +3746,14 @@ Or paste any grocery list directly!"
               onClick={() => setShowInstacartCheckout(true)}
               style={styles.instacartButton}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(251, 79, 20, 0.4)';
+                e.currentTarget.style.backgroundColor = '#005a3c';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px rgba(251, 79, 20, 0.25)';
+                e.currentTarget.style.backgroundColor = '#003D29';
               }}
               disabled={currentCart.length === 0}
             >
-              <div style={styles.buttonIcon}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" fill="currentColor"/>
-                </svg>
-              </div>
-              <div style={styles.buttonContentOriginal}>
-                <div style={styles.buttonTitle}>CARTSMASH to Instacart</div>
-                <div style={styles.buttonSubtitle}>
-                  Send items to your Instacart cart
-                </div>
-              </div>
-              <div style={styles.buttonArrow}>→</div>
+              Get Recipe Ingredients
             </button>
             
             <div style={styles.checkoutFeatures}>
@@ -4180,22 +4167,21 @@ const styles = {
 
   instacartButton: {
     width: '100%',
-    padding: '24px',
-    background: 'linear-gradient(135deg, #FB4F14 0%, #FF6B35 100%)',
+    height: '46px',
+    padding: '0 16px',
+    background: '#003D29',
     color: 'white',
     border: 'none',
-    borderRadius: '12px',
+    borderRadius: '4px',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    transition: 'all 0.3s ease',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
     fontSize: '16px',
-    fontWeight: '700',
-    boxShadow: '0 4px 16px rgba(251, 79, 20, 0.25)',
-    gap: '20px',
-    position: 'relative',
-    overflow: 'hidden'
+    fontWeight: '600',
+    gap: '8px',
+    textTransform: 'none'
   },
 
   buttonIcon: {

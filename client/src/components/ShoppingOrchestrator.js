@@ -430,7 +430,7 @@ function ShoppingOrchestrator({ items, recipe }) {
                     style={styles.instacartButton}
                     onClick={() => proceedToInstacart()}
                   >
-                    🛒 Shop at {selectedRetailer.name}
+                    Get Recipe Ingredients
                   </button>
                 </div>
               )}
@@ -696,15 +696,17 @@ const styles = {
     marginTop: '20px'
   },
   instacartButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#003D29',
     color: 'white',
     border: 'none',
-    padding: '15px 30px',
-    borderRadius: '8px',
+    padding: '0 16px',
+    height: '46px',
+    borderRadius: '4px',
     fontSize: '16px',
-    fontWeight: 'bold',
+    fontWeight: '600',
     cursor: 'pointer',
-    transition: 'background-color 0.2s'
+    transition: 'background-color 0.2s',
+    textTransform: 'none'
   }
 };
 
