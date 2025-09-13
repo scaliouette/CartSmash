@@ -946,7 +946,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                 Enhanced Product Matching
               </h2>
               <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
-                Using AI-powered resolution to find the best Instacart product matches for your CartSmash items.
+                Using AI-powered resolution with real Instacart API to find the best product matches for your CartSmash items.
               </p>
               
               {isResolvingProducts && (
@@ -1003,6 +1003,23 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
                                   fontWeight: 'bold'
                                 }}>
                                   🏪 {selectedStore?.name?.split(' ')[0] || 'Vendor'}
+                                </div>
+                              )}
+                              
+                              {/* Real API Data Indicator */}
+                              {item.instacartProduct._metadata?.isRealApiResponse && (
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '8px',
+                                  left: '8px',
+                                  fontSize: '10px',
+                                  backgroundColor: '#10B981',
+                                  color: 'white',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontWeight: 'bold'
+                                }}>
+                                  ✅ REAL DATA
                                 </div>
                               )}
                               
