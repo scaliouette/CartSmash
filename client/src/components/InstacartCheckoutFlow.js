@@ -549,15 +549,28 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
         console.log(`⚠️ Unresolved ingredient: ${basicItem} (${item.reason})`);
       });
       
-      // Create recipe using existing method
-      const recipeResult = await instacartService.exportGroceryListAsRecipe(enhancedIngredients, {
+      // Use enhanced server-side recipe API instead of client-side
+      const { createInstacartRecipePage } = await import('../services/aiMealPlanService');
+      
+      const recipeData = {
+        name: `CartSmash List - ${new Date().toLocaleDateString()}`,
         title: `CartSmash List - ${new Date().toLocaleDateString()}`,
-        imageUrl: 'https://via.placeholder.com/400x300/FF6B35/white?text=CartSmash+List',
-        preferredRetailer: selectedStore?.id === 'safeway' ? 'safeway' : undefined,
-        partnerUrl: 'https://cartsmash.com',
-        trackPantryItems: false,
-        resolutionStats: resolution.stats
-      });
+        instructions: [
+          'This is a grocery shopping list created with CartSmash.',
+          'Add these items to your Instacart cart and proceed to checkout.',
+          'Enjoy your shopping experience!'
+        ],
+        ingredients: enhancedIngredients.map((ingredient, index) => ({
+          name: ingredient,
+          quantity: 1,
+          unit: 'each',
+          displayText: ingredient
+        })),
+        servings: 1,
+        id: `cartsmash-list-${Date.now()}`
+      };
+      
+      const recipeResult = await createInstacartRecipePage(recipeData);
       
       console.log('✅ Fallback recipe created:', recipeResult);
       

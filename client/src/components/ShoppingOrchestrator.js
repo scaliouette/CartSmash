@@ -217,7 +217,43 @@ function ShoppingOrchestrator({ items, recipe }) {
 
       console.log('🛒 Starting Instacart checkout process...');
       
-      // First create a shopping list
+      // If we have a recipe, use enhanced recipe API instead of shopping list
+      if (recipe && recipe.name && recipe.instructions) {
+        console.log('🍳 Creating enhanced Instacart recipe page...');
+        
+        try {
+          // Import the AI meal plan service for recipe creation
+          const { createInstacartRecipePage } = await import('../services/aiMealPlanService');
+          
+          // Transform items to ingredients format
+          const recipeData = {
+            name: recipe.name,
+            title: recipe.name,
+            instructions: recipe.instructions || ['Follow the recipe instructions'],
+            ingredients: items.map(item => ({
+              name: item.name,
+              quantity: item.quantity || 1,
+              unit: item.unit || 'each',
+              displayText: `${item.quantity || 1} ${item.unit || 'each'} ${item.name}`
+            })),
+            servings: recipe.servings || 4,
+            id: recipe.id || `recipe-${Date.now()}`
+          };
+          
+          const recipeResult = await createInstacartRecipePage(recipeData);
+          
+          if (recipeResult.success && recipeResult.instacartUrl) {
+            console.log('✅ Enhanced Instacart recipe created:', recipeResult.instacartUrl);
+            window.open(recipeResult.instacartUrl, '_blank');
+            alert(`✅ Recipe page created! Opening Instacart recipe: "${recipe.name}"`);
+            return;
+          }
+        } catch (recipeError) {
+          console.log('Recipe creation failed, falling back to shopping list:', recipeError);
+        }
+      }
+      
+      // Fallback: Create shopping list for non-recipe items or if recipe creation fails
       const listName = recipe?.name ? `${recipe.name} - CartSmash` : 'CartSmash Grocery List';
       const listResponse = await instacartService.createShoppingList(items, listName);
       
