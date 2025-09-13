@@ -474,7 +474,10 @@
       "Bash(REACT_APP_API_URL=http://localhost:3065 PORT=3066 npm start)",
       "Bash(NODE_ENV=development PORT=3067 npm start)",
       "Bash(REACT_APP_API_URL=http://localhost:3067 PORT=3068 npm start)",
-      "Bash(start http://localhost:3068)"
+      "Bash(start http://localhost:3068)",
+      "Bash(set REACT_APP_API_URL=http://localhost:3067)",
+      "Bash(set PORT=3069)",
+      "Bash(start http://localhost:3069)"
     ],
     "deny": [],
     "ask": []
