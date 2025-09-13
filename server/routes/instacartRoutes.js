@@ -900,6 +900,7 @@ router.post('/recipe/create', async (req, res) => {
           };
           
           // Add measurements with support for multiple measurements
+          // NOTE: Instacart attempts to match quantities but cannot guarantee successful quantity matching per FAQ
           if (ingredient.measurements && Array.isArray(ingredient.measurements)) {
             formatted.measurements = ingredient.measurements.map(m => ({
               quantity: parseFloat(m.quantity) || 1,
@@ -943,10 +944,11 @@ router.post('/recipe/create', async (req, res) => {
           if (ingredient.brandFilters || ingredient.healthFilters || globalHealthFilters.length > 0) {
             formatted.filters = {};
             
+            // Best practice: Add only brand names in brand_filters array per FAQ
             if (ingredient.brandFilters) {
               formatted.filters.brand_filters = Array.isArray(ingredient.brandFilters) 
-                ? ingredient.brandFilters 
-                : [ingredient.brandFilters];
+                ? ingredient.brandFilters.map(brand => typeof brand === 'string' ? brand : brand.name || brand)
+                : [typeof ingredient.brandFilters === 'string' ? ingredient.brandFilters : ingredient.brandFilters.name || ingredient.brandFilters];
             }
             
             // Combine ingredient-specific and global health filters
