@@ -477,7 +477,8 @@
       "Bash(start http://localhost:3068)",
       "Bash(set REACT_APP_API_URL=http://localhost:3067)",
       "Bash(set PORT=3069)",
-      "Bash(start http://localhost:3069)"
+      "Bash(start http://localhost:3069)",
+      "Bash(vercel:*)"
     ],
     "deny": [],
     "ask": []
