@@ -19,6 +19,56 @@ const API_ENDPOINTS = {
 
 const BASE_URL = NODE_ENV === 'production' ? API_ENDPOINTS.PRODUCTION : API_ENDPOINTS.DEVELOPMENT;
 
+// Recipe caching system - Best practice per Instacart docs
+const crypto = require('crypto');
+const recipeCache = new Map();
+const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+
+// Generate cache key for recipe based on content
+function generateRecipeCacheKey(recipeData) {
+  const keyData = {
+    title: recipeData.title,
+    ingredients: recipeData.ingredients?.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+    instructions: recipeData.instructions,
+    servings: recipeData.servings,
+    author: recipeData.author
+  };
+  return crypto.createHash('md5').update(JSON.stringify(keyData)).digest('hex');
+}
+
+// Check if cached recipe is still valid
+function isCacheValid(cacheEntry) {
+  return cacheEntry && (Date.now() - cacheEntry.timestamp < CACHE_DURATION);
+}
+
+// Get cached recipe URL if available and valid
+function getCachedRecipeUrl(cacheKey) {
+  const cached = recipeCache.get(cacheKey);
+  if (isCacheValid(cached)) {
+    console.log(`🎯 Using cached recipe URL for key: ${cacheKey}`);
+    return cached;
+  }
+  
+  if (cached) {
+    recipeCache.delete(cacheKey); // Remove expired cache
+    console.log(`🗑️ Removed expired cache for key: ${cacheKey}`);
+  }
+  
+  return null;
+}
+
+// Cache recipe URL with expiration
+function cacheRecipeUrl(cacheKey, result) {
+  const cacheEntry = {
+    ...result,
+    timestamp: Date.now(),
+    cacheKey
+  };
+  recipeCache.set(cacheKey, cacheEntry);
+  console.log(`💾 Cached recipe URL for key: ${cacheKey}`);
+  return cacheEntry;
+}
+
 // Helper function to make authenticated Instacart API calls with updated 2025 format
 const instacartApiCall = async (endpoint, method = 'GET', data = null, apiKey = null) => {
   try {
@@ -737,6 +787,59 @@ router.post('/batch-search', async (req, res) => {
 });
 
 // POST /api/instacart/recipe/create - Create recipe page using Instacart Developer Platform API
+// Helper function to map dietary restrictions to health filters
+function mapDietaryRestrictionsToHealthFilters(dietaryRestrictions) {
+  if (!dietaryRestrictions || !Array.isArray(dietaryRestrictions)) return [];
+  
+  const healthFilterMap = {
+    'vegetarian': ['VEGAN'],
+    'vegan': ['VEGAN'],
+    'gluten-free': ['GLUTEN_FREE'],
+    'gluten free': ['GLUTEN_FREE'],
+    'organic': ['ORGANIC'],
+    'kosher': ['KOSHER'],
+    'sugar-free': ['SUGAR_FREE'],
+    'sugar free': ['SUGAR_FREE'],
+    'low-fat': ['LOW_FAT'],
+    'low fat': ['LOW_FAT'],
+    'fat-free': ['FAT_FREE'],
+    'fat free': ['FAT_FREE']
+  };
+  
+  const filters = [];
+  dietaryRestrictions.forEach(restriction => {
+    const normalized = restriction.toLowerCase();
+    if (healthFilterMap[normalized]) {
+      filters.push(...healthFilterMap[normalized]);
+    }
+  });
+  
+  return [...new Set(filters)]; // Remove duplicates
+}
+
+// Helper function to extract cooking time from instructions
+function extractCookingTime(instructions) {
+  if (!instructions || !Array.isArray(instructions)) return null;
+  
+  const timePattern = /(\d+)\s*(?:minutes?|mins?|hours?|hrs?)/i;
+  let totalMinutes = 0;
+  
+  instructions.forEach(instruction => {
+    const matches = instruction.match(timePattern);
+    if (matches) {
+      const time = parseInt(matches[1]);
+      const unit = matches[0].toLowerCase();
+      if (unit.includes('hour') || unit.includes('hr')) {
+        totalMinutes += time * 60;
+      } else {
+        totalMinutes += time;
+      }
+    }
+  });
+  
+  return totalMinutes > 0 ? totalMinutes : null;
+}
+
 router.post('/recipe/create', async (req, res) => {
   try {
     const { 
@@ -746,10 +849,15 @@ router.post('/recipe/create', async (req, res) => {
       ingredients, 
       partnerUrl, 
       enablePantryItems,
-      retailerKey 
+      retailerKey,
+      author,
+      servings,
+      cookingTime,
+      dietaryRestrictions,
+      externalReferenceId 
     } = req.body;
     
-    console.log(`🍳 Creating Instacart recipe: "${title}"`);
+    console.log(`🍳 Creating enhanced Instacart recipe: "${title}"`);
     
     if (!title || !instructions || !ingredients || ingredients.length === 0) {
       return res.status(400).json({
@@ -758,24 +866,60 @@ router.post('/recipe/create', async (req, res) => {
       });
     }
     
+    // Check cache first - Best practice per Instacart docs
+    const cacheKey = generateRecipeCacheKey({ title, ingredients, instructions, servings, author });
+    const cachedResult = getCachedRecipeUrl(cacheKey);
+    
+    if (cachedResult) {
+      // Return cached result with retailer key if provided
+      let finalUrl = cachedResult.instacartUrl;
+      if (retailerKey && finalUrl) {
+        const separator = finalUrl.includes('?') ? '&' : '?';
+        finalUrl += `${separator}retailer_key=${retailerKey}`;
+      }
+      
+      return res.json({
+        ...cachedResult,
+        instacartUrl: finalUrl,
+        cached: true,
+        cacheAge: Math.round((Date.now() - cachedResult.timestamp) / 1000 / 60), // minutes
+      });
+    }
+
     // Check if we have valid API keys
     if (validateApiKeys()) {
       try {
-        // Transform ingredients to Instacart format
+        // Map dietary restrictions to health filters
+        const globalHealthFilters = mapDietaryRestrictionsToHealthFilters(dietaryRestrictions);
+        
+        // Transform ingredients to enhanced Instacart format
         const formattedIngredients = ingredients.map(ingredient => {
           const formatted = {
             name: ingredient.name || ingredient.item,
             display_text: ingredient.displayText || ingredient.name || ingredient.item
           };
           
-          // Add measurements if provided
-          if (ingredient.quantity && ingredient.unit) {
+          // Add measurements with support for multiple measurements
+          if (ingredient.measurements && Array.isArray(ingredient.measurements)) {
+            formatted.measurements = ingredient.measurements.map(m => ({
+              quantity: parseFloat(m.quantity) || 1,
+              unit: m.unit || 'each'
+            }));
+          } else if (ingredient.quantity && ingredient.unit) {
             formatted.measurements = [{
               quantity: parseFloat(ingredient.quantity) || 1,
               unit: ingredient.unit
             }];
+            
+            // Add alternative measurements if available
+            if (ingredient.alternativeMeasurements) {
+              formatted.measurements.push(...ingredient.alternativeMeasurements.map(m => ({
+                quantity: parseFloat(m.quantity) || 1,
+                unit: m.unit
+              })));
+            }
           } else if (ingredient.amount) {
-            // Parse amount like "2 cups" or "1 large"
+            // Parse amount like "2 cups" or "1 large" 
             const match = ingredient.amount.match(/^(\d+(?:\.\d+)?)\s*(.+)$/);
             if (match) {
               formatted.measurements = [{
@@ -785,58 +929,101 @@ router.post('/recipe/create', async (req, res) => {
             }
           }
           
-          // Add filters if provided
-          if (ingredient.brandFilters || ingredient.healthFilters) {
+          // Add UPCs if provided
+          if (ingredient.upcs) {
+            formatted.upcs = Array.isArray(ingredient.upcs) ? ingredient.upcs : [ingredient.upcs];
+          }
+          
+          // Add product IDs if provided
+          if (ingredient.productIds) {
+            formatted.product_ids = Array.isArray(ingredient.productIds) ? ingredient.productIds : [ingredient.productIds];
+          }
+          
+          // Add filters with health filter inheritance
+          if (ingredient.brandFilters || ingredient.healthFilters || globalHealthFilters.length > 0) {
             formatted.filters = {};
+            
             if (ingredient.brandFilters) {
               formatted.filters.brand_filters = Array.isArray(ingredient.brandFilters) 
                 ? ingredient.brandFilters 
                 : [ingredient.brandFilters];
             }
-            if (ingredient.healthFilters) {
-              formatted.filters.health_filters = Array.isArray(ingredient.healthFilters) 
-                ? ingredient.healthFilters 
-                : [ingredient.healthFilters];
+            
+            // Combine ingredient-specific and global health filters
+            const ingredientHealthFilters = ingredient.healthFilters 
+              ? (Array.isArray(ingredient.healthFilters) ? ingredient.healthFilters : [ingredient.healthFilters])
+              : [];
+            
+            const combinedHealthFilters = [...new Set([...globalHealthFilters, ...ingredientHealthFilters])];
+            if (combinedHealthFilters.length > 0) {
+              formatted.filters.health_filters = combinedHealthFilters;
             }
           }
           
           return formatted;
         });
         
-        // Build recipe payload
+        // Extract cooking time from instructions if not provided
+        const finalCookingTime = cookingTime || extractCookingTime(instructions);
+        
+        // Build enhanced recipe payload
         const recipePayload = {
           title,
-          image_url: imageUrl || 'https://via.placeholder.com/400x300/4CAF50/white?text=CartSmash+Recipe',
-          link_type: 'recipe',
+          author: author || 'CartSmash AI',
+          servings: servings || 4,
+          cooking_time: finalCookingTime,
+          image_url: imageUrl || `https://via.placeholder.com/500x500/4CAF50/white?text=${encodeURIComponent(title)}`,
           instructions: Array.isArray(instructions) ? instructions : [instructions],
           ingredients: formattedIngredients,
+          external_reference_id: externalReferenceId,
+          content_creator_credit_info: 'Generated by CartSmash AI',
+          expires_in: 30, // 30 days as recommended for recipes
           landing_page_configuration: {
             partner_linkback_url: partnerUrl || 'https://cartsmash.com',
             enable_pantry_items: enablePantryItems !== false
           }
         };
         
-        console.log('📤 Creating recipe with payload:', JSON.stringify(recipePayload, null, 2));
+        // Remove undefined/null values
+        Object.keys(recipePayload).forEach(key => {
+          if (recipePayload[key] === undefined || recipePayload[key] === null) {
+            delete recipePayload[key];
+          }
+        });
+        
+        console.log('📤 Creating enhanced recipe with payload:', JSON.stringify(recipePayload, null, 2));
         
         const response = await instacartApiCall('/products/recipe', 'POST', recipePayload);
         
-        console.log('✅ Recipe created successfully:', response);
+        console.log('✅ Enhanced recipe created successfully:', response);
         
-        // Format response
+        // Format enhanced response
         const result = {
           success: true,
           recipeId: response.products_link_url?.match(/recipes\/(\d+)/)?.[1],
           instacartUrl: response.products_link_url,
           title,
+          author: recipePayload.author,
+          servings: recipePayload.servings,
+          cookingTime: finalCookingTime,
           ingredientsCount: formattedIngredients.length,
-          createdAt: new Date().toISOString()
+          healthFiltersApplied: globalHealthFilters,
+          createdAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
         };
+        
+        // Cache the new recipe URL for future use
+        const cachedResult = cacheRecipeUrl(cacheKey, result);
         
         // Add retailer key to URL if provided
         if (retailerKey && result.instacartUrl) {
           const separator = result.instacartUrl.includes('?') ? '&' : '?';
           result.instacartUrl += `${separator}retailer_key=${retailerKey}`;
         }
+        
+        // Add cache info to response
+        result.cached = false;
+        result.cacheKey = cacheKey;
         
         res.json(result);
         return;

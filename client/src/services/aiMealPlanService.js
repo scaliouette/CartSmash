@@ -391,6 +391,91 @@ export async function regenerateMeal(uid, mealPlanId, day, mealType, preferences
 }
 
 /**
+ * Create enhanced Instacart recipe page from AI-generated recipe
+ */
+export async function createInstacartRecipePage(recipe, preferences = {}) {
+  try {
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    
+    // Map recipe data to enhanced Instacart format
+    const recipePayload = {
+      title: recipe.name || recipe.title,
+      author: 'CartSmash AI',
+      servings: recipe.servings || 4,
+      instructions: recipe.instructions || [],
+      ingredients: recipe.ingredients?.map(ingredient => ({
+        name: ingredient.name || ingredient.item,
+        quantity: ingredient.quantity || 1,
+        unit: ingredient.unit || 'each',
+        displayText: ingredient.displayText || ingredient.name || ingredient.item
+      })) || [],
+      dietaryRestrictions: preferences.dietaryRestrictions || [],
+      partnerUrl: `https://cartsmash.com/recipe/${recipe.id || 'generated'}`,
+      enablePantryItems: true,
+      externalReferenceId: recipe.id
+    };
+    
+    console.log('🍳 Creating enhanced Instacart recipe:', recipePayload.title);
+    
+    const response = await fetch(`${API_URL}/api/instacart/recipe/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(recipePayload)
+    });
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to create Instacart recipe');
+    }
+    
+    console.log('✅ Enhanced Instacart recipe created:', data.instacartUrl);
+    return data;
+  } catch (error) {
+    console.error('Error creating enhanced Instacart recipe:', error);
+    throw error;
+  }
+}
+
+/**
+ * Bulk create Instacart recipe pages for meal plan recipes
+ */
+export async function bulkCreateInstacartRecipes(recipes, preferences = {}) {
+  try {
+    const results = {
+      successful: [],
+      failed: []
+    };
+    
+    for (const recipe of recipes) {
+      try {
+        const instacartResult = await createInstacartRecipePage(recipe, preferences);
+        results.successful.push({
+          recipeId: recipe.id,
+          recipeName: recipe.name,
+          instacartUrl: instacartResult.instacartUrl,
+          cached: instacartResult.cached || false
+        });
+        
+        // Add small delay to avoid overwhelming the API
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error(`Failed to create Instacart recipe for ${recipe.name}:`, error);
+        results.failed.push({
+          recipeId: recipe.id,
+          recipeName: recipe.name,
+          error: error.message
+        });
+      }
+    }
+    
+    return results;
+  } catch (error) {
+    console.error('Error in bulk Instacart recipe creation:', error);
+    throw error;
+  }
+}
+
+/**
  * Update meal assignment in meal plan
  */
 async function updateMealAssignment(uid, mealPlanId, day, mealType, recipe) {

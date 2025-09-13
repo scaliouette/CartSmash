@@ -460,7 +460,9 @@
       "Bash(start http://localhost:3054)",
       "Bash(NODE_ENV=development PORT=3055 npm start)",
       "Bash(REACT_APP_API_URL=http://localhost:3055 PORT=3056 npm start)",
-      "Bash(start http://localhost:3056)"
+      "Bash(start http://localhost:3056)",
+      "Bash(start https://customers.dev.instacart.tools/store/recipes/8083953)",
+      "Bash(del test-enhanced-recipe.js)"
     ],
     "deny": [],
     "ask": []
