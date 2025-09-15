@@ -21,7 +21,9 @@ const InstacartCheckoutMobile = ({
   const [error, setError] = useState(null);
 
   // Mobile-specific features
+  // eslint-disable-next-line no-unused-vars
   const [swipeDirection, setSwipeDirection] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [isFullScreen, setIsFullScreen] = useState(true);
 
   // Load retailers
