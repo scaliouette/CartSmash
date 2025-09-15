@@ -1,6 +1,6 @@
 // client/src/components/InstacartCheckoutMobile.js
 // Mobile-optimized version of Instacart checkout
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import instacartCheckoutService from '../services/instacartCheckoutService';
 import './InstacartCheckoutMobile.css';
 
