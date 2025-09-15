@@ -7,7 +7,7 @@ import RecipeInstacartIntegration from './RecipeInstacartIntegration';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
 import './InstacartCheckoutDemo.css';
 
-const InstacartCheckoutDemo = () => {
+const InstacartCheckoutDemo = ({ onClose }) => {
   const [showCheckout, setShowCheckout] = useState(false);
   const [showRecipeIntegration, setShowRecipeIntegration] = useState(false);
   const [checkoutMode, setCheckoutMode] = useState('cart');
@@ -61,6 +61,33 @@ const InstacartCheckoutDemo = () => {
       category: 'produce',
       price: 2.99,
       confidence: 0.9
+    },
+    {
+      id: 'item_6',
+      productName: 'Organic Avocados',
+      quantity: 4,
+      unit: 'each',
+      category: 'produce',
+      price: 1.49,
+      confidence: 0.95
+    },
+    {
+      id: 'item_7',
+      productName: 'Greek Yogurt',
+      quantity: 1,
+      unit: 'container',
+      category: 'dairy',
+      price: 4.99,
+      confidence: 0.8
+    },
+    {
+      id: 'item_8',
+      productName: 'Quinoa',
+      quantity: 1,
+      unit: 'bag',
+      category: 'grains',
+      price: 5.99,
+      confidence: 0.7
     }
   ];
 
@@ -95,35 +122,6 @@ const InstacartCheckoutDemo = () => {
     dietaryRestrictions: ['GLUTEN_FREE']
   };
 
-  const customCartItems = [
-    {
-      id: 'custom_1',
-      productName: 'Organic Avocados',
-      quantity: 4,
-      unit: 'each',
-      category: 'produce',
-      price: 1.49,
-      confidence: 0.95
-    },
-    {
-      id: 'custom_2',
-      productName: 'Greek Yogurt',
-      quantity: 1,
-      unit: 'container',
-      category: 'dairy',
-      price: 4.99,
-      confidence: 0.8
-    },
-    {
-      id: 'custom_3',
-      productName: 'Quinoa',
-      quantity: 1,
-      unit: 'bag',
-      category: 'grains',
-      price: 5.99,
-      confidence: 0.7
-    }
-  ];
 
   // ============ EVENT HANDLERS ============
 
@@ -235,25 +233,24 @@ const InstacartCheckoutDemo = () => {
     <InstacartCheckoutProvider>
       <div className="instacart-checkout-demo">
         <div className="demo-header">
-          <h1>🛒 Instacart Checkout System Demo</h1>
-          <p>Test the new Instacart-based checkout system with sample data</p>
+          <div className="demo-header-content">
+            <h1>🛒 Instacart Checkout System Demo</h1>
+            <p>Test the new Instacart-based checkout system with sample data</p>
+          </div>
+          {onClose && (
+            <button className="demo-close-btn" onClick={onClose} title="Close Demo">
+              ✕
+            </button>
+          )}
         </div>
 
         <div className="demo-grid">
           {renderDemoSection(
-            "Basic Cart Checkout",
-            "Sample cart with mixed grocery items from CartSmash parsing",
+            "Cart Checkout Demo",
+            "Mixed grocery items with varying confidence levels - ready for Instacart checkout",
             sampleCartItems,
             handleStartCheckout,
             "Checkout with Instacart"
-          )}
-
-          {renderDemoSection(
-            "Custom Items",
-            "Manually created items with different confidence levels",
-            customCartItems,
-            handleStartCheckout,
-            "Checkout Custom Items"
           )}
 
           {renderRecipeSection(sampleRecipe, handleStartRecipeIntegration)}

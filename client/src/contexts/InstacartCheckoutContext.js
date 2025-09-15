@@ -319,7 +319,7 @@ export const InstacartCheckoutProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [checkoutState, setLoading, clearError, setError]);
+  }, [checkoutState, setLoading, clearError, setError, createRecipeCheckout, createShoppingListCheckout]);
 
   const createRecipeCheckout = useCallback(async (instacartItems, options) => {
     const recipeData = {

@@ -27,7 +27,7 @@ const InstacartCheckoutMobile = ({
   const [isFullScreen, setIsFullScreen] = useState(true);
 
   // Load retailers
-  const loadRetailers = async () => {
+  const loadRetailers = useCallback(async () => {
     setLoading(true);
     try {
       const result = await instacartCheckoutService.getAvailableRetailers(location, 'US');
@@ -39,11 +39,11 @@ const InstacartCheckoutMobile = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [location]);
 
   useEffect(() => {
     loadRetailers();
-  }, [location]);
+  }, [location, loadRetailers]);
 
   // Mobile-optimized retailer selection
   const renderMobileRetailerSelection = () => (
