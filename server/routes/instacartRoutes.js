@@ -1126,9 +1126,26 @@ router.post('/recipe/create', async (req, res) => {
     // Check if we have valid API keys
     if (validateApiKeys()) {
       try {
+        // Valid health filters as per API specification
+        const VALID_HEALTH_FILTERS = ['ORGANIC', 'GLUTEN_FREE', 'FAT_FREE', 'VEGAN', 'KOSHER', 'SUGAR_FREE', 'LOW_FAT'];
+
+        // Validate health filters function
+        const validateHealthFilters = (filters) => {
+          if (!filters || filters.length === 0) return [];
+          const invalidFilters = filters.filter(filter => !VALID_HEALTH_FILTERS.includes(filter));
+          if (invalidFilters.length > 0) {
+            throw new Error(`Invalid health filters: ${JSON.stringify(invalidFilters)}`);
+          }
+          return filters;
+        };
+
         // Map dietary restrictions to health filters
-        const globalHealthFilters = mapDietaryRestrictionsToHealthFilters(dietaryRestrictions);
+        const globalHealthFilters = validateHealthFilters(mapDietaryRestrictionsToHealthFilters(dietaryRestrictions));
         
+        // Track product identifiers to prevent duplicates
+        const usedProductIds = new Set();
+        const usedUpcs = new Set();
+
         // Transform ingredients to enhanced Instacart format
         const formattedIngredients = ingredients.map(ingredient => {
           const formatted = {
@@ -1139,22 +1156,38 @@ router.post('/recipe/create', async (req, res) => {
           // Add measurements with support for multiple measurements
           // NOTE: Instacart attempts to match quantities but cannot guarantee successful quantity matching per FAQ
           if (ingredient.measurements && Array.isArray(ingredient.measurements)) {
-            formatted.measurements = ingredient.measurements.map(m => ({
-              quantity: parseFloat(m.quantity) || 1,
-              unit: m.unit || 'each'
-            }));
+            formatted.measurements = ingredient.measurements.map(m => {
+              const quantity = parseFloat(m.quantity) || 1;
+              if (quantity <= 0) {
+                throw new Error(`Invalid quantity: ${quantity}. Cannot be lower than or equal to 0.0`);
+              }
+              return {
+                quantity: quantity,
+                unit: m.unit || 'each'
+              };
+            });
           } else if (ingredient.quantity && ingredient.unit) {
+            const quantity = parseFloat(ingredient.quantity) || 1;
+            if (quantity <= 0) {
+              throw new Error(`Invalid quantity: ${quantity}. Cannot be lower than or equal to 0.0`);
+            }
             formatted.measurements = [{
-              quantity: parseFloat(ingredient.quantity) || 1,
+              quantity: quantity,
               unit: ingredient.unit
             }];
             
             // Add alternative measurements if available
             if (ingredient.alternativeMeasurements) {
-              formatted.measurements.push(...ingredient.alternativeMeasurements.map(m => ({
-                quantity: parseFloat(m.quantity) || 1,
-                unit: m.unit
-              })));
+              formatted.measurements.push(...ingredient.alternativeMeasurements.map(m => {
+                const quantity = parseFloat(m.quantity) || 1;
+                if (quantity <= 0) {
+                  throw new Error(`Invalid quantity: ${quantity}. Cannot be lower than or equal to 0.0`);
+                }
+                return {
+                  quantity: quantity,
+                  unit: m.unit
+                };
+              }));
             }
           } else if (ingredient.amount) {
             // Parse amount like "2 cups" or "1 large" 
@@ -1167,14 +1200,35 @@ router.post('/recipe/create', async (req, res) => {
             }
           }
           
+          // Validate that UPCs and product IDs are mutually exclusive (API requirement)
+          if (ingredient.upcs && ingredient.productIds) {
+            throw new Error(`Line item "${ingredient.name}" cannot have both product_ids and upcs. They are mutually exclusive.`);
+          }
+
           // Add UPCs if provided
           if (ingredient.upcs) {
-            formatted.upcs = Array.isArray(ingredient.upcs) ? ingredient.upcs : [ingredient.upcs];
+            const upcArray = Array.isArray(ingredient.upcs) ? ingredient.upcs : [ingredient.upcs];
+            // Check for duplicate UPCs
+            for (const upc of upcArray) {
+              if (usedUpcs.has(upc)) {
+                throw new Error(`Duplicate product identifiers found: upc ${upc}`);
+              }
+              usedUpcs.add(upc);
+            }
+            formatted.upcs = upcArray;
           }
-          
+
           // Add product IDs if provided
           if (ingredient.productIds) {
-            formatted.product_ids = Array.isArray(ingredient.productIds) ? ingredient.productIds : [ingredient.productIds];
+            const productIdArray = Array.isArray(ingredient.productIds) ? ingredient.productIds : [ingredient.productIds];
+            // Check for duplicate product IDs
+            for (const productId of productIdArray) {
+              if (usedProductIds.has(productId)) {
+                throw new Error(`Duplicate product identifiers found: product_id ${productId}`);
+              }
+              usedProductIds.add(productId);
+            }
+            formatted.product_ids = productIdArray;
           }
           
           // Add filters with health filter inheritance
@@ -1189,10 +1243,10 @@ router.post('/recipe/create', async (req, res) => {
             }
             
             // Combine ingredient-specific and global health filters
-            const ingredientHealthFilters = ingredient.healthFilters 
-              ? (Array.isArray(ingredient.healthFilters) ? ingredient.healthFilters : [ingredient.healthFilters])
+            const ingredientHealthFilters = ingredient.healthFilters
+              ? validateHealthFilters(Array.isArray(ingredient.healthFilters) ? ingredient.healthFilters : [ingredient.healthFilters])
               : [];
-            
+
             const combinedHealthFilters = [...new Set([...globalHealthFilters, ...ingredientHealthFilters])];
             if (combinedHealthFilters.length > 0) {
               formatted.filters.health_filters = combinedHealthFilters;

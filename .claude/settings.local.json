@@ -481,7 +481,8 @@
       "Bash(vercel:*)",
       "Bash(NODE_ENV=development PORT=3070 npm start)",
       "Bash(REACT_APP_API_URL=http://localhost:3070 PORT=3071 npm start)",
-      "Bash(start http://localhost:3071)"
+      "Bash(start http://localhost:3071)",
+      "Bash(del test-enhanced-recipe-api.js)"
     ],
     "deny": [],
     "ask": []
