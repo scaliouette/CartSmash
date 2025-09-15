@@ -1,7 +1,7 @@
 // client/src/components/RetailerSelector.js
 // Dedicated retailer selection component for Instacart checkout
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import instacartCheckoutService from '../services/instacartCheckoutService';
 import './RetailerSelector.css';
 
@@ -18,9 +18,9 @@ const RetailerSelector = ({
 
   useEffect(() => {
     loadRetailers();
-  }, [location]);
+  }, [location, loadRetailers]);
 
-  const loadRetailers = async () => {
+  const loadRetailers = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -53,7 +53,7 @@ const RetailerSelector = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [location, selectedRetailer, onRetailerSelect]);
 
   const getFallbackRetailers = () => [
     {

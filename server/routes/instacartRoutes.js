@@ -1490,7 +1490,7 @@ router.post('/shopping-list/create', async (req, res) => {
             if (item.filters?.health_filters || item.healthFilters) {
               const VALID_HEALTH_FILTERS = [
                 'ORGANIC', 'GLUTEN_FREE', 'FAT_FREE', 'VEGAN', 'KOSHER',
-                'SUGAR_FREE', 'LOW_FAT', 'VEGETARIAN', 'DAIRY_FREE', 'KETO'
+                'SUGAR_FREE', 'LOW_FAT', 'VEGETARIAN', 'KETO'
               ];
               const health = item.filters?.health_filters || item.healthFilters;
               const healthArray = Array.isArray(health) ? health : [health];

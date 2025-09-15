@@ -176,7 +176,7 @@ function AppContent({
       console.error('Firebase sync error:', error);
       setSyncStatus('error');
     }
-  }, [setSyncStatus, setSavedLists, setSavedRecipes, setMealPlans]);
+  }, [setSyncStatus, setSavedLists, setSavedRecipes, setMealPlans, setParsedRecipes]);
   
   // Enhanced cart hydration with race condition protection
   const hydrateCartFromFirestore = useCallback(async () => {

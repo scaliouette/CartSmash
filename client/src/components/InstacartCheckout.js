@@ -27,7 +27,7 @@ const InstacartCheckout = ({
   // Load retailers on component mount
   useEffect(() => {
     loadRetailers();
-  }, [location]);
+  }, [location, loadRetailers]);
 
   // Load initial retailer selection
   useEffect(() => {
@@ -43,11 +43,11 @@ const InstacartCheckout = ({
     if (selectedRetailer && checkoutItems.length > 0) {
       updateCartEstimate();
     }
-  }, [selectedRetailer, checkoutItems]);
+  }, [selectedRetailer, checkoutItems, updateCartEstimate]);
 
   // ============ RETAILER MANAGEMENT ============
 
-  const loadRetailers = async () => {
+  const loadRetailers = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -79,7 +79,7 @@ const InstacartCheckout = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [location]);
 
   const handleRetailerSelect = async (retailer) => {
     console.log(`🏪 Selected retailer: ${retailer.name}`);
@@ -139,7 +139,7 @@ const InstacartCheckout = ({
 
   // ============ CART MANAGEMENT ============
 
-  const updateCartEstimate = () => {
+  const updateCartEstimate = useCallback(() => {
     if (!selectedRetailer || checkoutItems.length === 0) return;
 
     const estimate = instacartCheckoutService.calculateEstimatedTotal(
@@ -147,7 +147,7 @@ const InstacartCheckout = ({
       selectedRetailer
     );
     setCartEstimate(estimate);
-  };
+  }, [selectedRetailer, checkoutItems]);
 
   const handleItemUpdate = (itemIndex, updates) => {
     const updatedItems = [...checkoutItems];

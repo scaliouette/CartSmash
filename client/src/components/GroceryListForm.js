@@ -6,10 +6,8 @@ import ParsedResultsDisplay from './ParsedResultsDisplay';
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
 import InstacartCheckout from './InstacartCheckout';
-import InstacartCheckoutMobile from './InstacartCheckoutMobile';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
-import { useDeviceDetection } from '../hooks/useDeviceDetection';
-import { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './LoadingSpinner';
+import { ButtonSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
 // eslint-disable-next-line no-unused-vars
 import AIParsingSettings from './AIParsingSettings';
@@ -549,9 +547,11 @@ function GroceryListForm({
   const [showAISettings, setShowAISettings] = useState(false);
 
   // Device detection for mobile optimization
+  // eslint-disable-next-line no-unused-vars
   const { isMobile, isTablet, screenSize } = useDeviceDetection();
   // eslint-disable-next-line no-unused-vars
   const [validatingAll, setValidatingAll] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [parsingProgress, setParsingProgress] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
   const [ingredientStyle, setIngredientStyle] = useState('basic');
@@ -576,11 +576,13 @@ function GroceryListForm({
     setParsedRecipes(valid);
   }, [setParsedRecipes]);
 
+  // eslint-disable-next-line no-unused-vars
   const setValidRecipes = useCallback((recipes) => {
     const valid = Array.isArray(recipes) ? recipes.filter(isValidRecipe) : [];
     setRecipes(valid);
   }, [setRecipes]);
 
+  // eslint-disable-next-line no-unused-vars
   const setValidSavedRecipes = useCallback((recipes) => {
     const valid = Array.isArray(recipes) ? recipes.filter(isValidRecipe) : [];
     setSavedRecipes(valid);
@@ -2510,7 +2512,8 @@ Return as JSON with this structure:
     );
   };
 
-  // QuickSaveListButton Component  
+  // QuickSaveListButton Component
+  // eslint-disable-next-line no-unused-vars
   const QuickSaveListButton = ({ items, onSave, disabled = false }) => {
     const [isSaving, setIsSaving] = useState(false);
 
