@@ -33,20 +33,6 @@ function Header({ currentView, onViewChange }) {
               >
                 👤 My Account
               </button>
-              <button
-                onClick={() => onViewChange('checkout-demo')}
-                className={`nav-button ${currentView === 'checkout-demo' ? 'nav-button-active' : ''}`}
-                style={{ backgroundColor: '#667eea', color: 'white', border: '2px solid #667eea' }}
-              >
-                🛒 Checkout Demo
-              </button>
-              <button
-                onClick={() => onViewChange('enhanced-checkout')}
-                className={`nav-button ${currentView === 'enhanced-checkout' ? 'nav-button-active' : ''}`}
-                style={{ backgroundColor: '#FB4F14', color: '#FFFFFF', border: '2px solid #FB4F14' }}
-              >
-                ✨ Enhanced Checkout
-              </button>
 
               {isAdmin && (
                 <button
