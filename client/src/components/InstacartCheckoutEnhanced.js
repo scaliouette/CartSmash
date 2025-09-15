@@ -34,11 +34,6 @@ const InstacartCheckoutEnhanced = ({ items = [], onClose, mode = 'recipe', initi
     { number: 4, title: 'Done', icon: CheckCircle }
   ];
 
-  // Load retailers on component mount
-  useEffect(() => {
-    loadRetailers();
-  }, []);
-
   const loadRetailers = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -76,11 +71,16 @@ const InstacartCheckoutEnhanced = ({ items = [], onClose, mode = 'recipe', initi
     } finally {
       setLoading(false);
     }
-  }, [initialLocation]);
+  }, [initialLocation, getTotalPrice]);
 
-  const getTotalPrice = () => {
+  // Load retailers on component mount
+  useEffect(() => {
+    loadRetailers();
+  }, [loadRetailers]);
+
+  const getTotalPrice = useCallback(() => {
     return recipeData.ingredients.reduce((total, item) => total + (item.checked ? item.price : 0), 0);
-  };
+  }, [recipeData.ingredients]);
 
   const handleNextStep = () => {
     if (currentStep < 4) {

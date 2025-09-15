@@ -3447,7 +3447,7 @@ Return as JSON with this structure:
         window.checkoutDebug.regenerateIds = window.debugCart.regenerateIds;
       }
     }
-  }, [currentCart, debugDeleteItem, setCurrentCart]);
+  }, [currentCart, debugDeleteItem, setCurrentCart, generateStableId]);
 
   // Fixed delete handler - simple ID-based filtering with proper hydration handling
   const handleDeleteItem = useCallback((itemId) => {

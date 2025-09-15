@@ -16,10 +16,6 @@ const RetailerSelector = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    loadRetailers();
-  }, [location, loadRetailers]);
-
   const loadRetailers = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -54,6 +50,10 @@ const RetailerSelector = ({
       setLoading(false);
     }
   }, [location, selectedRetailer, onRetailerSelect]);
+
+  useEffect(() => {
+    loadRetailers();
+  }, [location, loadRetailers]);
 
   const getFallbackRetailers = () => [
     {

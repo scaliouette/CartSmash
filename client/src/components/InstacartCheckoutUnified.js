@@ -139,7 +139,7 @@ const InstacartCheckoutUnified = ({
     } finally {
       setLoading(false);
     }
-  }, [location]);
+  }, [location, getTotalPrice]);
 
   // Load retailers on component mount
   useEffect(() => {
@@ -148,9 +148,9 @@ const InstacartCheckoutUnified = ({
 
   // ============ HELPER FUNCTIONS ============
 
-  const getTotalPrice = () => {
+  const getTotalPrice = useCallback(() => {
     return checkoutData.ingredients.reduce((total, item) => total + (item.checked ? item.price : 0), 0);
-  };
+  }, [checkoutData.ingredients]);
 
   const getEstimatedTotal = (retailer) => {
     const subtotal = getTotalPrice();
@@ -567,7 +567,6 @@ const InstacartCheckoutUnified = ({
                   </div>
                 ))}
               </div>
-            </div>
             </div>
 
             <div className="total-section">
