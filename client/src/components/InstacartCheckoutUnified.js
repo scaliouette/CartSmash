@@ -55,6 +55,12 @@ const InstacartCheckoutUnified = ({
     { number: 4, title: 'Done', icon: CheckCircle }
   ];
 
+  // ============ HELPER FUNCTIONS ============
+
+  const getTotalPrice = useCallback(() => {
+    return checkoutData.ingredients.reduce((total, item) => total + (item.checked ? item.price : 0), 0);
+  }, [checkoutData.ingredients]);
+
   // ============ DATA LOADING ============
 
   const loadRetailers = useCallback(async () => {
@@ -147,10 +153,6 @@ const InstacartCheckoutUnified = ({
   }, [loadRetailers]);
 
   // ============ HELPER FUNCTIONS ============
-
-  const getTotalPrice = useCallback(() => {
-    return checkoutData.ingredients.reduce((total, item) => total + (item.checked ? item.price : 0), 0);
-  }, [checkoutData.ingredients]);
 
   const getEstimatedTotal = (retailer) => {
     const subtotal = getTotalPrice();
