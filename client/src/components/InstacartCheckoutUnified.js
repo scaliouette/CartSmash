@@ -562,16 +562,21 @@ const InstacartCheckoutUnified = ({
   // ============ RENDER STEP CONTENT ============
 
   const renderStepContent = () => {
-    // All modes now skip review and go directly to store selection
     switch(currentStep) {
       case 1:
-        // Step 1: Store Selection for all modes
+        // Step 1: Store Selection
         return renderStoreSelection();
       case 2:
-        // Step 2: Checkout completion for all modes
+        // Step 2: Checkout completion (processing)
         return renderCheckoutCompletion();
+      case 3:
+        // Step 3: Processing (loading state)
+        return renderCheckoutCompletion();
+      case 4:
+        // Step 4: Success page
+        return renderSuccessStep();
       default:
-        return null;
+        return renderStoreSelection(); // Fallback to store selection
     }
   };
 
