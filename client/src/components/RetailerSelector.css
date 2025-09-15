@@ -1,0 +1,458 @@
+/* client/src/components/RetailerSelector.css */
+/* Retailer Selector Component Styles */
+
+.retailer-selector {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ============ HEADER ============ */
+
+.selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.selector-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.location-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.location-form label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #495057;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.location-form input {
+  width: 80px;
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.location-form input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.location-form button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.location-form button:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.location-form button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+/* ============ ERROR STATE ============ */
+
+.error-message {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-message button {
+  background: none;
+  border: none;
+  color: #721c24;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0;
+}
+
+/* ============ LOADING STATE ============ */
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: #6c757d;
+  font-size: 1rem;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #e3e3e3;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ============ RETAILERS GRID ============ */
+
+.retailers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.retailer-card {
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-height: 180px;
+}
+
+.retailer-card:hover:not(.unavailable) {
+  border-color: #007bff;
+  box-shadow: 0 6px 20px rgba(0, 123, 255, 0.15);
+  transform: translateY(-4px);
+}
+
+.retailer-card.selected {
+  border-color: #28a745;
+  background: #f8fff9;
+  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.2);
+}
+
+.retailer-card.unavailable {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f8f9fa;
+}
+
+.retailer-logo {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+}
+
+.retailer-logo img {
+  max-width: 60px;
+  max-height: 60px;
+  object-fit: contain;
+}
+
+.retailer-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.retailer-info h4 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.delivery-time {
+  color: #28a745;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.fees {
+  color: #6c757d;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.distance {
+  color: #868e96;
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.selected-indicator {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #28a745;
+  color: white;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.unavailable-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-weight: 600;
+  color: #dc3545;
+  font-size: 1rem;
+}
+
+/* ============ NO RETAILERS STATE ============ */
+
+.no-retailers {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6c757d;
+}
+
+.no-retailers-icon {
+  font-size: 4rem;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.no-retailers h4 {
+  margin: 0 0 8px 0;
+  color: #495057;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.no-retailers p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* ============ FOOTER INFO ============ */
+
+.retailer-info-footer {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 16px;
+  margin-top: 20px;
+  text-align: center;
+}
+
+.retailer-info-footer p {
+  margin: 4px 0;
+  color: #6c757d;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* ============ COMPACT MODE ============ */
+
+.retailer-selector.compact {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+
+.current-retailer {
+  flex: 1;
+}
+
+.selected-retailer-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selected-retailer-display .retailer-logo {
+  font-size: 1.5rem;
+  margin: 0;
+  height: auto;
+}
+
+.retailer-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.retailer-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.95rem;
+}
+
+.delivery-info {
+  color: #28a745;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.no-retailer {
+  color: #6c757d;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.retailers-dropdown {
+  min-width: 200px;
+}
+
+.retailers-dropdown select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.retailers-dropdown select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.retailers-dropdown select:disabled {
+  background: #e9ecef;
+  cursor: not-allowed;
+}
+
+/* ============ RESPONSIVE DESIGN ============ */
+
+@media (max-width: 768px) {
+  .selector-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .retailers-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .retailer-card {
+    min-height: 150px;
+    padding: 16px;
+  }
+
+  .retailer-logo {
+    font-size: 2.5rem;
+    height: 50px;
+    margin-bottom: 12px;
+  }
+
+  .retailer-logo img {
+    max-width: 50px;
+    max-height: 50px;
+  }
+
+  .retailer-info h4 {
+    font-size: 1.1rem;
+  }
+
+  .retailer-selector.compact {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .retailers-dropdown {
+    min-width: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .location-form {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .location-form label {
+    justify-content: space-between;
+  }
+
+  .location-form input {
+    width: 100px;
+  }
+
+  .retailer-card {
+    min-height: 130px;
+    padding: 12px;
+  }
+
+  .retailer-logo {
+    font-size: 2rem;
+    height: 40px;
+    margin-bottom: 8px;
+  }
+
+  .retailer-logo img {
+    max-width: 40px;
+    max-height: 40px;
+  }
+
+  .retailer-info h4 {
+    font-size: 1rem;
+  }
+
+  .delivery-time,
+  .fees {
+    font-size: 0.8rem;
+  }
+
+  .distance {
+    font-size: 0.75rem;
+  }
+}
