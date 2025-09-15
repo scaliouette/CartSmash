@@ -7,7 +7,7 @@ import RecipeManager from './RecipeManager';
 
 
 
-function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser, parsingStats, savedRecipes, setSavedRecipes, saveCartAsList, selectedRetailer, userZipCode }) {
+function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser, parsingStats, savedRecipes, setSavedRecipes, saveCartAsList, selectedRetailer, userZipCode, onShowPriceHistory }) {
   const isDev = process.env.NODE_ENV !== 'production';
   const recipeLogOnceRef = useRef(false);
   const [recipeExpanded, setRecipeExpanded] = useState(false);

@@ -13,8 +13,8 @@ const InstacartCheckoutUnified = ({
   initialLocation = '95670',
   title = null // Optional custom title
 }) => {
-  // State management
-  const [currentStep, setCurrentStep] = useState(1);
+  // State management - Start at step 1 for recipe mode (skip review), step 1 for others
+  const [currentStep, setCurrentStep] = useState(mode === 'recipe' ? 1 : 1);
   const [selectedStore, setSelectedStore] = useState(null);
   const [retailers, setRetailers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -44,9 +44,12 @@ const InstacartCheckoutUnified = ({
     }))
   };
 
-  // Step configuration based on mode
-  const steps = [
-    { number: 1, title: mode === 'recipe' ? 'Review Recipe' : 'Review Items', icon: ShoppingCart },
+  // Step configuration based on mode - Recipe mode only shows Select Store
+  const steps = mode === 'recipe' ? [
+    { number: 1, title: 'Select Store', icon: Store },
+    { number: 2, title: 'Complete Checkout', icon: CheckCircle }
+  ] : [
+    { number: 1, title: 'Review Items', icon: ShoppingCart },
     { number: 2, title: 'Select Store', icon: Store },
     { number: 3, title: 'Create', icon: Plus },
     { number: 4, title: 'Done', icon: CheckCircle }
@@ -166,15 +169,21 @@ const InstacartCheckoutUnified = ({
   // ============ STEP NAVIGATION ============
 
   const handleNextStep = () => {
-    if (currentStep < 4) {
-      if (currentStep === 2 && !selectedStore) {
-        setError('Please select a store to continue');
-        return;
+    const maxSteps = mode === 'recipe' ? 2 : 4;
+
+    if (currentStep < maxSteps) {
+      // Check store selection for both modes
+      if ((mode === 'recipe' && currentStep === 1) || (mode !== 'recipe' && currentStep === 2)) {
+        if (!selectedStore) {
+          setError('Please select a store to continue');
+          return;
+        }
       }
+
       setCurrentStep(currentStep + 1);
 
-      // Start checkout process when moving to step 3
-      if (currentStep === 2) {
+      // Start checkout process when moving to final step
+      if ((mode === 'recipe' && currentStep === 1) || (mode !== 'recipe' && currentStep === 2)) {
         createCheckout();
       }
     }
@@ -335,28 +344,177 @@ const InstacartCheckoutUnified = ({
     onClose?.();
   };
 
+  // ============ RENDER HELPER FUNCTIONS ============
+
+  const renderStoreSelection = () => {
+    return (
+      <div className="checkout-step-content">
+        <h3 className="checkout-title">Choose Your Store</h3>
+
+        <div className="location-input">
+          <label>
+            <span>📍 Delivery Location (ZIP Code):</span>
+            <input
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              onBlur={() => handleLocationChange(location)}
+              placeholder="Enter ZIP code"
+            />
+          </label>
+        </div>
+
+        {loading ? (
+          <div className="loading-section">
+            <div className="spinner"></div>
+            <p>Loading nearby stores...</p>
+          </div>
+        ) : (
+          <div className="stores-list">
+            {retailers.map((store) => {
+              const estimate = getEstimatedTotal(store);
+              return (
+                <div
+                  key={store.id}
+                  onClick={() => setSelectedStore(store.id)}
+                  className={`store-card ${selectedStore === store.id ? 'store-selected' : ''}`}
+                >
+                  <div className="store-info">
+                    <div className="store-selection">
+                      <div className={`radio-button ${selectedStore === store.id ? 'radio-selected' : ''}`}>
+                        {selectedStore === store.id && <Check className="check-icon" />}
+                      </div>
+                      <div className="store-details">
+                        <div className="store-header">
+                          {store.logo.startsWith('http') ? (
+                            <img src={store.logo} alt={store.name} className="store-logo" />
+                          ) : (
+                            <span className="store-emoji">{store.logo}</span>
+                          )}
+                          <span className="store-name">{store.name}</span>
+                        </div>
+                        <div className="store-meta">
+                          <span className="store-distance">📍 {store.distance}</span>
+                          <span className="store-delivery">🚚 {store.deliveryTime}</span>
+                        </div>
+                        {store.address && (
+                          <div className="store-address">{store.address}</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="store-pricing">
+                      <div className="price-breakdown">
+                        <div className="price-row">
+                          <span>Subtotal:</span>
+                          <span>${estimate.subtotal}</span>
+                        </div>
+                        <div className="price-row">
+                          <span>Service Fee:</span>
+                          <span>${estimate.serviceFee}</span>
+                        </div>
+                        <div className="price-row">
+                          <span>Delivery:</span>
+                          <span>${estimate.deliveryFee}</span>
+                        </div>
+                        <div className="price-row total-row">
+                          <span>Total:</span>
+                          <span className="total-price">${estimate.total}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderCheckoutCompletion = () => {
+    const selectedRetailer = retailers.find(s => s.id === selectedStore);
+    const finalEstimate = getEstimatedTotal(selectedRetailer);
+
+    return (
+      <div className="checkout-step-content success-step">
+        <div className="success-content">
+          <div className="success-icon">
+            <CheckCircle className="success-check" />
+          </div>
+          <h3 className="success-title">
+            {mode === 'recipe' ? 'Recipe Created!' : 'Shopping List Created!'}
+          </h3>
+          <p className="success-subtitle">
+            Your {mode === 'recipe' ? 'ingredients' : 'items'} have been added to your cart at {selectedRetailer?.name}
+          </p>
+
+          <div className="checkout-summary">
+            <div className="summary-row">
+              <span>Store:</span>
+              <span>{selectedRetailer?.name}</span>
+            </div>
+            <div className="summary-row">
+              <span>Items:</span>
+              <span>{checkoutData.ingredients.filter(i => i.checked).length}</span>
+            </div>
+            <div className="summary-row">
+              <span>Distance:</span>
+              <span>{selectedRetailer?.distance}</span>
+            </div>
+            <div className="summary-row">
+              <span>Delivery Time:</span>
+              <span>{selectedRetailer?.deliveryTime}</span>
+            </div>
+            <div className="summary-row total-row">
+              <span>Estimated Total:</span>
+              <span className="total-amount">${finalEstimate.total}</span>
+            </div>
+          </div>
+
+          <div className="checkout-actions">
+            <button onClick={handleProceedToCheckout} className="proceed-button">
+              {checkoutUrl ? '🛒 Shop on Instacart' : '🔄 Processing...'}
+            </button>
+            <button onClick={handleContinueShopping} className="continue-button">
+              Continue Shopping on CartSmash
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ============ RENDER STEP CONTENT ============
 
   const renderStepContent = () => {
-    switch(currentStep) {
-      case 1:
-        return (
-          <div className="checkout-step-content">
-            <h3 className="checkout-title">{checkoutData.name}</h3>
+    // For recipe mode: step 1 = store selection, step 2 = checkout
+    // For other modes: step 1 = review items, step 2 = store selection
 
-            {mode === 'recipe' && (
-              <div className="recipe-meta">
-                <span className="meta-item">
-                  <span>👨‍🍳</span> {checkoutData.chef}
-                </span>
-                <span className="meta-item">
-                  <span>🍽️</span> {checkoutData.servings} servings
-                </span>
-                <span className="meta-item">
-                  <span>⏱️</span> {checkoutData.time} minutes
-                </span>
-              </div>
-            )}
+    if (mode === 'recipe') {
+      switch(currentStep) {
+        case 1:
+          // Recipe mode Step 1: Store Selection (skip review)
+          return renderStoreSelection();
+        case 2:
+          // Recipe mode Step 2: Checkout completion
+          return renderCheckoutCompletion();
+        default:
+          return null;
+      }
+    } else {
+      // Non-recipe modes
+      switch(currentStep) {
+        case 1:
+          // Standard Step 1: Review Items
+          return (
+            <div className="checkout-step-content">
+              <h3 className="checkout-title">{checkoutData.name}</h3>
+
+              <div className="ingredients-section">
+                <h4 className="ingredients-title">
+                  Items ({checkoutData.ingredients.length})
+                </h4>
 
             <div className="ingredients-section">
               <h4 className="ingredients-title">

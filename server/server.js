@@ -1070,6 +1070,7 @@ const routes = [
   { path: '/api/settings', module: './routes/settings' },  // Admin settings management
   { path: '/api/analytics', module: './routes/analytics' },  // Admin dashboard analytics
   { path: '/api/meal-plans', module: './routes/aiMealPlanRoutes' },  // AI meal plan generation
+  { path: '/api/price-history', module: './routes/priceHistoryRoutes' },  // Multi-vendor price history
   { path: '/api/recipes', module: './routes/recipeImportRoutes' },  // Recipe import functionality
   { path: '/api/recipes', module: './routes/unifiedRoutes' },  // Unified recipe management system
   { path: '/api/unified', module: './routes/unifiedRoutes' }  // Unified recipe system (also at /unified)

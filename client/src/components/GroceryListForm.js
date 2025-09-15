@@ -6,6 +6,7 @@ import ParsedResultsDisplay from './ParsedResultsDisplay';
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
 import InstacartCheckoutUnified from './InstacartCheckoutUnified';
+import PriceHistory from './PriceHistory';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
 import { ButtonSpinner } from './LoadingSpinner';
@@ -544,6 +545,9 @@ function GroceryListForm({
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
+  // Price History state
+  const [showPriceHistory, setShowPriceHistory] = useState(false);
+  const [selectedProductForPrice, setSelectedProductForPrice] = useState(null);
   // eslint-disable-next-line no-unused-vars
   const [showAISettings, setShowAISettings] = useState(false);
 
@@ -3734,7 +3738,7 @@ Or paste any grocery list directly!"
       {showResults && currentCart.length > 0 && (
         <>
           <ParsedResultsDisplay
-            items={currentCart} 
+            items={currentCart}
             currentUser={currentUser}
             onItemsChange={handleItemsChange}
             onDeleteItem={handleDeleteItem} // Add dedicated delete handler
@@ -3747,6 +3751,11 @@ Or paste any grocery list directly!"
             // Pass user's retailer preference and zip code for catalog searches
             selectedRetailer={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'kroger'}
             userZipCode={currentUser?.zipCode || currentUser?.postalCode || '95670'}
+            // Price history integration
+            onShowPriceHistory={(product) => {
+              setSelectedProductForPrice(product);
+              setShowPriceHistory(true);
+            }}
           />
           
           
@@ -3781,6 +3790,10 @@ Or paste any grocery list directly!"
               </div>
               <div style={styles.featureItem}>
                 <span style={styles.featureCheck}>✓</span>
+                <span>Price history tracking</span>
+              </div>
+              <div style={styles.featureItem}>
+                <span style={styles.featureCheck}>✓</span>
                 <span>Schedule delivery</span>
               </div>
             </div>
@@ -3804,6 +3817,20 @@ Or paste any grocery list directly!"
           title="My CartSmash Shopping List"
           onClose={() => setShowInstacartCheckout(false)}
           initialLocation="95670"
+        />
+      )}
+
+      {showPriceHistory && selectedProductForPrice && (
+        <PriceHistory
+          productName={selectedProductForPrice.productName || selectedProductForPrice.name}
+          currentPrice={selectedProductForPrice.price}
+          currentVendor="Instacart"
+          productId={selectedProductForPrice.id}
+          isOpen={showPriceHistory}
+          onClose={() => {
+            setShowPriceHistory(false);
+            setSelectedProductForPrice(null);
+          }}
         />
       )}
 
