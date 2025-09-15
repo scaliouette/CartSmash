@@ -113,13 +113,18 @@ const instacartApiCall = async (endpoint, method = 'GET', data = null, apiKey = 
 
 // Helper function to validate API key on startup
 const validateApiKeys = () => {
-  if (INSTACART_API_KEY && INSTACART_API_KEY !== 'your_api_key_here') {
+  if (INSTACART_API_KEY &&
+      INSTACART_API_KEY !== 'your_api_key_here' &&
+      INSTACART_API_KEY !== 'your_instacart_key_here' &&
+      INSTACART_API_KEY.startsWith('keys.')) {
     console.log(`✅ Instacart API key configured for ${NODE_ENV} environment`);
     console.log(`🔗 Base URL: ${BASE_URL}`);
+    console.log(`🔑 API Key format: ${INSTACART_API_KEY.substring(0, 10)}...`);
     return true;
   } else {
     console.log(`⚠️ Instacart API key missing or invalid`);
-    console.log(`📝 Please set INSTACART_API_KEY environment variable`);
+    console.log(`📝 Current key value: ${INSTACART_API_KEY || 'UNDEFINED'}`);
+    console.log(`📝 Please set INSTACART_API_KEY environment variable with a valid Instacart API key`);
     console.log(`🔗 Using base URL: ${BASE_URL} (will fall back to mock data)`);
     return false;
   }

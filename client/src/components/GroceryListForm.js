@@ -6,6 +6,7 @@ import ParsedResultsDisplay from './ParsedResultsDisplay';
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
 import InstacartCheckoutUnified from './InstacartCheckoutUnified';
+import InstacartProductMatcher from './InstacartProductMatcher';
 import PriceHistory from './PriceHistory';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
@@ -545,6 +546,10 @@ function GroceryListForm({
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
+  // Product Matcher state
+  const [showProductMatcher, setShowProductMatcher] = useState(false);
+  const [productMatcherTerm, setProductMatcherTerm] = useState('');
+  const [selectedRetailerId, setSelectedRetailerId] = useState('safeway');
   // Price History state
   const [showPriceHistory, setShowPriceHistory] = useState(false);
   const [selectedProductForPrice, setSelectedProductForPrice] = useState(null);
@@ -3758,7 +3763,38 @@ Or paste any grocery list directly!"
             }}
           />
           
-          
+
+          {/* Smart Search Section */}
+          <div style={styles.smartSearchSection}>
+            <div style={styles.smartSearchInput}>
+              <input
+                type="text"
+                placeholder="Search Instacart products with confidence scores..."
+                value={productMatcherTerm}
+                onChange={(e) => setProductMatcherTerm(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && productMatcherTerm.trim()) {
+                    setShowProductMatcher(true);
+                  }
+                }}
+                style={styles.searchInput}
+              />
+              <button
+                onClick={() => productMatcherTerm.trim() && setShowProductMatcher(true)}
+                disabled={!productMatcherTerm.trim()}
+                style={{
+                  ...styles.smartSearchButton,
+                  opacity: productMatcherTerm.trim() ? 1 : 0.5
+                }}
+              >
+                🔍 Smart Search
+              </button>
+            </div>
+            <div style={styles.searchHint}>
+              Search for specific products with AI-powered confidence matching
+            </div>
+          </div>
+
           {/* Single Unified Checkout Button */}
           <div style={styles.checkoutSection}>
             <button
@@ -3830,6 +3866,42 @@ Or paste any grocery list directly!"
           onClose={() => {
             setShowPriceHistory(false);
             setSelectedProductForPrice(null);
+          }}
+        />
+      )}
+
+      {showProductMatcher && (
+        <InstacartProductMatcher
+          searchTerm={productMatcherTerm}
+          retailerId={selectedRetailerId}
+          onProductSelect={(product) => {
+            // Add selected product to cart with confidence score
+            const newItem = {
+              id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              productName: product.name,
+              quantity: 1,
+              unit: 'each',
+              category: product.category || 'other',
+              price: product.price,
+              brand: product.brand,
+              confidence: product.confidence,
+              instacartId: product.id,
+              retailerSku: product.sku,
+              availability: product.availability,
+              imageUrl: product.image_url
+            };
+
+            setCurrentCart(prev => [...prev, newItem]);
+            setShowProductMatcher(false);
+            setProductMatcherTerm('');
+
+            // Show success message
+            setSuccessMessage(`Added ${product.name} to cart with ${Math.round(product.confidence * 100)}% confidence`);
+            setTimeout(() => setSuccessMessage(''), 3000);
+          }}
+          onClose={() => {
+            setShowProductMatcher(false);
+            setProductMatcherTerm('');
           }}
         />
       )}
@@ -4197,6 +4269,52 @@ const styles = {
     alignItems: 'center',
     gap: '6px',
     marginTop: '8px'
+  },
+
+  // Smart Search Styles
+  smartSearchSection: {
+    marginTop: '20px',
+    padding: '20px',
+    background: 'linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 100%)',
+    borderRadius: '12px',
+    boxShadow: '0 4px 12px rgba(0, 177, 79, 0.1)',
+    border: '2px solid #10B981'
+  },
+
+  smartSearchInput: {
+    display: 'flex',
+    gap: '12px',
+    marginBottom: '8px'
+  },
+
+  searchInput: {
+    flex: 1,
+    padding: '12px 16px',
+    border: '2px solid #D1FAE5',
+    borderRadius: '8px',
+    fontSize: '14px',
+    outline: 'none',
+    transition: 'border-color 0.2s ease',
+    backgroundColor: 'white'
+  },
+
+  smartSearchButton: {
+    padding: '12px 24px',
+    backgroundColor: '#10B981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    whiteSpace: 'nowrap'
+  },
+
+  searchHint: {
+    fontSize: '12px',
+    color: '#059669',
+    fontStyle: 'italic'
   },
 
   // Updated Checkout Styles with CARTSMASH branding

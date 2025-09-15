@@ -552,20 +552,21 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
             ) : instacartRetailers.length > 0 ? (
               <div className="retailers-grid">
                 {instacartRetailers.map((retailer) => (
-                  <div 
-                    key={retailer.id} 
+                  <div
+                    key={retailer.id || retailer.retailer_key}
                     className={`retailer-card ${selectedRetailer?.id === retailer.id ? 'selected' : ''}`}
                     onClick={() => handleRetailerSelect(retailer)}
                   >
                     <div className="retailer-info">
+                      {/* Enhanced Logo Display with Instacart API Support */}
                       <div className="retailer-logo">
-                        {retailer.logo && retailer.logo.startsWith('http') ? (
-                          <img 
-                            src={retailer.logo} 
+                        {(retailer.retailer_logo_url || retailer.logo) && (retailer.retailer_logo_url || retailer.logo).startsWith('http') ? (
+                          <img
+                            src={retailer.retailer_logo_url || retailer.logo}
                             alt={retailer.name}
-                            style={{ 
-                              maxHeight: '32px', 
-                              maxWidth: '64px', 
+                            style={{
+                              maxHeight: '40px',
+                              maxWidth: '80px',
                               objectFit: 'contain'
                             }}
                             onError={(e) => {
@@ -574,21 +575,53 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
                             }}
                           />
                         ) : null}
-                        <div style={{ 
-                          fontSize: '24px',
-                          display: retailer.logo && retailer.logo.startsWith('http') ? 'none' : 'block'
+                        <div style={{
+                          fontSize: '32px',
+                          display: (retailer.retailer_logo_url || retailer.logo) && (retailer.retailer_logo_url || retailer.logo).startsWith('http') ? 'none' : 'block'
                         }}>
-                          {retailer.logo && !retailer.logo.startsWith('http') ? retailer.logo : '🏪'}
+                          {(retailer.logo && !retailer.logo.startsWith('http')) ? retailer.logo : '🏪'}
                         </div>
                       </div>
-                      <div className="retailer-name">{retailer.name}</div>
-                      <div className="retailer-address">{retailer.address}</div>
-                      <div className="retailer-details">
-                        <span className="delivery-time">🚚 {retailer.estimated_delivery || 'Standard'}</span>
-                        <span className="delivery-fee">💰 ${retailer.delivery_fee || '5.99'}</span>
-                        <span className="distance">📍 {retailer.distance || '?'} mi</span>
+
+                      {/* Enhanced Store Name and ID */}
+                      <div className="retailer-header">
+                        <div className="retailer-name">{retailer.name}</div>
+                        <div className="retailer-id">ID: {retailer.id || retailer.retailer_key}</div>
+                      </div>
+
+                      {/* Enhanced Address Display */}
+                      <div className="retailer-address">
+                        📍 {retailer.address || 'Address not provided'}
+                      </div>
+
+                      {/* Distance Information from API */}
+                      {retailer.distance && (
+                        <div className="retailer-distance">
+                          🗺️ {typeof retailer.distance === 'number' ? `${retailer.distance.toFixed(1)} mi` : retailer.distance}
+                        </div>
+                      )}
+
+                      {/* Enhanced Delivery Information */}
+                      <div className="retailer-delivery-info">
+                        <div className="delivery-time">
+                          🚚 {retailer.delivery_time || retailer.estimatedDelivery || retailer.estimated_delivery || 'Standard delivery'}
+                        </div>
+                        {retailer.delivery_fee && (
+                          <div className="delivery-fee">
+                            💰 ${retailer.delivery_fee}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* API Data Indicators */}
+                      <div className="api-indicators">
+                        <span className="api-badge">Instacart API</span>
+                        {retailer._raw && (
+                          <span className="debug-badge" title="Raw API data available">🔧</span>
+                        )}
                       </div>
                     </div>
+
                     {selectedRetailer?.id === retailer.id && (
                       <div className="selected-indicator">✓</div>
                     )}
@@ -1294,17 +1327,92 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
           text-align: left;
         }
 
+        .retailer-logo {
+          text-align: center;
+          margin-bottom: 1rem;
+        }
+
+        .retailer-header {
+          margin-bottom: 0.75rem;
+          border-bottom: 1px solid #e5e7eb;
+          padding-bottom: 0.5rem;
+        }
+
         .retailer-name {
           font-weight: 600;
           color: #1f2937;
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.25rem;
           font-size: 1.1rem;
         }
 
-        .retailer-address {
+        .retailer-id {
           color: #6b7280;
+          font-size: 0.75rem;
+          font-family: monospace;
+          background: #f3f4f6;
+          padding: 0.125rem 0.5rem;
+          border-radius: 4px;
+          display: inline-block;
+        }
+
+        .retailer-address {
+          color: #4b5563;
           font-size: 0.875rem;
           margin-bottom: 0.75rem;
+          line-height: 1.4;
+        }
+
+        .retailer-distance {
+          color: #059669;
+          font-size: 0.875rem;
+          font-weight: 500;
+          margin-bottom: 0.75rem;
+        }
+
+        .retailer-delivery-info {
+          margin-bottom: 1rem;
+        }
+
+        .delivery-time {
+          color: #4b5563;
+          font-size: 0.875rem;
+          margin-bottom: 0.25rem;
+        }
+
+        .delivery-fee {
+          color: #dc2626;
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+
+        .api-indicators {
+          display: flex;
+          gap: 0.5rem;
+          align-items: center;
+          margin-top: 1rem;
+          padding-top: 0.75rem;
+          border-top: 1px solid #f3f4f6;
+        }
+
+        .api-badge {
+          background: #00B14F;
+          color: white;
+          font-size: 0.625rem;
+          font-weight: 600;
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .debug-badge {
+          font-size: 0.875rem;
+          cursor: pointer;
+          opacity: 0.7;
+        }
+
+        .debug-badge:hover {
+          opacity: 1;
         }
 
         .retailer-details {
