@@ -256,9 +256,78 @@
   margin-left: 0.5rem;
 }
 
+.ingredient-category {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+  background: #f3f4f6;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+}
+
+.ingredient-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quantity-input {
+  width: 4rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.quantity-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
 .ingredient-price {
   font-weight: 600;
   color: #111827;
+  min-width: 3rem;
+  text-align: right;
+}
+
+.ingredient-filters {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.brand-filters,
+.health-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.brand-filter-tag {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  font-size: 0.625rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.health-filter-tag {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  font-size: 0.625rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
 }
 
 /* ============ TOTAL SECTION ============ */
@@ -278,6 +347,38 @@
 
 .total-amount {
   color: #059669;
+}
+
+/* ============ LOCATION INPUT ============ */
+
+.location-input {
+  margin-bottom: 1.5rem;
+}
+
+.location-input label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.location-input span {
+  font-size: 0.875rem;
+}
+
+.location-input input {
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.location-input input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* ============ STORES ============ */
@@ -305,6 +406,8 @@
   flex-direction: column;
   gap: 0.75rem;
   margin-bottom: 1.5rem;
+  max-height: 25rem;
+  overflow-y: auto;
 }
 
 .store-card {
@@ -318,24 +421,50 @@
 
 .store-card:hover {
   border-color: #d1d5db;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .store-selected {
   border-color: #3b82f6;
   background: #eff6ff;
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
 }
 
 .store-info {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 1rem;
 }
 
 .store-selection {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
   flex: 1;
+}
+
+.store-details {
+  flex: 1;
+}
+
+.store-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.store-logo {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.25rem;
+  object-fit: contain;
+}
+
+.store-emoji {
+  font-size: 1.5rem;
 }
 
 .radio-button {
@@ -347,6 +476,8 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
 }
 
 .radio-selected {
@@ -364,6 +495,7 @@
   font-weight: 600;
   color: #111827;
   margin: 0;
+  font-size: 1rem;
 }
 
 .store-distance {
@@ -372,8 +504,15 @@
   margin: 0;
 }
 
+.store-address {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin: 0.25rem 0 0 0;
+}
+
 .store-pricing {
   text-align: right;
+  flex-shrink: 0;
 }
 
 .store-price {
@@ -387,6 +526,18 @@
   font-size: 0.75rem;
   color: #6b7280;
   margin: 0;
+}
+
+.price-breakdown {
+  margin-top: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.price-breakdown small {
+  font-size: 0.625rem;
+  color: #9ca3af;
 }
 
 .pricing-note {
@@ -500,6 +651,30 @@
 .success-subtitle {
   color: #6b7280;
   margin: 0 0 1.5rem 0;
+}
+
+.checkout-summary {
+  background: #f9fafb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  width: 100%;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+  font-size: 0.875rem;
+}
+
+.summary-row.total {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
 }
 
 .success-actions {

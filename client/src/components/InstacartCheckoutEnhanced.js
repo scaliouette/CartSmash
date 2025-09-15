@@ -49,13 +49,13 @@ const InstacartCheckoutEnhanced = ({ items = [], onClose, mode = 'recipe', initi
 
       if (result.success && result.retailers) {
         // Transform retailers with estimated pricing
-        const retailersWithPricing = result.retailers.slice(0, 4).map((retailer, index) => ({
+        const retailersWithPricing = result.retailers.slice(0, 8).map((retailer, index) => ({
           id: retailer.id || retailer.retailer_key,
           name: retailer.name,
           logo: retailer.retailer_logo_url || retailer.logo,
-          distance: `${(1.0 + index * 0.3).toFixed(1)} mi`,
+          distance: retailer.distance ? `${retailer.distance.toFixed(1)} mi` : `${(1.0 + index * 0.3).toFixed(1)} mi`,
           estimatedPrice: getTotalPrice() + (index * 2.50), // Vary prices slightly
-          deliveryTime: retailer.estimatedDelivery || `${2 + index}hr`,
+          deliveryTime: retailer.estimatedDelivery || retailer.delivery_time || `${2 + index}hr`,
           available: retailer.available !== false
         }));
         setRetailers(retailersWithPricing);

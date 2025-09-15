@@ -15,6 +15,8 @@ import Terms from './components/Terms';
 import Privacy from './components/privacy';
 import Footer from './components/Footer';
 import InstacartCheckoutDemo from './components/InstacartCheckoutDemo';
+import CheckoutDemo from './components/CheckoutDemo';
+import './utils/testUtils';
 
 console.log('📦 App.js module loading...');
 console.log('✅ Core imports loaded successfully');
@@ -37,6 +39,12 @@ function App() {
   console.log('🚀 App component initializing...');
   
   const [currentView, setCurrentView] = useState('home');
+
+  // Make setCurrentView globally available for testing
+  useEffect(() => {
+    window.setCurrentView = setCurrentView;
+    console.log('🔧 Test utilities loaded - use setCurrentView("enhanced-checkout") to test enhanced checkout');
+  }, [setCurrentView]);
   
   // CENTRALIZED STATE MANAGEMENT
   const [currentCart, setCurrentCart] = useState([]);
@@ -718,6 +726,8 @@ function AppContent({
           <Privacy onBack={() => setCurrentView('home')} />
         ) : currentView === 'checkout-demo' ? (
           <InstacartCheckoutDemo />
+        ) : currentView === 'enhanced-checkout' ? (
+          <CheckoutDemo />
         ) : null}
       </main>
       
