@@ -733,6 +733,7 @@ const InstacartCheckoutUnified = ({
       default:
         return null;
     }
+    }
   };
 
   // ============ MAIN RENDER ============
