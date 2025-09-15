@@ -24,28 +24,7 @@ const InstacartCheckout = ({
   const [error, setError] = useState(null);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
 
-  // Load retailers on component mount
-  useEffect(() => {
-    loadRetailers();
-  }, [location, loadRetailers]);
-
-  // Load initial retailer selection
-  useEffect(() => {
-    if (retailers.length > 0 && !selectedRetailer) {
-      // Auto-select first available retailer
-      const firstRetailer = retailers.find(r => r.available) || retailers[0];
-      setSelectedRetailer(firstRetailer);
-    }
-  }, [retailers, selectedRetailer]);
-
-  // Update cart estimate when retailer or items change
-  useEffect(() => {
-    if (selectedRetailer && checkoutItems.length > 0) {
-      updateCartEstimate();
-    }
-  }, [selectedRetailer, checkoutItems, updateCartEstimate]);
-
-  // ============ RETAILER MANAGEMENT ============
+  // ============ HELPER FUNCTIONS ============
 
   const loadRetailers = useCallback(async () => {
     setLoading(true);
@@ -80,6 +59,41 @@ const InstacartCheckout = ({
       setLoading(false);
     }
   }, [location]);
+
+  const updateCartEstimate = useCallback(() => {
+    if (!selectedRetailer || checkoutItems.length === 0) return;
+
+    const estimate = instacartCheckoutService.calculateEstimatedTotal(
+      checkoutItems,
+      selectedRetailer
+    );
+    setCartEstimate(estimate);
+  }, [selectedRetailer, checkoutItems]);
+
+  // ============ EFFECTS ============
+
+  // Load retailers on component mount
+  useEffect(() => {
+    loadRetailers();
+  }, [location, loadRetailers]);
+
+  // Load initial retailer selection
+  useEffect(() => {
+    if (retailers.length > 0 && !selectedRetailer) {
+      // Auto-select first available retailer
+      const firstRetailer = retailers.find(r => r.available) || retailers[0];
+      setSelectedRetailer(firstRetailer);
+    }
+  }, [retailers, selectedRetailer]);
+
+  // Update cart estimate when retailer or items change
+  useEffect(() => {
+    if (selectedRetailer && checkoutItems.length > 0) {
+      updateCartEstimate();
+    }
+  }, [selectedRetailer, checkoutItems, updateCartEstimate]);
+
+  // ============ RETAILER MANAGEMENT ============
 
   const handleRetailerSelect = async (retailer) => {
     console.log(`🏪 Selected retailer: ${retailer.name}`);
@@ -138,16 +152,6 @@ const InstacartCheckout = ({
   };
 
   // ============ CART MANAGEMENT ============
-
-  const updateCartEstimate = useCallback(() => {
-    if (!selectedRetailer || checkoutItems.length === 0) return;
-
-    const estimate = instacartCheckoutService.calculateEstimatedTotal(
-      checkoutItems,
-      selectedRetailer
-    );
-    setCartEstimate(estimate);
-  }, [selectedRetailer, checkoutItems]);
 
   const handleItemUpdate = (itemIndex, updates) => {
     const updatedItems = [...checkoutItems];
