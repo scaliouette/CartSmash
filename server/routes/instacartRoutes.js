@@ -1387,62 +1387,127 @@ router.post('/shopping-list/create', async (req, res) => {
     // Check if we have valid API keys
     if (validateApiKeys()) {
       try {
-        // Transform lineItems to Instacart shopping list format
-        const formattedLineItems = lineItems.map(item => {
+        // Transform lineItems to Instacart shopping list format with enhanced validation
+        const formattedLineItems = lineItems.map((item, index) => {
+          // Validate required fields
+          if (!item.name && !item.productName) {
+            throw new Error(`Line item at index ${index} is missing required field: name`);
+          }
+
+          const quantity = parseFloat(item.quantity);
+          if (isNaN(quantity) || quantity <= 0) {
+            throw new Error(`Line item "${item.name || item.productName}" has invalid quantity: ${item.quantity}. Must be a positive number.`);
+          }
+
           const formatted = {
             name: item.name || item.productName,
-            quantity: parseFloat(item.quantity) || 1.0,
+            quantity: quantity,
             unit: item.unit || 'each'
           };
-          
-          // Add display text if provided
+
+          // Add custom display text if provided (enhanced support)
           if (item.displayText || item.display_text) {
-            formatted.display_text = item.displayText || item.display_text;
+            const displayText = item.displayText || item.display_text;
+            if (typeof displayText === 'string' && displayText.trim().length > 0) {
+              formatted.display_text = displayText.trim();
+            }
           }
-          
-          // Add multiple measurements using line_item_measurements
+
+          // Enhanced multiple measurements support
           if (item.line_item_measurements && Array.isArray(item.line_item_measurements)) {
-            formatted.line_item_measurements = item.line_item_measurements.map(m => ({
-              quantity: parseFloat(m.quantity) || 1.0,
-              unit: m.unit || 'each'
-            }));
+            formatted.line_item_measurements = item.line_item_measurements.map((m, mIndex) => {
+              const measurementQty = parseFloat(m.quantity);
+              if (isNaN(measurementQty) || measurementQty <= 0) {
+                throw new Error(`Line item "${formatted.name}" measurement at index ${mIndex} has invalid quantity: ${m.quantity}`);
+              }
+              return {
+                quantity: measurementQty,
+                unit: m.unit || 'each'
+              };
+            });
           } else if (item.measurements && Array.isArray(item.measurements)) {
             // Convert from recipe-style measurements to shopping list measurements
-            formatted.line_item_measurements = item.measurements.map(m => ({
-              quantity: parseFloat(m.quantity) || 1.0,
-              unit: m.unit || 'each'
-            }));
+            formatted.line_item_measurements = item.measurements.map((m, mIndex) => {
+              const measurementQty = parseFloat(m.quantity);
+              if (isNaN(measurementQty) || measurementQty <= 0) {
+                throw new Error(`Line item "${formatted.name}" measurement at index ${mIndex} has invalid quantity: ${m.quantity}`);
+              }
+              return {
+                quantity: measurementQty,
+                unit: m.unit || 'each'
+              };
+            });
           }
-          
-          // Add UPCs if provided
+
+          // Enhanced UPC validation
           if (item.upcs) {
-            formatted.upcs = Array.isArray(item.upcs) ? item.upcs : [item.upcs];
+            const upcArray = Array.isArray(item.upcs) ? item.upcs : [item.upcs];
+            // Validate UPC format (basic validation for numeric strings)
+            const validUpcs = upcArray.filter(upc => {
+              return typeof upc === 'string' && /^\d{8,14}$/.test(upc);
+            });
+            if (validUpcs.length > 0) {
+              formatted.upcs = validUpcs;
+            }
           }
-          
-          // Add product IDs if provided
+
+          // Enhanced product ID validation
           if (item.product_ids || item.productIds) {
-            formatted.product_ids = Array.isArray(item.product_ids || item.productIds) 
-              ? (item.product_ids || item.productIds) 
+            const productIds = Array.isArray(item.product_ids || item.productIds)
+              ? (item.product_ids || item.productIds)
               : [item.product_ids || item.productIds];
+            // Validate product IDs are non-empty strings
+            const validProductIds = productIds.filter(id => {
+              return typeof id === 'string' && id.trim().length > 0;
+            });
+            if (validProductIds.length > 0) {
+              formatted.product_ids = validProductIds;
+            }
           }
-          
-          // Add filters
+
+          // Validate UPCs and product_ids are mutually exclusive
+          if (formatted.upcs && formatted.product_ids) {
+            throw new Error(`Line item "${formatted.name}" cannot have both product_ids and upcs. They are mutually exclusive.`);
+          }
+
+          // Enhanced filter validation
           if (item.filters || item.brandFilters || item.healthFilters) {
             formatted.filters = {};
-            
-            // Brand filters
+
+            // Brand filters with validation
             if (item.filters?.brand_filters || item.brandFilters) {
               const brands = item.filters?.brand_filters || item.brandFilters;
-              formatted.filters.brand_filters = Array.isArray(brands) ? brands : [brands];
+              const brandArray = Array.isArray(brands) ? brands : [brands];
+              const validBrands = brandArray.filter(brand =>
+                typeof brand === 'string' && brand.trim().length > 0
+              );
+              if (validBrands.length > 0) {
+                formatted.filters.brand_filters = validBrands;
+              }
             }
-            
-            // Health filters
+
+            // Health filters with validation against approved values
             if (item.filters?.health_filters || item.healthFilters) {
+              const VALID_HEALTH_FILTERS = [
+                'ORGANIC', 'GLUTEN_FREE', 'FAT_FREE', 'VEGAN', 'KOSHER',
+                'SUGAR_FREE', 'LOW_FAT', 'VEGETARIAN', 'DAIRY_FREE', 'KETO'
+              ];
               const health = item.filters?.health_filters || item.healthFilters;
-              formatted.filters.health_filters = Array.isArray(health) ? health : [health];
+              const healthArray = Array.isArray(health) ? health : [health];
+              const validHealthFilters = healthArray.filter(filter =>
+                typeof filter === 'string' && VALID_HEALTH_FILTERS.includes(filter.toUpperCase())
+              );
+              if (validHealthFilters.length > 0) {
+                formatted.filters.health_filters = validHealthFilters.map(f => f.toUpperCase());
+              }
+            }
+
+            // Remove filters object if empty
+            if (Object.keys(formatted.filters).length === 0) {
+              delete formatted.filters;
             }
           }
-          
+
           return formatted;
         });
         
