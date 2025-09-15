@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import instacartCheckoutService from '../services/instacartCheckoutService';
+import instacartShoppingListService from '../services/instacartShoppingListService';
 import './InstacartCheckout.css';
 
 const InstacartCheckout = ({
@@ -254,19 +255,34 @@ const InstacartCheckout = ({
   };
 
   const createShoppingListCheckout = async (instacartItems) => {
+    const enhancedItems = instacartItems.map(item => ({
+      name: item.name,
+      productName: item.name,
+      quantity: item.quantity || 1,
+      unit: item.unit || 'each',
+      category: item.category || 'General',
+      // Enhanced features
+      brand: item.brand || null,
+      upc: item.upc || null,
+      healthFilters: item.healthFilters || [],
+      brandFilters: item.brandFilters || []
+    }));
+
     const listData = {
       title: 'My CartSmash Shopping List',
-      items: instacartItems.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        unit: 'each'
-      })),
-      instructions: ['Shopping list created with CartSmash']
+      items: enhancedItems,
+      instructions: ['Enhanced shopping list created with CartSmash'],
+      imageUrl: `https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&h=500&fit=crop`,
+      preferences: {
+        preferredBrands: [],
+        dietaryRestrictions: [],
+        measurementPreferences: 'imperial'
+      }
     };
 
-    return await instacartCheckoutService.createShoppingList(listData, {
+    return await instacartShoppingListService.createEnhancedShoppingList(listData, {
       partnerUrl: 'https://cartsmash.com',
-      expiresIn: 30
+      expiresIn: 365
     });
   };
 

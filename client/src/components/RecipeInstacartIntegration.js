@@ -3,6 +3,7 @@
 
 import React, { useState, useCallback } from 'react';
 import instacartCheckoutService from '../services/instacartCheckoutService';
+import instacartShoppingListService from '../services/instacartShoppingListService';
 import RetailerSelector from './RetailerSelector';
 import './RecipeInstacartIntegration.css';
 
@@ -213,7 +214,32 @@ const RecipeInstacartIntegration = ({
         expiresIn: 30
       };
 
-      const result = await instacartCheckoutService.createShoppingList(listData, options);
+      // Enhanced shopping list creation with full API features
+      const enhancedListData = {
+        title: listData.title,
+        items: listData.items.map(item => ({
+          name: item.name,
+          productName: item.name,
+          quantity: item.quantity || 1,
+          unit: item.unit || 'each',
+          category: item.category || 'General',
+          // Enhanced features from recipe data
+          brand: item.brand || null,
+          upc: item.upc || null,
+          healthFilters: item.healthFilters || [],
+          brandFilters: item.brandFilters || [],
+          line_item_measurements: item.line_item_measurements || []
+        })),
+        instructions: listData.instructions,
+        imageUrl: `https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&h=500&fit=crop`,
+        preferences: {
+          preferredBrands: [],
+          dietaryRestrictions: [],
+          measurementPreferences: 'imperial'
+        }
+      };
+
+      const result = await instacartShoppingListService.createEnhancedShoppingList(enhancedListData, options);
 
       if (result.success) {
         setResult(result);

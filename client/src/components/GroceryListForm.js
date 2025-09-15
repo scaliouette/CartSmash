@@ -550,6 +550,7 @@ function GroceryListForm({
   const [showProductMatcher, setShowProductMatcher] = useState(false);
   const [productMatcherTerm, setProductMatcherTerm] = useState('');
   const [selectedRetailerId, setSelectedRetailerId] = useState('safeway');
+  const [successMessage, setSuccessMessage] = useState('');
   // Price History state
   const [showPriceHistory, setShowPriceHistory] = useState(false);
   const [selectedProductForPrice, setSelectedProductForPrice] = useState(null);

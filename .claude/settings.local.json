@@ -490,7 +490,8 @@
       "Bash(NODE_ENV=development PORT=3072 npm start)",
       "Bash(start http://localhost:3073)",
       "Bash(start \"http://localhost:3073?view=enhanced-checkout\")",
-      "Bash(start https://customers.dev.instacart.tools/store/recipes/8084401)"
+      "Bash(start https://customers.dev.instacart.tools/store/recipes/8084401)",
+      "Bash(del test-enhanced-shopping-list.js)"
     ],
     "deny": [],
     "ask": []

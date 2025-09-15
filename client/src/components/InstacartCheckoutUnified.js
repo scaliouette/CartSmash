@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronRight, Check, ShoppingCart, Store, Plus, CheckCircle, X, ArrowLeft } from 'lucide-react';
 import instacartCheckoutService from '../services/instacartCheckoutService';
+import instacartShoppingListService from '../services/instacartShoppingListService';
 import './InstacartCheckoutEnhanced.css';
 
 const InstacartCheckoutUnified = ({
@@ -297,8 +298,48 @@ const InstacartCheckoutUnified = ({
           retailerKey: selectedRetailer.id,
           partnerUrl: 'https://cartsmash.com'
         });
+      } else if (mode === 'shopping-list') {
+        // Create enhanced shopping list with full API features
+        console.log(`🛒 Creating enhanced shopping list for ${checkedIngredients.length} items at ${selectedRetailer.name}`);
+
+        const enhancedItems = checkedIngredients.map(ingredient => {
+          const quantityMatch = ingredient.amount.match(/^(\d*\.?\d+)\s*(.*)$/);
+          const quantity = quantityMatch ? parseFloat(quantityMatch[1]) : 1;
+          const unit = quantityMatch ? quantityMatch[2].trim() || 'each' : 'each';
+
+          return {
+            name: ingredient.name,
+            productName: ingredient.name,
+            quantity: quantity,
+            unit: unit,
+            category: ingredient.category || 'General',
+            // Enhanced features - could be extended with user preferences
+            brand: ingredient.brand || null,
+            upc: ingredient.upc || null,
+            healthFilters: ingredient.healthFilters || [],
+            brandFilters: ingredient.brandFilters || []
+          };
+        });
+
+        const listData = {
+          title: checkoutData.name || 'My CartSmash Shopping List',
+          items: enhancedItems,
+          instructions: [`Shopping list created with CartSmash at ${selectedRetailer.name}`],
+          imageUrl: `https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&h=500&fit=crop`,
+          preferences: {
+            preferredBrands: [],
+            dietaryRestrictions: [],
+            measurementPreferences: 'imperial'
+          }
+        };
+
+        result = await instacartShoppingListService.createEnhancedShoppingList(listData, {
+          retailerKey: selectedRetailer.id,
+          partnerUrl: 'https://cartsmash.com',
+          expiresIn: 365
+        });
       } else {
-        // Create a shopping cart for cart/shopping-list mode
+        // Create a shopping cart for cart mode (fallback)
         console.log(`🛒 Creating shopping cart for ${checkedIngredients.length} items at ${selectedRetailer.name}`);
 
         const instacartItems = checkedIngredients.map(ingredient => ({
