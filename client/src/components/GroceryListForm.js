@@ -3813,7 +3813,7 @@ Or paste any grocery list directly!"
       {showInstacartCheckout && (
         <InstacartCheckoutUnified
           items={currentCart}
-          mode="cart"
+          mode="recipe"
           title="My CartSmash Shopping List"
           onClose={() => setShowInstacartCheckout(false)}
           initialLocation="95670"

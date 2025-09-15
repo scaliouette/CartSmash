@@ -13,8 +13,8 @@ const InstacartCheckoutUnified = ({
   initialLocation = '95670',
   title = null // Optional custom title
 }) => {
-  // State management - Start at step 1 for recipe mode (skip review), step 1 for others
-  const [currentStep, setCurrentStep] = useState(mode === 'recipe' ? 1 : 1);
+  // State management - Always start at step 1 (Select Store)
+  const [currentStep, setCurrentStep] = useState(1);
   const [selectedStore, setSelectedStore] = useState(null);
   const [retailers, setRetailers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -49,15 +49,10 @@ const InstacartCheckoutUnified = ({
     ingredients: ingredients
   };
 
-  // Step configuration based on mode - Recipe mode only shows Select Store
-  const steps = mode === 'recipe' ? [
+  // Step configuration based on mode - All modes skip review and go directly to store selection
+  const steps = [
     { number: 1, title: 'Select Store', icon: Store },
     { number: 2, title: 'Complete Checkout', icon: CheckCircle }
-  ] : [
-    { number: 1, title: 'Review Items', icon: ShoppingCart },
-    { number: 2, title: 'Select Store', icon: Store },
-    { number: 3, title: 'Create', icon: Plus },
-    { number: 4, title: 'Done', icon: CheckCircle }
   ];
 
   // ============ HELPER FUNCTIONS ============
@@ -526,267 +521,16 @@ const InstacartCheckoutUnified = ({
   // ============ RENDER STEP CONTENT ============
 
   const renderStepContent = () => {
-    // For recipe mode: step 1 = store selection, step 2 = checkout
-    // For other modes: step 1 = review items, step 2 = store selection
-
-    if (mode === 'recipe') {
-      switch(currentStep) {
-        case 1:
-          // Recipe mode Step 1: Store Selection (skip review)
-          return renderStoreSelection();
-        case 2:
-          // Recipe mode Step 2: Checkout completion
-          return renderCheckoutCompletion();
-        default:
-          return null;
-      }
-    } else {
-      // Non-recipe modes
-      switch(currentStep) {
-        case 1:
-          // Standard Step 1: Review Items
-          return (
-            <div className="checkout-step-content">
-              <h3 className="checkout-title">{checkoutData.name}</h3>
-
-              <div className="ingredients-section">
-                <h4 className="ingredients-title">
-                  Items ({checkoutData.ingredients.length})
-                </h4>
-              <div className="ingredients-list">
-                {checkoutData.ingredients.map((ingredient, index) => (
-                  <div key={ingredient.id} className="ingredient-item">
-                    <div className="ingredient-info">
-                      <input
-                        type="checkbox"
-                        checked={ingredient.checked}
-                        onChange={() => handleIngredientToggle(index)}
-                        className="ingredient-checkbox"
-                      />
-                      <div>
-                        <span className="ingredient-name">{ingredient.name}</span>
-                        <span className="ingredient-amount">({ingredient.amount})</span>
-                        {ingredient.category && (
-                          <span className="ingredient-category">{ingredient.category}</span>
-                        )}
-                        <div className="ingredient-filters">
-                          {ingredient.brandFilters && ingredient.brandFilters.length > 0 && (
-                            <div className="brand-filters">
-                              {ingredient.brandFilters.map((brand, index) => (
-                                <span key={index} className="brand-filter-tag">
-                                  🏷️ {brand}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          {ingredient.healthFilters && ingredient.healthFilters.length > 0 && (
-                            <div className="health-filters">
-                              {ingredient.healthFilters.map((health, index) => (
-                                <span key={index} className="health-filter-tag">
-                                  🌱 {health}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="ingredient-actions">
-                      <input
-                        type="number"
-                        value={parseFloat(ingredient.amount.split(' ')[0]) || 1}
-                        min="0.1"
-                        step="0.1"
-                        onChange={(e) => handleQuantityChange(index, parseFloat(e.target.value))}
-                        className="quantity-input"
-                      />
-                      <span className="ingredient-price">${ingredient.price.toFixed(2)}</span>
-                      <button
-                        onClick={() => handleItemRemove(index)}
-                        className="remove-button"
-                        title="Remove item"
-                        style={{
-                          backgroundColor: '#dc2626',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          padding: '4px 8px',
-                          marginLeft: '8px',
-                          cursor: 'pointer',
-                          fontSize: '12px'
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="total-section">
-              <div className="total-row">
-                <span>Estimated Subtotal:</span>
-                <span className="total-amount">${getTotalPrice().toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-        );
-
+    // All modes now skip review and go directly to store selection
+    switch(currentStep) {
+      case 1:
+        // Step 1: Store Selection for all modes
+        return renderStoreSelection();
       case 2:
-        return (
-          <div className="checkout-step-content">
-            <h3 className="checkout-title">Choose Your Store</h3>
-
-            <div className="location-input">
-              <label>
-                <span>📍 Delivery Location (ZIP Code):</span>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  onBlur={() => handleLocationChange(location)}
-                  placeholder="Enter ZIP code"
-                />
-              </label>
-            </div>
-
-            {loading ? (
-              <div className="loading-section">
-                <div className="spinner"></div>
-                <p>Loading nearby stores...</p>
-              </div>
-            ) : (
-              <div className="stores-list">
-                {retailers.map((store) => {
-                  const estimate = getEstimatedTotal(store);
-                  return (
-                    <div
-                      key={store.id}
-                      onClick={() => setSelectedStore(store.id)}
-                      className={`store-card ${selectedStore === store.id ? 'store-selected' : ''}`}
-                    >
-                      <div className="store-info">
-                        <div className="store-selection">
-                          <div className={`radio-button ${selectedStore === store.id ? 'radio-selected' : ''}`}>
-                            {selectedStore === store.id && <Check className="check-icon" />}
-                          </div>
-                          <div className="store-details">
-                            <div className="store-header">
-                              {store.logo.startsWith('http') ? (
-                                <img src={store.logo} alt={store.name} className="store-logo" />
-                              ) : (
-                                <span className="store-emoji">{store.logo}</span>
-                              )}
-                              <h4 className="store-name">{store.name}</h4>
-                            </div>
-                            <p className="store-distance">
-                              {store.distance} away • {store.deliveryTime} delivery
-                            </p>
-                            {store.address && (
-                              <p className="store-address">📍 {store.address}</p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="store-pricing">
-                          <p className="store-price">${estimate.total}</p>
-                          <p className="price-label">estimated total</p>
-                          <div className="price-breakdown">
-                            <small>Items: ${estimate.subtotal}</small>
-                            <small>Fees: ${(parseFloat(estimate.serviceFee) + parseFloat(estimate.deliveryFee)).toFixed(2)}</small>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="pricing-note">
-              <p>💡 Prices may vary based on availability and current promotions at each store.</p>
-            </div>
-          </div>
-        );
-
-      case 3:
-        return (
-          <div className="checkout-step-content loading-step">
-            <div className="loading-animation">
-              <div className="spinner-large"></div>
-              <h3 className="loading-title">
-                Creating your {mode === 'recipe' ? 'recipe page' : 'shopping list'}...
-              </h3>
-              <p className="loading-subtitle">
-                We're adding all {mode === 'recipe' ? 'ingredients' : 'items'} to your cart at {retailers.find(s => s.id === selectedStore)?.name}
-              </p>
-              <button
-                onClick={onClose}
-                className="loading-cancel-btn"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        );
-
-      case 4:
-        const selectedRetailer = retailers.find(s => s.id === selectedStore);
-        const finalEstimate = getEstimatedTotal(selectedRetailer);
-
-        return (
-          <div className="checkout-step-content success-step">
-            <div className="success-content">
-              <div className="success-icon">
-                <CheckCircle className="success-check" />
-              </div>
-              <h3 className="success-title">
-                {mode === 'recipe' ? 'Recipe Created!' : 'Shopping List Created!'}
-              </h3>
-              <p className="success-subtitle">
-                Your {mode === 'recipe' ? 'ingredients' : 'items'} have been added to your cart at {selectedRetailer?.name}
-              </p>
-
-              <div className="checkout-summary">
-                <div className="summary-row">
-                  <span>Store:</span>
-                  <span>{selectedRetailer?.name}</span>
-                </div>
-                <div className="summary-row">
-                  <span>Items:</span>
-                  <span>{checkoutData.ingredients.filter(i => i.checked).length}</span>
-                </div>
-                <div className="summary-row">
-                  <span>Distance:</span>
-                  <span>{selectedRetailer?.distance}</span>
-                </div>
-                <div className="summary-row total">
-                  <span>Estimated Total:</span>
-                  <span>${finalEstimate.total}</span>
-                </div>
-              </div>
-
-              <div className="success-actions">
-                <button
-                  onClick={handleProceedToCheckout}
-                  className="primary-button"
-                >
-                  Proceed to Checkout
-                </button>
-                <button
-                  onClick={handleContinueShopping}
-                  className="secondary-button"
-                >
-                  Continue Shopping
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-
+        // Step 2: Checkout completion for all modes
+        return renderCheckoutCompletion();
       default:
         return null;
-    }
     }
   };
 
