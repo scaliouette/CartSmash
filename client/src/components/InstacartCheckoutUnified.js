@@ -22,13 +22,9 @@ const InstacartCheckoutUnified = ({
   const [checkoutUrl, setCheckoutUrl] = useState(null);
   const [location, setLocation] = useState(initialLocation);
 
-  // Recipe/Cart data derived from items and mode
-  const checkoutData = {
-    name: title || (mode === 'recipe' ? 'My CartSmash Recipe' : mode === 'cart' ? 'Shopping Cart' : 'Shopping List'),
-    chef: 'CartSmash Chef',
-    servings: 4,
-    time: 30,
-    ingredients: items.map(item => ({
+  // Initialize ingredients state from items prop
+  const [ingredients, setIngredients] = useState(() =>
+    items.map(item => ({
       id: item.id || Math.random().toString(36).substr(2, 9),
       name: item.productName || item.name,
       amount: `${item.quantity || 1}${item.unit ? ` ${item.unit}` : ''}`,
@@ -42,6 +38,15 @@ const InstacartCheckoutUnified = ({
       upcs: item.upcs || [],
       productIds: item.productIds || item.product_ids || []
     }))
+  );
+
+  // Recipe/Cart data using state-managed ingredients
+  const checkoutData = {
+    name: title || (mode === 'recipe' ? 'My CartSmash Recipe' : mode === 'cart' ? 'Shopping Cart' : 'Shopping List'),
+    chef: 'CartSmash Chef',
+    servings: 4,
+    time: 30,
+    ingredients: ingredients
   };
 
   // Step configuration based on mode - Recipe mode only shows Select Store
@@ -58,8 +63,8 @@ const InstacartCheckoutUnified = ({
   // ============ HELPER FUNCTIONS ============
 
   const getTotalPrice = useCallback(() => {
-    return checkoutData.ingredients.reduce((total, item) => total + (item.checked ? item.price : 0), 0);
-  }, [checkoutData.ingredients]);
+    return ingredients.reduce((total, item) => total + (item.checked ? item.price : 0), 0);
+  }, [ingredients]);
 
   // ============ DATA LOADING ============
 
@@ -201,17 +206,23 @@ const InstacartCheckoutUnified = ({
   // ============ INGREDIENT MANAGEMENT ============
 
   const handleIngredientToggle = (index) => {
-    const updatedData = { ...checkoutData };
-    updatedData.ingredients[index].checked = !updatedData.ingredients[index].checked;
-    // Force re-render by updating error state
-    setError(null);
+    setIngredients(prev => prev.map((ingredient, i) =>
+      i === index ? { ...ingredient, checked: !ingredient.checked } : ingredient
+    ));
   };
 
   const handleQuantityChange = (index, newQuantity) => {
     if (newQuantity > 0) {
-      checkoutData.ingredients[index].amount = `${newQuantity}${checkoutData.ingredients[index].amount.replace(/^[\d.]+/, '')}`;
-      setError(null); // Force re-render
+      setIngredients(prev => prev.map((ingredient, i) =>
+        i === index
+          ? { ...ingredient, amount: `${newQuantity}${ingredient.amount.replace(/^[\d.]+/, '')}` }
+          : ingredient
+      ));
     }
+  };
+
+  const handleItemRemove = (index) => {
+    setIngredients(prev => prev.filter((_, i) => i !== index));
   };
 
   // ============ CHECKOUT CREATION ============
@@ -223,6 +234,17 @@ const InstacartCheckoutUnified = ({
     try {
       const selectedRetailer = retailers.find(r => r.id === selectedStore);
       const checkedIngredients = checkoutData.ingredients.filter(item => item.checked);
+
+      console.log('🛒 Creating checkout with:', {
+        totalIngredients: checkoutData.ingredients.length,
+        checkedIngredients: checkedIngredients.length,
+        retailer: selectedRetailer?.name,
+        mode: mode
+      });
+
+      if (checkedIngredients.length === 0) {
+        throw new Error('No items selected for checkout. Please select at least one item.');
+      }
 
       let result;
 
@@ -306,6 +328,8 @@ const InstacartCheckoutUnified = ({
         );
       }
 
+      console.log('📊 Checkout creation result:', result);
+
       if (result.success && (result.checkoutUrl || result.instacartUrl)) {
         setCheckoutUrl(result.checkoutUrl || result.instacartUrl);
         console.log(`✅ ${mode === 'recipe' ? 'Recipe page' : 'Shopping cart'} created successfully:`, result.checkoutUrl || result.instacartUrl);
@@ -315,11 +339,23 @@ const InstacartCheckoutUnified = ({
           setCurrentStep(4);
         }, 2000);
       } else {
+        console.error('❌ Checkout creation failed:', result);
         throw new Error(result.error || `${mode === 'recipe' ? 'Recipe creation' : 'Checkout creation'} failed`);
       }
     } catch (err) {
       console.error('❌ Error creating checkout:', err);
-      setError('Failed to create checkout. Please try again.');
+
+      // Provide more specific error messages
+      let errorMessage = 'Failed to create checkout. Please try again.';
+      if (err.message && err.message.includes('401')) {
+        errorMessage = 'Authentication error with Instacart. Using mock data for demonstration.';
+      } else if (err.message && err.message.includes('Network')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
       setCurrentStep(2); // Go back to store selection
     } finally {
       setLoading(false);
@@ -565,6 +601,23 @@ const InstacartCheckoutUnified = ({
                         className="quantity-input"
                       />
                       <span className="ingredient-price">${ingredient.price.toFixed(2)}</span>
+                      <button
+                        onClick={() => handleItemRemove(index)}
+                        className="remove-button"
+                        title="Remove item"
+                        style={{
+                          backgroundColor: '#dc2626',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '4px 8px',
+                          marginLeft: '8px',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
                 ))}
