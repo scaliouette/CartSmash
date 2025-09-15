@@ -6,7 +6,9 @@ import ParsedResultsDisplay from './ParsedResultsDisplay';
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
 import InstacartCheckout from './InstacartCheckout';
+import InstacartCheckoutMobile from './InstacartCheckoutMobile';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
+import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
 // eslint-disable-next-line no-unused-vars
@@ -516,10 +518,10 @@ FORMAT: JSON with "ingredients" array and "instructions" array.`;
 // Removed restrictive validation function - recipes are now accepted as provided by AI
 
 // Main Component
-function GroceryListForm({ 
-  currentCart, 
-  setCurrentCart, 
-  savedRecipes, 
+function GroceryListForm({
+  currentCart,
+  setCurrentCart,
+  savedRecipes,
   setSavedRecipes,
   parsedRecipes,
   setParsedRecipes,
@@ -545,6 +547,9 @@ function GroceryListForm({
   const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const [showAISettings, setShowAISettings] = useState(false);
+
+  // Device detection for mobile optimization
+  const { isMobile, isTablet, screenSize } = useDeviceDetection();
   // eslint-disable-next-line no-unused-vars
   const [validatingAll, setValidatingAll] = useState(false);
   const [parsingProgress, setParsingProgress] = useState(0);
@@ -3786,20 +3791,33 @@ Or paste any grocery list directly!"
 
       {showInstacartCheckout && (
         <InstacartCheckoutProvider>
-          <InstacartCheckout
-            items={currentCart}
-            mode="cart"
-            onClose={() => setShowInstacartCheckout(false)}
-            onSuccess={(result) => {
-              console.log('✅ Instacart checkout successful:', result);
-              setShowInstacartCheckout(false);
-              // Optional: Show success message or redirect
-            }}
-            onError={(error) => {
-              console.error('❌ Instacart checkout failed:', error);
-              // Keep checkout open so user can retry
-            }}
-          />
+          {isMobile || screenSize === 'mobile-xs' || screenSize === 'mobile-sm' || screenSize === 'mobile-md' ? (
+            <InstacartCheckoutMobile
+              items={currentCart}
+              mode="cart"
+              onClose={() => setShowInstacartCheckout(false)}
+              onSuccess={(result) => {
+                console.log('✅ Mobile Instacart checkout successful:', result);
+                setShowInstacartCheckout(false);
+              }}
+              onError={(error) => {
+                console.error('❌ Mobile Instacart checkout failed:', error);
+              }}
+            />
+          ) : (
+            <InstacartCheckout
+              items={currentCart}
+              mode="cart"
+              onClose={() => setShowInstacartCheckout(false)}
+              onSuccess={(result) => {
+                console.log('✅ Desktop Instacart checkout successful:', result);
+                setShowInstacartCheckout(false);
+              }}
+              onError={(error) => {
+                console.error('❌ Desktop Instacart checkout failed:', error);
+              }}
+            />
+          )}
         </InstacartCheckoutProvider>
       )}
 

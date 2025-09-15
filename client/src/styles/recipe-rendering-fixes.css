@@ -1,0 +1,155 @@
+/* recipe-rendering-fixes.css */
+/* Fixes for recipe title and content rendering issues */
+
+/* Fix recipe title truncation in various contexts */
+.recipe-card h3,
+.recipe-card h4,
+.recipe-card .recipe-name,
+.recipe-title,
+.recipeName {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  max-width: none !important;
+  word-wrap: break-word !important;
+  hyphens: auto !important;
+}
+
+/* Fix recipe content clipping */
+.recipe-description,
+.recipe-content,
+.recipe-preview {
+  -webkit-line-clamp: unset !important;
+  display: block !important;
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+/* Specific fixes for "Chicken Caprese Salad" and similar long titles */
+.demo-section h3,
+.recipe-section h3,
+.instacart-checkout h3,
+.instacart-checkout h4 {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.4 !important;
+  max-width: 100% !important;
+}
+
+/* Fix table cell recipe name rendering */
+.results-table .name-column {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  min-width: 200px !important;
+  max-width: 300px !important;
+  word-wrap: break-word !important;
+}
+
+/* Fix mobile recipe rendering */
+@media (max-width: 768px) {
+  .mobile-checkout-item h4,
+  .mobile-item-main h4,
+  .mobile-summary-item span:first-child {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow: visible !important;
+    line-height: 1.3 !important;
+  }
+}
+
+/* Fix recipe modal titles */
+.recipe-manager-modal .recipe-card h3,
+.recipe-modal-content h3,
+.recipe-form h3 {
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  overflow: visible !important;
+  max-width: 100% !important;
+}
+
+/* Fix InstacartCheckout recipe titles */
+.instacart-checkout-modal h2,
+.instacart-checkout-modal h3,
+.mobile-checkout-container h2,
+.mobile-step-header h2 {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  hyphens: auto !important;
+}
+
+/* Fix ParsedResultsDisplay recipe titles */
+.parsed-results .recipe-title,
+.parsed-results h4 {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+}
+
+/* Fix AI Assistant recipe titles */
+.ai-message .recipe-title,
+.ai-message h6 {
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  max-width: 100% !important;
+}
+
+/* Emergency fix for any remaining truncation */
+*[class*="recipe"] h1,
+*[class*="recipe"] h2,
+*[class*="recipe"] h3,
+*[class*="recipe"] h4,
+*[class*="recipe"] h5,
+*[class*="recipe"] h6 {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  word-break: break-word !important;
+  hyphens: auto !important;
+}
+
+/* Fix for very long recipe names like "Chicken Caprese Salad" */
+.recipe-name-long {
+  font-size: 1.1rem !important;
+  line-height: 1.3 !important;
+  word-spacing: normal !important;
+  letter-spacing: normal !important;
+}
+
+/* Accessibility improvements for recipe text */
+.recipe-accessible-text {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-weight: 500 !important;
+  color: #2c3e50 !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* Fix container constraints that might affect recipe rendering */
+.demo-section,
+.recipe-section,
+.recipe-preview,
+.checkout-item,
+.mobile-checkout-item {
+  min-width: 0 !important; /* Allows flex items to shrink */
+  overflow: visible !important;
+}
+
+/* Debug styles (remove in production) */
+.debug-recipe-rendering {
+  border: 2px dashed red !important;
+  background: rgba(255, 0, 0, 0.1) !important;
+}
+
+.debug-recipe-rendering::after {
+  content: "DEBUG: Recipe Rendering Area" !important;
+  position: absolute !important;
+  top: -20px !important;
+  left: 0 !important;
+  background: red !important;
+  color: white !important;
+  padding: 2px 6px !important;
+  font-size: 10px !important;
+  z-index: 9999 !important;
+}

@@ -260,6 +260,12 @@
   color: #868e96 !important;
 }
 
+.retailer-address {
+  font-size: 0.85rem !important;
+  color: #495057 !important;
+  font-weight: 500 !important;
+}
+
 .unavailable-overlay {
   position: absolute;
   top: 0;

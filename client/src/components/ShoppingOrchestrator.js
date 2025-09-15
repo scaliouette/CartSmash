@@ -2,11 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import instacartService from '../services/instacartService';
 import InstacartCheckout from './InstacartCheckout';
+import InstacartCheckoutMobile from './InstacartCheckoutMobile';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
 import { useCart } from '../contexts/CartContext';
+import { useDeviceDetection } from '../hooks/useDeviceDetection';
 
 function ShoppingOrchestrator({ items, recipe }) {
   const { currentCart } = useCart();
+  const { isMobile, screenSize } = useDeviceDetection();
 
   const [vendors, setVendors] = useState([]);
   const [priceComparison, setPriceComparison] = useState({});
@@ -507,21 +510,35 @@ function ShoppingOrchestrator({ items, recipe }) {
       {/* New Enhanced Instacart Checkout */}
       {showNewInstacartCheckout && (
         <InstacartCheckoutProvider>
-          <InstacartCheckout
-            items={effectiveItems}
-            mode="cart"
-            initialRetailer={selectedRetailer}
-            onClose={() => setShowNewInstacartCheckout(false)}
-            onSuccess={(result) => {
-              console.log('✅ Enhanced Instacart checkout successful:', result);
-              setShowNewInstacartCheckout(false);
-              // Optional: Show success notification
-            }}
-            onError={(error) => {
-              console.error('❌ Enhanced checkout failed:', error);
-              // Keep checkout open for retry
-            }}
-          />
+          {isMobile || screenSize === 'mobile-xs' || screenSize === 'mobile-sm' || screenSize === 'mobile-md' ? (
+            <InstacartCheckoutMobile
+              items={effectiveItems}
+              mode="cart"
+              initialRetailer={selectedRetailer}
+              onClose={() => setShowNewInstacartCheckout(false)}
+              onSuccess={(result) => {
+                console.log('✅ Mobile Enhanced Instacart checkout successful:', result);
+                setShowNewInstacartCheckout(false);
+              }}
+              onError={(error) => {
+                console.error('❌ Mobile Enhanced checkout failed:', error);
+              }}
+            />
+          ) : (
+            <InstacartCheckout
+              items={effectiveItems}
+              mode="cart"
+              initialRetailer={selectedRetailer}
+              onClose={() => setShowNewInstacartCheckout(false)}
+              onSuccess={(result) => {
+                console.log('✅ Desktop Enhanced Instacart checkout successful:', result);
+                setShowNewInstacartCheckout(false);
+              }}
+              onError={(error) => {
+                console.error('❌ Desktop Enhanced checkout failed:', error);
+              }}
+            />
+          )}
         </InstacartCheckoutProvider>
       )}
     </div>

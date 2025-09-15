@@ -304,6 +304,9 @@ const InstacartCheckout = ({
             <div className="retailer-info">
               <h4>{retailer.name}</h4>
               <p className="delivery-time">{retailer.estimatedDelivery}</p>
+              {retailer.address && (
+                <p className="retailer-address">📍 {retailer.address}</p>
+              )}
               <p className="fees">
                 Delivery: ${retailer.delivery_fee || 'N/A'} |
                 Service: ${retailer.service_fee || 'N/A'}
