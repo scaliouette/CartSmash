@@ -308,11 +308,15 @@ const MixingBowlLoader = ({ text = "CARTSMASH AI is preparing your meal plan..."
         <h3 style={{
           color: 'white',
           marginTop: '40px',
-          fontSize: '26px',
+          fontSize: 'clamp(18px, 4vw, 26px)', // Responsive font size for mobile
           fontWeight: '700',
           textAlign: 'center',
           textShadow: '3px 3px 6px rgba(0,0,0,0.5)',
           letterSpacing: '1px',
+          padding: '0 20px', // Prevent text from touching screen edges
+          wordBreak: 'break-word', // Break long words on mobile
+          maxWidth: '90vw', // Ensure text doesn't exceed viewport
+          margin: '40px auto 0 auto', // Center the text block
         }}>{text}</h3>
         
         <div style={{
@@ -1372,17 +1376,11 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
             }, 50);
             
             // Clear loading states
-            clearInterval(progressInterval);
-            clearTimeout(overlaySafety);
-            setIsLoading(false);
-            setShowProgress(false);
-            setParsingProgress(0);
-            
-            // Set flag for second click
+            // Don't stop here - continue to parsing step automatically
+            console.log('✅ AI has generated your list! Now parsing into cart items...');
+
+            // Set flag and continue to parsing step without requiring second click
             setWaitingForAIResponse(true);
-            
-            console.log('✅ AI has generated your list! Hit CARTSMASH again to add items to cart.');
-            return;
           } else {
             throw new Error('AI response was empty');
           }
@@ -3483,9 +3481,9 @@ Return as JSON with this structure:
     <div className="container">
       {(isLoading || showProgress) && (
         <MixingBowlLoader text={
-          waitingForAIResponse ? "CARTSMASH AI is generating your list..." :
-          showProgress ? "CARTSMASH AI is parsing your grocery list..." :
-          "CARTSMASH is processing your list..."
+          waitingForAIResponse ? "Organizing your list..." :
+          showProgress ? "Parsing grocery list..." :
+          "Processing your list..."
         } />
       )}
 
@@ -3659,11 +3657,7 @@ Or paste any grocery list directly!"
             rows="3"
           />
           
-          {waitingForAIResponse && (
-            <div style={styles.aiStatusMessage}>
-              Done! Hit CARTSMASH to add items.
-            </div>
-          )}
+          {/* Removed confusing message - process is now automatic */}
           
           <div style={styles.inputControls}>
             <button 
@@ -3854,6 +3848,14 @@ Or paste any grocery list directly!"
           title="My CartSmash Shopping List"
           onClose={() => setShowInstacartCheckout(false)}
           initialLocation="95670"
+          recipeData={{
+            recipes: [...parsedRecipes, ...recipes],
+            shoppingList: currentCart,
+            context: {
+              source: 'CartSmash',
+              hasRecipes: parsedRecipes.length + recipes.length > 0
+            }
+          }}
         />
       )}
 
@@ -4680,8 +4682,10 @@ const styles = {
 
   headerButtons: {
     display: 'flex',
-    gap: '8px',
-    alignItems: 'center'
+    gap: '4px',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end'
   },
 
   headerButton: {
@@ -4700,18 +4704,18 @@ const styles = {
   },
 
   addToCartHeaderButton: {
-    padding: '8px',
+    padding: '6px 8px',
     background: 'white',
     color: '#002244',
     border: '1px solid #FB4F14',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '16px',
+    fontSize: 'clamp(14px, 3vw, 16px)',
     fontWeight: '600',
     transition: 'all 0.2s',
     boxShadow: '0 2px 4px rgba(0,34,68,0.2)',
-    width: '36px',
-    height: '36px',
+    minWidth: '32px',
+    height: '32px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -4723,21 +4727,25 @@ const styles = {
   },
 
   wideHeaderButton: {
-    padding: '8px',
+    padding: '6px 8px',
     background: 'white',
     color: '#002244',
     border: '1px solid #FB4F14',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '16px',
+    fontSize: 'clamp(12px, 2.5vw, 14px)',
     fontWeight: '600',
     transition: 'all 0.2s',
-    width: '36px',
-    height: '36px',
+    minWidth: '32px',
+    height: '32px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     boxShadow: '0 2px 4px rgba(0,34,68,0.2)',
+    whiteSpace: 'nowrap',
+    textOverflow: 'ellipsis',
+    overflow: 'hidden',
+    maxWidth: '120px',
     ':hover': {
       background: '#f8f9fa',
       transform: 'translateY(-1px)',
@@ -4746,16 +4754,20 @@ const styles = {
   },
 
   wideDeleteButton: {
-    padding: '8px 16px',
+    padding: '6px 12px',
     background: 'white',
     color: '#dc3545',
     border: '2px solid #dc3545',
     borderRadius: '4px',
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: 'clamp(12px, 2.5vw, 14px)',
     fontWeight: '500',
     transition: 'all 0.2s',
-    minWidth: '100px',
+    minWidth: '32px',
+    height: '32px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     ':hover': {
       background: '#dc3545',
       color: 'white',

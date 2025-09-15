@@ -12,7 +12,8 @@ const InstacartCheckoutUnified = ({
   onClose,
   mode = 'recipe', // 'recipe', 'cart', or 'shopping-list'
   initialLocation = '95670',
-  title = null // Optional custom title
+  title = null, // Optional custom title
+  recipeData = null // Recipe context data from CartSmash
 }) => {
   // State management - Always start at step 1 (Select Store)
   const [currentStep, setCurrentStep] = useState(1);
@@ -41,12 +42,39 @@ const InstacartCheckoutUnified = ({
     }))
   );
 
-  // Recipe/Cart data using state-managed ingredients
+  // Recipe/Cart data using real recipe data or fallback to mock
+  const getRecipeInfo = () => {
+    console.log('🔍 Checking recipe data:', {
+      hasRecipeData: !!recipeData,
+      hasRecipes: recipeData?.recipes?.length > 0,
+      recipeCount: recipeData?.recipes?.length || 0
+    });
+
+    if (recipeData && recipeData.recipes && recipeData.recipes.length > 0) {
+      const firstRecipe = recipeData.recipes[0];
+      return {
+        name: title || firstRecipe.title || firstRecipe.name || 'My CartSmash Recipe',
+        chef: firstRecipe.author || 'CartSmash Chef',
+        servings: firstRecipe.servings || 4,
+        time: firstRecipe.prepTime || firstRecipe.cookTime || 30,
+        instructions: firstRecipe.instructions || ['Enjoy your meal!'],
+        source: 'real_recipe'
+      };
+    }
+
+    // Fallback to mock data
+    return {
+      name: title || (mode === 'recipe' ? 'My CartSmash Recipe' : mode === 'cart' ? 'Shopping Cart' : 'Shopping List'),
+      chef: 'CartSmash Chef',
+      servings: 4,
+      time: 30,
+      instructions: ['Enjoy your meal!'],
+      source: 'mock_data'
+    };
+  };
+
   const checkoutData = {
-    name: title || (mode === 'recipe' ? 'My CartSmash Recipe' : mode === 'cart' ? 'Shopping Cart' : 'Shopping List'),
-    chef: 'CartSmash Chef',
-    servings: 4,
-    time: 30,
+    ...getRecipeInfo(),
     ingredients: ingredients
   };
 
@@ -247,6 +275,17 @@ const InstacartCheckoutUnified = ({
       if (mode === 'recipe') {
         // Create a recipe page with ingredients
         console.log(`🧾 Creating recipe page "${checkoutData.name}" with ${checkedIngredients.length} ingredients`);
+        console.log(`📊 Recipe data source: ${checkoutData.source}`);
+        console.log(`📝 Recipe title: ${checkoutData.name}`);
+        console.log(`👨‍🍳 Recipe author: ${checkoutData.chef}`);
+        console.log(`🍽️ Recipe servings: ${checkoutData.servings}`);
+        console.log(`⏱️ Recipe time: ${checkoutData.time} minutes`);
+        console.log(`📖 Recipe instructions: ${checkoutData.instructions?.length || 0} steps`);
+        if (checkoutData.source === 'real_recipe') {
+          console.log('✅ Using REAL recipe data from CartSmash!');
+        } else {
+          console.log('⚠️ Using MOCK recipe data (fallback)');
+        }
 
         const recipePayload = {
           title: checkoutData.name,
@@ -283,12 +322,14 @@ const InstacartCheckoutUnified = ({
 
             return ingredientData;
           }),
-          instructions: [
-            `Enjoy cooking with your ${checkoutData.name}!`,
-            'Follow the preparation steps for each ingredient.',
-            'Combine ingredients according to your preferred method.',
-            'Serve and enjoy your homemade meal!'
-          ],
+          instructions: checkoutData.instructions && checkoutData.instructions.length > 0
+            ? checkoutData.instructions
+            : [
+                `Enjoy cooking with your ${checkoutData.name}!`,
+                'Follow the preparation steps for each ingredient.',
+                'Combine ingredients according to your preferred method.',
+                'Serve and enjoy your homemade meal!'
+              ],
           author: checkoutData.chef,
           servings: checkoutData.servings,
           cooking_time_minutes: checkoutData.time
