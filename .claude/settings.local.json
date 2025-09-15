@@ -483,7 +483,9 @@
       "Bash(REACT_APP_API_URL=http://localhost:3070 PORT=3071 npm start)",
       "Bash(start http://localhost:3071)",
       "Bash(del test-enhanced-recipe-api.js)",
-      "Bash(del test-shopping-list-enhanced.js)"
+      "Bash(del test-shopping-list-enhanced.js)",
+      "WebFetch(domain:customers.dev.instacart.tools)",
+      "Bash(start https://customers.dev.instacart.tools/store/recipes/8084387)"
     ],
     "deny": [],
     "ask": []

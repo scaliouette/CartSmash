@@ -1,0 +1,659 @@
+/* client/src/components/InstacartCheckoutEnhanced.css */
+/* Enhanced Recipe Checkout Flow Styles */
+
+.checkout-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.checkout-modal {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 48rem;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============ HEADER & PROGRESS ============ */
+
+.checkout-header {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  padding: 1.5rem;
+  position: relative;
+}
+
+.close-button {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.close-button:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: scale(1.05);
+}
+
+.close-icon {
+  width: 1rem;
+  height: 1rem;
+  color: white;
+}
+
+.progress-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-right: 3rem;
+}
+
+.step-container {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.step-active {
+  color: white;
+}
+
+.step-inactive {
+  color: rgba(191, 219, 254, 0.7);
+}
+
+.step-circle {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.circle-active {
+  background: white;
+  color: #3b82f6;
+}
+
+.circle-inactive {
+  background: rgba(59, 130, 246, 0.3);
+  color: rgba(191, 219, 254, 0.7);
+}
+
+.step-check {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.step-label {
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.step-connector {
+  height: 2px;
+  flex: 1;
+  margin: 0 0.5rem;
+  transition: background-color 0.3s;
+}
+
+.connector-active {
+  background: white;
+}
+
+.connector-inactive {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+/* ============ ERROR BANNER ============ */
+
+.error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.error-close {
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+/* ============ CONTENT AREA ============ */
+
+.checkout-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.checkout-step-content {
+  padding: 1.5rem;
+}
+
+.checkout-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #111827;
+  margin-bottom: 1.5rem;
+}
+
+/* ============ RECIPE META ============ */
+
+.recipe-meta {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ============ INGREDIENTS ============ */
+
+.ingredients-section {
+  margin-bottom: 1.5rem;
+}
+
+.ingredients-title {
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.75rem;
+}
+
+.ingredients-list {
+  max-height: 16rem;
+  overflow-y: auto;
+  space-y: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ingredient-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.ingredient-item:hover {
+  background: #f3f4f6;
+}
+
+.ingredient-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.ingredient-checkbox {
+  width: 1rem;
+  height: 1rem;
+  color: #3b82f6;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.ingredient-name {
+  font-weight: 500;
+  color: #111827;
+}
+
+.ingredient-amount {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-left: 0.5rem;
+}
+
+.ingredient-price {
+  font-weight: 600;
+  color: #111827;
+}
+
+/* ============ TOTAL SECTION ============ */
+
+.total-section {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1rem;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.125rem;
+  font-weight: bold;
+}
+
+.total-amount {
+  color: #059669;
+}
+
+/* ============ STORES ============ */
+
+.loading-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.stores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.store-card {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 2px solid #e5e7eb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.store-card:hover {
+  border-color: #d1d5db;
+}
+
+.store-selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.store-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.store-selection {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.radio-button {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  border: 2px solid #d1d5db;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.radio-selected {
+  border-color: #3b82f6;
+  background: #3b82f6;
+}
+
+.check-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  color: white;
+}
+
+.store-name {
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.store-distance {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.store-pricing {
+  text-align: right;
+}
+
+.store-price {
+  font-weight: bold;
+  font-size: 1.125rem;
+  color: #111827;
+  margin: 0;
+}
+
+.price-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.pricing-note {
+  padding: 1rem;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 0.5rem;
+}
+
+.pricing-note p {
+  font-size: 0.875rem;
+  color: #92400e;
+  margin: 0;
+}
+
+/* ============ LOADING STEP ============ */
+
+.loading-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 25rem;
+}
+
+.loading-animation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.spinner-large {
+  width: 4rem;
+  height: 4rem;
+  border: 4px solid #3b82f6;
+  border-top: 4px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.loading-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.5rem 0;
+}
+
+.loading-subtitle {
+  color: #6b7280;
+  margin: 0 0 1.5rem 0;
+}
+
+.loading-cancel-btn {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.loading-cancel-btn:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+/* ============ SUCCESS STEP ============ */
+
+.success-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 25rem;
+}
+
+.success-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 20rem;
+}
+
+.success-icon {
+  width: 5rem;
+  height: 5rem;
+  background: #dcfce7;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.success-check {
+  width: 3rem;
+  height: 3rem;
+  color: #16a34a;
+}
+
+.success-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #111827;
+  margin: 0 0 0.5rem 0;
+}
+
+.success-subtitle {
+  color: #6b7280;
+  margin: 0 0 1.5rem 0;
+}
+
+.success-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.primary-button {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.primary-button:hover {
+  transform: translateY(-1px);
+}
+
+.secondary-button {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: #f3f4f6;
+  color: #374151;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.secondary-button:hover {
+  background: #e5e7eb;
+}
+
+/* ============ FOOTER ============ */
+
+.checkout-footer {
+  border-top: 1px solid #e5e7eb;
+  padding: 1.5rem;
+  background: #f9fafb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-button-secondary {
+  padding: 0.5rem 1.5rem;
+  color: #6b7280;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.footer-button-secondary:hover {
+  color: #374151;
+}
+
+.footer-button-primary {
+  padding: 0.75rem 2rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: transform 0.2s;
+}
+
+.footer-button-primary:hover {
+  transform: translateY(-1px);
+}
+
+.footer-button-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.button-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* ============ ANIMATIONS ============ */
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ============ RESPONSIVE ============ */
+
+@media (max-width: 768px) {
+  .checkout-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .checkout-modal {
+    max-width: 100%;
+    height: 100vh;
+    border-radius: 0;
+    max-height: 100vh;
+  }
+
+  .checkout-header {
+    padding: 1rem;
+  }
+
+  .step-label {
+    font-size: 0.625rem;
+  }
+
+  .step-circle {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .recipe-meta {
+    gap: 1rem;
+  }
+
+  .stores-list {
+    gap: 0.5rem;
+  }
+
+  .store-card {
+    padding: 0.75rem;
+  }
+
+  .success-actions {
+    gap: 0.5rem;
+  }
+}
+
+/* Safe area support for mobile devices */
+@supports (padding: max(0px)) {
+  .checkout-header {
+    padding-top: max(1.5rem, calc(env(safe-area-inset-top) + 0.5rem));
+  }
+
+  .checkout-footer {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+}

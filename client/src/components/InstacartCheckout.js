@@ -499,6 +499,9 @@ const InstacartCheckout = ({
               <span style={{color: '#228B22', fontWeight: 'bold'}}>Instacart</span>
             </div>
           </div>
+          <button onClick={onClose} className="footer-exit-btn">
+            Exit Checkout
+          </button>
         </div>
       </div>
     </div>

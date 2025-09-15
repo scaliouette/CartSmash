@@ -3,12 +3,14 @@
 
 import React, { useState } from 'react';
 import InstacartCheckout from './InstacartCheckout';
+import InstacartCheckoutEnhanced from './InstacartCheckoutEnhanced';
 import RecipeInstacartIntegration from './RecipeInstacartIntegration';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
 import './InstacartCheckoutDemo.css';
 
 const InstacartCheckoutDemo = ({ onClose }) => {
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showEnhancedCheckout, setShowEnhancedCheckout] = useState(false);
   const [showRecipeIntegration, setShowRecipeIntegration] = useState(false);
   const [checkoutMode, setCheckoutMode] = useState('cart');
   const [demoItems, setDemoItems] = useState([]);
@@ -137,6 +139,12 @@ const InstacartCheckoutDemo = ({ onClose }) => {
     setShowRecipeIntegration(true);
   };
 
+  const handleStartEnhancedCheckout = (items, mode = 'recipe') => {
+    setDemoItems(items);
+    setCheckoutMode(mode);
+    setShowEnhancedCheckout(true);
+  };
+
   const handleCheckoutSuccess = (result) => {
     console.log('✅ Checkout completed successfully:', result);
     alert(`Checkout successful! Cart ID: ${result.cartId || 'N/A'}`);
@@ -253,6 +261,41 @@ const InstacartCheckoutDemo = ({ onClose }) => {
             "Checkout with Instacart"
           )}
 
+          <div className="demo-section enhanced-section">
+            <h3>🌟 Enhanced Recipe Checkout</h3>
+            <p>New multi-step checkout flow with progress indicators and store comparison</p>
+
+            <div className="demo-items">
+              {sampleCartItems.slice(0, 4).map(item => (
+                <div key={item.id} className="demo-item">
+                  <span className="item-name">{item.productName}</span>
+                  <span className="item-details">
+                    {item.quantity} {item.unit} - ${item.price}
+                  </span>
+                  <span className="confidence high">
+                    ✨ Enhanced
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="demo-actions">
+              <button
+                className="btn-enhanced"
+                onClick={() => handleStartEnhancedCheckout(sampleCartItems, 'recipe')}
+              >
+                🚀 Try Enhanced Checkout
+              </button>
+            </div>
+
+            <div className="enhancement-features">
+              <div className="enhancement-item">✅ Step-by-step progress</div>
+              <div className="enhancement-item">✅ Store price comparison</div>
+              <div className="enhancement-item">✅ Ingredient customization</div>
+              <div className="enhancement-item">✅ Mobile-optimized design</div>
+            </div>
+          </div>
+
           {renderRecipeSection(sampleRecipe, handleStartRecipeIntegration)}
 
           <div className="demo-section info-section">
@@ -336,6 +379,16 @@ const InstacartCheckoutDemo = ({ onClose }) => {
             onSuccess={handleRecipeSuccess}
             onError={handleRecipeError}
             onClose={() => setShowRecipeIntegration(false)}
+          />
+        )}
+
+        {/* Enhanced Checkout Modal */}
+        {showEnhancedCheckout && (
+          <InstacartCheckoutEnhanced
+            items={demoItems}
+            mode={checkoutMode}
+            onClose={() => setShowEnhancedCheckout(false)}
+            initialLocation="95670"
           />
         )}
       </div>

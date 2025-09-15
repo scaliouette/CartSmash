@@ -298,6 +298,61 @@
   line-height: 1.4;
 }
 
+/* ============ ENHANCED SECTION ============ */
+
+.enhanced-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+}
+
+.enhanced-section h3 {
+  color: white;
+  margin-bottom: 8px;
+}
+
+.enhanced-section p {
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 20px;
+}
+
+.btn-enhanced {
+  background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+  margin-bottom: 20px;
+}
+
+.btn-enhanced:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+}
+
+.enhancement-features {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.enhancement-item {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  padding: 4px 0;
+}
+
+@media (max-width: 768px) {
+  .enhancement-features {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ============ API STATUS SECTION ============ */
 
 .api-section {

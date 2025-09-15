@@ -598,6 +598,9 @@
   border-top: 1px solid #e0e0e0;
   background: #f8f9fa;
   border-radius: 0 0 12px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .instacart-branding {
@@ -694,4 +697,23 @@
     width: 100%;
     max-width: 280px;
   }
+}
+
+/* ============ FOOTER EXIT BUTTON ============ */
+
+.footer-exit-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.footer-exit-btn:hover {
+  background: #c82333;
+  transform: translateY(-1px);
 }
