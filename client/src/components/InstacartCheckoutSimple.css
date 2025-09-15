@@ -1,0 +1,323 @@
+/* client/src/components/InstacartCheckoutSimple.css */
+/* Ultra-simplified mobile-first checkout design */
+
+.simple-checkout-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #ffffff;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.simple-checkout-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* ============ MINIMAL HEADER ============ */
+
+.simple-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 16px 16px 16px;
+  background: white;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.simple-close {
+  background: #f5f5f5;
+  border: none;
+  color: #666;
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.simple-close:hover {
+  background: #e5e5e5;
+}
+
+.simple-header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: #1a1a1a;
+}
+
+/* ============ LOADING STATE ============ */
+
+.simple-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.simple-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f0f0f0;
+  border-top: 3px solid #003D29;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.simple-loading p {
+  font-size: 16px;
+  color: #666;
+  margin: 0;
+}
+
+/* ============ ERROR STATE ============ */
+
+.simple-error {
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  color: #c53030;
+  padding: 12px 16px;
+  margin: 16px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.simple-error button {
+  background: none;
+  border: none;
+  color: #c53030;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+/* ============ CONTENT AREA ============ */
+
+.simple-content {
+  flex: 1;
+  padding: 20px 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ============ CART SUMMARY ============ */
+
+.simple-cart-summary {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.simple-cart-summary h2 {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #1a1a1a;
+}
+
+.simple-items-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.simple-item-chip,
+.simple-more-chip {
+  background: #f8f9fa;
+  color: #495057;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid #e9ecef;
+}
+
+.simple-more-chip {
+  background: #e3f2fd;
+  color: #1976d2;
+  border-color: #bbdefb;
+}
+
+/* ============ STORE SELECTION ============ */
+
+.simple-store-selection h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  color: #1a1a1a;
+  text-align: center;
+}
+
+.simple-stores-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.simple-store-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: white;
+  border: 2px solid #f0f0f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.simple-store-card:hover {
+  border-color: #003D29;
+  box-shadow: 0 4px 12px rgba(0, 61, 41, 0.1);
+  transform: translateY(-1px);
+}
+
+.simple-store-card:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.simple-store-logo {
+  width: 48px;
+  height: 48px;
+  margin-right: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  flex-shrink: 0;
+}
+
+.simple-store-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.simple-store-logo span {
+  font-size: 24px;
+}
+
+.simple-store-info {
+  flex: 1;
+  margin-right: 16px;
+}
+
+.simple-store-info h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: #1a1a1a;
+}
+
+.simple-store-info p {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.simple-store-action {
+  flex-shrink: 0;
+}
+
+.simple-store-action span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #003D29;
+}
+
+/* ============ FOOTER NOTE ============ */
+
+.simple-footer-note {
+  margin-top: 32px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.simple-footer-note p {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ============ RESPONSIVE ADJUSTMENTS ============ */
+
+/* Larger mobile screens */
+@media (min-width: 375px) {
+  .simple-stores-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+/* Tablet landscape */
+@media (min-width: 768px) and (orientation: landscape) {
+  .simple-stores-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+/* Large screens - center the content */
+@media (min-width: 768px) {
+  .simple-checkout-container {
+    max-width: 480px;
+    margin: 0 auto;
+    border-left: 1px solid #f0f0f0;
+    border-right: 1px solid #f0f0f0;
+  }
+}
+
+/* ============ ACCESSIBILITY ============ */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============ SAFE AREAS (iPhone) ============ */
+
+@supports (padding: max(0px)) {
+  .simple-header {
+    padding-top: max(20px, calc(env(safe-area-inset-top) + 8px));
+  }
+
+  .simple-content {
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+}

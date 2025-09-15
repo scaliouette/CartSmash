@@ -6,7 +6,8 @@ import ParsedResultsDisplay from './ParsedResultsDisplay';
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
 import InstacartCheckout from './InstacartCheckout';
-import InstacartCheckoutMobile from './InstacartCheckoutMobile';
+// import InstacartCheckoutMobile from './InstacartCheckoutMobile'; // For larger mobile screens
+import InstacartCheckoutSimple from './InstacartCheckoutSimple';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
 import { ButtonSpinner } from './LoadingSpinner';
@@ -3796,18 +3797,10 @@ Or paste any grocery list directly!"
 
       {showInstacartCheckout && (
         <InstacartCheckoutProvider>
-          {isMobile || screenSize === 'mobile-xs' || screenSize === 'mobile-sm' || screenSize === 'mobile-md' ? (
-            <InstacartCheckoutMobile
+          {isMobile || screenSize === 'mobile-xs' || screenSize === 'mobile-sm' || screenSize === 'mobile-md' || screenSize === 'mobile-lg' ? (
+            <InstacartCheckoutSimple
               items={currentCart}
-              mode="cart"
               onClose={() => setShowInstacartCheckout(false)}
-              onSuccess={(result) => {
-                console.log('✅ Mobile Instacart checkout successful:', result);
-                setShowInstacartCheckout(false);
-              }}
-              onError={(error) => {
-                console.error('❌ Mobile Instacart checkout failed:', error);
-              }}
             />
           ) : (
             <InstacartCheckout
