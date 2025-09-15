@@ -40,6 +40,13 @@ function Header({ currentView, onViewChange }) {
               >
                 🛒 Checkout Demo
               </button>
+              <button
+                onClick={() => onViewChange('enhanced-checkout')}
+                className={`nav-button ${currentView === 'enhanced-checkout' ? 'nav-button-active' : ''}`}
+                style={{ backgroundColor: '#f59e0b', color: 'white', border: '2px solid #f59e0b' }}
+              >
+                ✨ Enhanced Checkout
+              </button>
 
               {isAdmin && (
                 <button
