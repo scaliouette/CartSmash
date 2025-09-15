@@ -43,7 +43,7 @@ function Header({ currentView, onViewChange }) {
               <button
                 onClick={() => onViewChange('enhanced-checkout')}
                 className={`nav-button ${currentView === 'enhanced-checkout' ? 'nav-button-active' : ''}`}
-                style={{ backgroundColor: '#f59e0b', color: 'white', border: '2px solid #f59e0b' }}
+                style={{ backgroundColor: '#FB4F14', color: '#FFFFFF', border: '2px solid #FB4F14' }}
               >
                 ✨ Enhanced Checkout
               </button>

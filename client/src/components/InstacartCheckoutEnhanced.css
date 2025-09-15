@@ -1,5 +1,16 @@
 /* client/src/components/InstacartCheckoutEnhanced.css */
-/* Enhanced Recipe Checkout Flow Styles */
+/* CartSmash Enhanced Checkout - Broncos Color Scheme */
+
+/* CartSmash Color Variables */
+:root {
+  --cartsmash-orange: #FB4F14;
+  --cartsmash-navy: #002244;
+  --cartsmash-white: #FFFFFF;
+  --cartsmash-orange-hover: #e8420c;
+  --cartsmash-navy-light: #1a365d;
+  --cartsmash-orange-light: #fed7d7;
+  --cartsmash-navy-dark: #000918;
+}
 
 .checkout-overlay {
   position: fixed;
@@ -27,7 +38,7 @@
 /* ============ HEADER & PROGRESS ============ */
 
 .checkout-header {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, var(--cartsmash-navy) 0%, var(--cartsmash-navy-light) 100%);
   padding: 1.5rem;
   position: relative;
 }
@@ -36,8 +47,8 @@
   position: absolute;
   top: 1rem;
   right: 1rem;
-  background: rgba(255, 255, 255, 0.3);
-  border: 2px solid rgba(255, 255, 255, 0.4);
+  background: var(--cartsmash-orange);
+  border: 2px solid var(--cartsmash-orange-hover);
   border-radius: 50%;
   width: 2.5rem;
   height: 2.5rem;
@@ -47,6 +58,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   z-index: 10;
+  color: var(--cartsmash-white);
 }
 
 .close-button:hover {
@@ -101,7 +113,7 @@
 
 .circle-active {
   background: white;
-  color: #3b82f6;
+  color: var(--cartsmash-orange);
 }
 
 .circle-inactive {
@@ -240,7 +252,7 @@
 .ingredient-checkbox {
   width: 1rem;
   height: 1rem;
-  color: #3b82f6;
+  color: var(--cartsmash-orange);
   border-radius: 0.25rem;
   cursor: pointer;
 }
@@ -282,7 +294,7 @@
 
 .quantity-input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--cartsmash-orange);
 }
 
 .ingredient-price {
@@ -307,8 +319,8 @@
 }
 
 .brand-filter-tag {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--cartsmash-orange) 0%, var(--cartsmash-orange-hover) 100%);
+  color: var(--cartsmash-white);
   font-size: 0.625rem;
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
@@ -319,8 +331,8 @@
 }
 
 .health-filter-tag {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--cartsmash-navy) 0%, var(--cartsmash-navy-light) 100%);
+  color: var(--cartsmash-white);
   font-size: 0.625rem;
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
@@ -377,7 +389,7 @@
 
 .location-input input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--cartsmash-orange);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -395,7 +407,7 @@
   width: 2rem;
   height: 2rem;
   border: 3px solid #f3f4f6;
-  border-top: 3px solid #3b82f6;
+  border-top: 3px solid var(--cartsmash-orange);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
@@ -426,9 +438,9 @@
 }
 
 .store-selected {
-  border-color: #3b82f6;
-  background: #eff6ff;
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+  border-color: var(--cartsmash-orange);
+  background: var(--cartsmash-orange-light);
+  box-shadow: 0 4px 6px -1px rgba(251, 79, 20, 0.1);
 }
 
 .store-info {
@@ -481,8 +493,8 @@
 }
 
 .radio-selected {
-  border-color: #3b82f6;
-  background: #3b82f6;
+  border-color: var(--cartsmash-orange);
+  background: var(--cartsmash-orange);
 }
 
 .check-icon {
@@ -572,7 +584,7 @@
 .spinner-large {
   width: 4rem;
   height: 4rem;
-  border: 4px solid #3b82f6;
+  border: 4px solid var(--cartsmash-orange);
   border-top: 4px solid transparent;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -687,7 +699,7 @@
 .primary-button {
   width: 100%;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, var(--cartsmash-orange) 0%, #8b5cf6 100%);
   color: white;
   font-weight: 600;
   border: none;
@@ -743,7 +755,7 @@
 
 .footer-button-primary {
   padding: 0.75rem 2rem;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, var(--cartsmash-orange) 0%, #8b5cf6 100%);
   color: white;
   font-weight: 600;
   border: none;

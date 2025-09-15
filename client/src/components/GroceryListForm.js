@@ -5,9 +5,7 @@ import ParsedResultsDisplay from './ParsedResultsDisplay';
 // eslint-disable-next-line no-unused-vars
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
-import InstacartCheckout from './InstacartCheckout';
-// import InstacartCheckoutMobile from './InstacartCheckoutMobile'; // For larger mobile screens
-import InstacartCheckoutSimple from './InstacartCheckoutSimple';
+import InstacartCheckoutUnified from './InstacartCheckoutUnified';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
 import { ButtonSpinner } from './LoadingSpinner';
@@ -3756,16 +3754,20 @@ Or paste any grocery list directly!"
           <div style={styles.checkoutSection}>
             <button
               onClick={() => setShowInstacartCheckout(true)}
-              style={styles.instacartButton}
+              style={{
+                ...styles.instacartButton,
+                backgroundColor: '#FB4F14',
+                borderColor: '#FB4F14'
+              }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#005a3c';
+                e.currentTarget.style.backgroundColor = '#e8420c';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#003D29';
+                e.currentTarget.style.backgroundColor = '#FB4F14';
               }}
               disabled={currentCart.length === 0}
             >
-              Get Recipe Ingredients
+              🛒 Enhanced Checkout
             </button>
             
             <div style={styles.checkoutFeatures}>
@@ -3796,27 +3798,13 @@ Or paste any grocery list directly!"
 
 
       {showInstacartCheckout && (
-        <InstacartCheckoutProvider>
-          {isMobile || screenSize === 'mobile-xs' || screenSize === 'mobile-sm' || screenSize === 'mobile-md' || screenSize === 'mobile-lg' ? (
-            <InstacartCheckoutSimple
-              items={currentCart}
-              onClose={() => setShowInstacartCheckout(false)}
-            />
-          ) : (
-            <InstacartCheckout
-              items={currentCart}
-              mode="cart"
-              onClose={() => setShowInstacartCheckout(false)}
-              onSuccess={(result) => {
-                console.log('✅ Desktop Instacart checkout successful:', result);
-                setShowInstacartCheckout(false);
-              }}
-              onError={(error) => {
-                console.error('❌ Desktop Instacart checkout failed:', error);
-              }}
-            />
-          )}
-        </InstacartCheckoutProvider>
+        <InstacartCheckoutUnified
+          items={currentCart}
+          mode="cart"
+          title="My CartSmash Shopping List"
+          onClose={() => setShowInstacartCheckout(false)}
+          initialLocation="95670"
+        />
       )}
 
       {showAISettings && isAdmin && (

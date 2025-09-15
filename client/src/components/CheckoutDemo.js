@@ -294,8 +294,8 @@ const CheckoutDemo = () => {
                     <div style={{ marginTop: '0.25rem' }}>
                       {item.brandFilters.map((brand, idx) => (
                         <span key={idx} style={{
-                          background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                          color: 'white',
+                          background: 'linear-gradient(135deg, #FB4F14 0%, #e8420c 100%)',
+                          color: '#FFFFFF',
                           fontSize: '0.625rem',
                           padding: '0.125rem 0.375rem',
                           borderRadius: '0.25rem',
@@ -311,8 +311,8 @@ const CheckoutDemo = () => {
                     <div style={{ marginTop: '0.25rem' }}>
                       {item.healthFilters.map((health, idx) => (
                         <span key={idx} style={{
-                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                          color: 'white',
+                          background: 'linear-gradient(135deg, #002244 0%, #1a365d 100%)',
+                          color: '#FFFFFF',
                           fontSize: '0.625rem',
                           padding: '0.125rem 0.375rem',
                           borderRadius: '0.25rem',
@@ -343,8 +343,8 @@ const CheckoutDemo = () => {
         <button
           onClick={handleOpenCheckout}
           style={{
-            background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-            color: 'white',
+            background: 'linear-gradient(135deg, #FB4F14 0%, #e8420c 100%)',
+            color: '#FFFFFF',
             padding: '0.75rem 2rem',
             borderRadius: '0.5rem',
             border: 'none',
@@ -353,7 +353,8 @@ const CheckoutDemo = () => {
             cursor: 'pointer',
             transition: 'transform 0.2s',
             display: 'block',
-            margin: '0 auto'
+            margin: '0 auto',
+            boxShadow: '0 4px 6px -1px rgba(251, 79, 20, 0.2)'
           }}
           onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
           onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
