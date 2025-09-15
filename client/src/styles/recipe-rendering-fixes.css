@@ -96,6 +96,18 @@
   max-width: 100% !important;
 }
 
+/* Fix demo checkout recipe titles */
+.demo-section h3,
+.recipe-section h3,
+.instacart-checkout-demo h3 {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  hyphens: auto !important;
+  line-height: 1.4 !important;
+  max-width: 100% !important;
+}
+
 /* Emergency fix for any remaining truncation */
 *[class*="recipe"] h1,
 *[class*="recipe"] h2,
