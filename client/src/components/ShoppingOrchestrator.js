@@ -1,19 +1,28 @@
 // client/src/components/ShoppingOrchestrator.js
 import React, { useState, useEffect } from 'react';
 import instacartService from '../services/instacartService';
+import InstacartCheckout from './InstacartCheckout';
+import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
+import { useCart } from '../contexts/CartContext';
 
 function ShoppingOrchestrator({ items, recipe }) {
+  const { currentCart } = useCart();
+
   const [vendors, setVendors] = useState([]);
   const [priceComparison, setPriceComparison] = useState({});
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [deliveryTime, setDeliveryTime] = useState('today');
   const [servingSize, setServingSize] = useState(recipe?.servings || 4);
-  
+
   // Instacart-specific state
   const [instacartRetailers, setInstacartRetailers] = useState([]);
   const [selectedRetailer, setSelectedRetailer] = useState(null);
   const [isLoadingRetailers, setIsLoadingRetailers] = useState(false);
+  const [showNewInstacartCheckout, setShowNewInstacartCheckout] = useState(false);
+
+  // Use cart items if available, otherwise use passed items (for recipe shopping)
+  const effectiveItems = currentCart.length > 0 ? currentCart : items;
 
   const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
 
@@ -55,7 +64,7 @@ function ShoppingOrchestrator({ items, recipe }) {
   useEffect(() => {
     analyzePricesAcrossVendors();
     loadInstacartRetailers();
-  }, [items]);
+  }, [effectiveItems]);
 
   // Load Instacart retailers when user selects Instacart
   const loadInstacartRetailers = async () => {
@@ -85,7 +94,7 @@ function ShoppingOrchestrator({ items, recipe }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: items,
+          items: effectiveItems,
           vendors: availableVendors.map(v => v.id),
           zipCode: localStorage.getItem('userZipCode') || '95670'
         })
@@ -128,7 +137,7 @@ function ShoppingOrchestrator({ items, recipe }) {
     const estimates = {};
     
     availableVendors.forEach(vendor => {
-      const basePrice = items.reduce((sum, item) => {
+      const basePrice = effectiveItems.reduce((sum, item) => {
         const avgPrice = 3.99; // Default estimate
         return sum + (avgPrice * (item.quantity || 1));
       }, 0);
@@ -148,7 +157,7 @@ function ShoppingOrchestrator({ items, recipe }) {
   // Adjust quantities for serving size
   const adjustServingSize = (newSize) => {
     const ratio = newSize / servingSize;
-    const adjustedItems = items.map(item => ({
+    const adjustedItems = effectiveItems.map(item => ({
       ...item,
       quantity: Math.ceil((item.quantity || 1) * ratio)
     }));
@@ -230,7 +239,7 @@ function ShoppingOrchestrator({ items, recipe }) {
             name: recipe.name,
             title: recipe.name,
             instructions: recipe.instructions || ['Follow the recipe instructions'],
-            ingredients: items.map(item => ({
+            ingredients: effectiveItems.map(item => ({
               name: item.name,
               quantity: item.quantity || 1,
               unit: item.unit || 'each',
@@ -345,7 +354,7 @@ function ShoppingOrchestrator({ items, recipe }) {
                   
                   <div style={styles.priceBreakdown}>
                     <div style={styles.priceRow}>
-                      <span>Items ({items.length})</span>
+                      <span>Items ({effectiveItems.length})</span>
                       <span>${comparison.totalPrice?.toFixed(2) || '--'}</span>
                     </div>
                     <div style={styles.priceRow}>
@@ -460,27 +469,60 @@ function ShoppingOrchestrator({ items, recipe }) {
                 </div>
               )}
               
-              {selectedRetailer && (
+              {selectedRetailer && effectiveItems.length > 0 && (
                 <div style={styles.instacartActions}>
                   <button
                     style={styles.instacartButton}
                     onClick={() => proceedToInstacart()}
                   >
-                    Get Recipe Ingredients
+                    Get Recipe Ingredients (Legacy)
                   </button>
+                  <button
+                    style={{...styles.instacartButton, backgroundColor: '#667eea', marginLeft: '10px'}}
+                    onClick={() => setShowNewInstacartCheckout(true)}
+                  >
+                    Enhanced Checkout ✨
+                  </button>
+                </div>
+              )}
+              {selectedRetailer && effectiveItems.length === 0 && (
+                <div style={{textAlign: 'center', padding: '20px', color: '#666', fontStyle: 'italic'}}>
+                  No items to checkout. Add items to your cart first.
                 </div>
               )}
             </div>
           )}
 
-          <SmartSubstitutions 
+          {/* TODO: Add SmartSubstitutions component when available */}
+          {/* <SmartSubstitutions
             items={items}
             vendor={selectedVendor}
             onSubstitute={(originalItem, substituteItem) => {
               // Handle substitution
             }}
-          />
+          /> */}
         </>
+      )}
+
+      {/* New Enhanced Instacart Checkout */}
+      {showNewInstacartCheckout && (
+        <InstacartCheckoutProvider>
+          <InstacartCheckout
+            items={effectiveItems}
+            mode="cart"
+            initialRetailer={selectedRetailer}
+            onClose={() => setShowNewInstacartCheckout(false)}
+            onSuccess={(result) => {
+              console.log('✅ Enhanced Instacart checkout successful:', result);
+              setShowNewInstacartCheckout(false);
+              // Optional: Show success notification
+            }}
+            onError={(error) => {
+              console.error('❌ Enhanced checkout failed:', error);
+              // Keep checkout open for retry
+            }}
+          />
+        </InstacartCheckoutProvider>
       )}
     </div>
   );

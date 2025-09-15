@@ -5,7 +5,8 @@ import ParsedResultsDisplay from './ParsedResultsDisplay';
 // eslint-disable-next-line no-unused-vars
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
-import InstacartCheckoutFlow from './InstacartCheckoutFlow';
+import InstacartCheckout from './InstacartCheckout';
+import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
 import { ButtonSpinner, OverlaySpinner, ProgressSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
 // eslint-disable-next-line no-unused-vars
@@ -3784,10 +3785,22 @@ Or paste any grocery list directly!"
 
 
       {showInstacartCheckout && (
-        <InstacartCheckoutFlow
-          currentCart={currentCart}
-          onClose={() => setShowInstacartCheckout(false)}
-        />
+        <InstacartCheckoutProvider>
+          <InstacartCheckout
+            items={currentCart}
+            mode="cart"
+            onClose={() => setShowInstacartCheckout(false)}
+            onSuccess={(result) => {
+              console.log('✅ Instacart checkout successful:', result);
+              setShowInstacartCheckout(false);
+              // Optional: Show success message or redirect
+            }}
+            onError={(error) => {
+              console.error('❌ Instacart checkout failed:', error);
+              // Keep checkout open so user can retry
+            }}
+          />
+        </InstacartCheckoutProvider>
       )}
 
       {showAISettings && isAdmin && (

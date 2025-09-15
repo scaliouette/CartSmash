@@ -14,6 +14,7 @@ import Contact from './components/Contact';
 import Terms from './components/Terms';
 import Privacy from './components/privacy';
 import Footer from './components/Footer';
+import InstacartCheckoutDemo from './components/InstacartCheckoutDemo';
 
 console.log('📦 App.js module loading...');
 console.log('✅ Core imports loaded successfully');
@@ -715,6 +716,8 @@ function AppContent({
           <Terms onBack={() => setCurrentView('home')} />
         ) : currentView === 'privacy' ? (
           <Privacy onBack={() => setCurrentView('home')} />
+        ) : currentView === 'checkout-demo' ? (
+          <InstacartCheckoutDemo />
         ) : null}
       </main>
       
