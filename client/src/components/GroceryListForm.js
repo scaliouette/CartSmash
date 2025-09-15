@@ -6,6 +6,8 @@ import ParsedResultsDisplay from './ParsedResultsDisplay';
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
 import InstacartCheckout from './InstacartCheckout';
+import InstacartCheckoutMobile from './InstacartCheckoutMobile';
+import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
 import { ButtonSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
