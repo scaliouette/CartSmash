@@ -454,36 +454,35 @@ function AppContent({
   
   const loadListToCart = (list, merge = false) => {
     console.log('📋 Loading list to cart:', list.name);
-    
+
     if (!list.items || list.items.length === 0) {
       alert('This list is empty');
       return 0;
     }
-    
+
     let newCart;
     if (merge) {
       newCart = [...currentCart, ...list.items];
     } else {
       newCart = list.items;
     }
-    
+
+    // Clear localStorage to prevent the old cart from being reloaded
+    try {
+      localStorage.removeItem('cart');
+      console.log('🗑️ Cleared old cart from localStorage');
+    } catch (error) {
+      console.error('Failed to clear cart from localStorage:', error);
+    }
+
     // Update cart state
     setCurrentCart(newCart);
-    
-    // Only save to localStorage if it's the cart authority
-    if (CART_AUTHORITY === 'local') {
-      try {
-        console.log('💾 Cart saved to localStorage (authority) during list load');
-      } catch (error) {
-        console.error('Failed to save cart to localStorage:', error);
-      }
-    }
-    
+
     // Navigate to home and preserve cart
     setTimeout(() => {
       setCurrentView('home');
-    }, 50); // Small delay to ensure state is updated
-    
+    }, 200); // Delay to allow alert to show first
+
     return list.items.length;
   };
   
@@ -700,7 +699,9 @@ function AppContent({
             onListSelect={(list) => {
               const itemsLoaded = loadListToCart(list, false);
               if (itemsLoaded > 0) {
-                alert(`✅ Loaded ${itemsLoaded} items from "${list.name}"`);
+                setTimeout(() => {
+                  alert(`✅ Loaded ${itemsLoaded} items from "${list.name}"`);
+                }, 100);
               }
             }}
             deleteList={deleteList}
