@@ -615,7 +615,7 @@ const InstacartCheckoutUnified = ({
         return renderCheckoutCompletion();
       case 4:
         // Step 4: Success page
-        return renderSuccessStep();
+        return renderCheckoutCompletion();
       default:
         return renderStoreSelection(); // Fallback to store selection
     }
