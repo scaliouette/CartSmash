@@ -515,11 +515,6 @@ const InstacartCheckoutUnified = ({
                 <h4 className="ingredients-title">
                   Items ({checkoutData.ingredients.length})
                 </h4>
-
-            <div className="ingredients-section">
-              <h4 className="ingredients-title">
-                {mode === 'recipe' ? 'Ingredients' : 'Items'} ({checkoutData.ingredients.length})
-              </h4>
               <div className="ingredients-list">
                 {checkoutData.ingredients.map((ingredient, index) => (
                   <div key={ingredient.id} className="ingredient-item">
@@ -572,6 +567,7 @@ const InstacartCheckoutUnified = ({
                   </div>
                 ))}
               </div>
+            </div>
             </div>
 
             <div className="total-section">
