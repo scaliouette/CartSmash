@@ -244,6 +244,46 @@ export const InstacartCheckoutProvider = ({ children }) => {
     return estimate;
   }, [checkoutState.selectedRetailer, checkoutState.items, updateCheckoutState]);
 
+  // ============ HELPER FUNCTIONS ============
+
+  const createRecipeCheckout = useCallback(async (instacartItems, options) => {
+    const recipeData = {
+      title: options.recipeTitle || 'My CartSmash Recipe',
+      ingredients: instacartItems.map(item => ({
+        name: item.name,
+        measurements: [{
+          quantity: item.quantity,
+          unit: 'each'
+        }]
+      })),
+      instructions: options.instructions || ['Enjoy cooking with your CartSmash ingredients!'],
+      author: options.author || 'CartSmash User',
+      servings: options.servings || 4
+    };
+
+    return await instacartCheckoutService.createRecipePage(recipeData, {
+      retailerKey: checkoutState.selectedRetailer.id || checkoutState.selectedRetailer.retailer_key,
+      partnerUrl: 'https://cartsmash.com'
+    });
+  }, [checkoutState.selectedRetailer]);
+
+  const createShoppingListCheckout = useCallback(async (instacartItems, options) => {
+    const listData = {
+      title: options.listTitle || 'My CartSmash Shopping List',
+      items: instacartItems.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit: 'each'
+      })),
+      instructions: options.instructions || ['Shopping list created with CartSmash']
+    };
+
+    return await instacartCheckoutService.createShoppingList(listData, {
+      partnerUrl: 'https://cartsmash.com',
+      expiresIn: options.expiresIn || 30
+    });
+  }, []);
+
   // ============ CHECKOUT PROCESS ============
 
   const createCheckout = useCallback(async (options = {}) => {
@@ -321,43 +361,6 @@ export const InstacartCheckoutProvider = ({ children }) => {
     }
   }, [checkoutState, setLoading, clearError, setError, createRecipeCheckout, createShoppingListCheckout]);
 
-  const createRecipeCheckout = useCallback(async (instacartItems, options) => {
-    const recipeData = {
-      title: options.recipeTitle || 'My CartSmash Recipe',
-      ingredients: instacartItems.map(item => ({
-        name: item.name,
-        measurements: [{
-          quantity: item.quantity,
-          unit: 'each'
-        }]
-      })),
-      instructions: options.instructions || ['Enjoy cooking with your CartSmash ingredients!'],
-      author: options.author || 'CartSmash User',
-      servings: options.servings || 4
-    };
-
-    return await instacartCheckoutService.createRecipePage(recipeData, {
-      retailerKey: checkoutState.selectedRetailer.id || checkoutState.selectedRetailer.retailer_key,
-      partnerUrl: 'https://cartsmash.com'
-    });
-  }, [checkoutState.selectedRetailer]);
-
-  const createShoppingListCheckout = useCallback(async (instacartItems, options) => {
-    const listData = {
-      title: options.listTitle || 'My CartSmash Shopping List',
-      items: instacartItems.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        unit: 'each'
-      })),
-      instructions: options.instructions || ['Shopping list created with CartSmash']
-    };
-
-    return await instacartCheckoutService.createShoppingList(listData, {
-      partnerUrl: 'https://cartsmash.com',
-      expiresIn: options.expiresIn || 30
-    });
-  }, []);
 
   // ============ UTILITY METHODS ============
 
