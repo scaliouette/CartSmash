@@ -1389,13 +1389,18 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
             // Jump directly to cart parsing section
             if (shouldParseToCarts) {
               console.log('📦 Parsing grocery list into cart items...');
-              console.log('🔍 DEBUG: listText length =', listText?.length);
+
+              // Use the processed grocery list text, not the original prompt
+              const currentListText = textareaRef.current?.value || inputText || listText;
+              console.log('🔍 DEBUG: Using processed grocery list text length =', currentListText?.length);
+              console.log('🔍 DEBUG: Original listText length =', listText?.length);
+              console.log('🔍 DEBUG: inputText length =', inputText?.length);
 
               const response = await fetch(`${API_URL}/api/cart/parse`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  listText: listText,
+                  listText: currentListText,
                   action: mergeCart ? 'merge' : 'replace',
                   userId: currentUser?.uid || null,
                   options: {
