@@ -1,5 +1,6 @@
 export const askClaude = async (prompt) => {
-  const res = await fetch('/api/ai/claude', {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+  const res = await fetch(`${API_URL}/api/ai/claude`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt })
@@ -8,7 +9,8 @@ export const askClaude = async (prompt) => {
 };
 
 export const askChatGPT = async (prompt) => {
-  const res = await fetch('/api/ai/chatgpt', {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+  const res = await fetch(`${API_URL}/api/ai/chatgpt`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt })

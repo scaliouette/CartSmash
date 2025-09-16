@@ -3,27 +3,29 @@ export const debugAI = {
   // Test if AI endpoints are reachable
   async testEndpoints() {
     console.log('🧪 Testing AI endpoints...');
-    
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    console.log('🌐 Using API URL:', API_URL);
+
     try {
       // Test health
-      const healthResponse = await fetch('/api/ai/health');
+      const healthResponse = await fetch(`${API_URL}/api/ai/health`);
       const healthData = await healthResponse.json();
       console.log('✅ AI Health:', healthData);
-      
+
       // Test Claude
-      const claudeResponse = await fetch('/api/ai/claude', {
+      const claudeResponse = await fetch(`${API_URL}/api/ai/claude`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           prompt: 'Quick test: give me 3 grocery items',
           context: 'test'
         })
       });
       const claudeData = await claudeResponse.json();
       console.log('✅ Claude test:', claudeData.groceryList);
-      
+
       // Test ChatGPT
-      const chatgptResponse = await fetch('/api/ai/chatgpt', {
+      const chatgptResponse = await fetch(`${API_URL}/api/ai/chatgpt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

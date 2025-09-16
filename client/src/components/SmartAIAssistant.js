@@ -428,7 +428,14 @@ IMPORTANT FOR RECIPES: Provide DETAILED, step-by-step cooking instructions with:
 - Minimum 6-8 detailed steps for complex dishes
 - Each step should be comprehensive enough for a novice cook to follow successfully`;
       
-      const response = await fetch(selectedModelData.endpoint, {
+      // ✅ FIX: Use full API URL for production compatibility
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const fullEndpoint = `${API_URL}${selectedModelData.endpoint}`;
+
+      console.log(`🌐 Making AI request to: ${fullEndpoint}`);
+      console.log(`📊 Using AI Model: ${selectedModelData.name}`);
+
+      const response = await fetch(fullEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -509,10 +516,18 @@ IMPORTANT FOR RECIPES: Provide DETAILED, step-by-step cooking instructions with:
 
     } catch (error) {
       console.error('🚨 AI request failed:', error);
-      
-      // ✅ ENHANCED: Simple error fallback - AI should be primary
+      console.error('🌐 Failed endpoint:', fullEndpoint || 'undefined');
+      console.error('📊 Selected model:', selectedModelData);
+      console.error('🔧 API_URL configured:', API_URL);
+
+      // ✅ ENHANCED: Better error information for debugging
+      let errorDetails = error.message;
+      if (error.response) {
+        errorDetails += ` (HTTP ${error.response.status})`;
+      }
+
       const fallbackResponse = {
-        content: `⚠️ AI service temporarily unavailable. Please try again in a moment.\n\nError: ${error.message}`,
+        content: `⚠️ AI service temporarily unavailable. Please try again in a moment.\n\nError: ${errorDetails}\n\nEndpoint: ${fullEndpoint || 'unknown'}\n\nIf this persists, check your network connection or try again later.`,
         groceryList: []
       };
       
