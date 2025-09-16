@@ -222,10 +222,16 @@ app.use('/api/', createRateLimiter(15 * 60 * 1000, 100, 'Too many requests'));
 app.use('/api/auth/', createRateLimiter(15 * 60 * 1000, 10, 'Too many authentication attempts'));
 app.use('/api/ai/', createRateLimiter(60 * 1000, 10, 'Too many AI requests'));
 
-// CORS Configuration for Production
-// CORS Configuration for Production
+// Enhanced CORS Configuration with Debug Logging
 const corsOptions = {
   origin: function (origin, callback) {
+    // Enhanced logging for CORS debugging
+    console.log('\n🔍 CORS DEBUG - Processing request:');
+    console.log('- Origin:', origin);
+    console.log('- NODE_ENV:', process.env.NODE_ENV);
+    console.log('- CLIENT_URL:', process.env.CLIENT_URL);
+    console.log('- Time:', new Date().toISOString());
+
     const allowedOrigins = [
       'https://cart-smash.vercel.app',
       'https://cartsmash.vercel.app',
@@ -247,14 +253,35 @@ const corsOptions = {
       process.env.CLIENT_URL
     ].filter(Boolean);
 
-    if (!origin) return callback(null, true);
-    const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
-    if (vercelPattern.test(origin)) {
+    console.log('- Allowed Origins:', allowedOrigins);
+
+    // Allow requests with no origin (mobile apps, postman, server-to-server)
+    if (!origin) {
+      console.log('✅ CORS: No origin header - allowing request');
       return callback(null, true);
     }
-    if (allowedOrigins.includes(origin)) {
+
+    // Check Vercel pattern first
+    const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+    console.log('- Testing Vercel pattern:', vercelPattern.toString());
+    console.log('- Vercel pattern test result:', vercelPattern.test(origin));
+
+    if (vercelPattern.test(origin)) {
+      console.log('✅ CORS: Origin matches Vercel pattern - allowing request');
+      return callback(null, true);
+    }
+
+    // Check explicit allowlist
+    const isInAllowlist = allowedOrigins.includes(origin);
+    console.log('- In explicit allowlist:', isInAllowlist);
+
+    if (isInAllowlist) {
+      console.log('✅ CORS: Origin in allowlist - allowing request');
       callback(null, true);
     } else {
+      console.log('❌ CORS: Origin not allowed - blocking request');
+      console.log('- Blocked origin:', origin);
+      console.log('- Available origins:', allowedOrigins);
       logger.warn(`CORS blocked request from: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
@@ -277,6 +304,62 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Enhanced request logging for CORS debugging
+app.use((req, res, next) => {
+  console.log('\n📥 INCOMING REQUEST DEBUG:');
+  console.log('- Method:', req.method);
+  console.log('- URL:', req.url);
+  console.log('- Origin header:', req.headers.origin);
+  console.log('- Host header:', req.headers.host);
+  console.log('- User-Agent:', req.headers['user-agent']);
+  console.log('- All headers:', JSON.stringify(req.headers, null, 2));
+
+  // Log response headers after they're set
+  const originalSend = res.send;
+  res.send = function(data) {
+    console.log('📤 RESPONSE HEADERS:');
+    console.log('- Access-Control-Allow-Origin:', res.getHeader('Access-Control-Allow-Origin'));
+    console.log('- Access-Control-Allow-Credentials:', res.getHeader('Access-Control-Allow-Credentials'));
+    console.log('- All response headers:', JSON.stringify(res.getHeaders(), null, 2));
+    originalSend.call(this, data);
+  };
+
+  next();
+});
+
+// Explicit OPTIONS handler for preflight requests (using same CORS logic)
+app.options('*', (req, res) => {
+  console.log('\n🔄 OPTIONS PREFLIGHT REQUEST:');
+  console.log('- Origin:', req.headers.origin);
+  console.log('- Access-Control-Request-Method:', req.headers['access-control-request-method']);
+  console.log('- Access-Control-Request-Headers:', req.headers['access-control-request-headers']);
+
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://cart-smash.vercel.app',
+    'https://cartsmash.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    process.env.CLIENT_URL
+  ].filter(Boolean);
+
+  const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+  const isAllowed = !origin || allowedOrigins.includes(origin) || vercelPattern.test(origin);
+
+  if (isAllowed) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+    res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization,X-API-Key,User-ID,user-id');
+    res.header('Access-Control-Max-Age', '86400');
+    console.log('✅ OPTIONS: Preflight response sent with CORS headers');
+    res.sendStatus(200);
+  } else {
+    console.log('❌ OPTIONS: Origin not allowed in preflight');
+    res.sendStatus(403);
+  }
+});
 
 // Body Parser Middleware
 app.use(bodyParser.json({ limit: '10mb' }));
@@ -1147,6 +1230,14 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 // Start Server
 if (require.main === module) {
   const server = app.listen(PORT, () => {
+    const allowedOrigins = [
+      'https://cart-smash.vercel.app',
+      'https://cartsmash.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:3001',
+      process.env.CLIENT_URL
+    ].filter(Boolean);
+
     logger.info(`
     ========================================
     🚀 CARTSMASH Server Started
@@ -1154,9 +1245,25 @@ if (require.main === module) {
     Environment: ${process.env.NODE_ENV}
     Port: ${PORT}
     URL: https://cartsmash-api.onrender.com
-    Client: ${process.env.CLIENT_URL}
+    Client URL Env: ${process.env.CLIENT_URL}
+
+    🌐 CORS Configuration:
+    - Allowed Origins: ${JSON.stringify(allowedOrigins, null, 6)}
+    - Vercel Pattern: /^https:\/\/[a-z0-9-]+\.vercel\.app$/i
+    - Credentials: true
+    - Methods: GET,POST,PUT,DELETE,OPTIONS,PATCH
+
+    🔧 Environment Variables Status:
+    - NODE_ENV: ${process.env.NODE_ENV}
+    - CLIENT_URL: ${process.env.CLIENT_URL ? '✅ Set' : '❌ Not Set'}
+    - ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? '✅ Set' : '❌ Not Set'}
+    - OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Not Set'}
+    - INSTACART_API_KEY: ${process.env.INSTACART_API_KEY ? '✅ Set' : '❌ Not Set'}
     ========================================
     `);
+
+    console.log('\n🧪 CORS Debug Mode: ENABLED');
+    console.log('📊 All requests will be logged with detailed CORS information');
   });
   
   app.set('server', server);
