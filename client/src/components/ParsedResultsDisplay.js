@@ -1524,6 +1524,69 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         />
       )}
 
+      {/* Price Comparison Modal */}
+      {showPriceComparison && comparingItem && (
+        <div style={styles.priceComparisonModal}>
+          <div style={styles.priceComparisonContent}>
+            <div style={styles.priceComparisonHeader}>
+              <h3 style={styles.priceComparisonTitle}>
+                💰 Compare Prices for {getProductDisplayName(comparingItem)}
+              </h3>
+              <button
+                onClick={handleClosePriceComparison}
+                style={styles.priceComparisonClose}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={styles.priceComparisonBody}>
+              {loadingPrices ? (
+                <div style={styles.priceComparisonLoading}>
+                  <InlineSpinner text="Finding best prices..." color="#FB4F14" />
+                </div>
+              ) : (
+                <div style={styles.vendorList}>
+                  {vendorPrices.map((vendor, index) => (
+                    <div key={vendor.retailerId} style={styles.vendorOption}>
+                      <div style={styles.vendorInfo}>
+                        <div style={styles.vendorHeader}>
+                          <span style={styles.vendorName}>{vendor.retailer}</span>
+                          <span style={styles.vendorPrice}>
+                            ${(vendor.price * (comparingItem.quantity || 1)).toFixed(2)}
+                          </span>
+                        </div>
+                        <div style={styles.vendorDetails}>
+                          <span style={styles.vendorBrand}>{vendor.brand}</span>
+                          <span style={styles.vendorSize}>{vendor.size}</span>
+                          <span style={{
+                            ...styles.vendorAvailability,
+                            color: vendor.availability === 'in-stock' ? '#10B981' : '#F59E0B'
+                          }}>
+                            {vendor.availability}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleSelectVendorPrice(vendor)}
+                        style={styles.selectVendorButton}
+                      >
+                        Select
+                      </button>
+                    </div>
+                  ))}
+                  {vendorPrices.length === 0 && (
+                    <div style={styles.noPricesMessage}>
+                      No alternative prices found. Try again later.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -2502,6 +2565,173 @@ const styles = {
   catalogTimestamp: {
     color: '#999',
     fontSize: '11px'
+  },
+
+  // Price comparison modal styles
+  priceComparisonModal: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000
+  },
+
+  priceComparisonContent: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '0',
+    maxWidth: '600px',
+    width: '90%',
+    maxHeight: '80vh',
+    overflow: 'hidden',
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)'
+  },
+
+  priceComparisonHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px',
+    borderBottom: '1px solid #e5e7eb',
+    backgroundColor: '#f9fafb'
+  },
+
+  priceComparisonTitle: {
+    margin: 0,
+    color: '#002244',
+    fontSize: '18px',
+    fontWeight: '600'
+  },
+
+  priceComparisonClose: {
+    background: 'none',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    color: '#6b7280',
+    padding: '0',
+    width: '30px',
+    height: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  priceComparisonBody: {
+    padding: '20px',
+    maxHeight: '60vh',
+    overflow: 'auto'
+  },
+
+  priceComparisonLoading: {
+    textAlign: 'center',
+    padding: '40px 20px'
+  },
+
+  vendorList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+
+  vendorOption: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    backgroundColor: '#fafafa',
+    transition: 'all 0.2s'
+  },
+
+  vendorInfo: {
+    flex: 1
+  },
+
+  vendorHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '8px'
+  },
+
+  vendorName: {
+    fontWeight: '600',
+    color: '#002244',
+    fontSize: '16px'
+  },
+
+  vendorPrice: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#FB4F14'
+  },
+
+  vendorDetails: {
+    display: 'flex',
+    gap: '12px',
+    fontSize: '14px',
+    color: '#6b7280'
+  },
+
+  vendorBrand: {
+    fontWeight: '500'
+  },
+
+  vendorSize: {},
+
+  vendorAvailability: {
+    fontWeight: '500',
+    textTransform: 'capitalize'
+  },
+
+  selectVendorButton: {
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '8px 16px',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '14px',
+    transition: 'background-color 0.2s',
+    marginLeft: '16px'
+  },
+
+  noPricesMessage: {
+    textAlign: 'center',
+    color: '#6b7280',
+    fontSize: '16px',
+    padding: '40px 20px'
+  },
+
+  // Clickable price styles
+  clickablePrice: {
+    background: 'none',
+    border: 'none',
+    color: '#FB4F14',
+    fontWeight: '600',
+    fontSize: '14px',
+    cursor: 'pointer',
+    textDecoration: 'underline',
+    textDecorationStyle: 'dotted',
+    padding: '2px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    transition: 'color 0.2s'
+  },
+
+  vendorSelectedIcon: {
+    color: '#10B981',
+    fontSize: '12px',
+    fontWeight: 'bold'
   }
 
 };
