@@ -1401,7 +1401,10 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
       // STEP 2: Parse text into cart items (second click or manual text)
       if (waitingForAIResponse || !useAI) {
         console.log('📦 Parsing grocery list into cart items...');
-        
+        console.log('🔍 DEBUG: waitingForAIResponse =', waitingForAIResponse);
+        console.log('🔍 DEBUG: useAI =', useAI);
+        console.log('🔍 DEBUG: listText length =', listText?.length);
+
         const response = await fetch(`${API_URL}/api/cart/parse`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1422,7 +1425,8 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
         }
 
         const data = await response.json();
-        
+        console.log('🔍 DEBUG: Cart parse response =', data);
+
         if (data.success && data.cart) {
           // Fix cart item structure before setting
           const fixedCart = fixCartItemStructure(data.cart);
@@ -1464,8 +1468,11 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
         setParsingProgress(0);
         return;
       }
-      
+
       // If we get here, something went wrong
+      console.log('🔍 DEBUG: Reached fallback error - conditions not met');
+      console.log('🔍 DEBUG: Final state - waitingForAIResponse =', waitingForAIResponse);
+      console.log('🔍 DEBUG: Final state - useAI =', useAI);
       setError('Unable to process. Please try again.');
       
     } catch (err) {
