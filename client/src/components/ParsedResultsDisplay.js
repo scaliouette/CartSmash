@@ -473,8 +473,8 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
       setShowRecipeEditor(true);
       
     } catch (error) {
-      console.error('❌ Error parsing recipe:', error);
-      alert('❌ Failed to parse recipe. Please try again.');
+      console.error('❌ Error processing recipe:', error);
+      alert('❌ Failed to process recipe. Please try again.');
     }
   };
 

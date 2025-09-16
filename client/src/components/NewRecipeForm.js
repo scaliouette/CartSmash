@@ -56,7 +56,7 @@ function NewRecipeForm({ onSave, onCancel, initialRecipe = null }) {
       setActiveTab('manual'); // Switch to manual tab to show parsed results
       
     } catch (error) {
-      setErrors({ ai: 'Failed to parse recipe with AI. Please try manual entry.' });
+      setErrors({ ai: 'Failed to process recipe with AI. Please try manual entry.' });
     } finally {
       setIsProcessing(false);
     }

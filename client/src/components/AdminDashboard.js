@@ -629,11 +629,11 @@ function AdminDashboard({ onClose, currentUser }) {
 
         <div style={styles.logContainer}>
           {[
-            { level: 'info', time: '14:23:45', message: 'Smart parsing completed successfully', details: '12 items extracted, 95% confidence' },
+            { level: 'info', time: '14:23:45', message: 'Smart processing completed successfully', details: '12 items extracted, 95% confidence' },
             { level: 'warn', time: '14:22:33', message: 'AI API rate limit approaching', details: 'Claude API: 85/100 requests used' },
             { level: 'info', time: '14:21:12', message: 'Product validation completed', details: '8/8 products validated successfully' },
             { level: 'error', time: '14:19:07', message: 'Database connection timeout', details: 'Connection to PostgreSQL failed after 5s' },
-            { level: 'info', time: '14:18:45', message: 'Cache cleared by admin', details: 'All cached parsing results removed' },
+            { level: 'info', time: '14:18:45', message: 'Cache cleared by admin', details: 'All cached processing results removed' },
             { level: 'info', time: '14:17:23', message: 'New user registered', details: 'user@example.com signed up' }
           ].map((log, index) => (
             <div key={index} style={{

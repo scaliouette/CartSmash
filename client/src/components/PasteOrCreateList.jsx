@@ -95,7 +95,7 @@ const GroceryListForm = ({
         setInputText('');
         setSelectedCategory(null);
       } else {
-        throw new Error(data.error || 'Failed to parse list');
+        throw new Error(data.error || 'Failed to process list');
       }
     } catch (error) {
       console.error('Error processing list:', error);

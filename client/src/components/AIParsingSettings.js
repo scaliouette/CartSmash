@@ -239,7 +239,7 @@ function AIParsingSettings({ onClose, onSettingsChange }) {
   const renderParsingTab = () => (
     <div style={styles.tabContent}>
       <div style={styles.section}>
-        <h4 style={styles.sectionTitle}>🎯 Parsing Behavior</h4>
+        <h4 style={styles.sectionTitle}>🎯 Processing Behavior</h4>
         
         <div style={styles.setting}>
           <label style={styles.checkboxLabel}>
@@ -288,7 +288,7 @@ function AIParsingSettings({ onClose, onSettingsChange }) {
               checked={settings.fallbackToSimple}
               onChange={(e) => setSettings(prev => ({ ...prev, fallbackToSimple: e.target.checked }))}
             />
-            <span>Fallback to simple parsing if AI fails</span>
+            <span>Fallback to simple processing if AI fails</span>
           </label>
         </div>
       </div>
@@ -479,13 +479,13 @@ function AIParsingSettings({ onClose, onSettingsChange }) {
     <div style={styles.overlay}>
       <div style={styles.modal}>
         <div style={styles.header}>
-          <h2 style={styles.title}>⚙️ AI Parsing Settings</h2>
+          <h2 style={styles.title}>⚙️ AI Processing Settings</h2>
           <button onClick={onClose} style={styles.closeButton}>×</button>
         </div>
 
         <div style={styles.tabs}>
           {[
-            { id: 'parsing', label: '🎯 Parsing', icon: '🎯' },
+            { id: 'parsing', label: '🎯 Processing', icon: '🎯' },
             { id: 'validation', label: '🔍 Validation', icon: '🔍' },
             { id: 'presets', label: '🎛️ Presets', icon: '🎛️' },
             { id: 'test', label: '🧪 Test', icon: '🧪' }

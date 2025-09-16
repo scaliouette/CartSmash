@@ -225,7 +225,7 @@ function RecipeManager({ onClose, onRecipeSelect, savedRecipes, onRecipeSave, on
             }
           }
         } catch (parseError) {
-          console.warn('Failed to parse ingredients:', parseError.message);
+          console.warn('Failed to process ingredients:', parseError.message);
           // Continue with the original recipe
         }
       }

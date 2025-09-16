@@ -64,12 +64,12 @@ export async function parseAIMealPlan(aiResponse, userId) {
 
     const data = await response.json();
     if (!data.success) {
-      throw new Error(data.error || 'Failed to parse meal plan');
+      throw new Error(data.error || 'Failed to process meal plan');
     }
 
     return data.mealPlan;
   } catch (error) {
-    console.error('Error parsing AI meal plan:', error);
+    console.error('Error processing AI meal plan:', error);
     throw error;
   }
 }

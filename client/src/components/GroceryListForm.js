@@ -1362,7 +1362,7 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
                   setValidParsedRecipes(recipeResult.recipes);
                 }
               } catch (recipeError) {
-                console.error('❌ Failed to parse recipes from AI response:', recipeError);
+                console.error('❌ Failed to process recipes from AI response:', recipeError);
               }
               
               groceryListProcessed = true;
@@ -1418,7 +1418,7 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to parse list: ${response.status}`);
+          throw new Error(`Failed to process list: ${response.status}`);
         }
 
         const data = await response.json();
@@ -1453,7 +1453,7 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
           console.log(`✅ Added ${fixedCart.length} items to cart!`);
           
         } else {
-          throw new Error(data.error || 'Failed to parse grocery list');
+          throw new Error(data.error || 'Failed to process grocery list');
         }
         
         // Clear loading states
@@ -1721,7 +1721,7 @@ Return as JSON with this structure:
                 throw new Error(`Response appears truncated (${data.response.length} chars). Try reducing meal plan size or increasing token limit.`);
               }
             } else {
-              throw new Error(`Failed to parse AI response as JSON: ${e.message}`);
+              throw new Error(`Failed to process AI response as JSON: ${e.message}`);
             }
           } else {
             throw new Error(`Failed to parse AI response as JSON: ${e.message}`);
@@ -3185,7 +3185,7 @@ Return as JSON with this structure:
         console.log(`✅ Successfully added ${addedCount} items to cart from recipe:`, recipe.title);
       } else {
         console.error('API Response:', data);
-        throw new Error(data.error || 'Failed to parse recipe ingredients');
+        throw new Error(data.error || 'Failed to process recipe ingredients');
       }
     } catch (error) {
       console.error('❌ Error adding recipe to cart:', error);

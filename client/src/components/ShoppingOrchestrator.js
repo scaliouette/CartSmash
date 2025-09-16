@@ -214,7 +214,7 @@ function ShoppingOrchestrator({ items, recipe }) {
         alert('Unable to create cart: ' + (data?.error || 'Unknown error'));
       }
     } catch (parseError) {
-      console.error('Error parsing API response:', parseError);
+      console.error('Error processing API response:', parseError);
       alert('Error processing checkout response');
     }
   };

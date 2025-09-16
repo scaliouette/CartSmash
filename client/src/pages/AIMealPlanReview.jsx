@@ -37,7 +37,7 @@ export default function AIMealPlanReview({ aiGeneratedPlan }) {
         setSelectedRecipes(new Set(data.mealPlan.recipes.map(r => r.id)));
       }
     } catch (error) {
-      console.error('Error parsing meal plan:', error);
+      console.error('Error processing meal plan:', error);
     }
   }
 

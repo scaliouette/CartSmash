@@ -83,14 +83,14 @@ export const parseRecipeWithAI = async (recipeText) => {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to parse recipe with AI');
+      throw new Error('Failed to process recipe with AI');
     }
 
     const data = await response.json();
     return data.recipe;
     
   } catch (error) {
-    console.error('Error parsing recipe with AI:', error);
+    console.error('Error processing recipe with AI:', error);
     throw error;
   }
 };

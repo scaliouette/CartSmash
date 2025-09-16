@@ -122,7 +122,7 @@ export const CartProvider = ({ children }) => {
         
         return data;
       }
-      throw new Error(data.error || 'Failed to parse list');
+      throw new Error(data.error || 'Failed to process list');
     } catch (error) {
       setError(error.message);
       throw error;
