@@ -1345,7 +1345,7 @@ router.post('/recipe/create', async (req, res) => {
     
     // Mock response for development (both when no API keys or when API fails)
     const mockRecipeId = Math.floor(Math.random() * 1000000);
-    const mockUrl = `https://www.instacart.com/store/recipes/${mockRecipeId}`;
+    const mockUrl = `https://customers.dev.instacart.tools/store/recipes/${mockRecipeId}`;
     
     console.log(`✅ Mock recipe created: ${mockRecipeId}`);
     
