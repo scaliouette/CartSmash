@@ -132,94 +132,14 @@
   <body>
     <noscript>You need to enable JavaScript to run CARTSMASH.</noscript>
     
-    <!-- Enhanced loading screen with animated logo -->
+    <!-- Enhanced loading screen -->
     <div id="loading-screen" class="loading-screen">
-      <div class="logo-wrapper">
-        <!-- Animated SVG Logo -->
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="animated-logo">
-          <!-- Definitions for gradients and shadows -->
-          <defs>
-            <!-- Orange gradient for accents -->
-            <linearGradient id="broncos-orange" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#FB4F14;stop-opacity:1" />
-              <stop offset="100%" style="stop-color:#FF6B35;stop-opacity:1" />
-            </linearGradient>
-
-            <!-- Navy gradient for depth -->
-            <linearGradient id="broncos-navy" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#002244;stop-opacity:1" />
-              <stop offset="100%" style="stop-color:#003366;stop-opacity:1" />
-            </linearGradient>
-
-            <!-- Drop shadow filter -->
-            <filter id="drop-shadow">
-              <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.15"/>
-            </filter>
-          </defs>
-
-          <!-- White circle background with pulse animation -->
-          <circle cx="100" cy="100" r="85" fill="white" class="background-circle"/>
-
-          <!-- Cart icon group centered at 100,100 -->
-          <g transform="translate(100, 100)" class="cart-group">
-            <!-- Cart body -->
-            <path d="M -40 -25 L -32 20 L 32 20 L 40 -25 Z"
-                  fill="#002244"/>
-
-            <!-- Cart handle -->
-            <path d="M -45 -25 C -45 -40, -35 -48, -20 -48 L 20 -48 C 35 -48, 45 -40, 45 -25"
-                  fill="none"
-                  stroke="#002244"
-                  stroke-width="7"
-                  stroke-linecap="round"/>
-
-            <!-- Left wheel with rotation -->
-            <g class="wheel">
-              <circle cx="-20" cy="28" r="8" fill="#002244"/>
-              <circle cx="-20" cy="28" r="2" fill="white"/>
-              <rect x="-21" y="20" width="2" height="16" fill="white" opacity="0.3"/>
-              <rect x="-28" y="27" width="16" height="2" fill="white" opacity="0.3"/>
-            </g>
-
-            <!-- Right wheel with rotation -->
-            <g class="wheel">
-              <circle cx="20" cy="28" r="8" fill="#002244"/>
-              <circle cx="20" cy="28" r="2" fill="white"/>
-              <rect x="19" y="20" width="2" height="16" fill="white" opacity="0.3"/>
-              <rect x="12" y="27" width="16" height="2" fill="white" opacity="0.3"/>
-            </g>
-
-            <!-- Speed lines (motion effect) with animation -->
-            <!-- Top speed line -->
-            <rect x="-70" y="-5"
-                  width="20" height="6"
-                  rx="3"
-                  fill="#FB4F14"
-                  class="speed-line-1"/>
-
-            <!-- Middle speed line -->
-            <rect x="-68" y="-18"
-                  width="15" height="5"
-                  rx="2.5"
-                  fill="#FB4F14"
-                  class="speed-line-2"/>
-
-            <!-- Bottom speed line -->
-            <rect x="-65" y="8"
-                  width="18" height="5"
-                  rx="2.5"
-                  fill="#FB4F14"
-                  class="speed-line-3"/>
-          </g>
-        </svg>
+      <div class="loading-logo">
+        <span class="loading-icon">💥</span>
+        <span>CARTSMASH</span>
       </div>
-
-      <!-- Company Name -->
-      <div class="company-name">
-        <span class="cart-text">CART</span><span class="smash-text">SMASH</span>
-      </div>
-
       <div class="loading-text">Initializing AI-powered grocery parsing...</div>
+      <div class="loading-spinner"></div>
     </div>
     
     <div id="root"></div>

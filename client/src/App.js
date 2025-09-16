@@ -14,6 +14,8 @@ import Contact from './components/Contact';
 import Terms from './components/Terms';
 import Privacy from './components/privacy';
 import Footer from './components/Footer';
+import ErrorBoundary from './components/ErrorBoundary';
+import debugService from './services/debugService';
 import './utils/testUtils';
 
 console.log('📦 App.js module loading...');
@@ -58,24 +60,26 @@ function App() {
   return (
     <AuthProvider>
       <SmashCartProvider>
-        <AppContent 
-          currentView={currentView}
-          setCurrentView={setCurrentView}
-          currentCart={currentCart}
-          setCurrentCart={setCurrentCart}
-          savedLists={savedLists}
-          setSavedLists={setSavedLists}
-          savedRecipes={savedRecipes}
-          setSavedRecipes={setSavedRecipes}
-          parsedRecipes={parsedRecipes}
-          setParsedRecipes={setParsedRecipes}
-          mealPlans={mealPlans}
-          setMealPlans={setMealPlans}
-          isLoading={isLoading}
-          setIsLoading={setIsLoading}
-          syncStatus={syncStatus}
-          setSyncStatus={setSyncStatus}
-        />
+        <ErrorBoundary componentName="App">
+          <AppContent
+            currentView={currentView}
+            setCurrentView={setCurrentView}
+            currentCart={currentCart}
+            setCurrentCart={setCurrentCart}
+            savedLists={savedLists}
+            setSavedLists={setSavedLists}
+            savedRecipes={savedRecipes}
+            setSavedRecipes={setSavedRecipes}
+            parsedRecipes={parsedRecipes}
+            setParsedRecipes={setParsedRecipes}
+            mealPlans={mealPlans}
+            setMealPlans={setMealPlans}
+            isLoading={isLoading}
+            setIsLoading={setIsLoading}
+            syncStatus={syncStatus}
+            setSyncStatus={setSyncStatus}
+          />
+        </ErrorBoundary>
       </SmashCartProvider>
     </AuthProvider>
   );
