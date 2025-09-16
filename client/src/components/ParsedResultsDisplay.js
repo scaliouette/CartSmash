@@ -1560,6 +1560,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
             {selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 && '✓'}
           </div>
         </div>
+        <div style={styles.headerThumbnail}></div>
         <div style={styles.headerCategory}></div>
         <div style={styles.headerName}>Product Name</div>
         <div style={styles.headerQuantity}>Qty</div>
@@ -2189,7 +2190,7 @@ const styles = {
 
   listHeader: {
     display: 'grid',
-    gridTemplateColumns: '40px 40px 1fr 80px 120px 70px 80px 40px',
+    gridTemplateColumns: '40px 40px 40px 1fr 80px 120px 70px 80px 40px',
     gap: '10px',
     padding: '10px 15px',
     backgroundColor: '#002244',
@@ -2199,7 +2200,7 @@ const styles = {
     color: 'white',
     borderBottom: '2px solid #FB4F14',
     alignItems: 'center',
-    minWidth: '800px',
+    minWidth: '900px',
     overflow: 'hidden'
   },
 
@@ -2209,7 +2210,8 @@ const styles = {
     display: 'flex',
     justifyContent: 'center'
   },
-  
+
+  headerThumbnail: { textAlign: 'center' },
   headerCategory: { textAlign: 'center' },
   headerName: {},
   headerQuantity: { textAlign: 'center' },
@@ -2224,7 +2226,7 @@ const styles = {
     borderRadius: '0 0 8px 8px',
     border: '2px solid #002244',
     borderTop: 'none',
-    minWidth: '800px'
+    minWidth: '900px'
   },
 
   categoryHeader: {
@@ -2258,14 +2260,14 @@ const styles = {
 
   itemRow: {
     display: 'grid',
-    gridTemplateColumns: '40px 40px 1fr 80px 120px 70px 80px 40px',
+    gridTemplateColumns: '40px 40px 40px 1fr 80px 120px 70px 80px 40px',
     gap: '10px',
     padding: '10px 15px',
     borderBottom: '1px solid #f3f4f6',
     alignItems: 'center',
     transition: 'background-color 0.2s',
     cursor: 'default',
-    minWidth: '800px',
+    minWidth: '900px',
     overflow: 'hidden'
   },
 
