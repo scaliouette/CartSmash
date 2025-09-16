@@ -24,7 +24,7 @@ function SmartAIAssistant({ onGroceryListGenerated, onRecipeGenerated }) {
       endpoint: '/api/ai/claude'
     },
     chatgpt: {
-      name: 'ChatGPT (OpenAI)', 
+      name: 'ChatGPT (OpenAI)',
       icon: '🤖',
       color: '#059669',
       description: 'Great for quick lists and budget planning',
@@ -417,12 +417,21 @@ Provide recipes with instructions and list each grocery item on a separate line.
       // ✅ ENHANCED: Include ingredient choice in request
       const enhancedMessage = `${message}
 
-INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT ingredients when possible (pre-made sauces, rotisserie chicken, pre-washed vegetables, etc.). Minimize prep time.' : 'Use HOMEMADE/FROM-SCRATCH ingredients. Include individual spices, base ingredients, and detailed preparation steps.'}`;
+INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT ingredients when possible (pre-made sauces, rotisserie chicken, pre-washed vegetables, etc.). Minimize prep time.' : 'Use HOMEMADE/FROM-SCRATCH ingredients. Include individual spices, base ingredients, and detailed preparation steps.'}
+
+IMPORTANT FOR RECIPES: Provide DETAILED, step-by-step cooking instructions with:
+- Specific temperatures (e.g., "375°F", "medium-high heat")
+- Exact timing (e.g., "5-7 minutes until golden brown")
+- Visual cues (e.g., "until fragrant and translucent")
+- Equipment specifications (e.g., "12-inch skillet", "large heavy-bottomed pot")
+- Professional techniques (e.g., "don't move for 4-6 minutes to develop sear")
+- Minimum 6-8 detailed steps for complex dishes
+- Each step should be comprehensive enough for a novice cook to follow successfully`;
       
       const response = await fetch(selectedModelData.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           prompt: enhancedMessage,
           context: 'grocery_list_generation_with_recipes',
           ingredientChoice: ingredientChoice
@@ -435,7 +444,7 @@ INGREDIENT PREFERENCE: ${ingredientChoice === 'basic' ? 'Use BASIC/STORE-BOUGHT 
 
       const data = await response.json();
       console.log('🎯 AI Response received:', data);
-      
+
       // ✅ ENHANCED: Extract both grocery items AND recipe information
       const aiResponseText = data.response || data.message || '';
       let extractedItems = [];

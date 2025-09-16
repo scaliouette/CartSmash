@@ -423,23 +423,104 @@ class MealPlanParser {
   }
 
   /**
-   * Parse simple comma-separated instructions
+   * Parse detailed instructions (enhanced to preserve AI content)
    */
   parseSimpleInstructions(instructionsText) {
     const instructions = [];
+
+    // First try to parse numbered steps (1., 2., etc.)
+    const numberedSteps = instructionsText.match(/\d+\.\s*[^.]+(?:\.|$)/g);
+    if (numberedSteps && numberedSteps.length >= 3) {
+      numberedSteps.forEach((step, index) => {
+        const cleanStep = step.replace(/^\d+\.\s*/, '').trim();
+        if (cleanStep) {
+          instructions.push({
+            step: index + 1,
+            instruction: cleanStep,
+            time: this.extractTimeFromInstruction(cleanStep)
+          });
+        }
+      });
+      return instructions;
+    }
+
+    // Try to parse sentence-based steps (look for periods)
+    const sentences = instructionsText.split(/\.\s+/).filter(s => s.trim().length > 10);
+    if (sentences.length >= 3) {
+      sentences.forEach((sentence, index) => {
+        const cleanSentence = sentence.trim();
+        if (cleanSentence) {
+          instructions.push({
+            step: index + 1,
+            instruction: cleanSentence.endsWith('.') ? cleanSentence : cleanSentence + '.',
+            time: this.extractTimeFromInstruction(cleanSentence)
+          });
+        }
+      });
+      return instructions;
+    }
+
+    // Fallback to comma separation but enhance with cooking details
     const steps = instructionsText.split(',').map(step => step.trim());
-    
     for (let i = 0; i < steps.length; i++) {
       if (steps[i]) {
+        const enhancedInstruction = this.enhanceBasicInstruction(steps[i], i + 1);
         instructions.push({
           step: i + 1,
-          instruction: steps[i],
-          time: null
+          instruction: enhancedInstruction,
+          time: this.extractTimeFromInstruction(enhancedInstruction)
         });
       }
     }
-    
+
     return instructions;
+  }
+
+  /**
+   * Extract time information from instruction text
+   */
+  extractTimeFromInstruction(instruction) {
+    const timeMatch = instruction.match(/(\d+)\s*(minutes?|mins?|hours?|hrs?)/i);
+    if (timeMatch) {
+      const value = parseInt(timeMatch[1]);
+      const unit = timeMatch[2].toLowerCase();
+      return unit.startsWith('h') ? value * 60 : value;
+    }
+    return null;
+  }
+
+  /**
+   * Enhance basic instructions with cooking details
+   */
+  enhanceBasicInstruction(basicStep, stepNumber) {
+    const step = basicStep.toLowerCase();
+
+    // Enhance common cooking actions with temperatures and timing
+    if (step.includes('bake') || step.includes('oven')) {
+      return `${basicStep}. Preheat oven to 375°F and bake for 20-25 minutes until golden brown.`;
+    }
+    if (step.includes('sauté') || step.includes('cook')) {
+      return `${basicStep}. Heat oil in a large skillet over medium-high heat and cook for 5-7 minutes, stirring occasionally.`;
+    }
+    if (step.includes('boil') || step.includes('pasta')) {
+      return `${basicStep}. Bring a large pot of salted water to a rolling boil and cook according to package directions.`;
+    }
+    if (step.includes('season') || step.includes('salt')) {
+      return `${basicStep}. Season generously with salt, pepper, and any preferred herbs or spices to taste.`;
+    }
+    if (step.includes('serve') || step.includes('plate')) {
+      return `${basicStep}. Transfer to serving plates and garnish as desired. Serve immediately while hot.`;
+    }
+
+    // Add step-specific enhancements based on position
+    switch (stepNumber) {
+      case 1:
+        return `Prep: ${basicStep}. Gather all ingredients and equipment before starting.`;
+      case 2:
+        return `Heat: ${basicStep}. Ensure proper temperature before adding ingredients.`;
+      default:
+        return `${basicStep}. Monitor carefully and adjust timing as needed.`;
+    }
   }
 
   /**
@@ -704,36 +785,164 @@ class MealPlanParser {
   }
 
   /**
-   * Generate basic instructions from recipe data
+   * Generate detailed instructions from recipe data
    */
   generateInstructions(recipe) {
+    // If recipe already has detailed instructions from AI parsing, use them
+    if (recipe.instructions && recipe.instructions.length > 0) {
+      return recipe.instructions;
+    }
+
+    // Generate comprehensive instructions based on recipe name and ingredients
     const instructions = [];
-    
-    if (recipe.time.prep) {
-      instructions.push({
-        step: 1,
-        instruction: `Prepare ingredients (${recipe.time.prep} minutes)`,
-        time: recipe.time.prep
-      });
+    const recipeName = recipe.name.toLowerCase();
+    const ingredients = recipe.ingredients || [];
+
+    // Smart instruction generation based on recipe type
+    if (recipeName.includes('salad')) {
+      return this.generateSaladInstructions(recipe);
+    } else if (recipeName.includes('pasta')) {
+      return this.generatePastaInstructions(recipe);
+    } else if (recipeName.includes('soup') || recipeName.includes('stew')) {
+      return this.generateSoupInstructions(recipe);
+    } else if (recipeName.includes('stir') || recipeName.includes('sauté')) {
+      return this.generateStirFryInstructions(recipe);
+    } else if (recipeName.includes('bake') || recipeName.includes('roast')) {
+      return this.generateBakedInstructions(recipe);
+    } else if (recipeName.includes('grill')) {
+      return this.generateGrilledInstructions(recipe);
+    } else if (recipeName.includes('sandwich') || recipeName.includes('wrap')) {
+      return this.generateSandwichInstructions(recipe);
     }
-    
-    if (recipe.time.cook) {
-      instructions.push({
-        step: instructions.length + 1,
-        instruction: `Cook according to recipe (${recipe.time.cook} minutes)`,
-        time: recipe.time.cook
-      });
-    }
-    
-    if (instructions.length === 0) {
-      instructions.push({
-        step: 1,
-        instruction: 'Combine ingredients and serve',
-        time: 5
-      });
-    }
-    
-    return instructions;
+
+    // Generic detailed instructions for unknown recipe types
+    return this.generateGenericDetailedInstructions(recipe);
+  }
+
+  /**
+   * Generate detailed salad instructions
+   */
+  generateSaladInstructions(recipe) {
+    return [
+      { step: 1, instruction: "Wash and thoroughly dry all fresh greens and vegetables. Pat dry with paper towels.", time: 5 },
+      { step: 2, instruction: "Chop vegetables into uniform, bite-sized pieces. Cut proteins if needed.", time: 8 },
+      { step: 3, instruction: "Prepare dressing by whisking together oil, vinegar, and seasonings until emulsified.", time: 3 },
+      { step: 4, instruction: "In a large bowl, combine greens first, then add other ingredients by color and texture.", time: 4 },
+      { step: 5, instruction: "Drizzle dressing lightly and toss gently with clean hands or salad tongs.", time: 2 },
+      { step: 6, instruction: "Taste and adjust seasoning. Add finishing touches like nuts or cheese.", time: 2 },
+      { step: 7, instruction: "Serve immediately on chilled plates for best texture and flavor.", time: 1 }
+    ];
+  }
+
+  /**
+   * Generate detailed pasta instructions
+   */
+  generatePastaInstructions(recipe) {
+    return [
+      { step: 1, instruction: "Bring a large pot of salted water to a rolling boil (1 tablespoon salt per quart).", time: 8 },
+      { step: 2, instruction: "Meanwhile, prep all ingredients: chop vegetables, grate cheese, measure seasonings.", time: 10 },
+      { step: 3, instruction: "Add pasta to boiling water and stir immediately to prevent sticking.", time: 1 },
+      { step: 4, instruction: "While pasta cooks, start sauce in a large skillet over medium heat.", time: 5 },
+      { step: 5, instruction: "Cook pasta until al dente (1-2 minutes less than package directions). Reserve 1 cup pasta water.", time: 8 },
+      { step: 6, instruction: "Drain pasta and add directly to sauce. Toss with pasta water as needed.", time: 2 },
+      { step: 7, instruction: "Remove from heat, add cheese and herbs. Toss until creamy.", time: 2 },
+      { step: 8, instruction: "Serve immediately in warmed bowls with extra cheese and black pepper.", time: 2 }
+    ];
+  }
+
+  /**
+   * Generate detailed soup/stew instructions
+   */
+  generateSoupInstructions(recipe) {
+    return [
+      { step: 1, instruction: "Heat oil in a large heavy-bottomed pot or Dutch oven over medium heat.", time: 3 },
+      { step: 2, instruction: "Sauté aromatics (onions, garlic, celery) until fragrant and translucent, about 5-7 minutes.", time: 7 },
+      { step: 3, instruction: "Add proteins and brown on all sides, developing deep flavor, about 8-10 minutes.", time: 10 },
+      { step: 4, instruction: "Add harder vegetables and cook for 3-4 minutes to begin softening.", time: 4 },
+      { step: 5, instruction: "Pour in liquid (broth, wine) and scrape up any browned bits from bottom of pot.", time: 3 },
+      { step: 6, instruction: "Add herbs, spices, and seasonings. Bring to a gentle boil, then reduce to simmer.", time: 5 },
+      { step: 7, instruction: "Cover and simmer for 25-45 minutes until proteins are tender and flavors meld.", time: 35 },
+      { step: 8, instruction: "Add quick-cooking vegetables in last 10 minutes. Taste and adjust seasoning.", time: 10 },
+      { step: 9, instruction: "Serve hot with fresh herbs, crusty bread, or your preferred garnishes.", time: 3 }
+    ];
+  }
+
+  /**
+   * Generate detailed stir-fry instructions
+   */
+  generateStirFryInstructions(recipe) {
+    return [
+      { step: 1, instruction: "Prepare all ingredients before cooking: slice proteins thinly, cut vegetables uniformly.", time: 12 },
+      { step: 2, instruction: "Heat wok or large skillet over high heat until smoking. Add oil and swirl to coat.", time: 3 },
+      { step: 3, instruction: "Add proteins first, cooking without stirring for 2-3 minutes to develop sear.", time: 3 },
+      { step: 4, instruction: "Stir-fry proteins until just cooked through, then remove to plate.", time: 4 },
+      { step: 5, instruction: "Add harder vegetables (carrots, broccoli) and stir-fry for 2-3 minutes.", time: 3 },
+      { step: 6, instruction: "Add softer vegetables (peppers, snap peas) and stir-fry for 1-2 minutes.", time: 2 },
+      { step: 7, instruction: "Return proteins to wok, add sauce, and toss everything for 1-2 minutes.", time: 2 },
+      { step: 8, instruction: "Remove from heat, garnish with fresh herbs or sesame seeds, serve immediately.", time: 2 }
+    ];
+  }
+
+  /**
+   * Generate detailed baking/roasting instructions
+   */
+  generateBakedInstructions(recipe) {
+    return [
+      { step: 1, instruction: "Preheat oven to 375°F (190°C). Position rack in center of oven.", time: 15 },
+      { step: 2, instruction: "Prepare baking dish by greasing with oil or lining with parchment paper.", time: 3 },
+      { step: 3, instruction: "Season main ingredients generously with salt, pepper, herbs, and spices.", time: 5 },
+      { step: 4, instruction: "Arrange ingredients in single layer, ensuring even spacing for proper cooking.", time: 5 },
+      { step: 5, instruction: "Drizzle with oil or dot with butter for browning and flavor.", time: 2 },
+      { step: 6, instruction: "Bake for 25-35 minutes, checking doneness with fork or thermometer.", time: 30 },
+      { step: 7, instruction: "If needed, broil for 2-3 minutes at end for golden brown finish.", time: 3 },
+      { step: 8, instruction: "Rest for 5 minutes before serving to allow juices to redistribute.", time: 5 }
+    ];
+  }
+
+  /**
+   * Generate detailed grilling instructions
+   */
+  generateGrilledInstructions(recipe) {
+    return [
+      { step: 1, instruction: "Preheat grill to medium-high heat. Clean and oil grates to prevent sticking.", time: 10 },
+      { step: 2, instruction: "Remove proteins from refrigerator 20-30 minutes before cooking to bring to room temperature.", time: 25 },
+      { step: 3, instruction: "Season generously with salt, pepper, and desired spices or marinades.", time: 5 },
+      { step: 4, instruction: "Oil the food (not the grates) to prevent sticking and promote even cooking.", time: 2 },
+      { step: 5, instruction: "Place on grill and don't move for 4-6 minutes to develop good sear marks.", time: 5 },
+      { step: 6, instruction: "Flip once and continue cooking until internal temperature reaches safe levels.", time: 6 },
+      { step: 7, instruction: "Let rest for 5-10 minutes before slicing to retain juices.", time: 7 },
+      { step: 8, instruction: "Serve with fresh herbs, lemon, or your favorite sauces.", time: 2 }
+    ];
+  }
+
+  /**
+   * Generate detailed sandwich/wrap instructions
+   */
+  generateSandwichInstructions(recipe) {
+    return [
+      { step: 1, instruction: "Toast bread slices until golden brown, or warm tortillas/wraps if using.", time: 4 },
+      { step: 2, instruction: "Prepare all fillings: slice vegetables, cook proteins if needed, prepare spreads.", time: 8 },
+      { step: 3, instruction: "Spread condiments evenly on bread, leaving borders to prevent spillage.", time: 2 },
+      { step: 4, instruction: "Layer ingredients strategically: sturdy items like lettuce on bottom, delicate on top.", time: 3 },
+      { step: 5, instruction: "Add proteins and cheese, distributing evenly for balanced flavor in each bite.", time: 2 },
+      { step: 6, instruction: "Press sandwich gently to compress, then cut diagonally with sharp knife.", time: 2 }
+    ];
+  }
+
+  /**
+   * Generate generic detailed instructions for unknown recipe types
+   */
+  generateGenericDetailedInstructions(recipe) {
+    return [
+      { step: 1, instruction: "Gather all ingredients and equipment. Read through entire recipe before starting.", time: 5 },
+      { step: 2, instruction: "Prep ingredients: wash, chop, measure, and organize everything for efficient cooking.", time: 10 },
+      { step: 3, instruction: "Heat cooking vessel (pan, pot, oven) to proper temperature before adding ingredients.", time: 5 },
+      { step: 4, instruction: "Add ingredients in order of cooking time, starting with those that take longest.", time: 3 },
+      { step: 5, instruction: "Monitor cooking progress, adjusting heat and timing as needed for optimal results.", time: 15 },
+      { step: 6, instruction: "Season throughout cooking process, tasting and adjusting flavors as you go.", time: 2 },
+      { step: 7, instruction: "Check for doneness using appropriate methods (visual, temperature, texture).", time: 2 },
+      { step: 8, instruction: "Remove from heat and let rest if needed, then serve immediately while hot.", time: 5 }
+    ];
   }
 
   /**

@@ -34,14 +34,14 @@ INSTACART_API_KEY=keys.T6Kz2vkdBirIEnR-FzOCCtlfyDc-C19u0jEN2J42DzQ
 
 **Example Request**:
 ```bash
-curl -X POST http://localhost:3037/api/instacart/recipe/create \
+curl -X POST http://localhost:3074/api/instacart/recipe/create \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Test Recipe",
     "instructions": ["Mix ingredients"],
     "ingredients": [{
       "name": "flour",
-      "quantity": "2", 
+      "quantity": "2",
       "unit": "cups"
     }]
   }'
@@ -72,7 +72,7 @@ curl -X POST http://localhost:3037/api/instacart/recipe/create \
 
 **Example Request**:
 ```bash
-curl "http://localhost:3037/api/instacart/retailers?postalCode=95670&countryCode=US"
+curl "http://localhost:3074/api/instacart/retailers?postalCode=95670&countryCode=US"
 ```
 
 ### API Features
