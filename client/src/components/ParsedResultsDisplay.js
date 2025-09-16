@@ -4,6 +4,7 @@ import { InlineSpinner } from './LoadingSpinner';
 import ProductValidator from './ProductValidator';
 import RecipeManager from './RecipeManager';
 import InstacartProductMatcher from './InstacartProductMatcher';
+import productValidationService from '../services/productValidationService';
 
 
 
@@ -65,6 +66,12 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   const [comparingItem, setComparingItem] = useState(null);
   const [vendorPrices, setVendorPrices] = useState([]);
   const [loadingPrices, setLoadingPrices] = useState(false);
+
+  // AI Product Validation state
+  const [validationResults, setValidationResults] = useState(new Map());
+  const [validatingItems, setValidatingItems] = useState(new Set());
+  const [cartValidationSummary, setCartValidationSummary] = useState(null);
+  const [autoValidationEnabled, setAutoValidationEnabled] = useState(true);
 
   // Enhanced catalog data state
 
@@ -973,6 +980,134 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     handleClosePriceComparison();
   };
 
+  // AI Product Validation Functions
+  const validateCartItems = useCallback(async () => {
+    if (!items || items.length === 0) return;
+
+    console.log('🔍 Starting AI-powered cart validation...');
+    setValidatingAll(true);
+
+    try {
+      const validationResult = await productValidationService.validateCartItems(items, {
+        includeAlternatives: true,
+        minConfidence: 0.4,
+        maxAlternatives: 3,
+        includePricing: true,
+        includeMultipleStores: true
+      });
+
+      if (validationResult.success) {
+        const resultsMap = new Map();
+        validationResult.validatedItems.forEach(item => {
+          resultsMap.set(item.originalItem.id, item);
+        });
+
+        setValidationResults(resultsMap);
+        setCartValidationSummary(validationResult.summary);
+
+        console.log('✅ Cart validation completed:', validationResult.summary);
+      } else {
+        console.error('❌ Cart validation failed:', validationResult.error);
+      }
+    } catch (error) {
+      console.error('❌ Cart validation error:', error);
+    } finally {
+      setValidatingAll(false);
+    }
+  }, [items]);
+
+  const validateSingleItem = useCallback(async (item) => {
+    if (!item) return;
+
+    console.log(`🔍 Validating single item: "${item.name || item.productName}"`);
+    setValidatingItems(prev => new Set([...prev, item.id]));
+
+    try {
+      const validationResult = await productValidationService.validateSingleItem(item, {
+        includeAlternatives: true,
+        minConfidence: 0.4,
+        maxAlternatives: 3,
+        includePricing: true,
+        includeMultipleStores: true
+      });
+
+      setValidationResults(prev => new Map([...prev, [item.id, validationResult]]));
+
+      console.log(`✅ Item validation completed for "${item.name}":`, validationResult.confidenceLevel);
+    } catch (error) {
+      console.error(`❌ Item validation failed for "${item.name}":`, error);
+    } finally {
+      setValidatingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(item.id);
+        return newSet;
+      });
+    }
+  }, []);
+
+  // Auto-validate items when cart changes
+  useEffect(() => {
+    if (autoValidationEnabled && items && items.length > 0) {
+      const timer = setTimeout(() => {
+        validateCartItems();
+      }, 1000); // Debounce validation by 1 second
+
+      return () => clearTimeout(timer);
+    }
+  }, [items, autoValidationEnabled, validateCartItems]);
+
+  // Get validation data for an item
+  const getItemValidation = (itemId) => {
+    return validationResults.get(itemId) || null;
+  };
+
+  // Get enhanced confidence score (original + validation)
+  const getEnhancedConfidence = (item) => {
+    const validation = getItemValidation(item.id);
+    const originalConfidence = item.confidence || 0;
+    const validationConfidence = validation?.confidence || 0;
+
+    // Use validation confidence if available and higher, otherwise use original
+    return validationConfidence > 0 ? Math.max(originalConfidence, validationConfidence) : originalConfidence;
+  };
+
+  // Get product thumbnail with fallbacks
+  const getProductThumbnail = (item) => {
+    const validation = getItemValidation(item.id);
+
+    // Priority: validation thumbnail -> best match thumbnail -> category-based thumbnail
+    if (validation?.bestMatch?.thumbnail) {
+      return validation.bestMatch.thumbnail;
+    }
+
+    if (validation?.bestMatch?.image_url) {
+      return validation.bestMatch.image_url;
+    }
+
+    if (item.thumbnail || item.image_url) {
+      return item.thumbnail || item.image_url;
+    }
+
+    // Generate category-based thumbnail
+    return getCategoryThumbnail(item.category);
+  };
+
+  // Get category-based thumbnail
+  const getCategoryThumbnail = (category) => {
+    const categoryImages = {
+      'produce': 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=100&h=100&fit=crop',
+      'dairy': 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=100&h=100&fit=crop',
+      'meat': 'https://images.unsplash.com/photo-1615485500704-8e990f9900f7?w=100&h=100&fit=crop',
+      'bakery': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=100&h=100&fit=crop',
+      'beverages': 'https://images.unsplash.com/photo-1623065422902-4fa88dc2584b?w=100&h=100&fit=crop',
+      'frozen': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop',
+      'snacks': 'https://images.unsplash.com/photo-1576618148400-f54bed99fcfd?w=100&h=100&fit=crop',
+      'default': 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=100&h=100&fit=crop'
+    };
+
+    return categoryImages[category?.toLowerCase()] || categoryImages.default;
+  };
+
   const renderItem = (item, index) => {
     const isUpdating = updatingItems.has(item.id);
     const isFetchingPrice = fetchingPrices.has(item.id);
@@ -1011,6 +1146,17 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
             }}>
               {isSelected && '✓'}
             </div>
+          </div>
+
+          <div style={styles.itemThumbnail}>
+            <img
+              src={getProductThumbnail(item)}
+              alt={getProductDisplayName(item)}
+              style={styles.thumbnailImage}
+              onError={(e) => {
+                e.target.src = getCategoryThumbnail(item.category);
+              }}
+            />
           </div>
 
           <div style={styles.itemCategory}>
@@ -1076,15 +1222,25 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
           </div>
 
           <div style={styles.itemConfidence}>
-            <span
-              style={{
-                ...styles.confidenceBadge,
-                backgroundColor: getConfidenceColor(item.confidence || 0),
-                color: item.confidence >= 0.6 ? 'white' : 'white'
-              }}
-            >
-              {getConfidenceLabel(item.confidence || 0)}
-            </span>
+            {validatingItems.has(item.id) ? (
+              <InlineSpinner text="" color="#002244" />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                <span
+                  style={{
+                    ...styles.confidenceBadge,
+                    backgroundColor: productValidationService.getConfidenceColor(getEnhancedConfidence(item)),
+                    color: 'white'
+                  }}
+                  title={`AI Confidence: ${Math.round(getEnhancedConfidence(item) * 100)}%`}
+                >
+                  {productValidationService.getConfidenceLabel(getEnhancedConfidence(item))}
+                </span>
+                {getItemValidation(item.id) && (
+                  <span style={styles.validationIndicator} title="AI Validated">🔍</span>
+                )}
+              </div>
+            )}
           </div>
 
           <div style={styles.itemPrice}>
@@ -1399,6 +1555,83 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         <div style={styles.headerPrice}>Price</div>
         <div style={styles.headerActions}></div>
       </div>
+
+      {/* AI Validation Summary Panel */}
+      {cartValidationSummary && (
+        <div style={styles.validationSummaryPanel}>
+          <div style={styles.validationHeader}>
+            <h4 style={styles.validationTitle}>🔍 AI Product Validation Summary</h4>
+            <div style={styles.validationActions}>
+              <button
+                onClick={validateCartItems}
+                disabled={validatingAll}
+                style={styles.validateButton}
+              >
+                {validatingAll ? '🔄 Validating...' : '🔍 Re-validate Cart'}
+              </button>
+              <button
+                onClick={() => setAutoValidationEnabled(!autoValidationEnabled)}
+                style={{
+                  ...styles.toggleButton,
+                  backgroundColor: autoValidationEnabled ? '#10b981' : '#6b7280'
+                }}
+              >
+                Auto-Validate: {autoValidationEnabled ? 'ON' : 'OFF'}
+              </button>
+            </div>
+          </div>
+
+          <div style={styles.validationStatsGrid}>
+            <div style={styles.validationStatCard}>
+              <div style={{ ...styles.statValue, color: '#10b981' }}>
+                {cartValidationSummary.confidenceDistribution.excellent}
+              </div>
+              <div style={styles.statLabel}>Excellent Match</div>
+            </div>
+
+            <div style={styles.validationStatCard}>
+              <div style={{ ...styles.statValue, color: '#f59e0b' }}>
+                {cartValidationSummary.confidenceDistribution.good}
+              </div>
+              <div style={styles.statLabel}>Good Match</div>
+            </div>
+
+            <div style={styles.validationStatCard}>
+              <div style={{ ...styles.statValue, color: '#ef4444' }}>
+                {cartValidationSummary.confidenceDistribution.fair}
+              </div>
+              <div style={styles.statLabel}>Fair Match</div>
+            </div>
+
+            <div style={styles.validationStatCard}>
+              <div style={{ ...styles.statValue, color: '#6b7280' }}>
+                {cartValidationSummary.confidenceDistribution.poor}
+              </div>
+              <div style={styles.statLabel}>Poor Match</div>
+            </div>
+
+            <div style={styles.validationStatCard}>
+              <div style={styles.statValue}>
+                {cartValidationSummary.percentageGoodOrBetter}%
+              </div>
+              <div style={styles.statLabel}>Ready for Checkout</div>
+            </div>
+
+            <div style={styles.validationStatCard}>
+              <div style={styles.statValue}>
+                {cartValidationSummary.itemsNeedingAttention}
+              </div>
+              <div style={styles.statLabel}>Need Attention</div>
+            </div>
+          </div>
+
+          {cartValidationSummary.itemsNeedingAttention > 0 && (
+            <div style={styles.validationAlert}>
+              <span>⚠️ {cartValidationSummary.itemsNeedingAttention} items have low confidence scores and may need manual review or alternative product selection.</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Items List */}
       <div style={styles.itemsList}>
@@ -2077,6 +2310,29 @@ const styles = {
     fontSize: '18px'
   },
 
+  itemThumbnail: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '6px',
+    overflow: 'hidden',
+    border: '1px solid #e5e7eb',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f9fafb'
+  },
+
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover'
+  },
+
+  validationIndicator: {
+    fontSize: '10px',
+    opacity: 0.7
+  },
+
   itemName: {
     overflow: 'hidden',
     display: 'flex',
@@ -2732,6 +2988,103 @@ const styles = {
     color: '#10B981',
     fontSize: '12px',
     fontWeight: 'bold'
+  },
+
+  // AI Validation Summary Panel Styles
+  validationSummaryPanel: {
+    backgroundColor: '#f8fafc',
+    border: '2px solid #e2e8f0',
+    borderRadius: '12px',
+    padding: '20px',
+    marginBottom: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+  },
+
+  validationHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '16px',
+    flexWrap: 'wrap',
+    gap: '12px'
+  },
+
+  validationTitle: {
+    color: '#1e293b',
+    margin: 0,
+    fontSize: '18px',
+    fontWeight: '600',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+
+  validationActions: {
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'center'
+  },
+
+  validateButton: {
+    padding: '8px 16px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'all 0.2s',
+    ':hover': {
+      backgroundColor: '#2563eb'
+    },
+    ':disabled': {
+      backgroundColor: '#94a3b8',
+      cursor: 'not-allowed'
+    }
+  },
+
+  validationStatsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+    gap: '12px',
+    marginBottom: '16px'
+  },
+
+  validationStatCard: {
+    backgroundColor: 'white',
+    padding: '12px',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+    textAlign: 'center',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+  },
+
+  statValue: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: '4px'
+  },
+
+  statLabel: {
+    fontSize: '12px',
+    color: '#64748b',
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+
+  validationAlert: {
+    backgroundColor: '#fef3c7',
+    border: '1px solid #f59e0b',
+    borderRadius: '8px',
+    padding: '12px',
+    color: '#92400e',
+    fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
   }
 
 };
