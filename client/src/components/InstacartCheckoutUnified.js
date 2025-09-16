@@ -2,7 +2,7 @@
 // Unified Enhanced Instacart Checkout with Progress Indicators and Store Comparison
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronRight, Check, ShoppingCart, Store, Plus, CheckCircle, X, ArrowLeft } from 'lucide-react';
+import { ChevronRight, Check, Store, CheckCircle, X, ArrowLeft } from 'lucide-react';
 import instacartCheckoutService from '../services/instacartCheckoutService';
 import instacartShoppingListService from '../services/instacartShoppingListService';
 import './InstacartCheckoutEnhanced.css';
@@ -229,24 +229,8 @@ const InstacartCheckoutUnified = ({
 
   // ============ INGREDIENT MANAGEMENT ============
 
-  const handleIngredientToggle = (index) => {
-    setIngredients(prev => prev.map((ingredient, i) =>
-      i === index ? { ...ingredient, checked: !ingredient.checked } : ingredient
-    ));
-  };
-
-  const handleQuantityChange = (index, newQuantity) => {
-    if (newQuantity > 0) {
-      setIngredients(prev => prev.map((ingredient, i) =>
-        i === index
-          ? { ...ingredient, amount: `${newQuantity}${ingredient.amount.replace(/^[\d.]+/, '')}` }
-          : ingredient
-      ));
-    }
-  };
-
-  const handleItemRemove = (index) => {
-    setIngredients(prev => prev.filter((_, i) => i !== index));
+  // Unused functions removed to fix ESLint warnings
+  // handleIngredientToggle, handleQuantityChange, handleItemRemove
   };
 
   // ============ CHECKOUT CREATION ============

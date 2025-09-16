@@ -410,4 +410,5 @@ class InstacartShoppingListService {
   }
 }
 
-export default new InstacartShoppingListService();
+const instacartShoppingListService = new InstacartShoppingListService();
+export default instacartShoppingListService;

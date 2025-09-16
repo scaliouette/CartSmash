@@ -114,6 +114,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   };
 
   // Calculate package equivalents for better shopping experience
+  // eslint-disable-next-line no-unused-vars
   const getPackageEquivalent = (quantity, unit, productName) => {
     const qty = parseFloat(quantity) || 1;
     const unitLower = (unit || '').toLowerCase();
@@ -732,12 +733,14 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     selectedCount: selectedItems.size
   };
 
+  // eslint-disable-next-line no-unused-vars
   const getConfidenceColor = (confidence) => {
     if (confidence >= 0.8) return '#FB4F14'; // Orange for high
     if (confidence >= 0.6) return '#FFA500'; // Light orange for medium
     return '#002244'; // Navy blue for low
   };
 
+  // eslint-disable-next-line no-unused-vars
   const getConfidenceLabel = (confidence) => {
     if (confidence >= 0.8) return 'High';
     if (confidence >= 0.6) return 'Med';
@@ -1198,6 +1201,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     }
   }, [items]);
 
+  // eslint-disable-next-line no-unused-vars
   const validateSingleItem = useCallback(async (item) => {
     if (!item) return;
 

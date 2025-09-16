@@ -203,6 +203,7 @@ class ProductValidationService {
     const availabilityScore = matchedProduct.availability === 'in_stock' ? 1.0 :
                              matchedProduct.availability === 'low_stock' ? 0.5 : 0.0;
     confidence += availabilityScore * 0.05;
+    // eslint-disable-next-line no-unused-vars
     factors++;
 
     return Math.min(1.0, confidence);
