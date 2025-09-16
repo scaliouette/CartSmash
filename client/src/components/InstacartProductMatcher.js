@@ -22,15 +22,41 @@ const InstacartProductMatcher = ({ searchTerm, retailerId, onProductSelect, onCl
     try {
       console.log(`🔍 Searching Instacart for: "${searchTerm}" at retailer: ${retailerId}`);
 
-      const response = await fetch(`/api/instacart/search?q=${encodeURIComponent(searchTerm)}&retailer_id=${retailerId}&limit=10`);
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+
+      const response = await fetch(`${API_URL}/api/instacart/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: searchTerm,
+          retailerId: retailerId,
+          zipCode: '95670', // Default zip code
+          quantity: 1,
+          category: 'General',
+          originalItem: { name: searchTerm }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.success && data.products) {
         setProducts(data.products);
         setOriginalItem(data.originalItem || { name: searchTerm });
-        console.log(`✅ Found ${data.products.length} products with confidence scores`);
+        console.log(`✅ Found ${data.products.length} products with confidence scores:`, data.products);
+        console.log('📊 API Response source:', data.source || 'unknown');
+
+        if (data.products.length === 0) {
+          setError('No products found matching your search. Try a different search term.');
+        }
       } else {
-        setError('No products found matching your search');
+        console.error('❌ Search failed - API response:', data);
+        setError(data.error || 'No products found matching your search');
       }
     } catch (err) {
       console.error('❌ Search error:', err);

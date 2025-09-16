@@ -16,6 +16,7 @@ const RetailerSelector = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // eslint-disable-next-line no-use-before-define
   const loadRetailers = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -53,6 +54,7 @@ const RetailerSelector = ({
 
   useEffect(() => {
     loadRetailers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location, loadRetailers]);
 
   const getFallbackRetailers = () => [

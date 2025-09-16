@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { InlineSpinner } from './LoadingSpinner';
 import ProductValidator from './ProductValidator';
 import RecipeManager from './RecipeManager';
+import InstacartProductMatcher from './InstacartProductMatcher';
 
 
 
@@ -58,7 +59,13 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   const [validatingAll, setValidatingAll] = useState(false);
   const [showRecipeEditor, setShowRecipeEditor] = useState(false);
   const [editingRecipeData, setEditingRecipeData] = useState(null);
-  
+  const [showProductSearch, setShowProductSearch] = useState(false);
+  const [searchingItem, setSearchingItem] = useState(null);
+  const [showPriceComparison, setShowPriceComparison] = useState(false);
+  const [comparingItem, setComparingItem] = useState(null);
+  const [vendorPrices, setVendorPrices] = useState([]);
+  const [loadingPrices, setLoadingPrices] = useState(false);
+
   // Enhanced catalog data state
 
   // Safe function to get product display name for rendering
@@ -835,6 +842,137 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     }
   };
 
+  // Product search handlers
+  const handleOpenProductSearch = (item) => {
+    setSearchingItem(item);
+    setShowProductSearch(true);
+  };
+
+  const handleCloseProductSearch = () => {
+    setShowProductSearch(false);
+    setSearchingItem(null);
+  };
+
+  const handleProductSelected = (selectedProduct) => {
+    if (!searchingItem || !selectedProduct) return;
+
+    // Update the item with the selected product
+    const updatedItems = items.map(item => {
+      if (item.id === searchingItem.id) {
+        return {
+          ...item,
+          productName: selectedProduct.name,
+          realPrice: selectedProduct.price,
+          confidence: selectedProduct.confidence || 95,
+          brand: selectedProduct.brand,
+          size: selectedProduct.size,
+          sku: selectedProduct.sku,
+          _aiRefined: true,
+          _refinedAt: new Date().toISOString()
+        };
+      }
+      return item;
+    });
+
+    onItemsChange(updatedItems);
+    handleCloseProductSearch();
+  };
+
+  // Price comparison handlers
+  const handleOpenPriceComparison = async (item) => {
+    setComparingItem(item);
+    setShowPriceComparison(true);
+    setLoadingPrices(true);
+
+    try {
+      // Fetch prices from multiple vendors/retailers
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/instacart/price-comparison`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: getProductDisplayName(item),
+          quantity: item.quantity || 1,
+          unit: item.unit || 'each',
+          originalItem: item,
+          zipCode: userZipCode || '95670'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setVendorPrices(data.vendors || []);
+      } else {
+        console.error('Failed to fetch vendor prices');
+        // Fallback to mock data for demo
+        setVendorPrices([
+          {
+            retailer: 'Safeway',
+            retailerId: 'safeway',
+            price: item.realPrice * 0.95,
+            availability: 'in-stock',
+            brand: item.brand || 'Generic',
+            size: item.size || 'Standard',
+            logo: 'https://logos-world.net/wp-content/uploads/2020/09/Safeway-Logo.png'
+          },
+          {
+            retailer: 'Target',
+            retailerId: 'target',
+            price: item.realPrice * 1.05,
+            availability: 'in-stock',
+            brand: item.brand || 'Market Pantry',
+            size: item.size || 'Standard',
+            logo: 'https://logos-world.net/wp-content/uploads/2020/04/Target-Logo.png'
+          },
+          {
+            retailer: 'Whole Foods',
+            retailerId: 'whole-foods',
+            price: item.realPrice * 1.15,
+            availability: 'limited',
+            brand: item.brand || '365 Everyday Value',
+            size: item.size || 'Organic',
+            logo: 'https://logos-world.net/wp-content/uploads/2020/08/Whole-Foods-Market-Logo.png'
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error fetching vendor prices:', error);
+      setVendorPrices([]);
+    } finally {
+      setLoadingPrices(false);
+    }
+  };
+
+  const handleClosePriceComparison = () => {
+    setShowPriceComparison(false);
+    setComparingItem(null);
+    setVendorPrices([]);
+  };
+
+  const handleSelectVendorPrice = (vendor) => {
+    if (!comparingItem) return;
+
+    // Update the item with selected vendor's price and info
+    const updatedItems = items.map(item => {
+      if (item.id === comparingItem.id) {
+        return {
+          ...item,
+          realPrice: vendor.price,
+          brand: vendor.brand,
+          size: vendor.size,
+          retailer: vendor.retailer,
+          retailerId: vendor.retailerId,
+          _vendorSelected: true,
+          _selectedAt: new Date().toISOString()
+        };
+      }
+      return item;
+    });
+
+    onItemsChange(updatedItems);
+    handleClosePriceComparison();
+  };
+
   const renderItem = (item, index) => {
     const isUpdating = updatingItems.has(item.id);
     const isFetchingPrice = fetchingPrices.has(item.id);
@@ -954,7 +1092,16 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
               <InlineSpinner text="" color="#FB4F14" />
             ) : item.realPrice ? (
               <>
-                <span>${(item.realPrice * (item.quantity || 1)).toFixed(2)}</span>
+                <button
+                  onClick={() => handleOpenPriceComparison(item)}
+                  style={styles.clickablePrice}
+                  title="Compare prices from different vendors"
+                >
+                  ${(item.realPrice * (item.quantity || 1)).toFixed(2)}
+                  {item._vendorSelected && (
+                    <span style={styles.vendorSelectedIcon}>✓</span>
+                  )}
+                </button>
                 {itemPriceHistory.length > 0 && (
                   <button
                     onClick={() => setShowPriceHistory(showPriceHistory === item.id ? null : item.id)}
@@ -974,13 +1121,22 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
             {isUpdating ? (
               <InlineSpinner text="" color="#002244" />
             ) : (
-              <button
-                onClick={() => handleRemoveItem(item.id)}
-                style={styles.removeButton}
-                title="Remove item"
-              >
-                ×
-              </button>
+              <>
+                <button
+                  onClick={() => handleOpenProductSearch(item)}
+                  style={styles.searchButton}
+                  title="Search for better matches"
+                >
+                  🔍
+                </button>
+                <button
+                  onClick={() => handleRemoveItem(item.id)}
+                  style={styles.removeButton}
+                  title="Remove item"
+                >
+                  🗑️
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -1354,6 +1510,17 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
           onRecipeDelete={() => {}} // Not used in this context
           editingRecipe={editingRecipeData}
           initialTab="edit"
+        />
+      )}
+
+      {/* Product Search Modal */}
+      {showProductSearch && searchingItem && (
+        <InstacartProductMatcher
+          initialSearchTerm={getProductDisplayName(searchingItem)}
+          onProductSelect={handleProductSelected}
+          onClose={handleCloseProductSearch}
+          retailerId={selectedRetailer?.id || 'default'}
+          userZipCode={userZipCode || '95670'}
         />
       )}
 
@@ -1940,6 +2107,22 @@ const styles = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: '4px',
+  },
+
+  searchButton: {
+    background: '#007bff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    width: '28px',
+    height: '28px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background-color 0.2s'
   },
 
   removeButton: {

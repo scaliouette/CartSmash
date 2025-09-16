@@ -372,7 +372,7 @@ router.post('/search', async (req, res) => {
             price: product.price || product.pricing?.price || 0,
             size: product.size || product.package_size,
             brand: product.brand || product.brand_name,
-            image: product.image_url || product.images?.[0]?.url,
+            image_url: product.image_url || product.images?.[0]?.url,
             availability: product.availability || 'available',
             confidence: calculateConfidence(originalItem, product),
             retailer_id: retailerId,

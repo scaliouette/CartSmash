@@ -20,4 +20,5 @@ if (typeof window !== 'undefined') {
   window.testEnhancedCheckout = testEnhancedCheckout;
 }
 
-export default { testEnhancedCheckout };
+const testUtils = { testEnhancedCheckout };
+export default testUtils;

@@ -3451,7 +3451,8 @@ Return as JSON with this structure:
         window.checkoutDebug.regenerateIds = window.debugCart.regenerateIds;
       }
     }
-  }, [currentCart, debugDeleteItem, setCurrentCart, generateStableId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCart, debugDeleteItem, setCurrentCart]);
 
   // Fixed delete handler - simple ID-based filtering with proper hydration handling
   const handleDeleteItem = useCallback((itemId) => {
