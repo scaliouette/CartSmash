@@ -581,6 +581,8 @@ function GroceryListForm({
   const [recipeUrl, setRecipeUrl] = useState('');
   const [aiRecipeText, setAiRecipeText] = useState('');
   const [generatingMealPlan, setGeneratingMealPlan] = useState(false);
+  const [selectedRetailerId, setSelectedRetailerId] = useState('default');
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Validation wrapper functions for state setters
   const setValidParsedRecipes = useCallback((recipes) => {
@@ -925,7 +927,8 @@ function GroceryListForm({
           unit: item.unit || 'each',
           price: item.price || 0,
           confidence: item.confidence || 'medium',
-          category: item.category || 'Other'
+          category: item.category || 'Other',
+          size: item.size || item.package_size || null // Add package size information
         };
       }).filter(item => {
         // Filter out invalid/corrupted items
@@ -2765,7 +2768,7 @@ Return as JSON with this structure:
                       <div style={styles.itemDetails}>
                         <div style={styles.itemName}>{item.productName}</div>
                         <div style={styles.itemInfo}>
-                          Qty: {item.quantity} | ${item.price ? item.price.toFixed(2) : 'N/A'}
+                          Qty: {item.quantity}{item.size ? ` | ${item.size}` : item.unit !== 'each' ? ` ${item.unit}` : ''} | ${item.price ? item.price.toFixed(2) : 'N/A'}
                         </div>
                       </div>
                     </label>
@@ -3982,7 +3985,8 @@ Or paste any grocery list directly!"
               instacartId: product.id,
               retailerSku: product.sku,
               availability: product.availability,
-              imageUrl: product.image_url
+              imageUrl: product.image_url,
+              size: product.size || product.package_size || null
             };
 
             setCurrentCart(prev => [...prev, newItem]);

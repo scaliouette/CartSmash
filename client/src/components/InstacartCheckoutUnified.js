@@ -231,7 +231,6 @@ const InstacartCheckoutUnified = ({
 
   // Unused functions removed to fix ESLint warnings
   // handleIngredientToggle, handleQuantityChange, handleItemRemove
-  };
 
   // ============ CHECKOUT CREATION ============
 
