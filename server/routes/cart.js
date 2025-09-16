@@ -244,16 +244,27 @@ router.post('/parse', async (req, res) => {
             productName = 'Unknown Item';
           }
           
-          // Apply professional ingredient parsing to get structured data
+          // Use AI-parsed data directly without redundant secondary parsing
           let ingredientData, searchQuery;
-          try {
-            ingredientData = await parseIngredientLine(productName);
-            searchQuery = buildSearchQuery(ingredientData);
-          } catch (parseError) {
-            console.log('🔍 [DEBUG] Ingredient parsing failed, using defaults:', parseError.message);
-            ingredientData = { qty: 1, unit: 'each', name: productName };
-            searchQuery = productName;
-          }
+
+          // CRITICAL FIX: Avoid double-parsing that causes quantity conversion errors
+          // The AI product parser already extracted structured data, don't re-parse it
+          ingredientData = {
+            qty: product.quantity || 1,
+            unit: product.unit || 'each',
+            name: productName,
+            sizeQty: null,
+            sizeUnit: null,
+            original: product.original || productName
+          };
+          searchQuery = productName;
+
+          console.log('🔍 [DEBUG] Using AI-parsed data directly (no secondary parsing):', {
+            productName,
+            quantity: product.quantity,
+            unit: product.unit,
+            avoidingDoubleConversion: true
+          });
           
           return {
             id: product.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,

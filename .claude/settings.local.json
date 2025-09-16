@@ -502,7 +502,10 @@
       "Bash(python3:*)",
       "Bash(NODE_ENV=development PORT=3076 npm start)",
       "Bash(REACT_APP_API_URL=http://localhost:3076 PORT=3077 npm start)",
-      "Bash(start http://localhost:3077)"
+      "Bash(start http://localhost:3077)",
+      "Bash(NODE_ENV=development PORT=3078 npm start)",
+      "Bash(REACT_APP_API_URL=http://localhost:3078 PORT=3079 npm start)",
+      "Bash(start http://localhost:3079)"
     ],
     "deny": [],
     "ask": []

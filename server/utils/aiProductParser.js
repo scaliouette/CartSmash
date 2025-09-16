@@ -163,12 +163,14 @@ class AIProductParser {
 Rules:
 - Only output JSON. No prose. No markdown. No trailing commas.
 - One object per product with fields: productName (string), quantity (number), unit (string or null), containerSize (string or null), category (produce|meat|dairy|grains|frozen|canned|pantry|deli|snacks|other).
-- Normalize units (lb, oz, can, jar, bottle, box, bag, container, dozen, each).
+- CRITICAL: Preserve exact quantities from the input. If recipe says "8 eggs", output quantity=8, unit="each", NOT quantity=4, unit="dozen".
+- Normalize units (lb, oz, can, jar, bottle, box, bag, container, dozen, each) but preserve the original quantity scale.
 - Remove bullets (*), asterisks, numbers, and list markers from the beginning of lines. Clean "• 1 2 lbs chicken breast" to extract quantity=2, unit="lbs", productName="chicken breast".
 - Remove headings, recipes, instructions. Ignore lines like Breakfast/Lunch/Dinner.
 - Parse grouped sections (Produce:, Proteins & Dairy:, Grains & Bakery:, Pantry:).
 - If quantity missing, set quantity=1 and unit='each'.
-- Keep productName concise (e.g., "boneless skinless chicken breast").`;
+- Keep productName concise (e.g., "boneless skinless chicken breast").
+- DO NOT convert units automatically (e.g., don't convert 8 eggs to dozens unless explicitly stated as dozens in the source).`;
 
     const userPrompt = `Extract grocery products from this text and return JSON array only.\n\n${text}`;
 
