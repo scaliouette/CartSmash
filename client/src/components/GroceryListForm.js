@@ -1374,13 +1374,86 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
             setTimeout(() => {
               expandTextarea();
             }, 50);
-            
+
             // Clear loading states
             // Don't stop here - continue to parsing step automatically
             console.log('✅ AI has generated your list! Now parsing into cart items...');
 
             // Set flag and continue to parsing step without requiring second click
             setWaitingForAIResponse(true);
+
+            // Continue to parsing step immediately using local control flag
+            const shouldParseToCarts = true;
+            console.log('🔍 DEBUG: AI processing complete, proceeding to cart parsing...');
+
+            // Jump directly to cart parsing section
+            if (shouldParseToCarts) {
+              console.log('📦 Parsing grocery list into cart items...');
+              console.log('🔍 DEBUG: listText length =', listText?.length);
+
+              const response = await fetch(`${API_URL}/api/cart/parse`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  listText: listText,
+                  action: mergeCart ? 'merge' : 'replace',
+                  userId: currentUser?.uid || null,
+                  options: {
+                    mergeDuplicates: true,
+                    enhancedQuantityParsing: true,
+                    detectContainers: true
+                  }
+                }),
+              });
+
+              if (!response.ok) {
+                throw new Error(`Failed to process list: ${response.status}`);
+              }
+
+              const data = await response.json();
+              console.log('🔍 DEBUG: Cart parse response =', data);
+
+              if (data.success && data.cart) {
+                // Fix cart item structure before setting
+                const fixedCart = fixCartItemStructure(data.cart);
+
+                console.log('Original cart:', data.cart);
+                console.log('Fixed cart:', fixedCart);
+
+                // Update the cart with properly structured items
+                setCurrentCart(fixedCart);
+
+                // Update parsing stats
+                if (data.stats) {
+                  setParsingStats(data.stats);
+                }
+
+                // Clear the waiting flag
+                setWaitingForAIResponse(false);
+
+                // Clear the input for next use
+                setInputText('');
+                if (textareaRef.current) {
+                  textareaRef.current.value = '';
+                }
+
+                // Clear draft
+                clearDraft();
+
+                console.log(`✅ Added ${fixedCart.length} items to cart!`);
+
+                // Clear loading states and return success
+                clearInterval(progressInterval);
+                clearTimeout(overlaySafety);
+                setIsLoading(false);
+                setShowProgress(false);
+                setParsingProgress(0);
+                return; // Success exit
+
+              } else {
+                throw new Error(data.error || 'Failed to process grocery list');
+              }
+            }
           } else {
             throw new Error('AI response was empty');
           }
