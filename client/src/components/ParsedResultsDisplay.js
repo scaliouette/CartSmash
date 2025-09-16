@@ -71,7 +71,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   const [validationResults, setValidationResults] = useState(new Map());
   const [validatingItems, setValidatingItems] = useState(new Set());
   const [cartValidationSummary, setCartValidationSummary] = useState(null);
-  const [autoValidationEnabled, setAutoValidationEnabled] = useState(true);
+  const [autoValidationEnabled, setAutoValidationEnabled] = useState(false);
 
   // Enhanced catalog data state
 
@@ -894,21 +894,34 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
     try {
       // Fetch prices from multiple vendors/retailers
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/api/instacart/price-comparison`, {
+      const response = await fetch(`${API_URL}/api/product-validation/multi-store-pricing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          query: getProductDisplayName(item),
-          quantity: item.quantity || 1,
-          unit: item.unit || 'each',
-          originalItem: item,
+          productName: getProductDisplayName(item),
+          productId: item.id,
+          category: item.category,
           zipCode: userZipCode || '95670'
         })
       });
 
       if (response.ok) {
         const data = await response.json();
-        setVendorPrices(data.vendors || []);
+        // Convert new API format to expected vendor format
+        if (data.success && data.pricing) {
+          const vendors = Object.values(data.pricing).map(retailer => ({
+            retailer: retailer.retailerName,
+            retailerId: retailer.retailerName.toLowerCase().replace(/\s+/g, '_'),
+            price: retailer.price,
+            availability: retailer.availability,
+            brand: item.brand || 'Generic',
+            size: item.size || 'Standard',
+            logo: retailer.thumbnail
+          }));
+          setVendorPrices(vendors);
+        } else {
+          setVendorPrices([]);
+        }
       } else {
         console.error('Failed to fetch vendor prices');
         // Fallback to mock data for demo
@@ -1118,7 +1131,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
       <div key={item.id || index}>
         <div
           style={{
-            ...styles.itemRow,
+            ...(isMobile ? styles.itemRowMobile : styles.itemRow),
             ...(index % 2 === 0 ? styles.itemRowEven : {}),
             ...(editingItem === item.id ? styles.itemRowEditing : {}),
             ...(isUpdating ? styles.itemRowUpdating : {}),
@@ -2251,6 +2264,44 @@ const styles = {
     cursor: 'default'
   },
 
+  itemRowMobile: {
+    display: 'block',
+    padding: '15px',
+    borderBottom: '1px solid #f3f4f6',
+    borderRadius: '8px',
+    marginBottom: '8px',
+    backgroundColor: 'white',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+  },
+
+  itemContentMobile: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+
+  itemHeaderMobile: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+
+  itemDetailsMobile: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '8px'
+  },
+
+  itemActionsMobile: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '8px',
+    marginTop: '8px'
+  },
+
   itemRowEven: {
     backgroundColor: '#fafafa'
   },
@@ -2910,18 +2961,6 @@ const styles = {
     flex: 1
   },
 
-  vendorHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '8px'
-  },
-
-  vendorName: {
-    fontWeight: '600',
-    color: '#002244',
-    fontSize: '16px'
-  },
 
   vendorPrice: {
     fontSize: '18px',
@@ -3025,24 +3064,6 @@ const styles = {
     alignItems: 'center'
   },
 
-  validateButton: {
-    padding: '8px 16px',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#2563eb'
-    },
-    ':disabled': {
-      backgroundColor: '#94a3b8',
-      cursor: 'not-allowed'
-    }
-  },
 
   validationStatsGrid: {
     display: 'grid',
@@ -3060,20 +3081,6 @@ const styles = {
     boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
   },
 
-  statValue: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: '4px'
-  },
-
-  statLabel: {
-    fontSize: '12px',
-    color: '#64748b',
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
-  },
 
   validationAlert: {
     backgroundColor: '#fef3c7',
