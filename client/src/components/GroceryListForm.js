@@ -3745,23 +3745,31 @@ Or paste any grocery list directly!"
           
           {/* Removed confusing message - process is now automatic */}
           
-          <div style={styles.inputControls}>
-            <button 
-              onClick={handleSubmit}
-              disabled={!inputText.trim() || isLoading}
-              className={`smash-button ${isLoading ? 'smash-button-loading' : ''}`}
-              style={styles.smashButton}
-            >
-              {isLoading ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-                  <ButtonSpinner />
-                  <span>PROCESSING...</span>
-                </div>
-              ) : (
-                'CARTSMASH IT!'
-              )}
-            </button>
-          </div>
+          <form onSubmit={handleSubmit} style={styles.formContainer}>
+            <div style={styles.inputControls}>
+              <button
+                type="submit"
+                disabled={!inputText.trim() || isLoading}
+                className={`smash-button ${isLoading ? 'smash-button-loading' : ''}`}
+                style={{
+                  ...styles.smashButton,
+                  touchAction: 'manipulation', // Prevents double-tap zoom on mobile
+                  WebkitTouchCallout: 'none',  // Prevents context menu on mobile
+                  WebkitUserSelect: 'none',    // Prevents text selection on mobile
+                  userSelect: 'none'           // Prevents text selection
+                }}
+              >
+                {isLoading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                    <ButtonSpinner />
+                    <span>PROCESSING...</span>
+                  </div>
+                ) : (
+                  'CARTSMASH IT!'
+                )}
+              </button>
+            </div>
+          </form>
         </div>
 
 
@@ -4269,7 +4277,12 @@ const styles = {
     alignItems: 'center',
     marginTop: '20px'
   },
-  
+
+  formContainer: {
+    width: '100%',
+    display: 'block'
+  },
+
   smashButton: {
     padding: '16px 32px',
     fontSize: '18px',

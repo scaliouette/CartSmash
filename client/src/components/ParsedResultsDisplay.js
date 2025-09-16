@@ -266,18 +266,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
           if (priceData && latestIdSet.has(item.id)) {
             touched = true;
             
-            // Save to price history
-            setPriceHistory(prev => ({
-              ...prev,
-              [item.id]: [
-                ...(prev[item.id] || []),
-                {
-                  date: new Date().toISOString(),
-                  price: priceData.price,
-                  salePrice: priceData.salePrice
-                }
-              ]
-            }));
+            // Price data processed - no history tracking needed
 
             return {
               ...item,
@@ -2659,37 +2648,6 @@ const styles = {
     boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
   },
 
-  priceHistoryPanel: {
-    background: '#FFF5F2',
-    padding: '12px',
-    marginLeft: '80px',
-    marginRight: '15px',
-    marginBottom: '8px',
-    borderRadius: '8px',
-    border: '1px solid #FB4F14'
-  },
-
-  priceHistoryHeader: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#002244',
-    marginBottom: '8px'
-  },
-
-  priceHistoryList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    fontSize: '13px'
-  },
-
-  priceHistoryItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '4px 8px',
-    backgroundColor: 'white',
-    borderRadius: '4px'
-  },
 
   salePrice: {
     color: '#FB4F14',
