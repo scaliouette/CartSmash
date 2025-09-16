@@ -3,24 +3,26 @@
 
 import React, { useState, useEffect } from 'react';
 
-const InstacartProductMatcher = ({ searchTerm, retailerId, onProductSelect, onClose }) => {
+const InstacartProductMatcher = ({ initialSearchTerm, searchTerm, retailerId, onProductSelect, onClose }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [originalItem, setOriginalItem] = useState(null);
 
+  const currentSearchTerm = searchTerm || initialSearchTerm;
+
   useEffect(() => {
-    if (searchTerm && retailerId) {
+    if (currentSearchTerm && retailerId) {
       searchProducts();
     }
-  }, [searchTerm, retailerId]);
+  }, [currentSearchTerm, retailerId]);
 
   const searchProducts = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      console.log(`🔍 Searching Instacart for: "${searchTerm}" at retailer: ${retailerId}`);
+      console.log(`🔍 Searching Instacart for: "${currentSearchTerm}" at retailer: ${retailerId}`);
 
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
@@ -30,12 +32,12 @@ const InstacartProductMatcher = ({ searchTerm, retailerId, onProductSelect, onCl
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          query: searchTerm,
+          query: currentSearchTerm,
           retailerId: retailerId,
           zipCode: '95670', // Default zip code
           quantity: 1,
           category: 'General',
-          originalItem: { name: searchTerm }
+          originalItem: { name: currentSearchTerm }
         })
       });
 
@@ -47,7 +49,7 @@ const InstacartProductMatcher = ({ searchTerm, retailerId, onProductSelect, onCl
 
       if (data.success && data.products) {
         setProducts(data.products);
-        setOriginalItem(data.originalItem || { name: searchTerm });
+        setOriginalItem(data.originalItem || { name: currentSearchTerm });
         console.log(`✅ Found ${data.products.length} products with confidence scores:`, data.products);
         console.log('📊 API Response source:', data.source || 'unknown');
 

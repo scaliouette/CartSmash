@@ -2198,7 +2198,9 @@ const styles = {
     fontWeight: '600',
     color: 'white',
     borderBottom: '2px solid #FB4F14',
-    alignItems: 'center'
+    alignItems: 'center',
+    minWidth: '800px',
+    overflow: 'hidden'
   },
 
   headerCheckbox: {
@@ -2218,10 +2220,11 @@ const styles = {
   itemsList: {
     maxHeight: '600px',
     overflowY: 'auto',
-    overflowX: 'hidden',
+    overflowX: 'auto',
     borderRadius: '0 0 8px 8px',
     border: '2px solid #002244',
-    borderTop: 'none'
+    borderTop: 'none',
+    minWidth: '800px'
   },
 
   categoryHeader: {
@@ -2261,7 +2264,9 @@ const styles = {
     borderBottom: '1px solid #f3f4f6',
     alignItems: 'center',
     transition: 'background-color 0.2s',
-    cursor: 'default'
+    cursor: 'default',
+    minWidth: '800px',
+    overflow: 'hidden'
   },
 
   itemRowMobile: {
@@ -2388,7 +2393,9 @@ const styles = {
     overflow: 'hidden',
     display: 'flex',
     alignItems: 'center',
-    gap: '8px'
+    gap: '8px',
+    whiteSpace: 'nowrap',
+    textOverflow: 'ellipsis'
   },
 
   itemNameText: {

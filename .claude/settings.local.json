@@ -494,7 +494,9 @@
       "Bash(del test-enhanced-shopping-list.js)",
       "Bash(NODE_ENV=development PORT=3074 npm start)",
       "Bash(REACT_APP_API_URL=http://localhost:3074 PORT=3075 npm start)",
-      "Bash(start http://localhost:3075)"
+      "Bash(start http://localhost:3075)",
+      "Bash(start https://customers.dev.instacart.tools/store/recipes/8084616)",
+      "Bash(start https://customers.dev.instacart.tools/store/recipes/8084620)"
     ],
     "deny": [],
     "ask": []
