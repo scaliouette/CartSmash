@@ -212,6 +212,72 @@ curl "http://localhost:3037/api/instacart/retailers?postalCode=95670&countryCode
 5. **Quantity Mismatches**: Normal behavior - Instacart attempts but cannot guarantee quantity matching
 6. **iOS Deep Linking**: Reset app association by long-pressing links
 
+#### Recipe URL Environment Issues (2025-09-16)
+
+**Problem**: Getting production URLs (`https://www.instacart.com/store/recipes/172218?retailer_key=safeway`) instead of development URLs (`https://customers.dev.instacart.tools/store/recipes/8083953`)
+
+**Root Cause Analysis**:
+- Recipe URLs are determined by `NODE_ENV` environment variable
+- Development environment uses: `https://connect.dev.instacart.tools/idp/v1`
+- Production environment uses: `https://connect.instacart.com/idp/v1`
+- The actual recipe URL comes from Instacart API response (`products_link_url`)
+
+**Verification Steps**:
+1. **Check Current Environment**:
+   ```bash
+   # Server logs should show:
+   # NODE_ENV: development
+   # Base URL: https://connect.dev.instacart.tools/idp/v1
+   ```
+
+2. **Test Recipe Creation**:
+   ```bash
+   curl -X POST http://localhost:3074/api/instacart/recipe/create \
+     -H "Content-Type: application/json" \
+     -d '{"title":"Test Recipe","instructions":["Mix ingredients"],"ingredients":[{"name":"flour","quantity":"2","unit":"cups"}]}'
+   ```
+
+3. **Expected Development Response**:
+   ```json
+   {
+     "success": true,
+     "recipeId": "8084616",
+     "instacartUrl": "https://customers.dev.instacart.tools/store/recipes/8084616"
+   }
+   ```
+
+**Solutions**:
+
+1. **For Development URLs** (recommended for testing):
+   - Ensure `NODE_ENV=development` in server environment
+   - Use local development server: `http://localhost:3074`
+   - Mock URLs now correctly use development format: `instacartRoutes.js:1348`
+
+2. **For Production URLs** (for live deployment):
+   - Set `NODE_ENV=production` in server environment
+   - All URLs will automatically switch to production format
+
+3. **Common Sources of Production URLs**:
+   - **Different deployment**: Production vs development environment
+   - **Browser cache**: Clear browser data if seeing old URLs
+   - **API key status**: Instacart may have moved app to production status
+   - **Cached responses**: Recipe cache may contain old URLs
+
+**Environment Configuration**:
+```javascript
+// server/routes/instacartRoutes.js:15-20
+const API_ENDPOINTS = {
+  DEVELOPMENT: 'https://connect.dev.instacart.tools/idp/v1',
+  PRODUCTION: 'https://connect.instacart.com/idp/v1'
+};
+const BASE_URL = NODE_ENV === 'production' ? API_ENDPOINTS.PRODUCTION : API_ENDPOINTS.DEVELOPMENT;
+```
+
+**Fixed Issues**:
+- ✅ Mock recipe URLs now use development format when `NODE_ENV=development`
+- ✅ API correctly respects environment configuration
+- ✅ Recipe creation logs show proper environment detection
+
 #### Server Restart Required
 When modifying routes in `instacartRoutes.js`, restart the server to reload the endpoints properly.
 
