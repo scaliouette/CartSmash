@@ -410,10 +410,14 @@ Provide recipes with instructions and list each grocery item on a separate line.
     setIsLoading(true);
     setShowQuickPrompts(false);
 
+    // ✅ FIX: Declare variables outside try block for error handling scope
+    const selectedModelData = aiModels[selectedModel];
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    const fullEndpoint = `${API_URL}${selectedModelData.endpoint}`;
+
     try {
-      const selectedModelData = aiModels[selectedModel];
       console.log(`🤖 Sending request to ${selectedModelData.name}...`);
-      
+
       // ✅ ENHANCED: Include ingredient choice in request
       const enhancedMessage = `${message}
 
@@ -427,10 +431,6 @@ IMPORTANT FOR RECIPES: Provide DETAILED, step-by-step cooking instructions with:
 - Professional techniques (e.g., "don't move for 4-6 minutes to develop sear")
 - Minimum 6-8 detailed steps for complex dishes
 - Each step should be comprehensive enough for a novice cook to follow successfully`;
-      
-      // ✅ FIX: Use full API URL for production compatibility
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const fullEndpoint = `${API_URL}${selectedModelData.endpoint}`;
 
       console.log(`🌐 Making AI request to: ${fullEndpoint}`);
       console.log(`📊 Using AI Model: ${selectedModelData.name}`);
@@ -516,9 +516,7 @@ IMPORTANT FOR RECIPES: Provide DETAILED, step-by-step cooking instructions with:
 
     } catch (error) {
       console.error('🚨 AI request failed:', error);
-      console.error('🌐 Failed endpoint:', fullEndpoint || 'undefined');
-      console.error('📊 Selected model:', selectedModelData);
-      console.error('🔧 API_URL configured:', API_URL);
+      console.error('🌐 API URL:', API_URL);
 
       // ✅ ENHANCED: Better error information for debugging
       let errorDetails = error.message;
@@ -527,7 +525,7 @@ IMPORTANT FOR RECIPES: Provide DETAILED, step-by-step cooking instructions with:
       }
 
       const fallbackResponse = {
-        content: `⚠️ AI service temporarily unavailable. Please try again in a moment.\n\nError: ${errorDetails}\n\nEndpoint: ${fullEndpoint || 'unknown'}\n\nIf this persists, check your network connection or try again later.`,
+        content: `⚠️ AI service temporarily unavailable. Please try again in a moment.\n\nError: ${errorDetails}\n\nIf this persists, check your network connection or try again later.`,
         groceryList: []
       };
       
