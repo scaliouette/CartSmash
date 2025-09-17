@@ -51,34 +51,45 @@ export function ButtonSpinner({ color = '#fff' }) {
   );
 }
 
-// Full overlay spinner
+// Full overlay spinner - mobile optimized
 export function OverlaySpinner({ text = 'Loading...' }) {
   return (
-    <div style={{ 
-      position: 'fixed', 
-      top: 0, 
-      left: 0, 
-      right: 0, 
-      bottom: 0, 
-      backgroundColor: 'rgba(255,255,255,0.95)', 
-      display: 'flex', 
+    <div style={{
+      position: 'fixed',
+      inset: 0, // Shorthand for top: 0, right: 0, bottom: 0, left: 0
+      width: '100%',
+      height: '100%',
+      minHeight: '-webkit-fill-available', // iOS Safari fix
+      backgroundColor: 'rgba(255,255,255,0.95)',
+      display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center', 
+      alignItems: 'center',
       justifyContent: 'center',
       zIndex: 9999,
-      gap: '16px'
+      gap: '16px',
+      overflow: 'hidden', // Prevent any overflow
+      margin: 0,
+      padding: '20px',
+      boxSizing: 'border-box',
+      touchAction: 'none', // Prevent scroll on touch
+      userSelect: 'none',
+      WebkitUserSelect: 'none',
+      msUserSelect: 'none'
     }}>
       <div style={{
         width: '48px',
         height: '48px',
         border: '4px solid transparent',
         borderRadius: '6px',
-        animation: 'overlay-square-rotate 1.2s linear infinite, overlay-square-colors 2s linear infinite'
+        animation: 'overlay-square-rotate 1.2s linear infinite, overlay-square-colors 2s linear infinite',
+        flexShrink: 0
       }}></div>
       <div style={{
-        fontSize: '18px',
+        fontSize: 'clamp(14px, 4vw, 18px)', // Responsive font size
         color: '#374151',
-        fontWeight: '500'
+        fontWeight: '500',
+        textAlign: 'center',
+        maxWidth: '90%' // Prevent edge touching
       }}>{text}</div>
     </div>
   );
@@ -314,4 +325,79 @@ if (typeof document !== 'undefined' && !document.querySelector('#spinner-keyfram
     }
   `;
   document.head.appendChild(style);
+}
+
+// Mobile-optimized full screen loading screen
+export function MobileLoadingScreen({ text = 'Initializing AI-powered grocery parsing...' }) {
+  return (
+    <div style={{
+      position: 'fixed',
+      inset: 0, // Shorthand for top: 0, right: 0, bottom: 0, left: 0
+      width: '100%',
+      height: '100%',
+      minHeight: '-webkit-fill-available', // iOS Safari fix
+      background: 'linear-gradient(135deg, #ff7043 0%, #ff9558 100%)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden', // Prevent any overflow
+      margin: 0,
+      padding: 0,
+      boxSizing: 'border-box',
+      touchAction: 'none', // Prevent scroll on touch
+      userSelect: 'none',
+      WebkitUserSelect: 'none',
+      msUserSelect: 'none'
+    }}>
+      {/* Logo and Brand */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '60px',
+        padding: '0 20px', // Add horizontal padding for mobile
+        maxWidth: '100%', // Ensure it doesn't exceed viewport
+      }}>
+        <span style={{
+          fontSize: '48px',
+          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+        }}>
+          ⭐
+        </span>
+        <h1 style={{
+          color: 'white',
+          fontSize: 'clamp(28px, 8vw, 48px)', // Responsive font size
+          fontWeight: 'bold',
+          margin: 0,
+          letterSpacing: '-1px',
+          textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          CARTSMASH
+        </h1>
+      </div>
+
+      {/* Tagline */}
+      <p style={{
+        color: 'rgba(255, 255, 255, 0.9)',
+        fontSize: 'clamp(14px, 4vw, 18px)', // Responsive font size
+        margin: '0 0 40px 0',
+        padding: '0 20px', // Add padding for mobile
+        textAlign: 'center',
+        maxWidth: '90%' // Prevent edge touching
+      }}>
+        {text}
+      </p>
+
+      {/* Loading Spinner */}
+      <div style={{
+        width: '50px',
+        height: '50px',
+        border: '3px solid rgba(255, 255, 255, 0.3)',
+        borderTop: '3px solid white',
+        borderRadius: '50%',
+        animation: 'spin 1s linear infinite'
+      }} />
+    </div>
+  );
 }
