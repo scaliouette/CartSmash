@@ -778,6 +778,47 @@ function GroceryListForm({
     }
   }, [currentCart]);
 
+  // 🔍 DEBUG: Monitor all currentCart state changes
+  useEffect(() => {
+    console.log(`🔍 ===== CURRENTCART STATE CHANGE DEBUG =====`);
+    console.log(`📊 CURRENTCART UPDATE DETECTED:`, {
+      cartExists: !!currentCart,
+      itemCount: currentCart?.length || 0,
+      timestamp: new Date().toISOString()
+    });
+
+    if (currentCart && currentCart.length > 0) {
+      const enrichmentStats = {
+        totalItems: currentCart.length,
+        enrichedItems: currentCart.filter(item => item.enriched).length,
+        itemsWithPrices: currentCart.filter(item => item.price && item.price > 0).length,
+        itemsWithImages: currentCart.filter(item => item.image && !item.image.includes('data:image/svg')).length,
+        averagePrice: currentCart.filter(item => item.price > 0).reduce((sum, item) => sum + item.price, 0) / currentCart.filter(item => item.price > 0).length || 0
+      };
+
+      console.log(`📊 CART ENRICHMENT STATUS:`, enrichmentStats);
+      console.log(`📦 SAMPLE CART ITEMS:`, currentCart.slice(0, 3).map((item, index) => ({
+        index,
+        id: item.id,
+        productName: item.productName || item.name,
+        price: item.price,
+        priceType: typeof item.price,
+        hasValidPrice: !!(item.price && item.price > 0),
+        image: item.image ? item.image.substring(0, 50) + '...' : null,
+        hasValidImage: !!(item.image && !item.image.includes('data:image/svg')),
+        enriched: item.enriched,
+        instacartId: item.instacartId,
+        allKeys: Object.keys(item)
+      })));
+
+      console.log(`🎯 WILL BE PASSED TO InstacartShoppingList as 'items' prop`);
+    } else {
+      console.log(`⚠️ EMPTY OR NULL CART - InstacartShoppingList will receive empty array`);
+    }
+
+    console.log(`🔍 ===== CURRENTCART DEBUG COMPLETE =====`);
+  }, [currentCart]);
+
   // Auto-save recipes when they change - WITH VALIDATION
   useEffect(() => {
     if (savedRecipes && savedRecipes.length > 0) {
@@ -1240,13 +1281,36 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
   // Enrich cart items with real Instacart product data (prices, images, etc.)
   const enrichCartWithInstacartData = async (cartItems) => {
     try {
-      console.log(`🔍 Starting Instacart enrichment for ${cartItems.length} items...`);
+      console.log(`🔍 ===== STARTING ENRICHMENT PIPELINE DEBUG =====`);
+      console.log(`📊 ENRICHMENT INPUT - Cart Items to Process:`, {
+        itemCount: cartItems.length,
+        sampleItems: cartItems.slice(0, 3).map((item, index) => ({
+          index,
+          id: item.id,
+          productName: item.productName || item.name,
+          originalPrice: item.price,
+          originalImage: item.image,
+          hasFields: {
+            productName: !!(item.productName || item.name),
+            price: !!item.price,
+            image: !!item.image,
+            id: !!item.id
+          }
+        })),
+        fullFirstItem: cartItems[0]
+      });
 
       // Import the instacart service
       const { default: instacartService } = await import('../services/instacartService');
 
       // Default retailer - could be made configurable
       const retailerId = currentUser?.preferredRetailer || 'kroger';
+      console.log(`🏪 ENRICHMENT CONFIG:`, {
+        retailerId,
+        currentUserExists: !!currentUser,
+        preferredRetailer: currentUser?.preferredRetailer,
+        apiBaseUrl: process.env.REACT_APP_API_URL || 'http://localhost:3001'
+      });
 
       // Process items in batches to avoid overwhelming the API
       const batchSize = 3;
@@ -1254,22 +1318,79 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
 
       for (let i = 0; i < cartItems.length; i += batchSize) {
         const batch = cartItems.slice(i, i + batchSize);
+        const batchNumber = Math.floor(i/batchSize) + 1;
+        const totalBatches = Math.ceil(cartItems.length/batchSize);
 
-        console.log(`🔍 Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(cartItems.length/batchSize)}...`);
+        console.log(`🔍 ===== PROCESSING BATCH ${batchNumber}/${totalBatches} =====`);
+        console.log(`📦 Batch items:`, batch.map(item => ({
+          id: item.id,
+          productName: item.productName || item.name,
+          currentPrice: item.price,
+          currentImage: item.image
+        })));
 
-        const batchPromises = batch.map(async (item) => {
+        const batchPromises = batch.map(async (item, batchIndex) => {
+          const globalIndex = i + batchIndex;
+          const searchQuery = item.productName || item.name;
+
+          console.log(`🔍 ===== ITEM ${globalIndex + 1}/${cartItems.length}: "${searchQuery}" =====`);
+          console.log(`📊 Item Debug Info:`, {
+            originalItem: {
+              id: item.id,
+              productName: item.productName,
+              name: item.name,
+              price: item.price,
+              priceType: typeof item.price,
+              image: item.image,
+              quantity: item.quantity,
+              unit: item.unit,
+              allKeys: Object.keys(item)
+            },
+            searchQuery,
+            retailerId
+          });
+
           try {
-            // Search for the product on Instacart
-            const searchQuery = item.productName || item.name;
-            console.log(`🔍 Searching Instacart for: "${searchQuery}"`);
+            console.log(`🌐 Making Instacart API call for: "${searchQuery}"`);
+            const startTime = Date.now();
 
             const searchResults = await instacartService.searchProducts(searchQuery, retailerId);
+            const apiCallDuration = Date.now() - startTime;
+
+            console.log(`📡 API Call Results for "${searchQuery}":`, {
+              duration: `${apiCallDuration}ms`,
+              success: searchResults.success,
+              productsFound: searchResults.products?.length || 0,
+              searchResultsKeys: Object.keys(searchResults),
+              firstProduct: searchResults.products?.[0] ? {
+                id: searchResults.products[0].id,
+                name: searchResults.products[0].name,
+                price: searchResults.products[0].price,
+                priceType: typeof searchResults.products[0].price,
+                image_url: searchResults.products[0].image_url,
+                imageUrl: searchResults.products[0].imageUrl,
+                image: searchResults.products[0].image,
+                allKeys: Object.keys(searchResults.products[0])
+              } : null
+            });
 
             if (searchResults.success && searchResults.products && searchResults.products.length > 0) {
               // Use the first (best) match
               const instacartProduct = searchResults.products[0];
 
-              console.log(`✅ Found Instacart match for "${searchQuery}":`, instacartProduct.name, `$${instacartProduct.price}`);
+              console.log(`✅ ENRICHMENT SUCCESS for "${searchQuery}":`, {
+                instacartProduct: {
+                  id: instacartProduct.id,
+                  name: instacartProduct.name,
+                  price: instacartProduct.price,
+                  priceType: typeof instacartProduct.price,
+                  parsedPrice: parseFloat(instacartProduct.price),
+                  image_url: instacartProduct.image_url,
+                  imageUrl: instacartProduct.imageUrl,
+                  image: instacartProduct.image,
+                  finalImageToUse: instacartProduct.image_url || instacartProduct.imageUrl || instacartProduct.image
+                }
+              });
 
               // Enrich the original item with Instacart data
               const enrichedItem = {
@@ -1282,48 +1403,131 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
                 enriched: true
               };
 
-              console.log(`✅ Enriched "${searchQuery}" with:`, {
-                price: enrichedItem.price,
-                image: enrichedItem.image,
-                imageUrl: enrichedItem.imageUrl,
-                instacartId: enrichedItem.instacartId
+              console.log(`✅ ENRICHED ITEM CREATED for "${searchQuery}":`, {
+                enrichedItem: {
+                  id: enrichedItem.id,
+                  productName: enrichedItem.productName || enrichedItem.name,
+                  price: enrichedItem.price,
+                  priceType: typeof enrichedItem.price,
+                  image: enrichedItem.image,
+                  imageUrl: enrichedItem.imageUrl,
+                  instacartId: enrichedItem.instacartId,
+                  enriched: enrichedItem.enriched,
+                  hasValidPrice: !!(enrichedItem.price && enrichedItem.price > 0),
+                  hasValidImage: !!(enrichedItem.image && !enrichedItem.image.includes('data:image/svg'))
+                }
               });
 
               return enrichedItem;
             } else {
-              console.log(`⚠️ No Instacart match found for: "${searchQuery}"`);
-              return {
+              console.log(`⚠️ NO MATCH FOUND for "${searchQuery}":`, {
+                reason: !searchResults.success ? 'API call failed' :
+                        !searchResults.products ? 'No products array' :
+                        searchResults.products.length === 0 ? 'Empty products array' : 'Unknown',
+                searchResults: {
+                  success: searchResults.success,
+                  productsLength: searchResults.products?.length,
+                  error: searchResults.error
+                }
+              });
+
+              const unEnrichedItem = {
                 ...item,
                 price: 0,
                 enriched: false
               };
+
+              console.log(`⚠️ UNENRICHED ITEM for "${searchQuery}":`, unEnrichedItem);
+              return unEnrichedItem;
             }
           } catch (error) {
-            console.error(`❌ Error enriching "${item.productName}":`, error);
-            return {
+            console.error(`❌ ENRICHMENT ERROR for "${searchQuery}":`, {
+              error: {
+                name: error.name,
+                message: error.message,
+                stack: error.stack?.split('\n').slice(0, 3)
+              },
+              originalItem: {
+                id: item.id,
+                productName: item.productName || item.name
+              }
+            });
+
+            const errorItem = {
               ...item,
               price: 0,
-              enriched: false
+              enriched: false,
+              enrichmentError: error.message
             };
+
+            console.log(`❌ ERROR ITEM for "${searchQuery}":`, errorItem);
+            return errorItem;
           }
         });
 
+        console.log(`⏳ Waiting for batch ${batchNumber} to complete...`);
         const batchResults = await Promise.all(batchPromises);
+
+        console.log(`✅ BATCH ${batchNumber} COMPLETE:`, {
+          batchSize: batchResults.length,
+          enrichedCount: batchResults.filter(item => item.enriched).length,
+          unEnrichedCount: batchResults.filter(item => !item.enriched).length,
+          withPrices: batchResults.filter(item => item.price && item.price > 0).length,
+          withImages: batchResults.filter(item => item.image && !item.image.includes('data:image/svg')).length
+        });
+
         enrichedItems.push(...batchResults);
 
         // Small delay between batches to be respectful to the API
         if (i + batchSize < cartItems.length) {
+          console.log(`⏸️ Pausing 500ms before next batch...`);
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
 
-      console.log(`✅ Enrichment complete! ${enrichedItems.filter(item => item.enriched).length}/${enrichedItems.length} items enriched`);
+      console.log(`🎉 ===== ENRICHMENT PIPELINE COMPLETE =====`);
+      const finalStats = {
+        totalItems: enrichedItems.length,
+        enrichedSuccessfully: enrichedItems.filter(item => item.enriched).length,
+        withValidPrices: enrichedItems.filter(item => item.price && item.price > 0).length,
+        withValidImages: enrichedItems.filter(item => item.image && !item.image.includes('data:image/svg')).length,
+        averagePrice: enrichedItems.filter(item => item.price > 0).reduce((sum, item) => sum + item.price, 0) / enrichedItems.filter(item => item.price > 0).length || 0
+      };
+
+      console.log(`📊 FINAL ENRICHMENT STATS:`, finalStats);
+      console.log(`📦 SAMPLE ENRICHED ITEMS:`, enrichedItems.slice(0, 3).map(item => ({
+        id: item.id,
+        productName: item.productName || item.name,
+        price: item.price,
+        hasImage: !!(item.image && !item.image.includes('data:image/svg')),
+        enriched: item.enriched,
+        instacartId: item.instacartId
+      })));
 
       // Update the cart with enriched data
+      console.log(`🔄 CALLING setCurrentCart with enriched items...`);
+      console.log(`📊 BEFORE setCurrentCart - Current cart state:`, {
+        currentCartLength: currentCart?.length || 0,
+        newEnrichedItemsLength: enrichedItems.length
+      });
+
       setCurrentCart(enrichedItems);
 
+      console.log(`✅ setCurrentCart called successfully`);
+      console.log(`🔍 ===== ENRICHMENT PIPELINE DEBUG COMPLETE =====`);
+
     } catch (error) {
-      console.error('❌ Error during Instacart enrichment:', error);
+      console.error('❌ ===== ENRICHMENT PIPELINE FATAL ERROR =====');
+      console.error('💥 Fatal enrichment error:', {
+        error: {
+          name: error.name,
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 5)
+        },
+        inputCartItemsLength: cartItems?.length || 0,
+        currentTime: new Date().toISOString()
+      });
+      console.error('🔍 ===== ENRICHMENT PIPELINE ERROR COMPLETE =====');
       // Don't throw - just continue with basic cart items
     }
   };

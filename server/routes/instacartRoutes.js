@@ -278,22 +278,52 @@ router.get('/retailers', async (req, res) => {
 router.post('/search', async (req, res) => {
   try {
     const { query, retailerId, zipCode, quantity, category, originalItem } = req.body;
-    
-    console.log(`🔍 Searching for products: "${query}" at ${retailerId || 'no specific retailer'}`);
-    
+
+    console.log(`🔍 ===== INSTACART SEARCH API DEBUG =====`);
+    console.log(`📊 SEARCH REQUEST DETAILS:`, {
+      timestamp: new Date().toISOString(),
+      query,
+      retailerId,
+      zipCode,
+      quantity,
+      category,
+      originalItem,
+      requestBody: req.body,
+      requestHeaders: {
+        'user-agent': req.headers['user-agent'],
+        'content-type': req.headers['content-type'],
+        'origin': req.headers.origin
+      }
+    });
+
+    console.log(`🔧 API CONFIGURATION:`, {
+      NODE_ENV,
+      BASE_URL,
+      INSTACART_API_KEY: INSTACART_API_KEY ? 'SET (key: ' + INSTACART_API_KEY.substring(0, 10) + '...)' : 'NOT SET',
+      validateApiKeys: validateApiKeys(),
+      endpointPaths: {
+        recipe: '/products/recipe',
+        catalogSearch: '/catalog/search'
+      }
+    });
+
     if (!query) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Query is required' 
+      console.log(`❌ SEARCH ERROR - No query provided`);
+      return res.status(400).json({
+        success: false,
+        error: 'Query is required'
       });
     }
     
     // Check if we have valid API keys
     if (validateApiKeys()) {
+      console.log(`✅ API KEYS VALIDATED - Proceeding with real Instacart API calls`);
+
       try {
         // NEW APPROACH: Use recipe API to get real product matches
+        console.log('🧪 ===== ATTEMPTING RECIPE API APPROACH =====');
         console.log('🧪 Using recipe API for real product preview...');
-        
+
         // Create a temporary recipe with just this ingredient to see what Instacart matches
         const previewRecipePayload = {
           title: `Preview Recipe - ${query}`,
@@ -317,31 +347,79 @@ router.post('/search', async (req, res) => {
           partner_reference_url: 'https://cartsmash.com/preview',
           enable_pantry_items: false
         };
-        
-        console.log('📤 Creating preview recipe for product matching...');
+
+        console.log('📤 RECIPE PAYLOAD CREATED:');
+        console.log('   - Title:', previewRecipePayload.title);
+        console.log('   - Ingredients:', previewRecipePayload.ingredients);
+        console.log('   - Full payload:', JSON.stringify(previewRecipePayload, null, 2));
+
+        console.log(`🌐 Making Instacart Recipe API call to: ${BASE_URL}/products/recipe`);
+        const startTime = Date.now();
+
         const recipeResponse = await instacartApiCall('/products/recipe', 'POST', previewRecipePayload);
-        
+        const apiCallDuration = Date.now() - startTime;
+
+        console.log(`📡 RECIPE API RESPONSE RECEIVED:`, {
+          duration: `${apiCallDuration}ms`,
+          responseExists: !!recipeResponse,
+          responseKeys: recipeResponse ? Object.keys(recipeResponse) : null,
+          products_link_url: recipeResponse?.products_link_url,
+          recipeId: recipeResponse?.id,
+          title: recipeResponse?.title,
+          fullResponse: recipeResponse
+        });
+
         if (recipeResponse && recipeResponse.products_link_url) {
+          console.log('✅ ===== RECIPE API SUCCESS =====');
           console.log('✅ Preview recipe created, extracting product data...');
-          
+          console.log('🔗 Recipe URL:', recipeResponse.products_link_url);
+
           // For now, we'll create realistic products based on the successful API call
           // In a future enhancement, we could parse the recipe page to extract real product data
+          console.log('🏭 Generating enhanced products based on recipe API success...');
           const realProducts = generateEnhancedProducts(query, originalItem, retailerId, {
             isRealApiResponse: true,
             recipeUrl: recipeResponse.products_link_url
           });
-          
-          res.json({ 
-            success: true, 
+
+          console.log(`📦 GENERATED PRODUCTS:`, {
+            count: realProducts.length,
+            sampleProducts: realProducts.slice(0, 2).map(p => ({
+              id: p.id,
+              name: p.name,
+              price: p.price,
+              priceType: typeof p.price,
+              image_url: p.image_url,
+              hasImage: !!p.image_url
+            }))
+          });
+
+          const successResponse = {
+            success: true,
             products: realProducts,
             query: query,
             retailer: retailerId,
             count: realProducts.length,
             preview_recipe_url: recipeResponse.products_link_url,
             source: 'recipe_api_preview'
+          };
+
+          console.log(`✅ SENDING SUCCESS RESPONSE:`, {
+            success: successResponse.success,
+            productCount: successResponse.products.length,
+            source: successResponse.source,
+            hasRecipeUrl: !!successResponse.preview_recipe_url
           });
+
+          res.json(successResponse);
           return;
         } else {
+          console.log('❌ RECIPE API FAILED - No products link in response');
+          console.log('📊 Response structure:', {
+            responseExists: !!recipeResponse,
+            hasProductsLink: !!(recipeResponse && recipeResponse.products_link_url),
+            responseKeys: recipeResponse ? Object.keys(recipeResponse) : null
+          });
           throw new Error('Recipe API did not return products link');
         }
       } catch (error) {

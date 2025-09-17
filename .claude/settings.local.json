@@ -515,7 +515,9 @@
       "Bash(PORT=3082 npm run mcp:http)",
       "Bash(PORT=3083 npm start)",
       "Bash(NODE_ENV=development PORT=3084 npm start)",
-      "Bash(start http://localhost:3083)"
+      "Bash(start http://localhost:3083)",
+      "Bash(REACT_APP_API_URL=http://localhost:3084 PORT=3085 npm start)",
+      "Bash(start http://localhost:3085)"
     ],
     "deny": [],
     "ask": []
