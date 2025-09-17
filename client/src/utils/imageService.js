@@ -61,6 +61,7 @@ class ImageService {
    * @returns {string} Image URL
    */
   getImageUrl(category = 'default', options = {}) {
+    // eslint-disable-next-line no-unused-vars
     const { width = 400, height = 300, quality = 80, useExternal = false } = options;
 
     // Always use SVG fallbacks for reliable display
@@ -120,10 +121,9 @@ class ImageService {
       }
     }
 
-    // Fallback to category-based SVG
-    console.log('⚠️ No real image found, using SVG fallback');
-    const category = this.getCategoryFromItem(item);
-    return this.fallbackImages[category] || this.fallbackImages.default;
+    // No real image found - return null to indicate no image available
+    console.log('⚠️ No real image found for product:', item.productName);
+    return null;
   }
 
   /**

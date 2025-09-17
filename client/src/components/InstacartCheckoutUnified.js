@@ -25,6 +25,7 @@ const InstacartCheckoutUnified = ({
   const [location, setLocation] = useState(initialLocation);
 
   // Initialize ingredients state from items prop
+  // eslint-disable-next-line no-unused-vars
   const [ingredients, setIngredients] = useState(() =>
     items.map(item => ({
       id: item.id || Math.random().toString(36).substr(2, 9),

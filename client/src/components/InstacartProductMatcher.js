@@ -1,7 +1,7 @@
 // client/src/components/InstacartProductMatcher.js
 // Enhanced Product Matching with Instacart API Confidence Scoring
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const InstacartProductMatcher = ({ initialSearchTerm, searchTerm, retailerId, onProductSelect, onClose }) => {
   const [products, setProducts] = useState([]);
@@ -15,9 +15,9 @@ const InstacartProductMatcher = ({ initialSearchTerm, searchTerm, retailerId, on
     if (currentSearchTerm && retailerId) {
       searchProducts();
     }
-  }, [currentSearchTerm, retailerId]);
+  }, [currentSearchTerm, retailerId, searchProducts]);
 
-  const searchProducts = async () => {
+  const searchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -66,7 +66,7 @@ const InstacartProductMatcher = ({ initialSearchTerm, searchTerm, retailerId, on
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentSearchTerm, retailerId]);
 
   const getConfidenceColor = (confidence) => {
     if (confidence >= 0.8) return '#10b981'; // Green - Excellent match

@@ -181,6 +181,7 @@ const InstacartShoppingList = ({
   };
 
   // Get selected retailer details
+  // eslint-disable-next-line no-unused-vars
   const getSelectedRetailer = () => {
     return retailers.find(r => (r.id || r.retailer_key) === selectedRetailerId) || null;
   };

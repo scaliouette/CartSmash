@@ -24,7 +24,6 @@ export const useDeviceDetection = () => {
       // Screen size detection
       const isMobileSize = screenWidth <= 768;
       const isTabletSize = screenWidth > 768 && screenWidth <= 1024;
-      // eslint-disable-next-line no-unused-vars
       const isDesktopSize = screenWidth > 1024;
 
       // User agent detection

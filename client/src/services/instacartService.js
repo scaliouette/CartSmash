@@ -15,11 +15,9 @@ class InstacartService {
     this.recipeEndpoint = '/idp/v1/products/recipe';
     
     if (!this.apiKey || this.apiKey === 'your_development_api_key_here') {
-      console.warn('⚠️ Instacart API key not configured. Using mock data.');
-      this.useMockData = true;
+      throw new Error('⚠️ Instacart API key not configured. Real API key is required.');
     } else {
       console.log('✅ Instacart API configured for', this.isDevelopment ? 'development' : 'production');
-      this.useMockData = false;
     }
   }
 
@@ -73,13 +71,12 @@ class InstacartService {
       });
 
       if (!response.ok) {
-        console.warn(`⚠️ Backend API returned ${response.status}, falling back to mock data`);
         throw new Error(`Backend API error: ${response.status}`);
       }
 
       const data = await response.json();
       console.log('✅ Backend API response:', data);
-      
+
       if (data.success && data.retailers) {
         console.log(`🏪 Found ${data.retailers.length} real retailers from Instacart API`);
         return {
@@ -91,9 +88,7 @@ class InstacartService {
       }
     } catch (error) {
       console.error('❌ Error fetching Instacart retailers from backend:', error);
-      console.log('🔄 Falling back to mock data');
-      // Fallback to mock data
-      return this.getMockRetailers();
+      throw error;
     }
   }
 
@@ -101,9 +96,6 @@ class InstacartService {
   async createRecipePage(recipeData) {
     console.log('🍳 InstacartService: Creating recipe page for:', recipeData.title);
     
-    if (this.useMockData) {
-      return this.getMockRecipeCreation(recipeData);
-    }
 
     try {
       const payload = {
@@ -145,7 +137,7 @@ class InstacartService {
       return this.formatRecipeResponse(data);
     } catch (error) {
       console.error('❌ Error creating Instacart recipe page:', error);
-      return this.getMockRecipeCreation(recipeData);
+      throw error;
     }
   }
 
@@ -206,7 +198,6 @@ class InstacartService {
       });
 
       if (!response.ok) {
-        console.warn(`⚠️ Backend search API returned ${response.status}, falling back to mock data`);
         throw new Error(`Backend API error: ${response.status}`);
       }
 
@@ -232,8 +223,7 @@ class InstacartService {
       }
     } catch (error) {
       console.error('❌ Error searching Instacart products from backend:', error);
-      console.log('🔄 Falling back to mock data');
-      return this.getMockProductSearch(query);
+      throw error;
     }
   }
 
@@ -241,9 +231,6 @@ class InstacartService {
   async createShoppingList(items, listName = 'CartSmash List') {
     console.log('📝 InstacartService: Creating shopping list with', items.length, 'items');
     
-    if (this.useMockData) {
-      return this.getMockShoppingListCreation(items, listName);
-    }
 
     try {
       const payload = {
@@ -269,7 +256,7 @@ class InstacartService {
       return this.formatShoppingListResponse(data);
     } catch (error) {
       console.error('❌ Error creating Instacart shopping list:', error);
-      return this.getMockShoppingListCreation(items, listName);
+      throw error;
     }
   }
 
@@ -277,9 +264,6 @@ class InstacartService {
   async addToCart(items, retailerId) {
     console.log('🛒 InstacartService: Adding items to cart for retailer', retailerId);
     
-    if (this.useMockData) {
-      return this.getMockCartAddition(items, retailerId);
-    }
 
     try {
       const payload = {
@@ -304,7 +288,7 @@ class InstacartService {
       return this.formatCartResponse(data);
     } catch (error) {
       console.error('❌ Error adding to Instacart cart:', error);
-      return this.getMockCartAddition(items, retailerId);
+      throw error;
     }
   }
 
@@ -397,198 +381,10 @@ class InstacartService {
         });
       }
       
-      console.log('🔄 Falling back to mock response for development');
-      
-      // Return mock response for development
-      const mockResult = this.getMockCartCreation(cartItems, retailerId, zipCode);
-      console.log('📋 Mock result:', mockResult);
-      return mockResult;
+      throw error;
     }
   }
 
-  // Mock data methods (for development/fallback)
-  getMockRetailers() {
-    return {
-      success: true,
-      retailers: [
-        {
-          id: 'safeway_1',
-          name: 'Safeway',
-          address: '123 Main St, Sacramento, CA 95670',
-          distance: 0.8,
-          delivery_fee: 3.99,
-          minimum_order: 35.00,
-          estimated_delivery: '1-2 hours',
-          logo_url: '/instacart-logos/safeway.png',
-          available: true
-        },
-        {
-          id: 'kroger_1',
-          name: 'Kroger',
-          address: '456 Oak Ave, Sacramento, CA 95670',
-          distance: 1.2,
-          delivery_fee: 4.99,
-          minimum_order: 35.00,
-          estimated_delivery: '2-3 hours',
-          logo_url: '/instacart-logos/kroger.png',
-          available: true
-        },
-        {
-          id: 'costco_1',
-          name: 'Costco Wholesale',
-          address: '789 Business Park Dr, Sacramento, CA 95670',
-          distance: 2.1,
-          delivery_fee: 5.99,
-          minimum_order: 35.00,
-          estimated_delivery: '2-4 hours',
-          logo_url: '/instacart-logos/costco.png',
-          available: true
-        },
-        {
-          id: 'whole_foods_1',
-          name: 'Whole Foods Market',
-          address: '321 Organic Way, Sacramento, CA 95670',
-          distance: 1.5,
-          delivery_fee: 6.99,
-          minimum_order: 35.00,
-          estimated_delivery: '1-2 hours',
-          logo_url: '/instacart-logos/whole-foods.png',
-          available: true
-        },
-        {
-          id: 'target_1',
-          name: 'Target',
-          address: '654 Shopping Center, Sacramento, CA 95670',
-          distance: 1.8,
-          delivery_fee: 5.99,
-          minimum_order: 35.00,
-          estimated_delivery: '2-3 hours',
-          logo_url: '/instacart-logos/target.png',
-          available: true
-        },
-        {
-          id: 'albertsons_1',
-          name: 'Albertsons',
-          address: '987 Grocery Lane, Sacramento, CA 95670',
-          distance: 1.1,
-          delivery_fee: 4.49,
-          minimum_order: 35.00,
-          estimated_delivery: '2-3 hours',
-          logo_url: '/instacart-logos/albertsons.png',
-          available: true
-        }
-      ]
-    };
-  }
-
-  getMockProductSearch(query) {
-    const baseId = Date.now();
-    const mockProducts = [
-      {
-        id: `instacart_${baseId}_1`,
-        sku: `sku_${baseId}_1`,
-        retailer_sku: `retailer_sku_${baseId}_1`,
-        name: `Organic ${query}`,
-        brand: 'Generic Brand',
-        size: '1 lb',
-        price: 3.99,
-        image_url: '/placeholder-product.jpg',
-        availability: 'in_stock'
-      },
-      {
-        id: `instacart_${baseId}_2`,
-        sku: `sku_${baseId}_2`, 
-        retailer_sku: `retailer_sku_${baseId}_2`,
-        name: `Fresh ${query}`,
-        brand: 'Store Brand',
-        size: '2 lbs',
-        price: 5.49,
-        image_url: '/placeholder-product.jpg',
-        availability: 'limited_stock'
-      },
-      {
-        id: `instacart_${baseId}_3`,
-        sku: `sku_${baseId}_3`,
-        retailer_sku: `retailer_sku_${baseId}_3`,
-        name: `${query}`,
-        brand: 'Best Choice',
-        size: '1 unit',
-        price: 2.99,
-        image_url: '/placeholder-product.jpg',
-        availability: 'in_stock'
-      }
-    ];
-
-    console.log(`🔍 Mock search for "${query}" returned ${mockProducts.length} products with IDs:`, 
-                mockProducts.map(p => p.id));
-
-    return {
-      success: true,
-      products: mockProducts,
-      total_results: mockProducts.length
-    };
-  }
-
-  getMockShoppingListCreation(items, listName) {
-    return {
-      success: true,
-      list_id: 'list_' + Date.now(),
-      name: listName,
-      items_added: items.length,
-      share_url: `https://www.instacart.com/lists/share/${Date.now()}`,
-      created_at: new Date().toISOString()
-    };
-  }
-
-  getMockCartAddition(items, retailerId) {
-    return {
-      success: true,
-      cart_id: 'cart_' + Date.now(),
-      retailer_id: retailerId,
-      items_added: items.length,
-      total_items: items.length,
-      estimated_total: items.length * 4.99,
-      checkout_url: `https://www.instacart.com/store/checkout?cart_id=cart_${Date.now()}`
-    };
-  }
-
-  getMockRecipeCreation(recipeData) {
-    const recipeId = Math.floor(Math.random() * 1000000);
-    return {
-      success: true,
-      recipe_id: recipeId,
-      title: recipeData.title,
-      products_link_url: `https://www.instacart.com/store/recipes/${recipeId}`,
-      ingredients_count: recipeData.ingredients ? recipeData.ingredients.length : 0,
-      created_at: new Date().toISOString(),
-      status: 'active'
-    };
-  }
-
-  getMockCartCreation(cartItems, retailerId, zipCode) {
-    const cartId = `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const estimatedTotal = cartItems.length * 4.99; // Mock pricing
-    
-    console.log(`✅ Mock direct cart created: ${cartId}`);
-    
-    return {
-      success: true,
-      cartId: cartId,
-      checkoutUrl: `https://www.instacart.com/store/${retailerId}/storefront?utm_source=CartSmash&utm_medium=integration`,
-      itemsAdded: cartItems.length,
-      totals: {
-        subtotal: estimatedTotal,
-        total: Math.round((estimatedTotal * 1.15) * 100) / 100, // Add estimated taxes/fees
-        item_count: cartItems.length
-      },
-      metadata: {
-        retailer: retailerId,
-        zipCode: zipCode,
-        createdAt: new Date().toISOString(),
-        mockMode: true
-      }
-    };
-  }
 
   // Response formatting methods
   formatRetailersResponse(data) {

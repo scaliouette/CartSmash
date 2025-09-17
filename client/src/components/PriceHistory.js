@@ -23,7 +23,7 @@ const PriceHistory = ({
     if (isOpen && productName) {
       loadPriceHistory();
     }
-  }, [isOpen, productName, selectedTimeRange]);
+  }, [isOpen, productName, selectedTimeRange, loadPriceHistory]);
 
   const loadPriceHistory = useCallback(async () => {
     setIsLoading(true);
@@ -42,75 +42,12 @@ const PriceHistory = ({
     } catch (err) {
       console.error('Price history loading error:', err);
       setError(err.message);
-      // Fallback to mock data for development
-      setPriceData(generateMockPriceData());
+      setPriceData([]);
     } finally {
       setIsLoading(false);
     }
   }, [productName, selectedTimeRange, productId]);
 
-  // Generate mock price data for development/demonstration
-  const generateMockPriceData = () => {
-    const vendors = [
-      { name: 'Safeway', logo: '🛒', color: '#FF6B35' },
-      { name: 'Costco', logo: '🏪', color: '#003F7F' },
-      { name: 'Whole Foods', logo: '🥬', color: '#00A652' },
-      { name: 'Target', logo: '🎯', color: '#CC0000' },
-      { name: 'Walmart', logo: '🛍️', color: '#0071CE' },
-      { name: 'Kroger', logo: '🏬', color: '#0066B2' },
-      { name: 'Instacart', logo: '🥕', color: '#00B894' }
-    ];
-
-    const basePrice = currentPrice || 5.99;
-    const now = new Date();
-
-    const mockData = vendors.map((vendor, index) => {
-      const priceVariation = (Math.random() - 0.5) * 2; // ±$2 variation
-      const price = Math.max(0.99, basePrice + priceVariation);
-
-      return {
-        vendor: vendor.name,
-        vendorLogo: vendor.logo,
-        vendorColor: vendor.color,
-        price: parseFloat(price.toFixed(2)),
-        currency: 'USD',
-        lastUpdated: new Date(now.getTime() - (index * 24 * 60 * 60 * 1000)), // Different days
-        availability: Math.random() > 0.1 ? 'in-stock' : 'out-of-stock',
-        deliveryTime: `${Math.floor(Math.random() * 3) + 1}-${Math.floor(Math.random() * 3) + 3} hours`,
-        priceHistory: generateVendorPriceHistory(price, selectedTimeRange),
-        isCurrentVendor: vendor.name === currentVendor
-      };
-    });
-
-    console.log('🛒 Price History - Generated mock data:', {
-      productName,
-      basePrice,
-      vendorCount: mockData.length,
-      prices: mockData.map(item => ({ vendor: item.vendor, price: item.price, availability: item.availability }))
-    });
-
-    return mockData;
-  };
-
-  const generateVendorPriceHistory = (basePrice, timeRange) => {
-    const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
-    const history = [];
-
-    for (let i = days; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-
-      const priceFluctuation = (Math.random() - 0.5) * 1; // ±$0.50 daily fluctuation
-      const price = Math.max(0.99, basePrice + priceFluctuation);
-
-      history.push({
-        date: date.toISOString().split('T')[0],
-        price: parseFloat(price.toFixed(2))
-      });
-    }
-
-    return history;
-  };
 
   const getSortedPriceData = () => {
     return [...priceData].sort((a, b) => {
