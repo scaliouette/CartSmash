@@ -1272,14 +1272,24 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
               console.log(`✅ Found Instacart match for "${searchQuery}":`, instacartProduct.name, `$${instacartProduct.price}`);
 
               // Enrich the original item with Instacart data
-              return {
+              const enrichedItem = {
                 ...item,
                 price: parseFloat(instacartProduct.price) || 0,
-                imageUrl: instacartProduct.image_url || instacartProduct.imageUrl,
+                image: instacartProduct.image_url || instacartProduct.imageUrl || instacartProduct.image,
+                imageUrl: instacartProduct.image_url || instacartProduct.imageUrl || instacartProduct.image,
                 instacartId: instacartProduct.id,
                 instacartData: instacartProduct,
                 enriched: true
               };
+
+              console.log(`✅ Enriched "${searchQuery}" with:`, {
+                price: enrichedItem.price,
+                image: enrichedItem.image,
+                imageUrl: enrichedItem.imageUrl,
+                instacartId: enrichedItem.instacartId
+              });
+
+              return enrichedItem;
             } else {
               console.log(`⚠️ No Instacart match found for: "${searchQuery}"`);
               return {

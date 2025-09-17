@@ -93,7 +93,35 @@ class ImageService {
    * @returns {string} Image URL
    */
   getProductImage(item, options = {}) {
-    // Always use reliable SVG fallbacks - no external images
+    console.log('🖼️ getProductImage called for:', item.productName, {
+      hasImage: !!item.image,
+      hasImageUrl: !!item.imageUrl,
+      hasInstacartData: !!item.instacartData,
+      enriched: !!item.enriched
+    });
+
+    // First priority: Use real product images from Instacart API if available
+    if (item.imageUrl && this.isValidImageUrl(item.imageUrl)) {
+      console.log('✅ Using real Instacart image:', item.imageUrl);
+      return item.imageUrl;
+    }
+
+    if (item.image && this.isValidImageUrl(item.image)) {
+      console.log('✅ Using real product image:', item.image);
+      return item.image;
+    }
+
+    // Check if instacartData has image URLs
+    if (item.instacartData) {
+      const instacartImageUrl = item.instacartData.image_url || item.instacartData.imageUrl || item.instacartData.image;
+      if (instacartImageUrl && this.isValidImageUrl(instacartImageUrl)) {
+        console.log('✅ Using Instacart data image:', instacartImageUrl);
+        return instacartImageUrl;
+      }
+    }
+
+    // Fallback to category-based SVG
+    console.log('⚠️ No real image found, using SVG fallback');
     const category = this.getCategoryFromItem(item);
     return this.fallbackImages[category] || this.fallbackImages.default;
   }

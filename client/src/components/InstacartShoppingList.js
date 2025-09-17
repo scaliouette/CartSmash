@@ -2,6 +2,44 @@ import React, { useState, useEffect, useCallback } from 'react';
 import imageService, { formatProductName } from '../utils/imageService';
 import instacartService from '../services/instacartService';
 
+// 🔍 DEBUG FUNCTIONS FOR TRACING FALLBACK ISSUES
+const debugItemData = (item, context = '') => {
+  console.log(`🔍 [${context}] DEBUGGING ITEM:`, {
+    id: item.id,
+    productName: item.productName || item.name,
+    price: item.price,
+    priceType: typeof item.price,
+    hasPrice: !!item.price && item.price !== 0 && item.price !== '0.00',
+    image: item.image,
+    imageUrl: item.imageUrl,
+    hasRealImage: !!item.image && !item.image.includes('data:image/svg'),
+    brand: item.brand,
+    sku: item.sku,
+    productId: item.productId,
+    instacartData: !!item.instacartData,
+    enriched: !!item.enriched,
+    allFields: Object.keys(item)
+  });
+};
+
+const debugShoppingListState = (items, context = '') => {
+  console.log(`🛒 [${context}] SHOPPING LIST STATE:`, {
+    totalItems: items.length,
+    itemsWithPrices: items.filter(item => item.price && item.price !== 0 && item.price !== '0.00').length,
+    itemsWithRealImages: items.filter(item => item.image && !item.image.includes('data:image/svg')).length,
+    itemsEnriched: items.filter(item => item.enriched || item.instacartData).length,
+    priceRange: {
+      min: Math.min(...items.map(item => parseFloat(item.price) || 0)),
+      max: Math.max(...items.map(item => parseFloat(item.price) || 0))
+    }
+  });
+
+  // Log first few items for detail
+  items.slice(0, 3).forEach((item, index) => {
+    debugItemData(item, `Item ${index + 1}`);
+  });
+};
+
 const InstacartShoppingList = ({
   items = [],
   onItemsChange,
@@ -23,6 +61,8 @@ const InstacartShoppingList = ({
 
   // Sync local items with parent
   useEffect(() => {
+    console.log('🔄 InstacartShoppingList received new items:', items.length);
+    debugShoppingListState(items, 'Items Received from Parent');
     setLocalItems(items);
   }, [items]);
 
@@ -33,7 +73,7 @@ const InstacartShoppingList = ({
     setLoadingRetailers(true);
     try {
       console.log('🏪 Loading retailers for zip code:', userZipCode);
-      const result = await instacartService.getRetailers(userZipCode);
+      const result = await instacartService.getNearbyRetailers(userZipCode);
 
       if (result.success && result.retailers) {
         setRetailers(result.retailers);
