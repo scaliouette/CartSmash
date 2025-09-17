@@ -509,20 +509,9 @@
       "Bash(NODE_ENV=development PORT=3080 npm start)",
       "Bash(REACT_APP_API_URL=http://localhost:3080 PORT=3081 npm start)",
       "Bash(start http://localhost:3081)",
-      "Bash(echo $env:USERPROFILE)",
-      "WebFetch(domain:dev.to)",
-      "Bash(timeout:*)",
-      "Bash(PORT=3082 npm run mcp:http)"
+      "Bash(echo $env:USERPROFILE)"
     ],
     "deny": [],
     "ask": []
-  },
-  "mcpServers": {
-    "render": {
-      "url": "https://mcp.render.com/mcp",
-      "headers": {
-        "Authorization": "Bearer rnd_owxcfIa6EEidA544DpWdAkjBcwb8"
-      }
-    }
   }
 }

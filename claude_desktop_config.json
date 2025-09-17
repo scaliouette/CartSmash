@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "cartsmash": {
+      "command": "node",
+      "args": ["server/mcpServer.js"],
+      "cwd": "C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash",
+      "env": {
+        "CARTSMASH_API_URL": "https://cartsmash-api.onrender.com",
+        "NODE_ENV": "production"
+      }
+    },
+    "cartsmash-local": {
+      "command": "node",
+      "args": ["server/mcpServer.js"],
+      "cwd": "C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash",
+      "env": {
+        "CARTSMASH_API_URL": "http://localhost:3001",
+        "NODE_ENV": "development"
+      }
+    }
+  }
+}

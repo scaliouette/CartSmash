@@ -1,0 +1,61 @@
+services:
+  # Main CartSmash API Service
+  - type: web
+    name: cartsmash-api
+    env: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        fromDatabase:
+          name: cartsmash-mongodb
+          property: connectionString
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: KROGER_CLIENT_ID
+        sync: false
+      - key: KROGER_CLIENT_SECRET
+        sync: false
+      - key: KROGER_REDIRECT_URI
+        sync: false
+      - key: KROGER_BASE_URL
+        value: https://api.kroger.com
+      - key: KROGER_OAUTH_SCOPES
+        value: product.compact cart.basic:write
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: INSTACART_API_KEY
+        sync: false
+    healthCheckPath: /api/health
+
+  # MCP Server Service (for external MCP clients)
+  - type: web
+    name: cartsmash-mcp
+    env: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm run mcp
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10001
+      - key: CARTSMASH_API_URL
+        value: https://cartsmash-api.onrender.com
+    # Note: MCP typically uses stdio transport, this is for HTTP-based MCP if needed
+
+databases:
+  - name: cartsmash-mongodb
+    databaseName: cartsmash
+    user: cartsmash_user
