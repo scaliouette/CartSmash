@@ -726,6 +726,23 @@ function GroceryListForm({
     if (persistedCart && persistedCart.length > 0) {
       console.log('📖 Loading persisted cart:', persistedCart.length, 'items');
       setCurrentCart(persistedCart);
+
+      // CRITICAL: Enrich persisted cart items with real Instacart product data
+      console.log('🔍 ===== PERSISTENCE ENRICHMENT TRIGGER =====');
+      console.log('🔍 Enriching persisted cart items with Instacart product data...');
+      console.log('📊 About to call enrichCartWithInstacartData with', persistedCart.length, 'items');
+      console.log('📦 Sample items to enrich:', persistedCart.slice(0, 2).map(item => ({
+        id: item.id,
+        productName: item.productName || item.name,
+        enriched: item.enriched,
+        hasPrice: !!item.price && item.price > 0,
+        hasImage: !!item.image
+      })));
+
+      enrichCartWithInstacartData(persistedCart);
+
+      console.log('✅ enrichCartWithInstacartData call completed');
+      console.log('🔍 ===== PERSISTENCE ENRICHMENT TRIGGER COMPLETE =====');
     }
     
     // Load saved recipes WITH VALIDATION
@@ -768,7 +785,7 @@ function GroceryListForm({
     }
     
     console.log('✅ Data persistence loading complete');
-  }, [setCurrentCart, setSavedRecipes, setParsedRecipes]);
+  }, [setCurrentCart, setSavedRecipes, setParsedRecipes, enrichCartWithInstacartData]);
 
   // Auto-save cart data when it changes
   useEffect(() => {

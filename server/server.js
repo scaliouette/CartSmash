@@ -248,6 +248,7 @@ const corsOptions = {
       'http://localhost:3060',
       'http://localhost:3062',
       'http://localhost:3064',
+      'http://localhost:3085',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:3001',
       process.env.CLIENT_URL
@@ -341,6 +342,7 @@ app.options('*', (req, res) => {
     'https://cartsmash.vercel.app',
     'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:3085',
     process.env.CLIENT_URL
   ].filter(Boolean);
 
@@ -1235,6 +1237,7 @@ if (require.main === module) {
       'https://cartsmash.vercel.app',
       'http://localhost:3000',
       'http://localhost:3001',
+      'http://localhost:3085',
       process.env.CLIENT_URL
     ].filter(Boolean);
 
