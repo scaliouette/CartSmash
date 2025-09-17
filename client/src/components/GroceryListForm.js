@@ -9,6 +9,7 @@ import InstacartCheckoutUnified from './InstacartCheckoutUnified';
 import InstacartProductMatcher from './InstacartProductMatcher';
 import PriceHistory from './PriceHistory';
 import RecipesFoundCard from './RecipesFoundCard';
+import RecipesFound from './RecipesFound';
 import { formatProductName } from '../utils/imageService';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { ButtonSpinner } from './LoadingSpinner';
@@ -4212,29 +4213,7 @@ Or paste any grocery list directly!"
 
       {/* Display Parsed Recipes */}
       {(parsedRecipes.length > 0 || recipes.length > 0) && (
-        <div style={styles.recipesContainer}>
-          <RecipesFoundCard
-            count={parsedRecipes.length + recipes.length}
-            onClearAll={handleClearAllRecipes}
-            onCollapseExpand={handleCollapseExpandAll}
-            expanded={mealPlanExpanded}
-          />
-          
-          {/* Always show recipe cards with individual expansion control */}
-          {[...parsedRecipes, ...recipes].map((recipe, index) => (
-            <RecipeCard 
-              key={index} 
-              recipe={recipe} 
-              index={index}
-              externalExpanded={individualExpansionStates[index] !== undefined ? individualExpansionStates[index] : mealPlanExpanded}
-              onToggleExpanded={() => toggleIndividualRecipeExpansion(index)}
-              onAddToCart={handleAddRecipeToCart}
-              onAddToLibrary={handleAddToRecipeLibrary}
-              onAddToMealPlan={handleAddToMealPlan}
-              onRemove={handleRemoveRecipe}
-            />
-          ))}
-        </div>
+        <RecipesFound recipes={[...parsedRecipes, ...recipes]} />
       )}
 
       {showResults && currentCart.length > 0 && (
