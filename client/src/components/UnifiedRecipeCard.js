@@ -114,8 +114,8 @@ export default function UnifiedRecipeCard({
   };
 
   return (
-    <div 
-      className={`bg-white rounded-lg shadow-md p-6 border-2 transition-all ${
+    <div
+      className={`bg-white rounded-lg shadow-md border-2 transition-all ${
         isSelected ? 'border-green-500 bg-green-50' : 'border-gray-200'
       }`}
       style={{
@@ -123,11 +123,10 @@ export default function UnifiedRecipeCard({
         margin: '16px 0'
       }}
     >
-      <div className="flex items-start justify-between">
-        {/* Left: Recipe Info */}
-        <div className="flex-1">
-          {/* Header with checkbox, icon, title, and meal type */}
-          <div className="flex items-start gap-3 mb-3">
+      {/* Header */}
+      <div style={{ padding: '20px 24px 16px 24px' }}>
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-3 flex-1">
             {showSelection && (
               <input
                 type="checkbox"
@@ -136,25 +135,27 @@ export default function UnifiedRecipeCard({
                 className="mt-1 w-5 h-5 text-green-600 rounded focus:ring-green-500"
               />
             )}
-            
+
             <span className="text-2xl flex-shrink-0">{getRecipeIcon()}</span>
-            
-            <div className="flex-1">
-              <h3 className="text-xl font-bold">{recipe.title || recipe.name}</h3>
-              
-              <div className="flex items-center gap-2 mt-1">
-                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs capitalize">
+
+            <div className="flex-1 min-w-0">
+              <h3 className="text-xl font-bold text-gray-900 truncate">
+                {recipe.title || recipe.name}
+              </h3>
+
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium capitalize">
                   {recipe.mealType || 'recipe'}
                 </span>
-                
+
                 {getSourceLabel() && (
                   <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
                     {getSourceLabel()}
                   </span>
                 )}
-                
+
                 {recipe.difficulty && (
-                  <span className={`px-3 py-1 rounded-full text-xs ${
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                     recipe.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
                     recipe.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                     'bg-red-100 text-red-700'
@@ -166,75 +167,127 @@ export default function UnifiedRecipeCard({
             </div>
           </div>
 
-          {/* Description if available */}
-          {recipe.description && (
-            <p className="text-sm text-gray-600 mb-3">{recipe.description}</p>
-          )}
-
-          {/* Ingredients */}
-          <div className="mb-3">
-            <p className="text-sm text-gray-700 font-semibold mb-2">Ingredients:</p>
-            <div className="text-sm text-gray-700 whitespace-pre-line">
-              {formatIngredientDisplay()}
-              {recipe.ingredients?.length > 5 && (
-                <div className="text-gray-500 mt-1">
-                  + {recipe.ingredients.length - 5} more
-                </div>
-              )}
+          {/* Recipe Image */}
+          {recipe.imageUrl && recipe.imageUrl !== '/images/recipes/default.jpg' && (
+            <div className="ml-4 flex-shrink-0">
+              <img
+                src={recipe.imageUrl || recipe.image}
+                alt={recipe.title}
+                className="w-20 h-20 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => setIsExpanded(!isExpanded)}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
             </div>
-          </div>
+          )}
+        </div>
+      </div>
 
-          {/* Time and Nutrition Info */}
-          <div className="flex flex-wrap gap-3 text-sm text-gray-600 mb-3">
-            {(recipe.prepTime > 0 || recipe.time?.prep_min > 0) && (
-              <span className="flex items-center gap-1">
-                ⏱️ Prep: {recipe.prepTime || recipe.time?.prep_min} min
-              </span>
-            )}
-            {(recipe.cookTime > 0 || recipe.time?.cook_min > 0) && (
-              <span className="flex items-center gap-1">
-                🔥 Cook: {recipe.cookTime || recipe.time?.cook_min} min
-              </span>
-            )}
-            {(recipe.totalTime > 0 || recipe.time?.total_min > 0) && (
-              <span className="flex items-center gap-1">
-                ⏰ Total: {recipe.totalTime || recipe.time?.total_min} min
-              </span>
-            )}
-            {(recipe.nutrition?.calories > 0 || recipe.nutrition_per_serving?.calories_kcal > 0) && (
-              <span className="flex items-center gap-1">
-                🔥 {recipe.nutrition?.calories || recipe.nutrition_per_serving?.calories_kcal} cal
-              </span>
-            )}
-            {(recipe.servings || recipe.yield?.servings) && (
-              <span className="flex items-center gap-1">
-                🍽️ Serves: {recipe.servings || recipe.yield?.servings}
-              </span>
-            )}
-          </div>
+      {/* Content */}
+      <div style={{ padding: '0 24px' }}>
+        {/* Description */}
+        {recipe.description && (
+          <p className="text-sm text-gray-600 mb-4 line-clamp-2">{recipe.description}</p>
+        )}
 
-          {/* Tags */}
-          {recipe.tags && recipe.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {recipe.tags.map((tag, index) => (
-                <span
-                  key={`${tag}-${index}`}
-                  className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs"
-                >
-                  {tag}
+        {/* Key Stats */}
+        <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
+          {(recipe.prepTime > 0 || recipe.time?.prep_min > 0 || recipe.totalTime > 0 || recipe.time?.total_min > 0) && (
+            <span className="flex items-center gap-1">
+              ⏱️ {recipe.totalTime || recipe.time?.total_min || recipe.prepTime || recipe.time?.prep_min} min
+            </span>
+          )}
+          {(recipe.servings || recipe.yield?.servings) && (
+            <span className="flex items-center gap-1">
+              🍽️ {recipe.servings || recipe.yield?.servings}
+            </span>
+          )}
+          {(recipe.nutrition?.calories > 0 || recipe.nutrition_per_serving?.calories_kcal > 0) && (
+            <span className="flex items-center gap-1">
+              🔥 {recipe.nutrition?.calories || recipe.nutrition_per_serving?.calories_kcal} cal
+            </span>
+          )}
+          <span className="flex items-center gap-1">
+            🥘 {recipe.ingredients?.length || 0} ingredients
+          </span>
+        </div>
+
+        {/* Ingredient Preview */}
+        <div className="mb-4">
+          <div className="text-sm text-gray-700">
+            {recipe.ingredients?.slice(0, 3).map((ing, index) => {
+              let ingredientText = '';
+              if (typeof ing === 'string') {
+                ingredientText = ing;
+              } else if (ing.quantity && ing.unit && ing.item) {
+                const quantity = typeof ing.quantity === 'object' ?
+                  (ing.quantity.min && ing.quantity.max ? `${ing.quantity.min}-${ing.quantity.max}` : ing.quantity.min || ing.quantity.max || ing.quantity.text) :
+                  ing.quantity;
+                ingredientText = `${quantity} ${ing.unit} ${ing.item}`;
+              } else if (ing.original) {
+                ingredientText = ing.original;
+              } else if (ing.raw) {
+                ingredientText = ing.raw;
+              } else {
+                ingredientText = ing.item || '';
+              }
+
+              return (
+                <span key={index} className="inline-block mr-2 mb-1">
+                  {ingredientText}{index < 2 && index < (recipe.ingredients?.length - 1) ? ',' : ''}
                 </span>
-              ))}
-            </div>
-          )}
+              );
+            })}
+            {recipe.ingredients?.length > 3 && (
+              <span className="text-gray-500">
+                + {recipe.ingredients.length - 3} more
+              </span>
+            )}
+          </div>
+        </div>
 
-          {/* Source URL if available */}
+        {/* Simplified Tags */}
+        {recipe.tags && recipe.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {recipe.tags.slice(0, 4).map((tag, index) => (
+              <span
+                key={`${tag}-${index}`}
+                className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs"
+              >
+                {tag}
+              </span>
+            ))}
+            {recipe.tags.length > 4 && (
+              <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded text-xs">
+                +{recipe.tags.length - 4}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Expandable Instructions Section */}
+      {isExpanded && recipe.instructions && (
+        <div style={{ padding: '16px 24px 0 24px' }} className="border-t border-gray-200">
+          <h4 className="font-semibold text-sm mb-3 text-gray-900">Instructions:</h4>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-4">
+            {recipe.instructions.map((instruction, index) => (
+              <li key={index}>
+                {typeof instruction === 'string'
+                  ? instruction
+                  : instruction.instruction || instruction.text}
+              </li>
+            ))}
+          </ol>
+
           {recipe.sourceUrl && (
-            <div className="text-xs text-gray-500">
-              <a 
-                href={recipe.sourceUrl} 
-                target="_blank" 
+            <div className="mb-4">
+              <a
+                href={recipe.sourceUrl}
+                target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                className="text-blue-600 hover:underline inline-flex items-center gap-1 text-sm"
               >
                 View Original Recipe
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -245,71 +298,49 @@ export default function UnifiedRecipeCard({
             </div>
           )}
         </div>
-
-        {/* Right: Recipe Image */}
-        {recipe.imageUrl && recipe.imageUrl !== '/images/recipes/default.jpg' && (
-          <div className="ml-4 flex-shrink-0">
-            <img 
-              src={recipe.imageUrl || recipe.image} 
-              alt={recipe.title}
-              className="w-32 h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => setIsExpanded(!isExpanded)}
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Expandable Instructions Section */}
-      {isExpanded && recipe.instructions && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <h4 className="font-semibold text-sm mb-2">Instructions:</h4>
-          <ol className="list-decimal list-inside space-y-1">
-            {recipe.instructions.map((instruction, index) => (
-              <li key={index} className="text-sm text-gray-700">
-                {typeof instruction === 'string' 
-                  ? instruction 
-                  : instruction.instruction || instruction.text}
-              </li>
-            ))}
-          </ol>
-        </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex gap-3 mt-4 pt-4 border-t border-gray-200">
-        <button
-          onClick={handleAddToLibrary}
-          disabled={importStatus === 'importing'}
-          className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-            importStatus === 'imported'
-              ? 'bg-green-100 text-green-700 cursor-default'
-              : importStatus === 'importing'
-              ? 'bg-gray-100 text-gray-500 cursor-wait'
-              : importStatus === 'error'
-              ? 'bg-red-100 text-red-700'
-              : 'bg-blue-500 text-white hover:bg-blue-600'
-          }`}
-        >
-          {importStatus === 'imported' ? (
-            <>✓ In Recipe Library</>
-          ) : importStatus === 'importing' ? (
-            <>Adding to Library...</>
-          ) : importStatus === 'error' ? (
-            <>❌ Error - Try Again</>
-          ) : (
-            <>🔲 Add to Recipe Library</>
-          )}
-        </button>
-        
-        <button
-          onClick={handleAddToMealPlan}
-          className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all flex items-center justify-center gap-2"
-        >
-          📅 Add to Meal Plan
-        </button>
+      {/* Action Footer */}
+      <div style={{ padding: '16px 24px 20px 24px' }} className="border-t border-gray-200">
+        <div className="flex gap-3">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+          >
+            {isExpanded ? '👁️ Less' : '👁️ View Recipe'}
+          </button>
+
+          <button
+            onClick={handleAddToLibrary}
+            disabled={importStatus === 'importing'}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+              importStatus === 'imported'
+                ? 'bg-green-100 text-green-700 cursor-default'
+                : importStatus === 'importing'
+                ? 'bg-gray-100 text-gray-500 cursor-wait'
+                : importStatus === 'error'
+                ? 'bg-red-100 text-red-700'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
+          >
+            {importStatus === 'imported' ? (
+              <>✓ Saved</>
+            ) : importStatus === 'importing' ? (
+              <>Saving...</>
+            ) : importStatus === 'error' ? (
+              <>❌ Retry</>
+            ) : (
+              <>💾 Save</>
+            )}
+          </button>
+
+          <button
+            onClick={handleAddToMealPlan}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all flex items-center justify-center gap-2"
+          >
+            📅 Plan
+          </button>
+        </div>
       </div>
     </div>
   );
