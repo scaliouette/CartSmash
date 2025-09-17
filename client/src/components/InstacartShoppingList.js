@@ -385,7 +385,7 @@ const InstacartShoppingList = ({
       <div style={{
         backgroundColor: 'white',
         borderRadius: '12px',
-        overflow: 'hidden',
+        overflow: 'visible',
         boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
         marginBottom: '24px'
       }}>
@@ -448,7 +448,8 @@ const InstacartShoppingList = ({
             <div style={{
               position: 'relative',
               minWidth: '250px',
-              zIndex: 99999
+              zIndex: 99999,
+              overflow: 'visible'
             }} ref={dropdownRef}>
               <button
                 onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
@@ -515,7 +516,7 @@ const InstacartShoppingList = ({
               {/* Dropdown Menu */}
               {isStoreDropdownOpen && (
                 <div style={{
-                  position: 'fixed',
+                  position: 'absolute',
                   top: '100%',
                   left: 0,
                   right: 0,
