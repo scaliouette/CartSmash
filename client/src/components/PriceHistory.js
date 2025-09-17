@@ -23,7 +23,7 @@ const PriceHistory = ({
     setError(null);
 
     try {
-      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3088';
       const response = await fetch(`${baseUrl}/api/price-history?product=${encodeURIComponent(productName)}&timeRange=${selectedTimeRange}&productId=${productId || ''}`);
 
       if (!response.ok) {

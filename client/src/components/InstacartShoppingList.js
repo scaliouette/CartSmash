@@ -47,7 +47,7 @@ const InstacartShoppingList = ({
   onCheckout,
   onSaveList,
   onValidateItems,
-  onShowPriceComparison,
+  onShowPriceHistory,
   onChooseStore,
   userZipCode = '95670',
   selectedRetailer = 'kroger'
@@ -366,21 +366,21 @@ const InstacartShoppingList = ({
           gap: '16px'
         }}>
           {/* Title */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{
-              width: '32px',
-              height: '32px',
+              width: '48px',
+              height: '48px',
               background: 'white',
-              border: '2px solid #002244',
-              borderRadius: '8px',
+              border: '3px solid #002244',
+              borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '4px'
+              padding: '6px'
             }}>
               <svg
-                width="18"
-                height="18"
+                width="28"
+                height="28"
                 viewBox="0 0 24 24"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
@@ -391,7 +391,7 @@ const InstacartShoppingList = ({
                 />
               </svg>
             </div>
-            <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#343538', margin: 0 }}>Shopping List</h1>
+            <h1 style={{ fontSize: '36px', fontWeight: '700', color: '#343538', margin: 0 }}>Shopping List</h1>
           </div>
 
           {/* Store Selector */}
@@ -893,7 +893,7 @@ const InstacartShoppingList = ({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  onShowPriceComparison && onShowPriceComparison(item);
+                  onShowPriceHistory && onShowPriceHistory(item);
                 }}
                 style={{
                   fontSize: '18px',

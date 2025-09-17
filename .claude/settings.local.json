@@ -521,7 +521,11 @@
       "Bash(NODE_ENV=development PORT=3086 npm start)",
       "Bash(REACT_APP_API_URL=http://localhost:3086 PORT=3087 npm start)",
       "Bash(start http://localhost:3087)",
-      "Bash(del debug-enrichment-test.js)"
+      "Bash(del debug-enrichment-test.js)",
+      "Bash(NODE_ENV=development PORT=3088 npm start)",
+      "Bash(del test-products-link-alternatives.js)",
+      "Bash(REACT_APP_API_URL=http://localhost:3088 PORT=3089 npm start)",
+      "Bash(start http://localhost:3089)"
     ],
     "deny": [],
     "ask": []
