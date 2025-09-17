@@ -1149,74 +1149,74 @@ const InstacartShoppingList = ({
                   justifyContent: 'space-between',
                   alignItems: 'center'
                 }}>
+                  {/* Enhanced Quantity Controls */}
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px',
-                    backgroundColor: '#F5F5F5',
+                    backgroundColor: '#f3f4f6',
                     borderRadius: '8px',
-                    padding: '2px'
+                    padding: '4px'
                   }}>
                     <button
                       onClick={() => updateQuantity(item.id, -1)}
+                      disabled={(item.quantity || 1) <= 1}
                       style={{
-                        width: '32px',
-                        height: '32px',
+                        width: '28px',
+                        height: '28px',
                         border: 'none',
-                        backgroundColor: 'white',
-                        borderRadius: '6px',
-                        fontSize: '18px',
-                        fontWeight: '600',
-                        color: '#002244',
-                        cursor: 'pointer',
+                        backgroundColor: (item.quantity || 1) > 1 ? 'white' : 'transparent',
+                        borderRadius: '4px',
+                        cursor: (item.quantity || 1) > 1 ? 'pointer' : 'not-allowed',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        transition: 'background 0.2s'
+                        fontSize: '18px',
+                        color: (item.quantity || 1) > 1 ? '#111' : '#9ca3af'
                       }}
                     >
                       −
                     </button>
+
                     <input
                       type="text"
                       value={item.quantity || 1}
-                      onChange={(e) => setQuantity(item.id, e.target.value)}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setQuantity(item.id, val);
+                      }}
                       style={{
-                        minWidth: '40px',
+                        width: '40px',
                         textAlign: 'center',
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        color: '#002244',
                         border: 'none',
                         backgroundColor: 'transparent',
-                        padding: '4px'
+                        fontSize: '14px',
+                        fontWeight: '600'
                       }}
                     />
+
                     <button
                       onClick={() => updateQuantity(item.id, 1)}
                       style={{
-                        width: '32px',
-                        height: '32px',
+                        width: '28px',
+                        height: '28px',
                         border: 'none',
                         backgroundColor: 'white',
-                        borderRadius: '6px',
-                        fontSize: '18px',
-                        fontWeight: '600',
-                        color: '#002244',
+                        borderRadius: '4px',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        transition: 'background 0.2s'
+                        fontSize: '18px',
+                        color: '#111'
                       }}
                     >
                       +
                     </button>
                   </div>
+                  {/* Enhanced Price Display */}
                   <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
+                    textAlign: 'right',
+                    minWidth: '60px'
                   }}>
                     <div
                       onClick={(e) => {
@@ -1225,40 +1225,65 @@ const InstacartShoppingList = ({
                         onShowPriceHistory && onShowPriceHistory(item);
                       }}
                       style={{
-                        fontSize: '18px',
-                        fontWeight: '700',
-                        color: '#002244',
-                        cursor: 'pointer'
+                        fontWeight: 'bold',
+                        fontSize: '16px',
+                        color: '#111',
+                        cursor: 'pointer',
+                        marginBottom: '2px'
                       }}
                       title="Click to see price comparison from all vendors"
                     >
                       ${((parseFloat(item.price) || 0) * (item.quantity || 1)).toFixed(2)} 📊
                     </div>
+                    <div style={{
+                      fontSize: '12px',
+                      color: '#666'
+                    }}>
+                      ${(parseFloat(item.price) || 0).toFixed(2)} ea
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    {/* Enhanced Delete Button */}
                     <button
                       onClick={() => deleteSingleItem(item.id)}
                       style={{
                         width: '32px',
                         height: '32px',
-                        border: '2px solid #E0E0E0',
-                        background: 'white',
-                        cursor: 'pointer',
+                        border: 'none',
+                        backgroundColor: '#fee2e2',
                         borderRadius: '6px',
+                        cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '14px',
+                        color: '#dc2626',
                         transition: 'all 0.2s'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#FFF0F0';
-                        e.currentTarget.style.borderColor = '#D32F2F';
+                        e.target.style.backgroundColor = '#fecaca';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'white';
-                        e.currentTarget.style.borderColor = '#E0E0E0';
+                        e.target.style.backgroundColor = '#fee2e2';
                       }}
+                      title="Remove item"
                     >
-                      🗑️
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                        <line x1="10" y1="11" x2="10" y2="17"/>
+                        <line x1="14" y1="11" x2="14" y2="17"/>
+                      </svg>
                     </button>
                   </div>
                 </div>
