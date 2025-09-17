@@ -1543,8 +1543,8 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
           setTimeout(() => setSuccessMessage(''), 3000);
         } catch (error) {
           console.error('Error updating preferred retailer:', error);
-          setErrorMessage('Failed to update store preference. Please try again.');
-          setTimeout(() => setErrorMessage(''), 3000);
+          setError('Failed to update store preference. Please try again.');
+          setTimeout(() => setError(''), 3000);
         }
       } else {
         alert('Store not found. Please try again.');
