@@ -234,31 +234,42 @@ const InstacartShoppingList = ({
 
   // Handle delete selected items
   const deleteSelectedItems = () => {
+    console.log(`🗑️ Bulk deleting ${selectedItems.size} selected items`);
+
     const updatedItems = localItems.filter(item => !selectedItems.has(item.id));
     setLocalItems(updatedItems);
     setSelectedItems(new Set());
+
+    // Always notify parent component of the change
     if (onItemsChange) {
       onItemsChange(updatedItems);
+      console.log(`📤 Notified parent: ${updatedItems.length} items remaining after bulk delete`);
     }
   };
 
   // Handle delete single item
   const deleteSingleItem = (itemId) => {
-    // Try parent callback first
+    console.log(`🗑️ Deleting item: ${itemId}`);
+
+    const updatedItems = localItems.filter(item => item.id !== itemId);
+    setLocalItems(updatedItems);
+
+    // Remove from selected items if it was selected
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(itemId);
+      return newSet;
+    });
+
+    // Always notify parent component of the change
+    if (onItemsChange) {
+      onItemsChange(updatedItems);
+      console.log(`📤 Notified parent: ${updatedItems.length} items remaining`);
+    }
+
+    // Also try parent-specific delete callback
     if (onDeleteItem) {
       onDeleteItem(itemId);
-    } else {
-      // Fallback to local deletion
-      const updatedItems = localItems.filter(item => item.id !== itemId);
-      setLocalItems(updatedItems);
-      setSelectedItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(itemId);
-        return newSet;
-      });
-      if (onItemsChange) {
-        onItemsChange(updatedItems);
-      }
     }
   };
 
