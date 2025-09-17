@@ -501,7 +501,19 @@ const InstacartShoppingList = ({
                 ) : (
                   <span style={{ fontSize: '16px' }}>🏬</span>
                 )}
-                <span>{retailerName || 'Safeway'}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '16px', fontWeight: '600' }}>
+                    {retailerName || 'Safeway'}
+                  </span>
+                  <span style={{
+                    fontSize: '12px',
+                    color: '#666',
+                    lineHeight: '1.2'
+                  }}>
+                    Service: ${currentRetailer?.service_fee?.toFixed(2) || '3.99'} •
+                    Delivery: ${currentRetailer?.delivery_fee?.toFixed(2) || '5.99'}
+                  </span>
+                </div>
                 <span style={{
                   marginLeft: 'auto',
                   marginRight: '20px',
@@ -509,7 +521,7 @@ const InstacartShoppingList = ({
                   fontWeight: '600',
                   color: '#FB4F14'
                 }}>
-                  ${total.toFixed(2)}
+                  ${(total + parseFloat(currentRetailer?.service_fee || 3.99) + parseFloat(currentRetailer?.delivery_fee || 5.99)).toFixed(2)}
                 </span>
               </button>
 
@@ -832,7 +844,16 @@ const InstacartShoppingList = ({
         </div>
 
         {/* Controls */}
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{
+          display: 'flex',
+          gap: '16px',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          background: '#FFE0B3',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          border: '1px solid #FFB74D'
+        }}>
           {someItemsSelected && (
             <div style={{
               display: 'flex',
@@ -848,9 +869,9 @@ const InstacartShoppingList = ({
               </span>
               <button
                 style={{
-                  background: '#F44336',
-                  color: 'white',
-                  border: 'none',
+                  background: 'white',
+                  color: '#F44336',
+                  border: '2px solid #F44336',
                   padding: '6px 12px',
                   borderRadius: '6px',
                   fontSize: '12px',
@@ -858,8 +879,25 @@ const InstacartShoppingList = ({
                   cursor: 'pointer'
                 }}
                 onClick={deleteSelectedItems}
+                title="Delete selected items"
               >
-                🗑️ 
+                🗑️
+              </button>
+              <button
+                style={{
+                  background: 'white',
+                  color: '#4CAF50',
+                  border: '2px solid #4CAF50',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+                onClick={() => onSaveList && onSaveList()}
+                title="Save selected items to grocery list"
+              >
+                💾
               </button>
             </div>
           )}
@@ -895,17 +933,17 @@ const InstacartShoppingList = ({
                 padding: '8px 36px 8px 12px',
                 border: '2px solid #002244',
                 borderRadius: '8px',
-                background: '#FFE0B3',
+                background: 'white',
                 fontSize: '14px',
                 fontWeight: '500',
                 color: '#002244'
               }}
             >
-              <option value="all" style={{ color: '#002244', background: '#FFE0B3' }}>All Items</option>
-              <option value="ingredients" style={{ color: '#002244', background: '#FFE0B3' }}>Ingredients</option>
-              <option value="pantry" style={{ color: '#002244', background: '#FFE0B3' }}>Pantry</option>
-              <option value="produce" style={{ color: '#002244', background: '#FFE0B3' }}>Produce</option>
-              <option value="dairy" style={{ color: '#002244', background: '#FFE0B3' }}>Dairy</option>
+              <option value="all" style={{ color: '#002244', background: 'white' }}>All Items</option>
+              <option value="ingredients" style={{ color: '#002244', background: 'white' }}>Ingredients</option>
+              <option value="pantry" style={{ color: '#002244', background: 'white' }}>Pantry</option>
+              <option value="produce" style={{ color: '#002244', background: 'white' }}>Produce</option>
+              <option value="dairy" style={{ color: '#002244', background: 'white' }}>Dairy</option>
             </select>
           </div>
 
