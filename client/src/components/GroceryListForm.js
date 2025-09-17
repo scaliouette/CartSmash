@@ -1919,14 +1919,20 @@ function GroceryListForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
+    // Prevent double submission
+    if (waitingForAIResponse) {
+      console.log('🚫 Submit blocked - already processing');
+      return;
+    }
+
     // Force AI usage - NEVER use manual parsing fallback for recipes
     // Only skip AI if no AI model is selected or no input text
     const shouldUseAI = selectedAI && inputText.trim().length > 0;
-    
+
     console.log('Submit clicked. Using AI:', shouldUseAI, '| Selected AI Model:', selectedAI, '| Waiting for AI Response:', waitingForAIResponse);
     console.log('Input text preview:', inputText.substring(0, 100));
-    
+
     await submitGroceryList(inputText, shouldUseAI);
   };
 
@@ -4164,8 +4170,16 @@ Or paste any grocery list directly!"
             <div style={styles.inputControls}>
               <button
                 type="submit"
-                disabled={!inputText.trim() || isLoading}
+                disabled={!inputText.trim() || isLoading || waitingForAIResponse}
                 className={`smash-button ${isLoading ? 'smash-button-loading' : ''}`}
+                onClick={(e) => {
+                  // Additional click protection
+                  if (waitingForAIResponse) {
+                    e.preventDefault();
+                    console.log('🚫 Button click blocked - already processing');
+                    return;
+                  }
+                }}
                 style={{
                   ...styles.smashButton,
                   touchAction: 'manipulation', // Prevents double-tap zoom on mobile
