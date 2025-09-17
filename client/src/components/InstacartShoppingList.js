@@ -898,7 +898,7 @@ const InstacartShoppingList = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '16px', color: '#002244' }}>🔽</span>
+            <span style={{ fontSize: '16px', color: '#002244' }}>⌥</span>
             <select
               value={filterBy}
               onChange={(e) => setFilterBy(e.target.value)}
