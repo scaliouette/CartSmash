@@ -133,12 +133,18 @@ const InstacartShoppingList = ({
         setRetailers(sortedRetailers);
         console.log(`✅ Loaded ${sortedRetailers.length} retailers, sorted by lowest prices`);
 
-        // Auto-select the lowest-priced retailer (first in sorted list)
+        // Auto-select Safeway if available, otherwise the lowest-priced retailer
         if (!selectedRetailerId && sortedRetailers.length > 0) {
-          const defaultRetailer = sortedRetailers[0];
+          // Try to find Safeway first
+          const safeway = sortedRetailers.find(r =>
+            r.name?.toLowerCase().includes('safeway') ||
+            r.retailer_key?.includes('safeway')
+          );
+
+          const defaultRetailer = safeway || sortedRetailers[0];
           const defaultRetailerId = defaultRetailer.id || defaultRetailer.retailer_key;
           setSelectedRetailerId(defaultRetailerId);
-          console.log(`🎯 Auto-selected lowest-price retailer: ${defaultRetailer.name} (${defaultRetailerId})`);
+          console.log(`🎯 Auto-selected retailer: ${defaultRetailer.name} (${defaultRetailerId})`);
         }
       } else {
         console.warn('⚠️ No retailers found, using default');
@@ -495,7 +501,7 @@ const InstacartShoppingList = ({
                 ) : (
                   <span style={{ fontSize: '16px' }}>🏬</span>
                 )}
-                <span>{retailerName || 'Choose Your Store'}</span>
+                <span>{retailerName || 'Safeway'}</span>
                 <span style={{
                   marginLeft: 'auto',
                   marginRight: '20px',
@@ -531,7 +537,7 @@ const InstacartShoppingList = ({
                   border: '2px solid #002244',
                   borderRadius: '12px',
                   boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                  zIndex: 1000,
+                  zIndex: 9999,
                   minWidth: '380px',
                   maxHeight: '500px',
                   overflowY: 'auto'
@@ -772,15 +778,55 @@ const InstacartShoppingList = ({
             }}>
               ORDER TOTAL
             </div>
+
+            {/* Subtotal */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
-              fontSize: '20px',
+              fontSize: '14px',
+              marginBottom: '4px',
+              color: '#002244'
+            }}>
+              <span>Subtotal:</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+
+            {/* Service Fee */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '14px',
+              marginBottom: '4px',
+              color: '#002244'
+            }}>
+              <span>Service Fee:</span>
+              <span>${currentRetailer?.service_fee?.toFixed(2) || '3.99'}</span>
+            </div>
+
+            {/* Delivery Fee */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '14px',
+              marginBottom: '8px',
+              color: '#002244'
+            }}>
+              <span>Delivery:</span>
+              <span>${currentRetailer?.delivery_fee?.toFixed(2) || '5.99'}</span>
+            </div>
+
+            {/* Total */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '18px',
               fontWeight: '700',
-              color: '#FB4F14'
+              color: '#FB4F14',
+              paddingTop: '8px',
+              borderTop: '1px solid #e0e0e0'
             }}>
               <span>Total:</span>
-              <span>${total.toFixed(2)}</span>
+              <span>${(total + parseFloat(currentRetailer?.service_fee || 3.99) + parseFloat(currentRetailer?.delivery_fee || 5.99)).toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -849,17 +895,17 @@ const InstacartShoppingList = ({
                 padding: '8px 36px 8px 12px',
                 border: '2px solid #002244',
                 borderRadius: '8px',
-                background: 'white',
+                background: '#FFE0B3',
                 fontSize: '14px',
                 fontWeight: '500',
                 color: '#002244'
               }}
             >
-              <option value="all" style={{ color: '#002244' }}>All Items</option>
-              <option value="ingredients" style={{ color: '#002244' }}>Ingredients</option>
-              <option value="pantry" style={{ color: '#002244' }}>Pantry</option>
-              <option value="produce" style={{ color: '#002244' }}>Produce</option>
-              <option value="dairy" style={{ color: '#002244' }}>Dairy</option>
+              <option value="all" style={{ color: '#002244', background: '#FFE0B3' }}>All Items</option>
+              <option value="ingredients" style={{ color: '#002244', background: '#FFE0B3' }}>Ingredients</option>
+              <option value="pantry" style={{ color: '#002244', background: '#FFE0B3' }}>Pantry</option>
+              <option value="produce" style={{ color: '#002244', background: '#FFE0B3' }}>Produce</option>
+              <option value="dairy" style={{ color: '#002244', background: '#FFE0B3' }}>Dairy</option>
             </select>
           </div>
 
