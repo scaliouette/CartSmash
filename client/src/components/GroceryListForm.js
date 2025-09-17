@@ -13,7 +13,6 @@ import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { ButtonSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
 // eslint-disable-next-line no-unused-vars
-import AIParsingSettings from './AIParsingSettings';
 // import confetti from 'canvas-confetti'; // REMOVED - Not used in AI-only mode
 import { unified as unifiedRecipeService } from '../services/unifiedRecipeService';
 import persistenceService from '../services/persistenceService';
@@ -558,7 +557,6 @@ function GroceryListForm({
   const [showPriceHistory, setShowPriceHistory] = useState(false);
   const [selectedProductForPrice, setSelectedProductForPrice] = useState(null);
   // eslint-disable-next-line no-unused-vars
-  const [showAISettings, setShowAISettings] = useState(false);
 
   // Device detection for mobile optimization
   // eslint-disable-next-line no-unused-vars
@@ -3999,14 +3997,6 @@ Return as JSON with this structure:
 
         {/* Controls Bar */}
         <div style={styles.controlsBar}>
-          {/* Action Buttons */}
-          {isAdmin && (
-            <div style={styles.actionButtons}>
-              <button onClick={() => setShowAISettings(true)} style={styles.actionBtn}>
-                ⚙️ AI Settings
-              </button>
-            </div>
-          )}
 
           {/* Responsive Controls Section */}
           {isMobile ? (
@@ -4427,15 +4417,6 @@ Or paste any grocery list directly!"
         />
       )}
 
-      {showAISettings && isAdmin && (
-        <AIParsingSettings
-          onClose={() => setShowAISettings(false)}
-          onSettingsChange={(newSettings) => {
-            console.log('AI Settings updated:', newSettings);
-            // Future: Store settings in localStorage or context
-          }}
-        />
-      )}
 
       {/* Recipe Manager Modal */}
       {showRecipeManager && selectedRecipeForMealPlan && (
@@ -5040,9 +5021,9 @@ const styles = {
   },
 
   clearRecipesButton: {
-    background: 'linear-gradient(135deg, #E74C3C 0%, #c0392b 100%)',
-    color: 'white',
-    border: 'none',
+    backgroundColor: 'white',
+    color: '#E74C3C',
+    border: '1px solid #E74C3C',
     borderRadius: '8px',
     padding: '8px 16px',
     fontSize: '14px',
@@ -6106,9 +6087,9 @@ const styles = {
   minimalClearBtn: {
     width: '44px',
     height: '44px',
-    backgroundColor: '#DC3545',
-    color: 'white',
-    border: 'none',
+    backgroundColor: 'white',
+    color: '#DC3545',
+    border: '1px solid #DC3545',
     borderRadius: '6px',
     fontSize: '20px',
     cursor: 'pointer',
@@ -6167,9 +6148,9 @@ const styles = {
   streamlinedClearButton: {
     width: '44px',
     height: '44px',
-    backgroundColor: '#DC3545',
-    color: 'white',
-    border: 'none',
+    backgroundColor: 'white',
+    color: '#DC3545',
+    border: '1px solid #DC3545',
     borderRadius: '8px',
     display: 'flex',
     alignItems: 'center',
