@@ -242,6 +242,26 @@ const InstacartShoppingList = ({
     }
   };
 
+  // Handle delete single item
+  const deleteSingleItem = (itemId) => {
+    // Try parent callback first
+    if (onDeleteItem) {
+      onDeleteItem(itemId);
+    } else {
+      // Fallback to local deletion
+      const updatedItems = localItems.filter(item => item.id !== itemId);
+      setLocalItems(updatedItems);
+      setSelectedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+      if (onItemsChange) {
+        onItemsChange(updatedItems);
+      }
+    }
+  };
+
   // Calculate if all items are selected
   const allItemsSelected = localItems.length > 0 && selectedItems.size === localItems.length;
   const someItemsSelected = selectedItems.size > 0;
@@ -1227,7 +1247,7 @@ const InstacartShoppingList = ({
               {/* Actions */}
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                 <button
-                  onClick={() => onDeleteItem && onDeleteItem(item.id)}
+                  onClick={() => deleteSingleItem(item.id)}
                   style={{
                     width: '32px',
                     height: '32px',
