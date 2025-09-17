@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import imageService, { formatProductName } from '../utils/imageService';
 import instacartService from '../services/instacartService';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
+import ShoppingListItem from './ShoppingListItem';
 
 // 🔍 DEBUG FUNCTIONS FOR TRACING FALLBACK ISSUES
 const debugItemData = (item, context = '') => {
