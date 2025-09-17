@@ -163,8 +163,16 @@ const InstacartShoppingList = ({
 
   // Handle store selection
   const handleStoreSelect = (store) => {
-    setSelectedRetailerId(store.retailer_key || store.id);
+    const storeId = store.retailer_key || store.id;
+    setSelectedRetailerId(storeId);
     setIsStoreDropdownOpen(false);
+
+    // Notify parent component of store selection
+    if (onChooseStore) {
+      onChooseStore(store);
+    }
+
+    console.log(`🏪 Store selected: ${store.name} (${storeId})`);
   };
 
   // Handle zip code update
