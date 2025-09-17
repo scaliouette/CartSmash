@@ -1039,9 +1039,9 @@ function GroceryListForm({
     console.log('✅ Data persistence loading complete');
   }, [setCurrentCart, setSavedRecipes, setParsedRecipes, enrichCartWithInstacartData]);
 
-  // Auto-save cart data when it changes
+  // Auto-save cart data when it changes (including empty carts)
   useEffect(() => {
-    if (currentCart && currentCart.length > 0) {
+    if (currentCart !== null && currentCart !== undefined) {
       console.log('💾 Auto-saving cart:', currentCart.length, 'items');
       persistenceService.saveCart(currentCart, 48); // 48-hour expiration
     }

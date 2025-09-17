@@ -145,8 +145,8 @@ export function useCartAutoSave(cartItems, userId) {
   const syncTimeoutRef = useRef(null);
 
   useEffect(() => {
-    // Don't sync if no items
-    if (!cartItems || cartItems.length === 0) {
+    // Don't sync if cartItems is null/undefined, but allow empty arrays to be saved
+    if (!cartItems) {
       return;
     }
 
