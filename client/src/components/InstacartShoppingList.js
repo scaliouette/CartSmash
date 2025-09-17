@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import imageService, { formatProductName } from '../utils/imageService';
 import instacartService from '../services/instacartService';
 
@@ -59,6 +59,12 @@ const InstacartShoppingList = ({
   const [retailers, setRetailers] = useState([]);
   const [selectedRetailerId, setSelectedRetailerId] = useState(selectedRetailer);
   const [loadingRetailers, setLoadingRetailers] = useState(false);
+
+  // Store selector dropdown state
+  const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState(false);
+  const [isEditingZip, setIsEditingZip] = useState(false);
+  const [currentZipCode, setCurrentZipCode] = useState(userZipCode);
+  const dropdownRef = useRef(null);
 
   const stores = [
     { value: 'grocery-outlet', label: 'Grocery Outlet' },
@@ -150,6 +156,35 @@ const InstacartShoppingList = ({
   useEffect(() => {
     loadRetailers();
   }, [loadRetailers]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsStoreDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handle store selection
+  const handleStoreSelect = (store) => {
+    setSelectedRetailerId(store.retailer_key || store.id);
+    setIsStoreDropdownOpen(false);
+    if (onChooseStore) {
+      onChooseStore();
+    }
+  };
+
+  // Handle zip code update
+  const handleZipSubmit = (e) => {
+    e.preventDefault();
+    setIsEditingZip(false);
+    // Reload retailers for new zip code
+    loadRetailers();
+  };
 
   // Sync internal selectedRetailerId with selectedRetailer prop
   useEffect(() => {
@@ -357,205 +392,396 @@ const InstacartShoppingList = ({
 
   return (
     <div style={{ padding: '24px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* Header */}
+      {/* Modern Header */}
       <div style={{
         backgroundColor: 'white',
         borderRadius: '12px',
-        padding: '24px',
-        marginBottom: '24px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
+        overflow: 'hidden',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        marginBottom: '24px'
       }}>
+        {/* Top Navy Header Bar */}
         <div style={{
+          backgroundColor: '#002244',
+          padding: '20px 24px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '20px',
           flexWrap: 'wrap',
-          gap: '16px'
+          gap: '20px'
         }}>
-          {/* Title */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              background: 'white',
-              border: '3px solid #002244',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '8px'
-            }}>
-              <svg
-                width="40"
-                height="40"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M7 18C5.9 18 5.01 18.9 5.01 20S5.9 22 7 22 9 21.1 9 20 8.1 18 7 18ZM1 2V4H3L6.6 11.59L5.25 14.04C5.09 14.32 5 14.65 5 15C5 16.1 5.9 17 7 17H19V15H7.42C7.28 15 7.17 14.89 7.17 14.75L7.2 14.63L8.1 13H15.55C16.3 13 16.96 12.59 17.3 11.97L20.88 5H18.31L15.55 11H8.53L4.27 2H1ZM17 18C15.9 18 15.01 18.9 15.01 20S15.9 22 17 22 19 21.1 19 20 18.1 18 17 18Z"
-                  fill="#002244"
-                />
-              </svg>
-            </div>
-            <h1 style={{ fontSize: '36px', fontWeight: '700', color: '#343538', margin: 0 }}>Shopping List</h1>
-          </div>
-
-          {/* Store Selector */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              cursor: 'pointer',
-              pointerEvents: 'auto',
-              zIndex: 10,
-              position: 'relative'
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onChooseStore && onChooseStore();
-            }}
-            title="Click to choose your store"
-          >
-            {retailerLogo ? (
-              <img
-                src={retailerLogo}
-                alt={retailerName || "Store"}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '6px',
-                  objectFit: 'contain',
-                  background: 'white',
-                  padding: '4px',
-                  border: '2px solid #002244'
-                }}
-                onError={(e) => {
-                  // Fallback to generic store icon if logo fails to load
-                  e.target.style.display = 'none';
-                  e.target.nextElementSibling.style.display = 'flex';
-                }}
-              />
-            ) : null}
-
-            {/* Fallback icon when no logo or logo fails to load */}
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '6px',
-                background: 'white',
-                padding: '4px',
-                border: '2px solid #002244',
-                display: retailerLogo ? 'none' : 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '16px'
-              }}
-            >
-              🏬
-            </div>
-            {loadingRetailers ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '14px', color: '#72767E' }}>Loading stores...</span>
-              </div>
-            ) : retailers.length > 0 ? (
-              <div
-                style={{
-                  padding: '8px 36px 8px 12px',
-                  border: '2px solid #002244',
-                  borderRadius: '8px',
-                  background: 'white',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  color: '#002244',
-                  cursor: 'pointer',
-                  minWidth: '180px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}
-              >
-                <span>
-                  {retailerName || 'Select Store'}
-                </span>
-                <span style={{ fontSize: '12px', color: '#002244' }}>▼</span>
-              </div>
-            ) : (
-              <div
-                style={{
-                  padding: '8px 36px 8px 12px',
-                  border: '2px solid #002244',
-                  borderRadius: '8px',
-                  background: 'white',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  color: '#002244',
-                  cursor: 'pointer',
-                  minWidth: '180px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}
-              >
-                <span>🏬 Choose Your Store</span>
-                <span style={{ fontSize: '12px', color: '#002244' }}>▼</span>
-              </div>
-            )}
-          </div>
-
-          {/* Estimated Total */}
+          {/* Left: Title and Store Selector */}
           <div style={{
-            background: 'white',
-            border: '2px solid #002244',
-            borderRadius: '12px',
-            padding: '12px 24px',
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            minWidth: '200px'
+            alignItems: 'center',
+            gap: '24px',
+            flex: '1 1 auto'
           }}>
-            <span style={{ fontSize: '12px', color: '#72767E', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {pricing.hasStoreSelected ? 'Order Total' : 'Estimated Total'}
-            </span>
-
-            {pricing.hasStoreSelected ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '14px', color: '#72767E' }}>
-                  <span>Subtotal:</span>
-                  <span>${pricing.subtotal.toFixed(2)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '14px', color: '#72767E' }}>
-                  <span>Service Fee:</span>
-                  <span>${pricing.serviceFee.toFixed(2)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '14px', color: '#72767E' }}>
-                  <span>Delivery:</span>
-                  <span>${pricing.delivery.toFixed(2)}</span>
-                </div>
-                <div style={{
-                  borderTop: '1px solid #002244',
-                  paddingTop: '4px',
-                  marginTop: '4px',
-                  width: '100%',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <span style={{ fontSize: '16px', fontWeight: '600', color: '#002244' }}>Total:</span>
-                  <span style={{ fontSize: '24px', fontWeight: '700', color: '#FB4F14' }}>
-                    ${pricing.finalTotal.toFixed(2)}
-                  </span>
-                </div>
+            {/* Title with Icon */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M7 18C5.9 18 5.01 18.9 5.01 20S5.9 22 7 22 9 21.1 9 20 8.1 18 7 18ZM1 2V4H3L6.6 11.59L5.25 14.04C5.09 14.32 5 14.65 5 15C5 16.1 5.9 17 7 17H19V15H7.42C7.28 15 7.17 14.89 7.17 14.75L7.2 14.63L8.1 13H15.55C16.3 13 16.96 12.59 17.3 11.97L20.88 5H18.31L15.55 11H8.53L4.27 2H1ZM17 18C15.9 18 15.01 18.9 15.01 20S15.9 22 17 22 19 21.1 19 20 18.1 18 17 18Z"
+                    fill="white"
+                  />
+                </svg>
               </div>
-            ) : (
-              <span style={{ fontSize: '32px', fontWeight: '700', color: '#FB4F14' }}>
-                ${total.toFixed(2)}
-              </span>
-            )}
+              <h1 style={{
+                margin: 0,
+                fontSize: '24px',
+                fontWeight: '600',
+                color: 'white'
+              }}>
+                Shopping List
+              </h1>
+            </div>
+
+            {/* Store Selector with Dropdown */}
+            <div style={{
+              position: 'relative',
+              minWidth: '250px'
+            }} ref={dropdownRef}>
+              <button
+                onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
+                style={{
+                  width: '100%',
+                  padding: '10px 40px 10px 16px',
+                  backgroundColor: 'white',
+                  border: '2px solid transparent',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#002244',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                {retailerLogo ? (
+                  <img
+                    src={retailerLogo}
+                    alt={retailerName || "Store"}
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '4px',
+                      objectFit: 'contain'
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <span style={{ fontSize: '16px' }}>🏬</span>
+                )}
+                <span>{retailerName || 'Choose Your Store'}</span>
+                <span style={{
+                  marginLeft: 'auto',
+                  marginRight: '20px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#FB4F14'
+                }}>
+                  ${total.toFixed(2)}
+                </span>
+              </button>
+
+              <div style={{
+                position: 'absolute',
+                right: '12px',
+                top: '50%',
+                transform: `translateY(-50%) ${isStoreDropdownOpen ? 'rotate(180deg)' : ''}`,
+                transition: 'transform 0.2s',
+                pointerEvents: 'none',
+                color: '#002244'
+              }}>
+                ▼
+              </div>
+
+              {/* Dropdown Menu */}
+              {isStoreDropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  marginTop: '8px',
+                  backgroundColor: 'white',
+                  border: '2px solid #002244',
+                  borderRadius: '12px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                  zIndex: 1000,
+                  minWidth: '380px',
+                  maxHeight: '500px',
+                  overflowY: 'auto'
+                }}>
+                  {/* Header */}
+                  <div style={{
+                    padding: '16px',
+                    borderBottom: '1px solid #e0e0e0',
+                    backgroundColor: '#f8f9fa'
+                  }}>
+                    <h3 style={{
+                      margin: '0 0 12px 0',
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      color: '#002244'
+                    }}>
+                      Choose Your Store
+                    </h3>
+
+                    {/* ZIP Code Input */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <span style={{ fontSize: '16px' }}>📍</span>
+                      <span style={{ fontSize: '13px', color: '#666' }}>Delivery Location (ZIP Code):</span>
+                      {isEditingZip ? (
+                        <form onSubmit={handleZipSubmit} style={{ display: 'flex', gap: '4px' }}>
+                          <input
+                            type="text"
+                            value={currentZipCode}
+                            onChange={(e) => setCurrentZipCode(e.target.value)}
+                            style={{
+                              width: '80px',
+                              padding: '4px 8px',
+                              border: '1px solid #FB4F14',
+                              borderRadius: '4px',
+                              fontSize: '13px'
+                            }}
+                            autoFocus
+                            maxLength="5"
+                          />
+                          <button
+                            type="submit"
+                            style={{
+                              padding: '4px 8px',
+                              backgroundColor: '#FB4F14',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Go
+                          </button>
+                        </form>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#002244' }}>
+                            {currentZipCode}
+                          </span>
+                          <button
+                            onClick={() => setIsEditingZip(true)}
+                            style={{
+                              padding: '4px 8px',
+                              backgroundColor: '#FB4F14',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              fontWeight: '600'
+                            }}
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Store List */}
+                  <div style={{ padding: '8px' }}>
+                    {retailers.length > 0 ? retailers.map(store => (
+                      <div
+                        key={store.retailer_key || store.id}
+                        onClick={() => handleStoreSelect(store)}
+                        style={{
+                          padding: '12px',
+                          marginBottom: '8px',
+                          border: selectedRetailerId === (store.retailer_key || store.id) ? '2px solid #FB4F14' : '1px solid #e0e0e0',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          backgroundColor: selectedRetailerId === (store.retailer_key || store.id) ? '#FFF5F2' : 'white'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                          {/* Radio Button */}
+                          <div style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            border: `2px solid ${selectedRetailerId === (store.retailer_key || store.id) ? '#FB4F14' : '#d0d0d0'}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginTop: '2px',
+                            flexShrink: 0
+                          }}>
+                            {selectedRetailerId === (store.retailer_key || store.id) && (
+                              <div style={{
+                                width: '10px',
+                                height: '10px',
+                                borderRadius: '50%',
+                                backgroundColor: '#FB4F14'
+                              }} />
+                            )}
+                          </div>
+
+                          {/* Store Info */}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                              <img
+                                src={store.retailer_logo_url || store.logo_url}
+                                alt={store.name}
+                                style={{
+                                  width: '20px',
+                                  height: '20px',
+                                  borderRadius: '4px',
+                                  objectFit: 'contain'
+                                }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextElementSibling.style.display = 'inline';
+                                }}
+                              />
+                              <span style={{ fontSize: '16px', display: 'none' }}>🏪</span>
+                              <span style={{ fontSize: '16px', fontWeight: '600', color: '#002244' }}>
+                                {store.name}
+                              </span>
+                            </div>
+
+                            {/* Distance and Time */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              marginBottom: '4px'
+                            }}>
+                              <span style={{ fontSize: '13px', color: '#FB4F14' }}>
+                                📍 {store.distance || 'N/A'}
+                              </span>
+                              <span style={{ fontSize: '13px', color: '#666' }}>
+                                🚚 {store.delivery_time || 'Same day'}
+                              </span>
+                            </div>
+
+                            {/* Address */}
+                            <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px' }}>
+                              {store.address || 'Address not available'}
+                            </div>
+                          </div>
+
+                          {/* Pricing Box */}
+                          <div style={{
+                            backgroundColor: '#f8f9fa',
+                            borderRadius: '6px',
+                            padding: '8px',
+                            minWidth: '120px',
+                            border: '1px solid #e0e0e0'
+                          }}>
+                            <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                                <span>Subtotal:</span>
+                                <span>${total.toFixed(2)}</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                                <span>Service:</span>
+                                <span>$3.99</span>
+                              </div>
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                paddingBottom: '4px',
+                                borderBottom: '1px solid #d0d0d0'
+                              }}>
+                                <span>Delivery:</span>
+                                <span>${store.delivery_fee || '5.99'}</span>
+                              </div>
+                            </div>
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              fontSize: '14px',
+                              fontWeight: '700',
+                              color: '#002244',
+                              marginTop: '4px'
+                            }}>
+                              <span>Total:</span>
+                              <span style={{ color: '#FB4F14' }}>${(total + 3.99 + parseFloat(store.delivery_fee || 5.99)).toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )) : (
+                      <div style={{
+                        padding: '20px',
+                        textAlign: 'center',
+                        color: '#666',
+                        fontSize: '14px'
+                      }}>
+                        {loadingRetailers ? 'Loading stores...' : 'No stores found for this location'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Order Total */}
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '12px 20px',
+            minWidth: '200px',
+            position: 'relative'
+          }}>
+            <div style={{
+              fontSize: '11px',
+              color: '#666',
+              fontWeight: '600',
+              letterSpacing: '0.5px',
+              marginBottom: '8px'
+            }}>
+              ORDER TOTAL
+            </div>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '20px',
+              fontWeight: '700',
+              color: '#FB4F14'
+            }}>
+              <span>Total:</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
           </div>
         </div>
 
