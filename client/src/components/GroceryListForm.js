@@ -3583,6 +3583,41 @@ Return as JSON with this structure:
         <p style={styles.heroDescriptionMinimal}>AI-powered grocery parsing that understands what you actually want to buy.</p>
       </div>
 
+      {/* Store Selection Section */}
+      <div style={styles.homeStoreSection}>
+        <div style={styles.homeStoreContainer}>
+          <div style={styles.homeStoreHeader}>
+            <h3 style={styles.homeStoreTitle}>🏪 Choose Your Store</h3>
+            <p style={styles.homeStoreSubtitle}>Select your preferred retailer to get started</p>
+          </div>
+
+          <div style={styles.homeStoreDropdown}>
+            <select
+              value={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'kroger'}
+              onChange={(e) => {
+                const newRetailer = e.target.value;
+                console.log('🏪 Store changed to:', newRetailer);
+                // TODO: Update user preferences with new retailer selection
+              }}
+              style={styles.homeStoreSelect}
+            >
+              <option value="kroger">🏬 Kroger</option>
+              <option value="safeway">🛒 Safeway</option>
+              <option value="costco">🏪 Costco</option>
+              <option value="whole-foods">🥬 Whole Foods</option>
+              <option value="target">🎯 Target</option>
+              <option value="walmart">🛍️ Walmart</option>
+            </select>
+          </div>
+
+          <div style={styles.homeStoreInfo}>
+            <span style={styles.homeStoreInfoText}>
+              💡 Your selection helps us find the best prices and availability
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Unified AI Assistant Container */}
       <div style={styles.unifiedAssistantContainer}>
         {/* Templates Section */}
@@ -4070,6 +4105,71 @@ const styles = {
     color: 'rgba(255, 255, 255, 0.9)',
     margin: '0',
     lineHeight: '1.2'
+  },
+
+  // Home Store Selection Styles
+  homeStoreSection: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    border: '2px solid #E8E9EB',
+    boxShadow: '0 2px 8px rgba(0,2,68,0.08)'
+  },
+
+  homeStoreContainer: {
+    padding: '24px'
+  },
+
+  homeStoreHeader: {
+    textAlign: 'center',
+    marginBottom: '20px'
+  },
+
+  homeStoreTitle: {
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#002244',
+    margin: '0 0 8px 0'
+  },
+
+  homeStoreSubtitle: {
+    fontSize: '16px',
+    color: '#6B7280',
+    margin: '0'
+  },
+
+  homeStoreDropdown: {
+    display: 'flex',
+    justifyContent: 'center',
+    marginBottom: '16px'
+  },
+
+  homeStoreSelect: {
+    padding: '12px 20px',
+    fontSize: '16px',
+    fontWeight: '500',
+    borderRadius: '8px',
+    border: '2px solid #E8E9EB',
+    backgroundColor: 'white',
+    color: '#002244',
+    cursor: 'pointer',
+    minWidth: '200px',
+    textAlign: 'center',
+    transition: 'all 0.2s ease',
+    appearance: 'none',
+    backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23002244' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 12px center'
+  },
+
+  homeStoreInfo: {
+    textAlign: 'center'
+  },
+
+  homeStoreInfoText: {
+    fontSize: '14px',
+    color: '#059669',
+    fontWeight: '500'
   },
 
   unifiedAssistantContainer: {

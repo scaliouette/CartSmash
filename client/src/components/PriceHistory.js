@@ -64,7 +64,7 @@ const PriceHistory = ({
     const basePrice = currentPrice || 5.99;
     const now = new Date();
 
-    return vendors.map((vendor, index) => {
+    const mockData = vendors.map((vendor, index) => {
       const priceVariation = (Math.random() - 0.5) * 2; // ±$2 variation
       const price = Math.max(0.99, basePrice + priceVariation);
 
@@ -81,6 +81,15 @@ const PriceHistory = ({
         isCurrentVendor: vendor.name === currentVendor
       };
     });
+
+    console.log('🛒 Price History - Generated mock data:', {
+      productName,
+      basePrice,
+      vendorCount: mockData.length,
+      prices: mockData.map(item => ({ vendor: item.vendor, price: item.price, availability: item.availability }))
+    });
+
+    return mockData;
   };
 
   const generateVendorPriceHistory = (basePrice, timeRange) => {
@@ -493,12 +502,17 @@ const PriceHistory = ({
 
                     <div style={{ textAlign: 'right' }}>
                       <div style={{
-                        fontSize: '1.75rem',
-                        fontWeight: '700',
+                        fontSize: '2rem',
+                        fontWeight: '800',
                         color: '#111827',
-                        marginBottom: '0.25rem'
+                        marginBottom: '0.25rem',
+                        textShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                        background: 'linear-gradient(135deg, #111827 0%, #374151 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        display: 'inline-block'
                       }}>
-                        ${item.price.toFixed(2)}
+                        ${item.price?.toFixed(2) || '0.00'}
                       </div>
 
                       {savings !== 0 && (

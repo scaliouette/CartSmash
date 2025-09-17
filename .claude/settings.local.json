@@ -512,7 +512,10 @@
       "Bash(echo $env:USERPROFILE)",
       "WebFetch(domain:dev.to)",
       "Bash(timeout:*)",
-      "Bash(PORT=3082 npm run mcp:http)"
+      "Bash(PORT=3082 npm run mcp:http)",
+      "Bash(PORT=3083 npm start)",
+      "Bash(NODE_ENV=development PORT=3084 npm start)",
+      "Bash(start http://localhost:3083)"
     ],
     "deny": [],
     "ask": []

@@ -168,7 +168,14 @@ const InstacartShoppingList = ({
 
   // Get product image using the centralized image service
   const getProductImage = (item) => {
-    return imageService.getProductImage(item, { width: 48, height: 48 });
+    const imageUrl = imageService.getProductImage(item, { width: 64, height: 64 });
+    console.log('🖼️ Getting product image for:', {
+      productName: item.productName,
+      category: item.category,
+      imageUrl: item.imageUrl,
+      generatedUrl: imageUrl
+    });
+    return imageUrl;
   };
 
   // Sort items
@@ -330,8 +337,13 @@ const InstacartShoppingList = ({
                 alt={item.productName}
                 style={styles.productImage}
                 onError={(e) => {
-                  // Fallback to category-based image if the primary image fails
-                  e.target.src = imageService.getImageUrl(imageService.getCategoryFromItem(item));
+                  console.log('🚨 Image failed to load, using fallback for:', item.productName);
+                  const fallbackUrl = imageService.getImageUrl(imageService.getCategoryFromItem(item));
+                  console.log('🔄 Fallback URL:', fallbackUrl);
+                  e.target.src = fallbackUrl;
+                }}
+                onLoad={() => {
+                  console.log('✅ Image loaded successfully for:', item.productName);
                 }}
               />
               <div style={styles.productDetails}>
@@ -778,11 +790,13 @@ const styles = {
   },
 
   productImage: {
-    width: '48px',
-    height: '48px',
+    width: '64px',
+    height: '64px',
     borderRadius: '8px',
     objectFit: 'cover',
-    border: '1px solid #E8E9EB'
+    border: '2px solid #E8E9EB',
+    backgroundColor: '#f9fafb',
+    flexShrink: 0
   },
 
   productDetails: {
