@@ -249,6 +249,7 @@ const corsOptions = {
       'http://localhost:3062',
       'http://localhost:3064',
       'http://localhost:3085',
+      'http://localhost:3087',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:3001',
       process.env.CLIENT_URL
