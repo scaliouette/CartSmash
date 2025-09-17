@@ -5,17 +5,17 @@ class ImageService {
   constructor() {
     // SVG data URLs for reliable fallbacks
     this.fallbackImages = {
-      recipe: this.generateSvg('🍳', '#FF6B35', 'Recipe'),
-      shopping: this.generateSvg('🛒', '#00B894', 'Shop'),
-      produce: this.generateSvg('🥬', '#4CAF50', 'Produce'),
-      dairy: this.generateSvg('🥛', '#03A9F4', 'Dairy'),
-      meat: this.generateSvg('🥩', '#F44336', 'Meat'),
-      bakery: this.generateSvg('🍞', '#FF9800', 'Bakery'),
-      beverages: this.generateSvg('🥤', '#9C27B0', 'Drinks'),
-      frozen: this.generateSvg('🧊', '#00BCD4', 'Frozen'),
-      snacks: this.generateSvg('🍿', '#FFC107', 'Snacks'),
-      pantry: this.generateSvg('🏺', '#795548', 'Pantry'),
-      default: this.generateSvg('📦', '#9E9E9E', 'Item')
+      recipe: this.generateSvg('R', '#FF6B35', 'Recipe'),
+      shopping: this.generateSvg('S', '#00B894', 'Shop'),
+      produce: this.generateSvg('P', '#4CAF50', 'Produce'),
+      dairy: this.generateSvg('D', '#03A9F4', 'Dairy'),
+      meat: this.generateSvg('M', '#F44336', 'Meat'),
+      bakery: this.generateSvg('B', '#FF9800', 'Bakery'),
+      beverages: this.generateSvg('V', '#9C27B0', 'Drinks'),
+      frozen: this.generateSvg('F', '#00BCD4', 'Frozen'),
+      snacks: this.generateSvg('N', '#FFC107', 'Snacks'),
+      pantry: this.generateSvg('T', '#795548', 'Pantry'),
+      default: this.generateSvg('I', '#9E9E9E', 'Item')
     };
 
     // Optimized external image URLs with fallbacks
@@ -36,17 +36,17 @@ class ImageService {
 
   /**
    * Generate SVG data URL
-   * @param {string} emoji - Emoji character
+   * @param {string} letter - Single letter character
    * @param {string} color - Background color
    * @param {string} text - Alt text
    * @returns {string} SVG data URL
    */
-  generateSvg(emoji, color, text) {
+  generateSvg(letter, color, text) {
     const svg = `
       <svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
         <rect width="400" height="300" fill="${color}"/>
-        <text x="200" y="120" font-family="Arial, sans-serif" font-size="48" text-anchor="middle" fill="white">${emoji}</text>
-        <text x="200" y="200" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">${text}</text>
+        <text x="200" y="140" font-family="Arial, sans-serif" font-size="120" font-weight="bold" text-anchor="middle" fill="white">${letter}</text>
+        <text x="200" y="220" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">${text}</text>
       </svg>
     `.replace(/\s+/g, ' ').trim();
 
@@ -61,14 +61,10 @@ class ImageService {
    * @returns {string} Image URL
    */
   getImageUrl(category = 'default', options = {}) {
-    const { width = 400, height = 300, quality = 80, useExternal = true } = options;
+    const { width = 400, height = 300, quality = 80, useExternal = false } = options;
 
-    // For production environments, try external images first
-    if (useExternal && (process.env.NODE_ENV === 'production' || process.env.REACT_APP_USE_EXTERNAL_IMAGES === 'true')) {
-      return this.externalImages[category] || this.externalImages.default;
-    }
-
-    // For local development or when external images fail, use SVG fallbacks
+    // Always use SVG fallbacks for reliable display
+    // External images can be enabled later when proper image CDN is set up
     return this.fallbackImages[category] || this.fallbackImages.default;
   }
 
@@ -97,14 +93,9 @@ class ImageService {
    * @returns {string} Image URL
    */
   getProductImage(item, options = {}) {
-    // If item has a valid image URL, use it
-    if (item.imageUrl && this.isValidImageUrl(item.imageUrl)) {
-      return item.imageUrl;
-    }
-
-    // Get category-specific image
+    // Always use reliable SVG fallbacks - no external images
     const category = this.getCategoryFromItem(item);
-    return this.getImageUrl(category, options);
+    return this.fallbackImages[category] || this.fallbackImages.default;
   }
 
   /**

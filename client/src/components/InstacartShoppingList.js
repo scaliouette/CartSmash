@@ -168,14 +168,7 @@ const InstacartShoppingList = ({
 
   // Get product image using the centralized image service
   const getProductImage = (item) => {
-    const imageUrl = imageService.getProductImage(item, { width: 64, height: 64 });
-    console.log('🖼️ Getting product image for:', {
-      productName: item.productName,
-      category: item.category,
-      imageUrl: item.imageUrl,
-      generatedUrl: imageUrl
-    });
-    return imageUrl;
+    return imageService.getProductImage(item, { width: 64, height: 64 });
   };
 
   // Sort items
@@ -363,15 +356,6 @@ const InstacartShoppingList = ({
                 src={getProductImage(item)}
                 alt={item.productName}
                 style={styles.productImage}
-                onError={(e) => {
-                  console.log('🚨 Image failed to load, using fallback for:', item.productName);
-                  const fallbackUrl = imageService.getImageUrl(imageService.getCategoryFromItem(item));
-                  console.log('🔄 Fallback URL:', fallbackUrl);
-                  e.target.src = fallbackUrl;
-                }}
-                onLoad={() => {
-                  console.log('✅ Image loaded successfully for:', item.productName);
-                }}
               />
               <div style={styles.productDetails}>
                 <span style={styles.productName}>{formatProductName(item.productName)}</span>
