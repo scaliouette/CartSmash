@@ -23,12 +23,12 @@ const ShoppingListItem = ({
   return (
     <div style={{
       display: 'flex',
-      alignItems: 'flex-start',
-      padding: '12px',
-      backgroundColor: 'white',
-      borderBottom: '1px solid #e5e5e5',
       gap: '12px',
-      position: 'relative'
+      padding: '12px',
+      backgroundColor: isChecked ? '#FFF5F2' : 'white',
+      borderBottom: '1px solid #E5E5E5',
+      borderLeft: isChecked ? '3px solid #FB4F14' : 'none',
+      alignItems: 'flex-start'
     }}>
       {/* Left section: Checkbox, Image, and Quantity below */}
       <div style={{
@@ -49,8 +49,8 @@ const ShoppingListItem = ({
         }}>
           <input
             type="checkbox"
-            checked={isSelected}
-            onChange={() => onSelect(item.id)}
+            checked={isChecked}
+            onChange={() => toggleItemSelection(item.id)}
             style={{
               position: 'absolute',
               opacity: 0,
@@ -64,13 +64,13 @@ const ShoppingListItem = ({
             height: '22px',
             border: '2px solid #d1d5db',
             borderRadius: '4px',
-            backgroundColor: isSelected ? '#3b82f6' : 'white',
+            backgroundColor: isChecked ? '#3b82f6' : 'white',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             transition: 'all 0.2s'
           }}>
-            {isSelected && (
+            {isChecked && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M5 13l4 4L19 7"
@@ -86,13 +86,15 @@ const ShoppingListItem = ({
 
         {/* Product Image */}
         <img
-          src={item.image}
-          alt={item.name}
+          src={getProductImage(item)}
+          alt={item.productName || item.name}
           style={{
             width: '60px',
             height: '60px',
+            borderRadius: '8px',
             objectFit: 'cover',
-            borderRadius: '8px'
+            backgroundColor: '#F5F5F5',
+            flexShrink: 0
           }}
         />
 
@@ -101,23 +103,24 @@ const ShoppingListItem = ({
           display: 'flex',
           alignItems: 'center',
           backgroundColor: '#f3f4f6',
-          borderRadius: '6px',
-          padding: '2px'
+          borderRadius: '8px',
+          padding: '4px'
         }}>
           <button
-            onClick={() => handleQuantityChange(quantity - 1)}
-            disabled={quantity <= 0}
+            onClick={() => updateQuantity(item.id, -1)}
+            disabled={(item.quantity || 1) <= 1}
             style={{
-              width: '24px',
-              height: '24px',
+              width: '28px',
+              height: '28px',
               border: 'none',
-              backgroundColor: 'transparent',
-              cursor: quantity > 0 ? 'pointer' : 'not-allowed',
+              backgroundColor: (item.quantity || 1) > 1 ? 'white' : 'transparent',
+              borderRadius: '4px',
+              cursor: (item.quantity || 1) > 1 ? 'pointer' : 'not-allowed',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '16px',
-              color: quantity > 0 ? '#374151' : '#9ca3af'
+              fontSize: '18px',
+              color: (item.quantity || 1) > 1 ? '#111' : '#9ca3af'
             }}
           >
             −
@@ -125,13 +128,13 @@ const ShoppingListItem = ({
 
           <input
             type="text"
-            value={quantity}
+            value={item.quantity || 1}
             onChange={(e) => {
               const val = parseInt(e.target.value) || 0;
-              handleQuantityChange(val);
+              setQuantity(item.id, val);
             }}
             style={{
-              width: '30px',
+              width: '40px',
               textAlign: 'center',
               border: 'none',
               backgroundColor: 'transparent',
@@ -141,18 +144,19 @@ const ShoppingListItem = ({
           />
 
           <button
-            onClick={() => handleQuantityChange(quantity + 1)}
+            onClick={() => updateQuantity(item.id, 1)}
             style={{
-              width: '24px',
-              height: '24px',
+              width: '28px',
+              height: '28px',
               border: 'none',
-              backgroundColor: 'transparent',
+              backgroundColor: 'white',
+              borderRadius: '4px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '16px',
-              color: '#374151'
+              fontSize: '18px',
+              color: '#111'
             }}
           >
             +
@@ -163,49 +167,55 @@ const ShoppingListItem = ({
       {/* Middle section: Product Info */}
       <div style={{
         flex: 1,
-        paddingTop: '4px'
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px'
       }}>
         <div style={{
+          fontSize: '16px',
           fontWeight: '600',
-          fontSize: '14px',
-          marginBottom: '4px',
-          color: '#111'
+          color: '#002244',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          flexWrap: 'wrap'
         }}>
-          {item.name}
-          {item.match && (
-            <span style={{
-              marginLeft: '8px',
-              color: '#dc2626',
-              fontSize: '11px',
-              fontWeight: 'normal'
-            }}>
-              {item.match}% match
-            </span>
-          )}
+          {formatProductName(item.productName || item.name || 'Unknown Item')}
+          <span style={{
+            fontSize: '12px',
+            color: '#FB4F14',
+            fontWeight: '500',
+            backgroundColor: '#FFF5F2',
+            padding: '2px 6px',
+            borderRadius: '4px'
+          }}>
+            {confidence.value}% match
+          </span>
         </div>
         <div style={{
-          color: '#6b7280',
-          fontSize: '12px',
-          marginBottom: '6px'
+          fontSize: '14px',
+          color: '#666'
         }}>
-          {item.category} • {item.type}
+          {getCategory(item)} • {item.brand ? formatProductName(item.brand) : 'Generic'}
         </div>
-        {item.size && (
+        {formatUnitDisplay(item) && (
           <span style={{
             display: 'inline-block',
-            backgroundColor: '#ff6b35',
+            backgroundColor: '#FB4F14',
             color: 'white',
-            padding: '2px 8px',
+            padding: '4px 8px',
             borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: '500'
+            fontSize: '12px',
+            fontWeight: '600',
+            marginTop: '4px',
+            width: 'fit-content'
           }}>
-            {item.size}
+            {formatUnitDisplay(item)}
           </span>
         )}
       </div>
 
-      {/* Right section: Delete button at top, price below */}
+      {/* Right section: Price and Delete button */}
       <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -215,58 +225,69 @@ const ShoppingListItem = ({
       }}>
         {/* Delete button at top right */}
         <button
-          onClick={() => onDelete(item.id)}
+          onClick={() => deleteSingleItem(item.id)}
           style={{
-            width: '28px',
-            height: '28px',
+            width: '32px',
+            height: '32px',
             border: 'none',
-            backgroundColor: 'transparent',
+            backgroundColor: '#fee2e2',
+            borderRadius: '6px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#ef4444',
-            padding: '4px',
-            borderRadius: '4px',
-            transition: 'background-color 0.2s'
+            color: '#dc2626',
+            transition: 'all 0.2s'
           }}
           onMouseEnter={(e) => {
-            e.target.style.backgroundColor = '#fee2e2';
+            e.target.style.backgroundColor = '#fecaca';
           }}
           onMouseLeave={(e) => {
-            e.target.style.backgroundColor = 'transparent';
+            e.target.style.backgroundColor = '#fee2e2';
           }}
           title="Remove item"
         >
           <svg
-            width="18"
-            height="18"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
           >
             <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+            <line x1="10" y1="11" x2="10" y2="17"/>
+            <line x1="14" y1="11" x2="14" y2="17"/>
           </svg>
         </button>
 
         {/* Price underneath delete button */}
         <div style={{
           textAlign: 'right',
-          marginTop: 'auto'
+          minWidth: '60px'
         }}>
-          <div style={{
-            fontWeight: 'bold',
-            fontSize: '16px',
-            color: '#111'
-          }}>
-            ${(item.price * quantity).toFixed(2)}
+          <div
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onShowPriceHistory && onShowPriceHistory(item);
+            }}
+            style={{
+              fontWeight: 'bold',
+              fontSize: '16px',
+              color: '#111',
+              cursor: 'pointer',
+              marginBottom: '2px'
+            }}
+            title="Click to see price comparison from all vendors"
+          >
+            ${((parseFloat(item.price) || 0) * (item.quantity || 1)).toFixed(2)} 📊
           </div>
           <div style={{
-            fontSize: '11px',
-            color: '#6b7280'
+            fontSize: '12px',
+            color: '#666'
           }}>
-            ${item.price.toFixed(2)} ea
+            ${(parseFloat(item.price) || 0).toFixed(2)} ea
           </div>
         </div>
       </div>
