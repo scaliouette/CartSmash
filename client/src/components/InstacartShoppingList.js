@@ -356,7 +356,7 @@ const InstacartShoppingList = ({
   // Get current retailer info and logo
   const getCurrentRetailer = () => {
     if (retailers.length > 0 && selectedRetailerId) {
-      return retailers.find(r => r.retailer_key === selectedRetailerId);
+      return retailers.find(r => (r.retailer_key || r.id) === selectedRetailerId);
     }
     return null;
   };
@@ -875,8 +875,8 @@ const InstacartShoppingList = ({
               <button
                 style={{
                   background: 'white',
-                  color: '#4CAF50',
-                  border: '2px solid #4CAF50',
+                  color: '#002244',
+                  border: '2px solid #002244',
                   padding: '6px 12px',
                   borderRadius: '6px',
                   fontSize: '12px',
