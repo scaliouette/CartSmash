@@ -1543,7 +1543,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
                   onClick={() => handleBulkOperation('delete-selected')}
                   style={styles.batchButton}
                 >
-                  🗑️ Delete Selected
+                  🗑️ 
                 </button>
                 <button
                   onClick={() => setShowListCreator(true)}

@@ -88,12 +88,51 @@ const InstacartShoppingList = ({
       const result = await instacartService.getNearbyRetailers(userZipCode);
 
       if (result.success && result.retailers) {
-        setRetailers(result.retailers);
-        console.log(`✅ Loaded ${result.retailers.length} retailers`);
+        // Sort retailers by estimated pricing (lowest prices first)
+        const sortedRetailers = [...result.retailers].sort((a, b) => {
+          // If retailers have pricing data, use it
+          if (a.estimated_total && b.estimated_total) {
+            return parseFloat(a.estimated_total) - parseFloat(b.estimated_total);
+          }
 
-        // If no retailer is selected and we have retailers, select the first one
-        if (!selectedRetailerId && result.retailers.length > 0) {
-          setSelectedRetailerId(result.retailers[0].id || result.retailers[0].retailer_key);
+          // If they have delivery fees, prioritize lower fees
+          if (a.delivery_fee && b.delivery_fee) {
+            return parseFloat(a.delivery_fee) - parseFloat(b.delivery_fee);
+          }
+
+          // Default order: prefer well-known low-cost retailers
+          const lowCostRetailers = ['grocery-outlet', 'walmart', 'aldi', 'costco', 'sams-club'];
+          const aRank = lowCostRetailers.findIndex(store =>
+            (a.name || '').toLowerCase().includes(store.replace('-', ' ')) ||
+            (a.retailer_key || '').includes(store)
+          );
+          const bRank = lowCostRetailers.findIndex(store =>
+            (b.name || '').toLowerCase().includes(store.replace('-', ' ')) ||
+            (b.retailer_key || '').includes(store)
+          );
+
+          // If both found in ranking, lower index = higher priority
+          if (aRank !== -1 && bRank !== -1) {
+            return aRank - bRank;
+          }
+
+          // If only one found in ranking, prioritize it
+          if (aRank !== -1) return -1;
+          if (bRank !== -1) return 1;
+
+          // Fallback to alphabetical
+          return (a.name || '').localeCompare(b.name || '');
+        });
+
+        setRetailers(sortedRetailers);
+        console.log(`✅ Loaded ${sortedRetailers.length} retailers, sorted by lowest prices`);
+
+        // Auto-select the lowest-priced retailer (first in sorted list)
+        if (!selectedRetailerId && sortedRetailers.length > 0) {
+          const defaultRetailer = sortedRetailers[0];
+          const defaultRetailerId = defaultRetailer.id || defaultRetailer.retailer_key;
+          setSelectedRetailerId(defaultRetailerId);
+          console.log(`🎯 Auto-selected lowest-price retailer: ${defaultRetailer.name} (${defaultRetailerId})`);
         }
       } else {
         console.warn('⚠️ No retailers found, using default');
@@ -268,6 +307,18 @@ const InstacartShoppingList = ({
     return `${quantity}-${unit}`;
   };
 
+  // Get current retailer info and logo
+  const getCurrentRetailer = () => {
+    if (retailers.length > 0 && selectedRetailerId) {
+      return retailers.find(r => r.retailer_key === selectedRetailerId);
+    }
+    return null;
+  };
+
+  const currentRetailer = getCurrentRetailer();
+  const retailerLogo = currentRetailer?.retailer_logo_url || currentRetailer?.logo_url;
+  const retailerName = currentRetailer?.name;
+
   // Sort items
   const sortedItems = [...localItems].sort((a, b) => {
     switch(sortBy) {
@@ -287,6 +338,12 @@ const InstacartShoppingList = ({
   // Filter items
   const filteredItems = sortedItems.filter(item => {
     if (filterBy === 'all') return true;
+    if (filterBy === 'ingredients') {
+      // Show items that are typically cooking ingredients
+      const category = getCategory(item).toLowerCase();
+      const ingredientCategories = ['pantry', 'spices', 'oils', 'seasonings', 'baking', 'condiments'];
+      return ingredientCategories.some(cat => category.includes(cat));
+    }
     return getCategory(item).toLowerCase() === filterBy.toLowerCase();
   });
 
@@ -313,37 +370,86 @@ const InstacartShoppingList = ({
             <div style={{
               width: '32px',
               height: '32px',
-              background: 'linear-gradient(135deg, #0AAD0A, #078F07)',
+              background: 'white',
+              border: '2px solid #002244',
               borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '18px'
+              padding: '4px'
             }}>
-              🛒
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M7 18C5.9 18 5.01 18.9 5.01 20S5.9 22 7 22 9 21.1 9 20 8.1 18 7 18ZM1 2V4H3L6.6 11.59L5.25 14.04C5.09 14.32 5 14.65 5 15C5 16.1 5.9 17 7 17H19V15H7.42C7.28 15 7.17 14.89 7.17 14.75L7.2 14.63L8.1 13H15.55C16.3 13 16.96 12.59 17.3 11.97L20.88 5H18.31L15.55 11H8.53L4.27 2H1ZM17 18C15.9 18 15.01 18.9 15.01 20S15.9 22 17 22 19 21.1 19 20 18.1 18 17 18Z"
+                  fill="#002244"
+                />
+              </svg>
             </div>
             <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#343538', margin: 0 }}>Shopping List</h1>
           </div>
 
           {/* Store Selector */}
           <div
-            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
-            onClick={() => onChooseStore && onChooseStore()}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              cursor: 'pointer',
+              pointerEvents: 'auto',
+              zIndex: 10,
+              position: 'relative'
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onChooseStore && onChooseStore();
+            }}
             title="Click to choose your store"
           >
-            <img
-              src="https://www.groceryoutlet.com/favicon.ico"
-              alt="Store"
+            {retailerLogo ? (
+              <img
+                src={retailerLogo}
+                alt={retailerName || "Store"}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '6px',
+                  objectFit: 'contain',
+                  background: 'white',
+                  padding: '4px',
+                  border: '2px solid #002244'
+                }}
+                onError={(e) => {
+                  // Fallback to generic store icon if logo fails to load
+                  e.target.style.display = 'none';
+                  e.target.nextElementSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+
+            {/* Fallback icon when no logo or logo fails to load */}
+            <div
               style={{
                 width: '32px',
                 height: '32px',
                 borderRadius: '6px',
-                objectFit: 'contain',
                 background: 'white',
                 padding: '4px',
-                border: '2px solid #002244'
+                border: '2px solid #002244',
+                display: retailerLogo ? 'none' : 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '16px'
               }}
-            />
+            >
+              🏬
+            </div>
             {loadingRetailers ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '14px', color: '#72767E' }}>Loading stores...</span>
@@ -366,7 +472,7 @@ const InstacartShoppingList = ({
                 }}
               >
                 <span>
-                  {retailers.find(r => r.retailer_key === selectedRetailerId)?.name || 'Select Store'}
+                  {retailerName || 'Select Store'}
                 </span>
                 <span style={{ fontSize: '12px', color: '#002244' }}>▼</span>
               </div>
@@ -395,8 +501,8 @@ const InstacartShoppingList = ({
 
           {/* Estimated Total */}
           <div style={{
-            background: 'linear-gradient(135deg, #FFF4E6, #FFEDD4)',
-            border: '2px solid #FF8800',
+            background: 'white',
+            border: '2px solid #002244',
             borderRadius: '12px',
             padding: '12px 24px',
             display: 'flex',
@@ -423,7 +529,7 @@ const InstacartShoppingList = ({
                   <span>${pricing.delivery.toFixed(2)}</span>
                 </div>
                 <div style={{
-                  borderTop: '1px solid #FF8800',
+                  borderTop: '1px solid #002244',
                   paddingTop: '4px',
                   marginTop: '4px',
                   width: '100%',
@@ -431,14 +537,14 @@ const InstacartShoppingList = ({
                   justifyContent: 'space-between',
                   alignItems: 'center'
                 }}>
-                  <span style={{ fontSize: '16px', fontWeight: '600', color: '#FF8800' }}>Total:</span>
-                  <span style={{ fontSize: '24px', fontWeight: '700', color: '#FF8800' }}>
+                  <span style={{ fontSize: '16px', fontWeight: '600', color: '#002244' }}>Total:</span>
+                  <span style={{ fontSize: '24px', fontWeight: '700', color: '#FB4F14' }}>
                     ${pricing.finalTotal.toFixed(2)}
                   </span>
                 </div>
               </div>
             ) : (
-              <span style={{ fontSize: '32px', fontWeight: '700', color: '#FF8800' }}>
+              <span style={{ fontSize: '32px', fontWeight: '700', color: '#FB4F14' }}>
                 ${total.toFixed(2)}
               </span>
             )}
@@ -473,7 +579,7 @@ const InstacartShoppingList = ({
                 }}
                 onClick={deleteSelectedItems}
               >
-                🗑️ Delete Selected
+                🗑️ 
               </button>
             </div>
           )}
@@ -501,7 +607,7 @@ const InstacartShoppingList = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', color: '#002244', fontWeight: '600' }}>Filter:</span>
+            <span style={{ fontSize: '14px', color: '#002244', fontWeight: '600' }}>List Option:</span>
             <select
               value={filterBy}
               onChange={(e) => setFilterBy(e.target.value)}
@@ -515,38 +621,45 @@ const InstacartShoppingList = ({
                 color: '#002244'
               }}
             >
-              <option value="all">All Items</option>
-              <option value="pantry">Pantry</option>
-              <option value="produce">Produce</option>
-              <option value="dairy">Dairy</option>
+              <option value="all" style={{ color: '#002244' }}>All Items</option>
+              <option value="ingredients" style={{ color: '#002244' }}>Ingredients</option>
+              <option value="pantry" style={{ color: '#002244' }}>Pantry</option>
+              <option value="produce" style={{ color: '#002244' }}>Produce</option>
+              <option value="dairy" style={{ color: '#002244' }}>Dairy</option>
             </select>
           </div>
 
           <div style={{ display: 'flex', gap: '12px', marginLeft: 'auto' }}>
-            <button style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: '600',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
-              color: 'white'
-            }}>
-              <span>🔗</span>
-              <span>Share List</span>
-              <span style={{
-                background: 'white',
-                color: '#FB4F14',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: '10px',
-                fontWeight: '700',
-                textTransform: 'uppercase'
-              }}>NEW</span>
+            <button
+              style={{
+                padding: '10px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '600',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
+                color: 'white',
+                width: '40px',
+                height: '40px'
+              }}
+              title="Share shopping list"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M18 16.08C17.24 16.08 16.56 16.38 16.04 16.85L8.91 12.7C8.96 12.47 9 12.24 9 12C9 11.76 8.96 11.53 8.91 11.3L15.96 7.19C16.5 7.69 17.21 8 18 8C19.66 8 21 6.66 21 5C21 3.34 19.66 2 18 2C16.34 2 15 3.34 15 5C15 5.24 15.04 5.47 15.09 5.7L8.04 9.81C7.5 9.31 6.79 9 6 9C4.34 9 3 10.34 3 12C3 13.66 4.34 15 6 15C6.79 15 7.5 14.69 8.04 14.19L15.16 18.34C15.11 18.55 15.08 18.77 15.08 19C15.08 20.61 16.39 21.92 18 21.92C19.61 21.92 20.92 20.61 20.92 19C20.92 17.39 19.61 16.08 18 16.08Z"
+                  fill="currentColor"
+                />
+              </svg>
             </button>
 
             <button
@@ -777,13 +890,29 @@ const InstacartShoppingList = ({
 
               {/* Price */}
               <div
-                onClick={() => onShowPriceComparison && onShowPriceComparison(item)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onShowPriceComparison && onShowPriceComparison(item);
+                }}
                 style={{
                   fontSize: '18px',
                   fontWeight: '700',
                   color: '#002244',
                   textAlign: 'right',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  position: 'relative',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#E8F5E9';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
                 }}
                 title="Click to see price comparison from all vendors"
               >
@@ -798,15 +927,26 @@ const InstacartShoppingList = ({
                   style={{
                     width: '32px',
                     height: '32px',
-                    border: 'none',
-                    background: 'transparent',
+                    border: '2px solid #002244',
+                    background: 'white',
                     cursor: 'pointer',
                     borderRadius: '4px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#72767E',
-                    fontSize: '18px'
+                    fontSize: '18px',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#FFF0F0';
+                    e.currentTarget.style.borderColor = '#D32F2F';
+                    e.currentTarget.style.color = '#D32F2F';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'white';
+                    e.currentTarget.style.borderColor = '#002244';
+                    e.currentTarget.style.color = '#72767E';
                   }}
                 >
                   🗑️
@@ -824,7 +964,7 @@ const InstacartShoppingList = ({
         padding: '20px',
         marginTop: '24px',
         display: 'flex',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         alignItems: 'center',
         boxShadow: '0 4px 12px rgba(0,2,68,0.12)',
         border: '2px solid #002244'
@@ -855,23 +995,6 @@ const InstacartShoppingList = ({
             </span>
           </div>
         </div>
-
-        <button
-          onClick={() => onCheckout && onCheckout(filteredItems)}
-          style={{
-            background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
-            color: 'white',
-            border: 'none',
-            padding: '16px 48px',
-            borderRadius: '8px',
-            fontSize: '18px',
-            fontWeight: '700',
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(251,79,20,0.3)'
-          }}
-        >
-          Checkout with Instacart →
-        </button>
       </div>
     </div>
   );
