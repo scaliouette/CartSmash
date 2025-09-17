@@ -3937,51 +3937,62 @@ Return as JSON with this structure:
       <div style={styles.unifiedAssistantContainer}>
         {/* Templates Section */}
         <div style={styles.templatesSection}>
-         
           <div style={{
-            display: 'flex',
-            gap: '8px',
-            padding: '12px 16px',
-            overflowX: 'auto',
-            WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'none'
+            width: '100%',
+            overflow: 'hidden'
           }}>
+            <div style={{
+              width: '100%',
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}>
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                padding: '0 16px',
+                minWidth: 'min-content'
+              }}>
             {templates.map(template => (
               <button
                 key={template.id}
                 onClick={() => handleTemplateClick(template)}
                 style={{
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '10px 16px',
+                  padding: '8px 14px',
                   backgroundColor: 'white',
-                  border: '2px solid #002244',
-                  borderRadius: '20px',
-                  fontSize: '14px',
+                  border: 'none',
+                  borderRadius: '18px',
+                  fontSize: '13px',
                   fontWeight: '600',
                   color: '#002244',
                   whiteSpace: 'nowrap',
                   cursor: 'pointer',
                   flexShrink: 0,
-                  transition: 'all 0.2s',
-                  minHeight: '44px'
+                  minHeight: '36px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  transition: 'all 0.2s'
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#F0F4F8';
-                  e.target.style.borderColor = '#FB4F14';
-                  e.target.style.color = '#FB4F14';
+                  e.target.style.backgroundColor = '#FB4F14';
+                  e.target.style.color = 'white';
+                  e.target.style.transform = 'translateY(-1px)';
                 }}
                 onMouseLeave={(e) => {
                   e.target.style.backgroundColor = 'white';
-                  e.target.style.borderColor = '#002244';
                   e.target.style.color = '#002244';
+                  e.target.style.transform = 'translateY(0)';
                 }}
               >
                 <span style={{ fontSize: '18px' }}>{template.icon}</span>
                 <span>{template.title}</span>
               </button>
             ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -4751,7 +4762,7 @@ const styles = {
   },
   
   templatesSection: {
-    padding: '30px',
+    padding: '12px 0',
     background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
     color: 'white'
   },
