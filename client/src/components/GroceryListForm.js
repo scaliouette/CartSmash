@@ -4303,15 +4303,37 @@ Or paste any grocery list directly!"
             </div>
           </div>
 
-          {/* Single Unified Checkout Button */}
-          <div style={styles.checkoutSection}>
+          {/* Unified Checkout Section with Statistics */}
+          <div style={styles.unifiedCheckoutContainer}>
+            {/* Statistics Bar */}
+            <div style={styles.statsBar}>
+              <div style={styles.statItem}>
+                <span style={styles.statValue}>{currentCart.length}</span>
+                <span style={styles.statLabel}>ITEMS</span>
+              </div>
+              <div style={styles.divider} />
+              <div style={styles.statItem}>
+                <span style={styles.statValue}>{currentCart.filter(item => !item.isUnavailable).length}</span>
+                <span style={styles.statLabel}>AVAILABLE</span>
+              </div>
+              <div style={styles.divider} />
+              <div style={styles.statItem}>
+                <span style={styles.statValue}>{currentCart.reduce((total, item) => total + (parseFloat(item.quantity) || 1), 0)}</span>
+                <span style={styles.statLabel}>QUANTITY</span>
+              </div>
+              <div style={styles.divider} />
+              <div style={styles.statItem}>
+                <span style={styles.statValue}>
+                  {currentCart.length > 0 ? Math.round((currentCart.filter(item => !item.isUnavailable).length / currentCart.length) * 100) : 0}%
+                </span>
+                <span style={styles.statLabel}>READY</span>
+              </div>
+            </div>
+
+            {/* Checkout Button */}
             <button
               onClick={() => setShowInstacartCheckout(true)}
-              style={{
-                ...styles.instacartButton,
-                backgroundColor: '#FB4F14',
-                borderColor: '#FB4F14'
-              }}
+              style={styles.unifiedCheckoutButton}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = '#e8420c';
               }}
@@ -4320,27 +4342,9 @@ Or paste any grocery list directly!"
               }}
               disabled={currentCart.length === 0}
             >
-              🛒 Enhanced Checkout
+              <span style={styles.buttonIcon}>🛒</span>
+              Instacart Checkout
             </button>
-            
-            <div style={styles.checkoutFeatures}>
-              <div style={styles.featureItem}>
-                <span style={styles.featureCheck}>✓</span>
-                <span>Auto-match products</span>
-              </div>
-              <div style={styles.featureItem}>
-                <span style={styles.featureCheck}>✓</span>
-                <span>Find best prices</span>
-              </div>
-              <div style={styles.featureItem}>
-                <span style={styles.featureCheck}>✓</span>
-                <span>Price history tracking</span>
-              </div>
-              <div style={styles.featureItem}>
-                <span style={styles.featureCheck}>✓</span>
-                <span>Schedule delivery</span>
-              </div>
-            </div>
           </div>
         </>
       )}
@@ -6173,6 +6177,72 @@ const styles = {
     cursor: 'pointer',
     flexShrink: 0,
     transition: 'background 0.2s'
+  },
+
+  // Unified Checkout Container with Statistics
+  unifiedCheckoutContainer: {
+    margin: '16px',
+    border: '2px solid #FB4F14',
+    borderRadius: '12px',
+    backgroundColor: 'white',
+    overflow: 'hidden',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+
+  statsBar: {
+    display: 'flex',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    padding: '12px',
+    backgroundColor: '#FFF5F2',
+    borderBottom: '1px solid #FFE0D6'
+  },
+
+  statItem: {
+    flex: 1,
+    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px'
+  },
+
+  statValue: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#FB4F14'
+  },
+
+  statLabel: {
+    fontSize: '10px',
+    color: '#666',
+    fontWeight: '600',
+    letterSpacing: '0.5px'
+  },
+
+  divider: {
+    width: '1px',
+    height: '24px',
+    backgroundColor: '#FFE0D6'
+  },
+
+  unifiedCheckoutButton: {
+    width: '100%',
+    padding: '14px',
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    transition: 'background 0.2s'
+  },
+
+  buttonIcon: {
+    fontSize: '18px'
   },
 
   // Mobile responsive adjustments
