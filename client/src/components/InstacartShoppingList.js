@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import imageService, { formatProductName } from '../utils/imageService';
+import instacartService from '../services/instacartService';
 
 const InstacartShoppingList = ({
   items = [],
@@ -16,11 +17,48 @@ const InstacartShoppingList = ({
   const [sortBy, setSortBy] = useState('confidence');
   const [filterBy, setFilterBy] = useState('all');
   const [localItems, setLocalItems] = useState(items);
+  const [retailers, setRetailers] = useState([]);
+  const [selectedRetailerId, setSelectedRetailerId] = useState(selectedRetailer);
+  const [loadingRetailers, setLoadingRetailers] = useState(false);
 
   // Sync local items with parent
   useEffect(() => {
     setLocalItems(items);
   }, [items]);
+
+  // Load retailers based on user zip code
+  const loadRetailers = useCallback(async () => {
+    if (!userZipCode) return;
+
+    setLoadingRetailers(true);
+    try {
+      console.log('🏪 Loading retailers for zip code:', userZipCode);
+      const result = await instacartService.getRetailers(userZipCode);
+
+      if (result.success && result.retailers) {
+        setRetailers(result.retailers);
+        console.log(`✅ Loaded ${result.retailers.length} retailers`);
+
+        // If no retailer is selected and we have retailers, select the first one
+        if (!selectedRetailerId && result.retailers.length > 0) {
+          setSelectedRetailerId(result.retailers[0].id || result.retailers[0].retailer_key);
+        }
+      } else {
+        console.warn('⚠️ No retailers found, using default');
+        setRetailers([]);
+      }
+    } catch (error) {
+      console.error('❌ Error loading retailers:', error);
+      setRetailers([]);
+    } finally {
+      setLoadingRetailers(false);
+    }
+  }, [userZipCode, selectedRetailerId]);
+
+  // Load retailers when component mounts or zip code changes
+  useEffect(() => {
+    loadRetailers();
+  }, [loadRetailers]);
 
   // Calculate totals
   const calculateTotals = useCallback(() => {
@@ -94,6 +132,19 @@ const InstacartShoppingList = ({
     }
   };
 
+  // Handle retailer selection
+  const handleRetailerChange = (retailerId) => {
+    console.log('🏪 Retailer changed to:', retailerId);
+    setSelectedRetailerId(retailerId);
+    // You can add a callback to notify parent component
+    // if (onRetailerChange) onRetailerChange(retailerId);
+  };
+
+  // Get selected retailer details
+  const getSelectedRetailer = () => {
+    return retailers.find(r => (r.id || r.retailer_key) === selectedRetailerId) || null;
+  };
+
   // Handle direct quantity input
   const setQuantity = (itemId, value) => {
     const qty = parseInt(value) || 1;
@@ -143,7 +194,14 @@ const InstacartShoppingList = ({
   });
 
   return (
-    <div style={styles.container}>
+    <>
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+      <div style={styles.container}>
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerTop}>
@@ -241,7 +299,7 @@ const InstacartShoppingList = ({
           </div>
           <div>Product Name</div>
           <div>Qty</div>
-          <div>Items Needed</div>
+          <div>Amount</div>
           <div style={{ textAlign: 'right' }}>Price</div>
           <div></div>
         </div>
@@ -268,12 +326,13 @@ const InstacartShoppingList = ({
 
             <div style={styles.productInfo}>
               <img
-                {...imageService.createImageWithFallback(
-                  getProductImage(item),
-                  imageService.getCategoryFromItem(item)
-                )}
+                src={getProductImage(item)}
                 alt={item.productName}
                 style={styles.productImage}
+                onError={(e) => {
+                  // Fallback to category-based image if the primary image fails
+                  e.target.src = imageService.getImageUrl(imageService.getCategoryFromItem(item));
+                }}
               />
               <div style={styles.productDetails}>
                 <span style={styles.productName}>{formatProductName(item.productName)}</span>
@@ -306,7 +365,7 @@ const InstacartShoppingList = ({
             </div>
 
             <div style={styles.itemsNeeded}>
-              {item.quantity || 1}
+              <span style={styles.amountText}>{item.quantity || 1}</span>
               {item.unit && item.unit !== 'each' && (
                 <span style={styles.unitBadge}>{item.unit}</span>
               )}
@@ -360,6 +419,109 @@ const InstacartShoppingList = ({
         ))}
       </div>
 
+      {/* Retailer Selection */}
+      <div style={styles.retailerSection}>
+        <div style={styles.retailerHeader}>
+          <h3 style={styles.retailerTitle}>Choose Your Store</h3>
+          <span style={styles.retailerSubtitle}>Select where you'd like to shop</span>
+        </div>
+
+        {loadingRetailers ? (
+          <div style={styles.retailerLoading}>
+            <div style={styles.loadingSpinner}></div>
+            <span>Loading nearby stores...</span>
+          </div>
+        ) : retailers.length > 0 ? (
+          <div style={styles.retailerDropdownContainer}>
+            <select
+              value={selectedRetailerId}
+              onChange={(e) => handleRetailerChange(e.target.value)}
+              style={styles.retailerDropdown}
+              onMouseEnter={(e) => {
+                e.target.style.borderColor = '#0AAD0A';
+                e.target.style.boxShadow = '0 0 0 2px rgba(10, 173, 10, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.borderColor = '#E8EAED';
+                e.target.style.boxShadow = 'none';
+              }}
+            >
+              {retailers.map((retailer) => {
+                const retailerId = retailer.id || retailer.retailer_key;
+                const distance = retailer.distance ? `${retailer.distance.toFixed(1)} mi` : '';
+                const deliveryTime = retailer.estimatedDelivery || retailer.delivery_time || '';
+
+                return (
+                  <option key={retailerId} value={retailerId}>
+                    {retailer.name} {distance && `• ${distance}`} {deliveryTime && `• ${deliveryTime}`}
+                  </option>
+                );
+              })}
+            </select>
+
+            {/* Selected Retailer Details */}
+            {getSelectedRetailer() && (
+              <div style={styles.selectedRetailerInfo}>
+                <div style={styles.retailerInfoRow}>
+                  <div style={styles.retailerLogo}>
+                    {getSelectedRetailer().retailer_logo_url ? (
+                      <img
+                        src={getSelectedRetailer().retailer_logo_url}
+                        alt={getSelectedRetailer().name}
+                        style={styles.retailerLogoImage}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div style={styles.retailerLogoFallback}>🏪</div>
+                    )}
+                  </div>
+                  <div style={styles.retailerDetails}>
+                    <div style={styles.retailerName}>{getSelectedRetailer().name}</div>
+                    <div style={styles.retailerMeta}>
+                      {getSelectedRetailer().distance && (
+                        <span style={styles.retailerMetaItem}>
+                          📍 {getSelectedRetailer().distance.toFixed(1)} miles away
+                        </span>
+                      )}
+                      {getSelectedRetailer().estimatedDelivery && (
+                        <span style={styles.retailerMetaItem}>
+                          🚚 {getSelectedRetailer().estimatedDelivery} delivery
+                        </span>
+                      )}
+                      {getSelectedRetailer().address && (
+                        <span style={styles.retailerMetaItem}>
+                          📍 {getSelectedRetailer().address}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={styles.noRetailers}>
+            <span>No stores found for {userZipCode}</span>
+            <button
+              onClick={loadRetailers}
+              style={styles.retryButton}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#007A00';
+                e.target.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = '#0AAD0A';
+                e.target.style.transform = 'translateY(0)';
+              }}
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Footer Stats */}
       <div style={styles.footerStats}>
         <div style={styles.statItem}>
@@ -382,6 +544,7 @@ const InstacartShoppingList = ({
         </button>
       </div>
     </div>
+    </>
   );
 };
 
@@ -679,6 +842,12 @@ const styles = {
     gap: '4px'
   },
 
+  amountText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#343538'
+  },
+
   unitBadge: {
     background: '#E8F5E9',
     color: '#0AAD0A',
@@ -788,6 +957,153 @@ const styles = {
     color: '#72767E',
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
+  },
+
+  // Retailer Selection Styles
+  retailerSection: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: '24px',
+    margin: '20px 0',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    border: '1px solid #E8EAED'
+  },
+
+  retailerHeader: {
+    marginBottom: '16px'
+  },
+
+  retailerTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#343538',
+    margin: '0 0 4px 0'
+  },
+
+  retailerSubtitle: {
+    fontSize: '14px',
+    color: '#72767E',
+    margin: 0
+  },
+
+  retailerLoading: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '16px',
+    color: '#72767E',
+    fontSize: '14px'
+  },
+
+  loadingSpinner: {
+    width: '16px',
+    height: '16px',
+    border: '2px solid #E8EAED',
+    borderTop: '2px solid #0AAD0A',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  },
+
+  retailerDropdownContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px'
+  },
+
+  retailerDropdown: {
+    width: '100%',
+    padding: '12px 16px',
+    fontSize: '16px',
+    fontWeight: '500',
+    color: '#343538',
+    background: 'white',
+    border: '2px solid #E8EAED',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    fontFamily: 'inherit'
+  },
+
+  selectedRetailerInfo: {
+    background: '#F8F9FA',
+    borderRadius: '8px',
+    padding: '16px',
+    border: '1px solid #E8EAED'
+  },
+
+  retailerInfoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+
+  retailerLogo: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    background: '#F8F9FA',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '1px solid #E8EAED'
+  },
+
+  retailerLogoImage: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain'
+  },
+
+  retailerLogoFallback: {
+    fontSize: '24px'
+  },
+
+  retailerDetails: {
+    flex: 1
+  },
+
+  retailerName: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#343538',
+    marginBottom: '4px'
+  },
+
+  retailerMeta: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px'
+  },
+
+  retailerMetaItem: {
+    fontSize: '13px',
+    color: '#72767E',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
+  },
+
+  noRetailers: {
+    textAlign: 'center',
+    padding: '24px',
+    color: '#72767E',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '12px'
+  },
+
+  retryButton: {
+    background: '#0AAD0A',
+    color: 'white',
+    border: 'none',
+    padding: '8px 16px',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
   },
 
   checkoutBtn: {
