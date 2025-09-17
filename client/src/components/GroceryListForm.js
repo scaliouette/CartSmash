@@ -1237,6 +1237,87 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
     return null;
   };
 
+  // Enrich cart items with real Instacart product data (prices, images, etc.)
+  const enrichCartWithInstacartData = async (cartItems) => {
+    try {
+      console.log(`🔍 Starting Instacart enrichment for ${cartItems.length} items...`);
+
+      // Import the instacart service
+      const { default: instacartService } = await import('../services/instacartService');
+
+      // Default retailer - could be made configurable
+      const retailerId = currentUser?.preferredRetailer || 'kroger';
+
+      // Process items in batches to avoid overwhelming the API
+      const batchSize = 3;
+      const enrichedItems = [];
+
+      for (let i = 0; i < cartItems.length; i += batchSize) {
+        const batch = cartItems.slice(i, i + batchSize);
+
+        console.log(`🔍 Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(cartItems.length/batchSize)}...`);
+
+        const batchPromises = batch.map(async (item) => {
+          try {
+            // Search for the product on Instacart
+            const searchQuery = item.productName || item.name;
+            console.log(`🔍 Searching Instacart for: "${searchQuery}"`);
+
+            const searchResults = await instacartService.searchProducts(searchQuery, retailerId);
+
+            if (searchResults.success && searchResults.products && searchResults.products.length > 0) {
+              // Use the first (best) match
+              const instacartProduct = searchResults.products[0];
+
+              console.log(`✅ Found Instacart match for "${searchQuery}":`, instacartProduct.name, `$${instacartProduct.price}`);
+
+              // Enrich the original item with Instacart data
+              return {
+                ...item,
+                price: parseFloat(instacartProduct.price) || 0,
+                imageUrl: instacartProduct.image_url || instacartProduct.imageUrl,
+                instacartId: instacartProduct.id,
+                instacartData: instacartProduct,
+                enriched: true
+              };
+            } else {
+              console.log(`⚠️ No Instacart match found for: "${searchQuery}"`);
+              return {
+                ...item,
+                price: 0,
+                enriched: false
+              };
+            }
+          } catch (error) {
+            console.error(`❌ Error enriching "${item.productName}":`, error);
+            return {
+              ...item,
+              price: 0,
+              enriched: false
+            };
+          }
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+        enrichedItems.push(...batchResults);
+
+        // Small delay between batches to be respectful to the API
+        if (i + batchSize < cartItems.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      console.log(`✅ Enrichment complete! ${enrichedItems.filter(item => item.enriched).length}/${enrichedItems.length} items enriched`);
+
+      // Update the cart with enriched data
+      setCurrentCart(enrichedItems);
+
+    } catch (error) {
+      console.error('❌ Error during Instacart enrichment:', error);
+      // Don't throw - just continue with basic cart items
+    }
+  };
+
   const submitGroceryList = async (listText, useAI = true) => {
     if (!listText.trim()) {
       setError('Please enter a grocery list');
@@ -1431,6 +1512,10 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
 
                 // Update the cart with properly structured items
                 setCurrentCart(fixedCart);
+
+                // CRITICAL: Enrich cart items with real Instacart product data
+                console.log('🔍 Enriching cart items with Instacart product data...');
+                enrichCartWithInstacartData(fixedCart);
 
                 // Update parsing stats
                 if (data.stats) {
