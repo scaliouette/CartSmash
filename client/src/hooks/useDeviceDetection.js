@@ -24,7 +24,6 @@ export const useDeviceDetection = () => {
       // Screen size detection
       const isMobileSize = screenWidth <= 768;
       const isTabletSize = screenWidth > 768 && screenWidth <= 1024;
-      const isDesktopSize = screenWidth > 1024;
 
       // User agent detection
       const isMobileUA = mobileRegex.test(userAgent);

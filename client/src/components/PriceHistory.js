@@ -18,13 +18,6 @@ const PriceHistory = ({
   const [selectedTimeRange, setSelectedTimeRange] = useState('30d');
   const [sortBy, setSortBy] = useState('price'); // 'price', 'vendor', 'date'
 
-  // Load price data automatically when component opens
-  useEffect(() => {
-    if (isOpen && productName) {
-      loadPriceHistory();
-    }
-  }, [isOpen, productName, selectedTimeRange, loadPriceHistory]);
-
   const loadPriceHistory = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -48,6 +41,12 @@ const PriceHistory = ({
     }
   }, [productName, selectedTimeRange, productId]);
 
+  // Load price data automatically when component opens
+  useEffect(() => {
+    if (isOpen && productName) {
+      loadPriceHistory();
+    }
+  }, [isOpen, productName, selectedTimeRange, loadPriceHistory]);
 
   const getSortedPriceData = () => {
     return [...priceData].sort((a, b) => {

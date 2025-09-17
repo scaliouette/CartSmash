@@ -11,12 +11,6 @@ const InstacartProductMatcher = ({ initialSearchTerm, searchTerm, retailerId, on
 
   const currentSearchTerm = searchTerm || initialSearchTerm;
 
-  useEffect(() => {
-    if (currentSearchTerm && retailerId) {
-      searchProducts();
-    }
-  }, [currentSearchTerm, retailerId, searchProducts]);
-
   const searchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -67,6 +61,12 @@ const InstacartProductMatcher = ({ initialSearchTerm, searchTerm, retailerId, on
       setLoading(false);
     }
   }, [currentSearchTerm, retailerId]);
+
+  useEffect(() => {
+    if (currentSearchTerm && retailerId) {
+      searchProducts();
+    }
+  }, [currentSearchTerm, retailerId, searchProducts]);
 
   const getConfidenceColor = (confidence) => {
     if (confidence >= 0.8) return '#10b981'; // Green - Excellent match
