@@ -182,7 +182,7 @@ const InstacartShoppingList = ({
               onClick={() => onSaveList && onSaveList(localItems)}
             >
               <span>💾</span>
-              <span>Save List</span>
+              <span></span>
             </button>
             <button
               style={styles.btnPrimary}
