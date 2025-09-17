@@ -91,13 +91,14 @@ const InstacartShoppingList = ({
 
   // Get product image placeholder based on category
   const getProductImage = (item) => {
+    // Use data URLs for reliable placeholders
     const categoryImages = {
-      'Pantry': 'https://via.placeholder.com/48/4CAF50/white?text=P',
-      'Produce': 'https://via.placeholder.com/48/8BC34A/white?text=PR',
-      'Dairy': 'https://via.placeholder.com/48/03A9F4/white?text=D',
-      'Meat': 'https://via.placeholder.com/48/F44336/white?text=M',
-      'Bakery': 'https://via.placeholder.com/48/FF9800/white?text=B',
-      'Other': 'https://via.placeholder.com/48/9E9E9E/white?text=?'
+      'Pantry': 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#4CAF50"/><text x="24" y="30" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="white">P</text></svg>`),
+      'Produce': 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#8BC34A"/><text x="24" y="30" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="white">PR</text></svg>`),
+      'Dairy': 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#03A9F4"/><text x="24" y="30" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="white">D</text></svg>`),
+      'Meat': 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#F44336"/><text x="24" y="30" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="white">M</text></svg>`),
+      'Bakery': 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#FF9800"/><text x="24" y="30" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="white">B</text></svg>`),
+      'Other': 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#9E9E9E"/><text x="24" y="30" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="white">?</text></svg>`)
     };
 
     return item.imageUrl || categoryImages[getCategory(item)] || categoryImages.Other;
@@ -231,7 +232,7 @@ const InstacartShoppingList = ({
                 alt={item.productName}
                 style={styles.productImage}
                 onError={(e) => {
-                  e.target.src = 'https://via.placeholder.com/48/9E9E9E/white?text=?';
+                  e.target.src = 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#9E9E9E"/><text x="24" y="30" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="white">?</text></svg>`);
                 }}
               />
               <div style={styles.productDetails}>

@@ -30,7 +30,8 @@ const PriceHistory = ({
     setError(null);
 
     try {
-      const response = await fetch(`/api/price-history?product=${encodeURIComponent(productName)}&timeRange=${selectedTimeRange}&productId=${productId || ''}`);
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${baseUrl}/api/price-history?product=${encodeURIComponent(productName)}&timeRange=${selectedTimeRange}&productId=${productId || ''}`);
 
       if (!response.ok) {
         throw new Error('Failed to load price history');

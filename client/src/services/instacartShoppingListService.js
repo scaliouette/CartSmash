@@ -411,4 +411,5 @@ class InstacartShoppingListService {
 }
 
 const instacartShoppingListService = new InstacartShoppingListService();
+export { instacartShoppingListService };
 export default instacartShoppingListService;

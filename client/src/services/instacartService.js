@@ -85,7 +85,7 @@ class InstacartService {
     try {
       const payload = {
         title: recipeData.title,
-        image_url: recipeData.imageUrl || 'https://via.placeholder.com/400x300/4CAF50/white?text=Recipe',
+        image_url: recipeData.imageUrl || 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop',
         ingredients: recipeData.ingredients || [],
         instructions: recipeData.instructions || ['Enjoy your meal!'],
         landing_page_configuration: {
@@ -143,7 +143,7 @@ class InstacartService {
 
     const recipeData = {
       title: recipeTitle,
-      imageUrl: options.imageUrl || 'https://via.placeholder.com/400x300/2196F3/white?text=CartSmash+List',
+      imageUrl: options.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=300&fit=crop',
       ingredients: ingredients,
       instructions: [
         'This is a grocery shopping list created with CartSmash.',

@@ -546,6 +546,7 @@ function GroceryListForm({
   
   // Shopping List Manager Modal State
   const [showShoppingListManager, setShowShoppingListManager] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
@@ -581,7 +582,9 @@ function GroceryListForm({
   const [recipeUrl, setRecipeUrl] = useState('');
   const [aiRecipeText, setAiRecipeText] = useState('');
   const [generatingMealPlan, setGeneratingMealPlan] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [selectedRetailerId, setSelectedRetailerId] = useState('default');
+  // eslint-disable-next-line no-unused-vars
   const [successMessage, setSuccessMessage] = useState('');
 
   // Validation wrapper functions for state setters
