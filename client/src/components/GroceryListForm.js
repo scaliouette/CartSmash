@@ -8,6 +8,7 @@ import ProductValidator from './ProductValidator';
 import InstacartCheckoutUnified from './InstacartCheckoutUnified';
 import InstacartProductMatcher from './InstacartProductMatcher';
 import PriceHistory from './PriceHistory';
+import RecipesFoundCard from './RecipesFoundCard';
 import { formatProductName } from '../utils/imageService';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { ButtonSpinner } from './LoadingSpinner';
@@ -4198,33 +4199,12 @@ Or paste any grocery list directly!"
       {/* Display Parsed Recipes */}
       {(parsedRecipes.length > 0 || recipes.length > 0) && (
         <div style={styles.recipesContainer}>
-          <div style={styles.recipesHeader}>
-            <button
-              style={styles.collapseButton}
-              onClick={handleCollapseExpandAll}
-              title={mealPlanExpanded ? "Collapse all recipe details" : "Expand all recipe details"}
-            >
-              {mealPlanExpanded ? '▼' : '▶'}
-            </button>
-            <div style={styles.headerLeft}>
-              <h3 style={styles.recipesTitle}>
-                {(parsedRecipes.some(r => r.mealType || r.tags?.includes('meal plan')) || recipes.some(r => r.mealType || r.tags?.includes('meal plan'))) ? 
-                  'Meal Plan Ideas' : 'Recipes Found'}
-              </h3>
-              <span style={styles.recipeCounter}>
-                ({parsedRecipes.length + recipes.length} recipe{parsedRecipes.length + recipes.length !== 1 ? 's' : ''})
-              </span>
-            </div>
-            <div style={styles.headerButtonGroup}>
-              <button
-                style={styles.clearRecipesButton}
-                onClick={handleClearAllRecipes}
-                title="Clear all recipes from the list"
-              >
-                🗑️
-              </button>
-            </div>
-          </div>
+          <RecipesFoundCard
+            count={parsedRecipes.length + recipes.length}
+            onClearAll={handleClearAllRecipes}
+            onCollapseExpand={handleCollapseExpandAll}
+            expanded={mealPlanExpanded}
+          />
           
           {/* Always show recipe cards with individual expansion control */}
           {[...parsedRecipes, ...recipes].map((recipe, index) => (
