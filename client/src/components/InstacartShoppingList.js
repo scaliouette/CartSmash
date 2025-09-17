@@ -59,6 +59,17 @@ const InstacartShoppingList = ({
   const [selectedRetailerId, setSelectedRetailerId] = useState(selectedRetailer);
   const [loadingRetailers, setLoadingRetailers] = useState(false);
 
+  const stores = [
+    { value: 'grocery-outlet', label: 'Grocery Outlet' },
+    { value: 'kroger', label: 'Kroger' },
+    { value: 'safeway', label: 'Safeway' },
+    { value: 'whole-foods', label: 'Whole Foods' },
+    { value: 'trader-joes', label: "Trader Joe's" },
+    { value: 'target', label: 'Target' },
+    { value: 'walmart', label: 'Walmart' },
+    { value: 'costco', label: 'Costco' }
+  ];
+
   // Sync local items with parent
   useEffect(() => {
     console.log('🔄 InstacartShoppingList received new items:', items.length);
@@ -180,7 +191,6 @@ const InstacartShoppingList = ({
     // if (onRetailerChange) onRetailerChange(retailerId);
   };
 
-
   // Handle direct quantity input
   const setQuantity = (itemId, value) => {
     const qty = parseInt(value) || 1;
@@ -207,6 +217,38 @@ const InstacartShoppingList = ({
     return imageService.getProductImage(item, { width: 64, height: 64 });
   };
 
+  // Get confidence value and level for display
+  const getConfidenceDisplay = (item) => {
+    if (typeof item.confidence === 'number') {
+      return {
+        value: Math.round(item.confidence * 100),
+        level: item.confidence > 0.8 ? 'high' : item.confidence > 0.5 ? 'medium' : 'low'
+      };
+    }
+
+    const confidenceMap = {
+      'high': { value: 95, level: 'high' },
+      'medium': { value: 70, level: 'medium' },
+      'low': { value: 45, level: 'low' }
+    };
+
+    return confidenceMap[item.confidence] || { value: 70, level: 'medium' };
+  };
+
+  // Format the unit display for the orange badge
+  const formatUnitDisplay = (item) => {
+    const quantity = item.unitCount || item.quantity || 1;
+    const unit = item.unit || item.size || item.package_size || 'each';
+
+    // If unit is "each", don't display it
+    if (unit === 'each') {
+      return `${quantity} item${quantity > 1 ? 's' : ''}`;
+    }
+
+    // Format as "quantity-unit" (e.g., "1-16 oz bag", "3-cups")
+    return `${quantity}-${unit}`;
+  };
+
   // Sort items
   const sortedItems = [...localItems].sort((a, b) => {
     switch(sortBy) {
@@ -230,84 +272,74 @@ const InstacartShoppingList = ({
   });
 
   return (
-    <>
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
-      <div style={styles.container}>
+    <div style={{ padding: '24px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.headerTop}>
-          <div style={styles.titleSection}>
-            <div style={styles.cartIcon}>🛒</div>
-            <h1 style={styles.title}>Shopping List</h1>
-          </div>
-          <div style={styles.estimatedTotal}>
-            <span style={styles.totalLabel}>Estimated Total</span>
-            <span style={styles.totalAmount}>${total.toFixed(2)}</span>
-          </div>
-        </div>
-
-        <div style={styles.controls}>
-          {someItemsSelected && (
-            <div style={styles.deleteControls}>
-              <span style={styles.selectedCount}>
-                {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
-              </span>
-              <button
-                style={styles.deleteButton}
-                onClick={deleteSelectedItems}
-              >
-                🗑️ Delete Selected
-              </button>
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: '24px',
+        marginBottom: '24px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}>
+          {/* Title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              background: 'linear-gradient(135deg, #0AAD0A, #078F07)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px'
+            }}>
+              🛒
             </div>
-          )}
-          <div style={styles.controlGroup}>
-            <span style={styles.controlLabel}>Sort by:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              style={styles.select}
-            >
-              <option value="confidence">Confidence (High to Low)</option>
-              <option value="price">Price (Low to High)</option>
-              <option value="alphabetical">Alphabetical</option>
-              <option value="category">Category</option>
-            </select>
+            <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#343538', margin: 0 }}>Shopping List</h1>
           </div>
 
-          <div style={styles.controlGroup}>
-            <span style={styles.controlLabel}>Filter:</span>
-            <select
-              value={filterBy}
-              onChange={(e) => setFilterBy(e.target.value)}
-              style={styles.select}
-            >
-              <option value="all">All Items</option>
-              <option value="pantry">Pantry</option>
-              <option value="produce">Produce</option>
-              <option value="dairy">Dairy</option>
-              <option value="meat">Meat</option>
-              <option value="bakery">Bakery</option>
-            </select>
-          </div>
-
-          {/* Store Selection Control */}
-          <div style={styles.controlGroup}>
-            <span style={styles.controlLabel}>Store:</span>
+          {/* Store Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <img
+              src="https://www.groceryoutlet.com/favicon.ico"
+              alt="Store"
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '6px',
+                objectFit: 'contain',
+                background: 'white',
+                padding: '4px',
+                border: '2px solid #002244'
+              }}
+            />
             {loadingRetailers ? (
-              <div style={styles.inlineLoadingSpinner}>
-                <div style={styles.miniSpinner}></div>
-                <span style={styles.loadingText}>Loading...</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '14px', color: '#72767E' }}>Loading stores...</span>
               </div>
             ) : retailers.length > 0 ? (
               <select
                 value={selectedRetailerId}
                 onChange={(e) => handleRetailerChange(e.target.value)}
-                style={styles.select}
+                style={{
+                  padding: '8px 36px 8px 12px',
+                  border: '2px solid #002244',
+                  borderRadius: '8px',
+                  background: 'white',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#002244',
+                  cursor: 'pointer',
+                  minWidth: '180px'
+                }}
               >
                 {retailers.map(retailer => (
                   <option key={retailer.retailer_key} value={retailer.retailer_key}>
@@ -316,27 +348,165 @@ const InstacartShoppingList = ({
                 ))}
               </select>
             ) : (
-              <select style={styles.select} disabled>
-                <option>🏬 Kroger (Default)</option>
+              <select
+                style={{
+                  padding: '8px 36px 8px 12px',
+                  border: '2px solid #002244',
+                  borderRadius: '8px',
+                  background: 'white',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#002244',
+                  cursor: 'pointer',
+                  minWidth: '180px'
+                }}
+                disabled
+              >
+                {stores.map(store => (
+                  <option key={store.value} value={store.value}>{store.label}</option>
+                ))}
               </select>
             )}
           </div>
 
-          <div style={styles.actionButtons}>
-            <button style={styles.btnStats}>
-              <span>📊</span>
-              <span>Show Stats</span>
-            </button>
-            <button
-              style={styles.btnSecondary}
-              onClick={() => onSaveList && onSaveList(localItems)}
+          {/* Estimated Total */}
+          <div style={{
+            background: 'linear-gradient(135deg, #FFF4E6, #FFEDD4)',
+            border: '2px solid #FF8800',
+            borderRadius: '12px',
+            padding: '12px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end'
+          }}>
+            <span style={{ fontSize: '12px', color: '#72767E', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Estimated Total
+            </span>
+            <span style={{ fontSize: '32px', fontWeight: '700', color: '#FF8800' }}>
+              ${total.toFixed(2)}
+            </span>
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {someItemsSelected && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              background: '#FFF3E0',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: '1px solid #FFB74D'
+            }}>
+              <span style={{ fontSize: '14px', color: '#E65100', fontWeight: '600' }}>
+                {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
+              </span>
+              <button
+                style={{
+                  background: '#F44336',
+                  color: 'white',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+                onClick={deleteSelectedItems}
+              >
+                🗑️ Delete Selected
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px', color: '#002244', fontWeight: '600' }}>Sort by:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{
+                padding: '8px 36px 8px 12px',
+                border: '2px solid #002244',
+                borderRadius: '8px',
+                background: 'white',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#002244'
+              }}
             >
-              <span>💾</span>
-              <span></span>
+              <option value="confidence">Confidence (High to Low)</option>
+              <option value="price">Price (Low to High)</option>
+              <option value="alphabetical">Alphabetical</option>
+              <option value="category">Category</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px', color: '#002244', fontWeight: '600' }}>Filter:</span>
+            <select
+              value={filterBy}
+              onChange={(e) => setFilterBy(e.target.value)}
+              style={{
+                padding: '8px 36px 8px 12px',
+                border: '2px solid #002244',
+                borderRadius: '8px',
+                background: 'white',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#002244'
+              }}
+            >
+              <option value="all">All Items</option>
+              <option value="pantry">Pantry</option>
+              <option value="produce">Produce</option>
+              <option value="dairy">Dairy</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', marginLeft: 'auto' }}>
+            <button style={{
+              padding: '10px 20px',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
+              color: 'white'
+            }}>
+              <span>🔗</span>
+              <span>Share List</span>
+              <span style={{
+                background: 'white',
+                color: '#FB4F14',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontWeight: '700',
+                textTransform: 'uppercase'
+              }}>NEW</span>
             </button>
+
             <button
-              style={styles.btnPrimary}
-              onClick={() => onValidateItems && onValidateItems(localItems)}
+              onClick={() => onValidateItems && onValidateItems(filteredItems)}
+              style={{
+                padding: '10px 20px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '600',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: '#FB4F14',
+                color: 'white'
+              }}
             >
               <span>✓</span>
               <span>Validate Items</span>
@@ -345,764 +515,308 @@ const InstacartShoppingList = ({
         </div>
       </div>
 
-      {/* Shopping List */}
-      <div style={styles.shoppingList}>
-        <div style={styles.listHeader}>
-          <div style={styles.selectAllWrapper}>
+      {/* Shopping List Table */}
+      <div style={{
+        background: 'white',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        boxShadow: '0 4px 12px rgba(0,2,68,0.12)',
+        border: '2px solid #002244'
+      }}>
+        {/* Table Header */}
+        <div style={{
+          background: '#002244',
+          color: 'white',
+          display: 'grid',
+          gridTemplateColumns: '60px 1fr 120px 120px 50px',
+          padding: '16px 20px',
+          fontSize: '12px',
+          fontWeight: '600',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          alignItems: 'center'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div
               style={{
-                ...styles.checkbox,
-                ...(allItemsSelected ? styles.checkboxChecked : {}),
-                ...(someItemsSelected && !allItemsSelected ? styles.checkboxIndeterminate : {})
+                width: '20px',
+                height: '20px',
+                border: allItemsSelected ? 'none' : '2px solid white',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                background: allItemsSelected ? '#FB4F14' : (someItemsSelected ? '#FB4F14' : 'transparent'),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '14px'
               }}
               onClick={toggleSelectAll}
             >
               {allItemsSelected ? '✓' : (someItemsSelected ? '−' : '')}
             </div>
           </div>
-          <div>Product Name</div>
-          <div>Qty</div>
-          <div>Amount</div>
-          <div style={{ textAlign: 'right' }}>Price</div>
+          <div>PRODUCT NAME</div>
+          <div style={{ textAlign: 'center' }}>QTY</div>
+          <div style={{ textAlign: 'right' }}>PRICE</div>
           <div></div>
         </div>
 
-        {filteredItems.map((item) => (
-          <div
-            key={item.id}
-            style={{
-              ...styles.listItem,
-              ...(selectedItems.has(item.id) ? styles.listItemSelected : {})
-            }}
-          >
-            <div style={styles.checkboxWrapper}>
-              <div
-                style={{
-                  ...styles.checkbox,
-                  ...(selectedItems.has(item.id) ? styles.checkboxChecked : {})
-                }}
-                onClick={() => toggleItemSelection(item.id)}
-              >
-                {selectedItems.has(item.id) && '✓'}
-              </div>
-            </div>
+        {/* List Items */}
+        {filteredItems.map((item) => {
+          const confidence = getConfidenceDisplay(item);
+          const isChecked = selectedItems.has(item.id);
 
-            <div style={styles.productInfo}>
-              <img
-                src={getProductImage(item)}
-                alt={item.productName}
-                style={styles.productImage}
-              />
-              <div style={styles.productDetails}>
-                <span style={styles.productName}>{formatProductName(item.productName)}</span>
-                <span style={styles.productCategory}>
-                  {getCategory(item)}
-                  {item.brand && ` • ${formatProductName(item.brand)}`}
-                </span>
-              </div>
-            </div>
-
-            <div style={styles.quantityControl}>
-              <button
-                style={styles.qtyBtn}
-                onClick={() => updateQuantity(item.id, -1)}
-              >
-                -
-              </button>
-              <input
-                type="text"
-                value={item.quantity || 1}
-                onChange={(e) => setQuantity(item.id, e.target.value)}
-                style={styles.qtyInput}
-              />
-              <button
-                style={styles.qtyBtn}
-                onClick={() => updateQuantity(item.id, 1)}
-              >
-                +
-              </button>
-            </div>
-
-            <div style={styles.itemsNeeded}>
-              <span style={styles.amountText}>{item.quantity || 1}</span>
-              {item.unit && item.unit !== 'each' && (
-                <span style={styles.unitBadge}>{item.unit}</span>
-              )}
-              {item.size && (
-                <span style={styles.unitBadge}>{item.size}</span>
-              )}
-            </div>
-
+          return (
             <div
+              key={item.id}
               style={{
-                ...styles.price,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                borderRadius: '4px',
-                padding: '4px 8px'
+                display: 'grid',
+                gridTemplateColumns: '60px 1fr 120px 120px 50px',
+                padding: '20px',
+                alignItems: 'center',
+                borderBottom: '1px solid #F6F7F8',
+                minHeight: '84px',
+                background: isChecked ? '#FFF5F2' : 'white',
+                borderLeft: isChecked ? '3px solid #FB4F14' : 'none'
               }}
-              onClick={() => onShowPriceHistory && onShowPriceHistory(item)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#E8F5E9';
-                e.currentTarget.style.color = '#0AAD0A';
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = '#343538';
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-              title="Click to see prices from all vendors"
             >
-              ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
-              <span style={{ fontSize: '10px', marginLeft: '4px', verticalAlign: 'super' }}>📊</span>
-            </div>
+              {/* Checkbox */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div
+                  onClick={() => toggleItemSelection(item.id)}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    border: isChecked ? 'none' : '2px solid #002244',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    background: isChecked ? '#FB4F14' : 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '14px'
+                  }}
+                >
+                  {isChecked && '✓'}
+                </div>
+              </div>
 
-            <div style={styles.actions}>
-              <button
-                style={styles.iconBtn}
-                onClick={() => onDeleteItem && onDeleteItem(item.id)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#FFEBEE';
-                  e.currentTarget.style.color = '#D32F2F';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = '#72767E';
+              {/* Product Info with orange badge as 3rd line */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <img
+                  src={getProductImage(item)}
+                  alt={item.productName || item.name}
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '8px',
+                    objectFit: 'cover',
+                    border: '2px solid #002244'
+                  }}
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                  <span style={{ fontSize: '16px', fontWeight: '600', color: '#002244' }}>
+                    {formatProductName(item.productName || item.name || 'Unknown Item')}
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontWeight: '600',
+                      marginLeft: '8px',
+                      background: confidence.level === 'high' ? '#E8F5E9' :
+                                 confidence.level === 'medium' ? '#FFF5F2' : '#F0F4F8',
+                      color: confidence.level === 'high' ? '#0AAD0A' :
+                             confidence.level === 'medium' ? '#FB4F14' : '#002244'
+                    }}>
+                      {confidence.value}% match
+                    </span>
+                  </span>
+                  <span style={{ fontSize: '13px', color: '#666' }}>
+                    {getCategory(item)} • {item.brand ? formatProductName(item.brand) : 'Generic'}
+                  </span>
+                  <div style={{ marginTop: '2px' }}>
+                    <span style={{
+                      background: '#FB4F14',
+                      color: 'white',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      whiteSpace: 'nowrap',
+                      display: 'inline-block'
+                    }}>
+                      {formatUnitDisplay(item)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quantity Controls */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: '#F0F4F8',
+                  borderRadius: '8px',
+                  padding: '4px',
+                  border: '1px solid #002244'
+                }}>
+                  <button
+                    onClick={() => updateQuantity(item.id, -1)}
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      border: '1px solid #002244',
+                      background: 'white',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#002244',
+                      fontWeight: '600'
+                    }}
+                  >
+                    -
+                  </button>
+                  <input
+                    type="text"
+                    value={item.quantity || 1}
+                    onChange={(e) => setQuantity(item.id, e.target.value)}
+                    style={{
+                      width: '40px',
+                      textAlign: 'center',
+                      border: 'none',
+                      background: 'transparent',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      color: '#002244'
+                    }}
+                  />
+                  <button
+                    onClick={() => updateQuantity(item.id, 1)}
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      border: '1px solid #002244',
+                      background: 'white',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#002244',
+                      fontWeight: '600'
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Price */}
+              <div
+                onClick={() => onShowPriceHistory && onShowPriceHistory(item)}
+                style={{
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  color: '#002244',
+                  textAlign: 'right',
+                  cursor: 'pointer'
                 }}
               >
-                🗑️
-              </button>
+                ${((parseFloat(item.price) || 0) * (item.quantity || 1)).toFixed(2)}
+                <span style={{ fontSize: '10px', verticalAlign: 'super', marginLeft: '4px' }}>📊</span>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                <button
+                  onClick={() => onDeleteItem && onDeleteItem(item.id)}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#72767E',
+                    fontSize: '18px'
+                  }}
+                >
+                  🗑️
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-
       {/* Footer Stats */}
-      <div style={styles.footerStats}>
-        <div style={styles.statItem}>
-          <span style={styles.statValue}>{itemCount}</span>
-          <span style={styles.statLabel}>Total Items</span>
+      <div style={{
+        background: 'white',
+        borderRadius: '12px',
+        padding: '20px',
+        marginTop: '24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        boxShadow: '0 4px 12px rgba(0,2,68,0.12)',
+        border: '2px solid #002244'
+      }}>
+        <div style={{ display: 'flex', gap: '48px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <span style={{ fontSize: '24px', fontWeight: '700', color: '#FB4F14' }}>{itemCount}</span>
+            <span style={{ fontSize: '12px', color: '#002244', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
+              Total Items
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <span style={{ fontSize: '24px', fontWeight: '700', color: '#FB4F14' }}>{selectedItems.size}</span>
+            <span style={{ fontSize: '12px', color: '#002244', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
+              Selected
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <span style={{ fontSize: '24px', fontWeight: '700', color: '#FB4F14' }}>{totalQuantity}</span>
+            <span style={{ fontSize: '12px', color: '#002244', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
+              Total Quantity
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <span style={{ fontSize: '24px', fontWeight: '700', color: '#FB4F14' }}>{Math.round((itemCount > 0 ? (selectedItems.size / itemCount) * 100 : 0))}%</span>
+            <span style={{ fontSize: '12px', color: '#002244', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
+              Selection Rate
+            </span>
+          </div>
         </div>
-        <div style={styles.statItem}>
-          <span style={styles.statValue}>{selectedItems.size}</span>
-          <span style={styles.statLabel}>Selected</span>
-        </div>
-        <div style={styles.statItem}>
-          <span style={styles.statValue}>{totalQuantity}</span>
-          <span style={styles.statLabel}>Total Quantity</span>
-        </div>
+
         <button
-          style={styles.checkoutBtn}
-          onClick={() => onCheckout && onCheckout(localItems)}
+          onClick={() => onCheckout && onCheckout(filteredItems)}
+          style={{
+            background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
+            color: 'white',
+            border: 'none',
+            padding: '16px 48px',
+            borderRadius: '8px',
+            fontSize: '18px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(251,79,20,0.3)'
+          }}
         >
           Checkout with Instacart →
         </button>
       </div>
     </div>
-    </>
   );
-};
-
-// Styles object matching Instacart design system
-const styles = {
-  container: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '24px',
-    fontFamily: '"Eina", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    backgroundColor: '#F6F7F8',
-    minHeight: '100vh'
-  },
-
-  header: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '24px',
-    marginBottom: '24px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
-  },
-
-  headerTop: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '20px',
-    flexWrap: 'wrap',
-    gap: '16px'
-  },
-
-  titleSection: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px'
-  },
-
-  cartIcon: {
-    width: '32px',
-    height: '32px',
-    background: 'linear-gradient(135deg, #0AAD0A, #078F07)',
-    borderRadius: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'white',
-    fontSize: '18px'
-  },
-
-  title: {
-    fontSize: '28px',
-    fontWeight: '700',
-    color: '#343538',
-    margin: 0
-  },
-
-  estimatedTotal: {
-    background: 'linear-gradient(135deg, #FFF4E6, #FFEDD4)',
-    border: '2px solid #FF8800',
-    borderRadius: '12px',
-    padding: '12px 24px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end'
-  },
-
-  totalLabel: {
-    fontSize: '12px',
-    color: '#72767E',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
-  },
-
-  totalAmount: {
-    fontSize: '32px',
-    fontWeight: '700',
-    color: '#FF8800'
-  },
-
-  controls: {
-    display: 'flex',
-    gap: '16px',
-    alignItems: 'center',
-    flexWrap: 'wrap'
-  },
-
-  controlGroup: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px'
-  },
-
-  controlLabel: {
-    fontSize: '14px',
-    color: '#72767E',
-    fontWeight: '600'
-  },
-
-  select: {
-    padding: '8px 36px 8px 12px',
-    border: '2px solid #E8E9EB',
-    borderRadius: '8px',
-    background: 'white',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#343538',
-    cursor: 'pointer',
-    appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23343538' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 12px center',
-    transition: 'border-color 0.2s'
-  },
-
-  actionButtons: {
-    display: 'flex',
-    gap: '12px',
-    marginLeft: 'auto'
-  },
-
-  btnPrimary: {
-    padding: '10px 20px',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    border: 'none',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: '#0AAD0A',
-    color: 'white'
-  },
-
-  btnSecondary: {
-    padding: '10px 20px',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: 'white',
-    color: '#343538',
-    border: '2px solid #E8E9EB'
-  },
-
-  btnStats: {
-    padding: '10px 20px',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    border: 'none',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: 'linear-gradient(135deg, #FF8800, #FF6B00)',
-    color: 'white'
-  },
-
-  shoppingList: {
-    background: 'white',
-    borderRadius: '12px',
-    overflow: 'hidden',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
-  },
-
-  listHeader: {
-    background: '#343538',
-    color: 'white',
-    display: 'grid',
-    gridTemplateColumns: '60px 1fr 120px 200px 100px 50px',
-    padding: '16px 20px',
-    fontSize: '12px',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-    alignItems: 'center'
-  },
-
-  listItem: {
-    display: 'grid',
-    gridTemplateColumns: '60px 1fr 120px 200px 100px 50px',
-    padding: '16px 20px',
-    alignItems: 'center',
-    borderBottom: '1px solid #F6F7F8',
-    transition: 'all 0.2s',
-    cursor: 'pointer'
-  },
-
-  listItemSelected: {
-    background: '#F0FFF4',
-    borderLeft: '3px solid #0AAD0A'
-  },
-
-  checkboxWrapper: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-
-  checkbox: {
-    width: '20px',
-    height: '20px',
-    border: '2px solid #C7C8CD',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '14px',
-    color: 'white'
-  },
-
-  checkboxChecked: {
-    background: '#0AAD0A',
-    borderColor: '#0AAD0A'
-  },
-
-  productInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px'
-  },
-
-  productImage: {
-    width: '64px',
-    height: '64px',
-    borderRadius: '8px',
-    objectFit: 'cover',
-    border: '2px solid #E8E9EB',
-    backgroundColor: '#f9fafb',
-    flexShrink: 0
-  },
-
-  productDetails: {
-    display: 'flex',
-    flexDirection: 'column'
-  },
-
-  productName: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#343538'
-  },
-
-  productCategory: {
-    fontSize: '12px',
-    color: '#72767E'
-  },
-
-  quantityControl: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: '#F6F7F8',
-    borderRadius: '8px',
-    padding: '4px'
-  },
-
-  qtyBtn: {
-    width: '28px',
-    height: '28px',
-    border: 'none',
-    background: 'white',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s',
-    color: '#343538',
-    fontWeight: '600'
-  },
-
-  qtyInput: {
-    width: '40px',
-    textAlign: 'center',
-    border: 'none',
-    background: 'transparent',
-    fontWeight: '600',
-    fontSize: '14px'
-  },
-
-  itemsNeeded: {
-    fontSize: '14px',
-    color: '#343538',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px'
-  },
-
-  amountText: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#343538'
-  },
-
-  unitBadge: {
-    background: '#E8F5E9',
-    color: '#0AAD0A',
-    padding: '2px 8px',
-    borderRadius: '4px',
-    fontSize: '12px',
-    fontWeight: '600',
-    marginLeft: '4px'
-  },
-
-  selectAllWrapper: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-
-  checkboxIndeterminate: {
-    background: '#0AAD0A',
-    borderColor: '#0AAD0A'
-  },
-
-  deleteControls: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    background: '#FFF3E0',
-    padding: '8px 16px',
-    borderRadius: '8px',
-    border: '1px solid #FFB74D'
-  },
-
-  selectedCount: {
-    fontSize: '14px',
-    color: '#E65100',
-    fontWeight: '600'
-  },
-
-  deleteButton: {
-    background: '#F44336',
-    color: 'white',
-    border: 'none',
-    padding: '6px 12px',
-    borderRadius: '6px',
-    fontSize: '12px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px'
-  },
-
-  price: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#343538',
-    textAlign: 'right'
-  },
-
-  actions: {
-    display: 'flex',
-    gap: '8px',
-    justifyContent: 'center'
-  },
-
-  iconBtn: {
-    width: '32px',
-    height: '32px',
-    border: 'none',
-    background: 'transparent',
-    cursor: 'pointer',
-    borderRadius: '4px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s',
-    color: '#72767E'
-  },
-
-  footerStats: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '20px',
-    marginTop: '24px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
-    flexWrap: 'wrap',
-    gap: '20px'
-  },
-
-  statItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center'
-  },
-
-  statValue: {
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#0AAD0A'
-  },
-
-  statLabel: {
-    fontSize: '12px',
-    color: '#72767E',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
-  },
-
-  // Retailer Selection Styles
-  retailerSection: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '24px',
-    margin: '20px 0',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-    border: '1px solid #E8EAED'
-  },
-
-  retailerHeader: {
-    marginBottom: '16px'
-  },
-
-  retailerTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#343538',
-    margin: '0 0 4px 0'
-  },
-
-  retailerSubtitle: {
-    fontSize: '14px',
-    color: '#72767E',
-    margin: 0
-  },
-
-  retailerLoading: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '16px',
-    color: '#72767E',
-    fontSize: '14px'
-  },
-
-  loadingSpinner: {
-    width: '16px',
-    height: '16px',
-    border: '2px solid #E8EAED',
-    borderTop: '2px solid #0AAD0A',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite'
-  },
-
-  // Inline loading spinner for controls
-  inlineLoadingSpinner: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 12px',
-    borderRadius: '6px',
-    backgroundColor: '#f9fafb',
-    border: '1px solid #E8E9EB'
-  },
-
-  miniSpinner: {
-    width: '12px',
-    height: '12px',
-    border: '1.5px solid #E8E9EB',
-    borderTop: '1.5px solid #0AAD0A',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite'
-  },
-
-  loadingText: {
-    fontSize: '12px',
-    color: '#6B7280',
-    fontWeight: '500'
-  },
-
-  retailerDropdownContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px'
-  },
-
-  retailerDropdown: {
-    width: '100%',
-    padding: '12px 16px',
-    fontSize: '16px',
-    fontWeight: '500',
-    color: '#343538',
-    background: 'white',
-    border: '2px solid #E8EAED',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    fontFamily: 'inherit'
-  },
-
-  selectedRetailerInfo: {
-    background: '#F8F9FA',
-    borderRadius: '8px',
-    padding: '16px',
-    border: '1px solid #E8EAED'
-  },
-
-  retailerInfoRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px'
-  },
-
-  retailerLogo: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '8px',
-    overflow: 'hidden',
-    background: '#F8F9FA',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: '1px solid #E8EAED'
-  },
-
-  retailerLogoImage: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'contain'
-  },
-
-  retailerLogoFallback: {
-    fontSize: '24px'
-  },
-
-  retailerDetails: {
-    flex: 1
-  },
-
-  retailerName: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#343538',
-    marginBottom: '4px'
-  },
-
-  retailerMeta: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px'
-  },
-
-  retailerMetaItem: {
-    fontSize: '13px',
-    color: '#72767E',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px'
-  },
-
-  noRetailers: {
-    textAlign: 'center',
-    padding: '24px',
-    color: '#72767E',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '12px'
-  },
-
-  retryButton: {
-    background: '#0AAD0A',
-    color: 'white',
-    border: 'none',
-    padding: '8px 16px',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease'
-  },
-
-  checkoutBtn: {
-    background: '#0AAD0A',
-    color: 'white',
-    border: 'none',
-    padding: '16px 48px',
-    borderRadius: '8px',
-    fontSize: '18px',
-    fontWeight: '700',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    boxShadow: '0 4px 12px rgba(10,173,10,0.3)'
-  }
 };
 
 export default InstacartShoppingList;
