@@ -6,26 +6,64 @@
 
 /* Root Variables */
 :root {
+  /* Brand Colors */
   --primary-color: #FF6B35;
   --primary-gradient: linear-gradient(45deg, #FF6B35, #F7931E);
   --secondary-color: #3b82f6;
   --success-color: #10b981;
   --warning-color: #f59e0b;
   --danger-color: #ef4444;
+
+  /* Text Colors */
   --text-primary: #1f2937;
   --text-secondary: #6b7280;
   --text-muted: #9ca3af;
+
+  /* Background Colors */
   --bg-primary: #ffffff;
   --bg-secondary: #f9fafb;
   --bg-tertiary: #f3f4f6;
   --border-color: #e5e7eb;
+
+  /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
   --shadow-md: 0 4px 20px rgba(0,0,0,0.1);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.15);
+
+  /* Border Radius */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+
+  /* Responsive Breakpoints */
+  --breakpoint-sm: 576px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 992px;
+  --breakpoint-xl: 1200px;
+
+  /* Mobile-First Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+
+  /* Typography Scale */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 32px;
+
+  /* Touch Targets */
+  --touch-target-min: 44px;
+  --button-height-sm: 36px;
+  --button-height-md: 44px;
+  --button-height-lg: 52px;
 }
 
 /* ============================================
@@ -36,12 +74,31 @@
   min-height: 100vh;
   background-color: #f8f9fa;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: var(--font-size-base);
+  line-height: 1.5;
 }
 
+/* Mobile-First Container */
 .main {
-  max-width: 1000px;
+  width: 100%;
   margin: 0 auto;
-  padding: 40px 24px;
+  padding: var(--spacing-md);
+  max-width: 100%;
+}
+
+/* Tablet and up */
+@media (min-width: 768px) {
+  .main {
+    padding: var(--spacing-xl) var(--spacing-lg);
+    max-width: 1000px;
+  }
+}
+
+/* Desktop and up */
+@media (min-width: 1200px) {
+  .main {
+    padding: var(--spacing-2xl) var(--spacing-xl);
+  }
 }
 
 .container {
@@ -3904,22 +3961,294 @@ button[onclick*="Instacart"],
   color: white !important;
 }
 
-/* Mobile responsiveness */
+/* ============================================
+   COMPREHENSIVE RESPONSIVE DESIGN SYSTEM
+   ============================================ */
+
+/* Mobile-First Button System */
+.btn-system {
+  /* Base button styles - mobile first */
+  min-height: var(--button-height-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  text-decoration: none;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Button variants */
+.btn-primary, .btn-system.primary {
+  background: var(--primary-gradient);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover, .btn-system.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary, .btn-system.secondary {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+}
+
+.btn-secondary:hover, .btn-system.secondary:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.btn-success, .btn-system.success {
+  background: var(--success-color);
+  color: white;
+}
+
+.btn-danger, .btn-system.danger {
+  background: var(--danger-color);
+  color: white;
+}
+
+/* Touch-friendly button sizes */
+.btn-sm, .btn-system.sm {
+  min-height: var(--button-height-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+}
+
+.btn-lg, .btn-system.lg {
+  min-height: var(--button-height-lg);
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-size: var(--font-size-lg);
+}
+
+/* Responsive Typography */
+.text-responsive {
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+@media (min-width: 576px) {
+  .text-responsive { font-size: var(--font-size-base); }
+  .btn-system { padding: var(--spacing-sm) var(--spacing-lg); }
+}
+
+@media (min-width: 768px) {
+  .text-responsive { font-size: var(--font-size-lg); }
+  .btn-system {
+    font-size: var(--font-size-base);
+    padding: var(--spacing-md) var(--spacing-xl);
+  }
+}
+
+/* Mobile-First Grid System */
+.grid-responsive {
+  display: grid;
+  gap: var(--spacing-md);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 576px) {
+  .grid-responsive.sm-2 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 768px) {
+  .grid-responsive.md-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-responsive.md-3 { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (min-width: 992px) {
+  .grid-responsive.lg-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-responsive.lg-4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Form Elements Mobile-First */
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-base);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  transition: border-color 0.2s ease;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+}
+
+/* Mobile Card Layout */
+.card-mobile {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+@media (min-width: 768px) {
+  .card-mobile {
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
+  }
+}
+
+/* Responsive Spacing Utilities */
+.p-responsive { padding: var(--spacing-md); }
+.m-responsive { margin: var(--spacing-md); }
+.gap-responsive { gap: var(--spacing-md); }
+
+@media (min-width: 768px) {
+  .p-responsive { padding: var(--spacing-xl); }
+  .m-responsive { margin: var(--spacing-xl); }
+  .gap-responsive { gap: var(--spacing-lg); }
+}
+
+/* Responsive Flex Utilities */
+.flex-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+@media (min-width: 576px) {
+  .flex-mobile.sm-row { flex-direction: row; }
+}
+
+@media (min-width: 768px) {
+  .flex-mobile.md-row { flex-direction: row; }
+}
+
+/* Hide/Show Elements by Breakpoint */
+.mobile-only { display: block; }
+.tablet-up { display: none; }
+.desktop-up { display: none; }
+
+@media (min-width: 768px) {
+  .mobile-only { display: none; }
+  .tablet-up { display: block; }
+}
+
+@media (min-width: 1200px) {
+  .desktop-up { display: block; }
+}
+
+/* Comprehensive Mobile Footer Fix */
 @media (max-width: 768px) {
   .footer-content {
     grid-template-columns: 1fr;
-    gap: 32px;
+    gap: var(--spacing-xl);
     text-align: center;
   }
-  
+
   .footer-links {
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: var(--spacing-lg);
   }
-  
+
   .footer-brand {
     max-width: none;
   }
 }
 
+/* Override all existing button inconsistencies */
+button, .btn, [class*="btn-"], input[type="button"], input[type="submit"] {
+  font-family: inherit;
+  min-height: var(--touch-target-min);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+/* Mobile Navigation Fixes */
+@media (max-width: 768px) {
+  .nav {
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+
+  .nav-button {
+    min-height: var(--touch-target-min);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-sm);
+  }
+}
+
+/* Modal Mobile Responsiveness */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: var(--spacing-sm);
+  }
+
+  .modal-content, .modal {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 90vh !important;
+    border-radius: var(--radius-lg) !important;
+    margin: 0 !important;
+  }
+
+  .modal-header {
+    padding: var(--spacing-md) !important;
+    font-size: var(--font-size-lg) !important;
+  }
+}
+
+/* Shopping List Mobile Optimizations */
+@media (max-width: 768px) {
+  .shopping-list-item {
+    padding: var(--spacing-md) !important;
+    gap: var(--spacing-sm) !important;
+  }
+
+  .item-details {
+    font-size: var(--font-size-sm) !important;
+  }
+
+  .quantity-controls {
+    min-height: var(--touch-target-min) !important;
+  }
+}
+
+/* Ensure consistent mobile experience */
+@media (max-width: 768px) {
+  /* All containers get proper mobile spacing */
+  .container, .content, .main-content {
+    padding-left: var(--spacing-md) !important;
+    padding-right: var(--spacing-md) !important;
+  }
+
+  /* All text scales appropriately */
+  h1 { font-size: var(--font-size-2xl) !important; }
+  h2 { font-size: var(--font-size-xl) !important; }
+  h3 { font-size: var(--font-size-lg) !important; }
+
+  /* All buttons meet touch target requirements */
+  button, .btn, [class*="btn-"] {
+    min-height: var(--touch-target-min) !important;
+    min-width: var(--touch-target-min) !important;
+  }
+
+  /* Stack layouts become single column */
+  .row, .flex-row, .button-group {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+
+  .flex-row > *, .button-group > * {
+    width: 100% !important;
+    margin: 0 !important;
+  }
 }

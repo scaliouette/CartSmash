@@ -1430,39 +1430,45 @@ function GroceryListForm({
 
   const templates = [
     {
-      id: 'weekly-meal',      
-      title: 'AI Meal Plan Generator',
+      id: 'weekly-meal',
+      icon: '🍽️',
+      title: 'AI Meal Plan',
       description: 'Generate a complete 7-day meal plan with recipes and shopping list using AI.',
       isFunction: true,
       action: generateCompleteMealPlan,
       prompt: `Create a detailed 7-day meal plan with MULTIPLE SEPARATE RECIPES for a family of 4.`
     },
     {
-      id: 'budget',      
+      id: 'budget',
+      icon: '💰',
       title: 'Budget Shopping',
       description: 'Create a budget-friendly grocery list for $75 per week for 2 people.',
       prompt: 'Create a budget-friendly grocery list for $75 per week for 2 people. Focus on nutritious, filling meals with affordable ingredients.'
     },
     {
-      id: 'quick-dinners',      
+      id: 'quick-dinners',
+      icon: '⚡',
       title: 'Quick Dinners',
       description: 'Get 5 quick 30-minute dinner recipes using convenience ingredients.',
       prompt: 'Give me 5 quick 30-minute dinner recipes using basic store-bought ingredients like jarred sauces, pre-made dough, and convenience items.'
     },
     {
-      id: 'healthy',      
+      id: 'healthy',
+      icon: '🥗',
       title: 'Healthy Options',
       description: 'Clean eating grocery list and meal plan focused on whole foods.',
       prompt: 'Create a clean eating grocery list and meal plan for one week, focused on whole foods, lean proteins, fresh vegetables, and minimal processed foods.'
     },
     {
-      id: 'party',      
+      id: 'party',
+      icon: '🎉',
       title: 'Party Planning',
       description: 'Plan a complete party menu for 10 people with shopping list.',
       prompt: 'Help me plan a party for 10 people. I need appetizers, main dishes, sides, desserts, and drinks with a complete shopping list.'
     },
     {
       id: 'special-diet',
+      icon: '🌱',
       title: 'Special Diet',
       description: 'Get customized meal plans for specific dietary needs.',
       prompt: 'Create a meal plan and grocery list for specific dietary needs. Please specify: keto, vegan, gluten-free, dairy-free, or other requirements.'
@@ -3932,27 +3938,49 @@ Return as JSON with this structure:
         {/* Templates Section */}
         <div style={styles.templatesSection}>
          
-          <div style={styles.templatesGrid}>
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            padding: '12px 16px',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none'
+          }}>
             {templates.map(template => (
-              <div
+              <button
                 key={template.id}
                 onClick={() => handleTemplateClick(template)}
-                style={styles.templateCard}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 16px',
+                  backgroundColor: 'white',
+                  border: '2px solid #002244',
+                  borderRadius: '20px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#002244',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  transition: 'all 0.2s',
+                  minHeight: '44px'
+                }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#FB4F14';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(251,79,20,0.15)';
+                  e.target.style.backgroundColor = '#F0F4F8';
+                  e.target.style.borderColor = '#FB4F14';
+                  e.target.style.color = '#FB4F14';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#002244';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,2,68,0.08)';
+                  e.target.style.backgroundColor = 'white';
+                  e.target.style.borderColor = '#002244';
+                  e.target.style.color = '#002244';
                 }}
               >
-                <div style={styles.templateIcon}>{template.icon}</div>
-                <h4 style={styles.templateTitle}>{template.title}</h4>
-                <p style={styles.templateDescription}>{template.description}</p>
-              </div>
+                <span style={{ fontSize: '18px' }}>{template.icon}</span>
+                <span>{template.title}</span>
+              </button>
             ))}
           </div>
         </div>

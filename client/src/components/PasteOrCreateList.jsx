@@ -294,20 +294,50 @@ Or describe what you need: 'Ingredients for tacos for 6 people'"
         </div>
         
         {showTemplates && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            padding: '12px 0',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none'
+          }}>
             {quickTemplates.map((template) => (
               <button
                 key={template.id}
                 onClick={() => handleTemplateClick(template)}
-                className={`p-4 border-2 rounded-lg hover:shadow-md transition-all text-left ${
-                  selectedCategory === template.category 
-                    ? 'border-orange-500 bg-orange-50' 
-                    : 'border-gray-200 hover:border-orange-300'
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 16px',
+                  backgroundColor: selectedCategory === template.category ? '#FFF5F2' : 'white',
+                  border: selectedCategory === template.category ? '2px solid #FB4F14' : '2px solid #002244',
+                  borderRadius: '20px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: selectedCategory === template.category ? '#FB4F14' : '#002244',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  transition: 'all 0.2s',
+                  minHeight: '44px'
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedCategory !== template.category) {
+                    e.target.style.backgroundColor = '#F0F4F8';
+                    e.target.style.borderColor = '#FB4F14';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedCategory !== template.category) {
+                    e.target.style.backgroundColor = 'white';
+                    e.target.style.borderColor = '#002244';
+                  }
+                }}
               >
-                <div className="text-3xl mb-2">{template.icon}</div>
-                <div className="font-semibold text-sm text-gray-800">{template.title}</div>
-                <div className="text-xs text-gray-500 mt-1">Click to use template</div>
+                <span style={{ fontSize: '18px' }}>{template.icon}</span>
+                <span>{template.title}</span>
               </button>
             ))}
           </div>
