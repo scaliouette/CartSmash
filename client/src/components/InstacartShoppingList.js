@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import imageService, { formatProductName } from '../utils/imageService';
 import instacartService from '../services/instacartService';
+import { useDeviceDetection } from '../hooks/useDeviceDetection';
 
 // 🔍 DEBUG FUNCTIONS FOR TRACING FALLBACK ISSUES
 const debugItemData = (item, context = '') => {
@@ -67,6 +68,10 @@ const InstacartShoppingList = ({
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
+
+  // Mobile device detection
+  const deviceInfo = useDeviceDetection();
+  const isMobile = deviceInfo.isMobile || window.innerWidth <= 768;
 
 
   // Sync local items with parent
@@ -419,7 +424,12 @@ const InstacartShoppingList = ({
   });
 
   return (
-    <div style={{ padding: '24px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div style={{
+      padding: isMobile ? '12px 8px' : '24px',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      maxWidth: '100%',
+      boxSizing: 'border-box'
+    }}>
       {/* Modern Header */}
       <div style={{
         backgroundColor: 'white',
@@ -431,7 +441,7 @@ const InstacartShoppingList = ({
         {/* Top Navy Header Bar */}
         <div style={{
           backgroundColor: '#002244',
-          padding: '20px 24px',
+          padding: isMobile ? '16px 12px' : '20px 24px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -441,9 +451,11 @@ const InstacartShoppingList = ({
           {/* Left: Title and Store Selector */}
           <div style={{
             display: 'flex',
-            alignItems: 'center',
-            gap: '24px',
-            flex: '1 1 auto'
+            alignItems: isMobile ? 'flex-start' : 'center',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: isMobile ? '12px' : '24px',
+            flex: '1 1 auto',
+            width: isMobile ? '100%' : 'auto'
           }}>
             {/* Title with Icon */}
             <div style={{
@@ -486,7 +498,8 @@ const InstacartShoppingList = ({
             {/* Store Selector with Dropdown */}
             <div style={{
               position: 'relative',
-              minWidth: '250px',
+              minWidth: isMobile ? '100%' : '250px',
+              width: isMobile ? '100%' : 'auto',
               zIndex: 99999,
               overflow: 'visible'
             }} ref={dropdownRef}>
@@ -861,11 +874,12 @@ const InstacartShoppingList = ({
         {/* Controls */}
         <div style={{
           display: 'flex',
-          gap: '16px',
-          alignItems: 'center',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? '12px' : '16px',
+          alignItems: isMobile ? 'stretch' : 'center',
           flexWrap: 'wrap',
           background: '#FFF0E6',
-          padding: '12px 16px',
+          padding: isMobile ? '16px 12px' : '12px 16px',
           borderRadius: '8px',
           border: '1px solid #FB4F14'
         }}>
@@ -917,19 +931,21 @@ const InstacartShoppingList = ({
             </div>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: isMobile ? '100%' : 'auto' }}>
             <span style={{ fontSize: '16px', color: '#002244' }}>↕️</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               style={{
-                padding: '8px 36px 8px 12px',
+                padding: isMobile ? '12px 36px 12px 16px' : '8px 36px 8px 12px',
                 border: '2px solid #002244',
                 borderRadius: '8px',
                 background: 'white',
-                fontSize: '14px',
+                fontSize: isMobile ? '16px' : '14px',
                 fontWeight: '500',
-                color: '#002244'
+                color: '#002244',
+                minHeight: isMobile ? '44px' : 'auto',
+                flex: isMobile ? '1' : 'none'
               }}
             >
               <option value="confidence">Confidence (High to Low)</option>
@@ -939,19 +955,28 @@ const InstacartShoppingList = ({
             </select>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            flex: isMobile ? '1' : 'none',
+            width: isMobile ? '100%' : 'auto'
+          }}>
             <span style={{ fontSize: '16px', color: '#002244' }}>⌥</span>
             <select
               value={filterBy}
               onChange={(e) => setFilterBy(e.target.value)}
               style={{
-                padding: '8px 36px 8px 12px',
+                padding: isMobile ? '12px 36px 12px 16px' : '8px 36px 8px 12px',
                 border: '2px solid #002244',
                 borderRadius: '8px',
                 background: 'white',
-                fontSize: '14px',
+                fontSize: isMobile ? '16px' : '14px',
                 fontWeight: '500',
-                color: '#002244'
+                color: '#002244',
+                minHeight: isMobile ? '44px' : 'auto',
+                flex: isMobile ? '1' : 'none',
+                width: isMobile ? '100%' : 'auto'
               }}
             >
               <option value="all" style={{ color: '#002244', background: 'white' }}>All Items</option>
@@ -962,10 +987,16 @@ const InstacartShoppingList = ({
             </select>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', marginLeft: 'auto' }}>
+          <div style={{
+            display: 'flex',
+            gap: isMobile ? '8px' : '12px',
+            marginLeft: isMobile ? '0' : 'auto',
+            flex: isMobile ? '1' : 'none',
+            justifyContent: isMobile ? 'space-between' : 'flex-start'
+          }}>
             <button
               style={{
-                padding: '10px',
+                padding: isMobile ? '12px' : '10px',
                 borderRadius: '8px',
                 fontSize: '14px',
                 fontWeight: '600',
@@ -976,8 +1007,9 @@ const InstacartShoppingList = ({
                 justifyContent: 'center',
                 background: 'white',
                 color: '#002244',
-                width: '40px',
-                height: '40px'
+                minWidth: isMobile ? '44px' : '40px',
+                minHeight: isMobile ? '44px' : '40px',
+                flex: isMobile ? '1' : 'none'
               }}
               title="Share shopping list"
             >
@@ -998,7 +1030,7 @@ const InstacartShoppingList = ({
             <button
               onClick={() => onValidateItems && onValidateItems(filteredItems)}
               style={{
-                padding: '10px',
+                padding: isMobile ? '12px' : '10px',
                 borderRadius: '8px',
                 fontSize: '18px',
                 fontWeight: '600',
@@ -1009,8 +1041,9 @@ const InstacartShoppingList = ({
                 justifyContent: 'center',
                 background: 'white',
                 color: '#002244',
-                width: '40px',
-                height: '40px'
+                minWidth: isMobile ? '44px' : '40px',
+                minHeight: isMobile ? '44px' : '40px',
+                flex: isMobile ? '1' : 'none'
               }}
               title="Validate Items"
             >
@@ -1032,7 +1065,7 @@ const InstacartShoppingList = ({
         <div style={{
           background: '#002244',
           color: 'white',
-          display: 'grid',
+          display: isMobile ? 'none' : 'grid',
           gridTemplateColumns: '60px 1fr 120px 120px 50px',
           padding: '16px 20px',
           fontSize: '12px',
@@ -1076,23 +1109,30 @@ const InstacartShoppingList = ({
             <div
               key={item.id}
               style={{
-                display: 'grid',
-                gridTemplateColumns: '60px 1fr 120px 120px 50px',
-                padding: '20px',
-                alignItems: 'center',
+                display: isMobile ? 'flex' : 'grid',
+                flexDirection: isMobile ? 'column' : 'unset',
+                gridTemplateColumns: isMobile ? 'unset' : '60px 1fr 120px 120px 50px',
+                padding: isMobile ? '16px 12px' : '20px',
+                alignItems: isMobile ? 'stretch' : 'center',
                 borderBottom: '1px solid #F6F7F8',
-                minHeight: '84px',
+                minHeight: isMobile ? 'auto' : '84px',
                 background: isChecked ? '#FFF5F2' : 'white',
-                borderLeft: isChecked ? '3px solid #FB4F14' : 'none'
+                borderLeft: isChecked ? '3px solid #FB4F14' : 'none',
+                gap: isMobile ? '12px' : '0'
               }}
             >
               {/* Checkbox */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: isMobile ? 'flex-start' : 'center',
+                order: isMobile ? '1' : 'unset'
+              }}>
                 <div
                   onClick={() => toggleItemSelection(item.id)}
                   style={{
-                    width: '20px',
-                    height: '20px',
+                    width: isMobile ? '24px' : '20px',
+                    height: isMobile ? '24px' : '20px',
                     border: isChecked ? 'none' : '2px solid #002244',
                     borderRadius: '4px',
                     cursor: 'pointer',
@@ -1101,7 +1141,10 @@ const InstacartShoppingList = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: 'white',
-                    fontSize: '14px'
+                    fontSize: isMobile ? '16px' : '14px',
+                    minHeight: isMobile ? '44px' : 'auto',
+                    minWidth: isMobile ? '44px' : 'auto',
+                    padding: isMobile ? '10px' : '0'
                   }}
                 >
                   {isChecked && '✓'}
@@ -1109,28 +1152,47 @@ const InstacartShoppingList = ({
               </div>
 
               {/* Product Info with orange badge as 3rd line */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: isMobile ? 'flex-start' : 'center',
+                gap: isMobile ? '12px' : '16px',
+                order: isMobile ? '2' : 'unset',
+                flex: isMobile ? '1' : 'unset'
+              }}>
                 <img
                   src={getProductImage(item)}
                   alt={item.productName || item.name}
                   style={{
-                    width: '64px',
-                    height: '64px',
+                    width: isMobile ? '80px' : '64px',
+                    height: isMobile ? '80px' : '64px',
                     borderRadius: '8px',
                     objectFit: 'cover',
-                    border: '2px solid #002244'
+                    border: '2px solid #002244',
+                    flexShrink: 0
                   }}
                 />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
-                  <span style={{ fontSize: '16px', fontWeight: '600', color: '#002244' }}>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: isMobile ? '4px' : '2px',
+                  flex: 1,
+                  minWidth: 0
+                }}>
+                  <span style={{
+                    fontSize: isMobile ? '18px' : '16px',
+                    fontWeight: '600',
+                    color: '#002244',
+                    lineHeight: isMobile ? '1.3' : '1.2'
+                  }}>
                     {formatProductName(item.productName || item.name || 'Unknown Item')}
                     <span style={{
                       display: 'inline-block',
-                      padding: '2px 6px',
+                      padding: isMobile ? '4px 8px' : '2px 6px',
                       borderRadius: '4px',
-                      fontSize: '10px',
+                      fontSize: isMobile ? '12px' : '10px',
                       fontWeight: '600',
-                      marginLeft: '8px',
+                      marginLeft: isMobile ? '0' : '8px',
+                      marginTop: isMobile ? '4px' : '0',
                       background: confidence.level === 'high' ? '#E8F5E9' :
                                  confidence.level === 'medium' ? '#FFF5F2' : '#F0F4F8',
                       color: confidence.level === 'high' ? '#0AAD0A' :
@@ -1139,16 +1201,20 @@ const InstacartShoppingList = ({
                       {confidence.value}% match
                     </span>
                   </span>
-                  <span style={{ fontSize: '13px', color: '#666' }}>
+                  <span style={{
+                    fontSize: isMobile ? '15px' : '13px',
+                    color: '#666',
+                    lineHeight: isMobile ? '1.4' : '1.2'
+                  }}>
                     {getCategory(item)} • {item.brand ? formatProductName(item.brand) : 'Generic'}
                   </span>
-                  <div style={{ marginTop: '2px' }}>
+                  <div style={{ marginTop: isMobile ? '6px' : '2px' }}>
                     <span style={{
                       background: '#FB4F14',
                       color: 'white',
-                      padding: '2px 8px',
+                      padding: isMobile ? '6px 12px' : '2px 8px',
                       borderRadius: '4px',
-                      fontSize: '12px',
+                      fontSize: isMobile ? '14px' : '12px',
                       fontWeight: '600',
                       whiteSpace: 'nowrap',
                       display: 'inline-block'
@@ -1160,21 +1226,27 @@ const InstacartShoppingList = ({
               </div>
 
               {/* Quantity Controls */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: isMobile ? 'space-between' : 'center',
+                order: isMobile ? '3' : 'unset',
+                gap: isMobile ? '16px' : '0'
+              }}>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: isMobile ? '12px' : '8px',
                   background: '#F0F4F8',
                   borderRadius: '8px',
-                  padding: '4px',
+                  padding: isMobile ? '8px' : '4px',
                   border: '1px solid #002244'
                 }}>
                   <button
                     onClick={() => updateQuantity(item.id, -1)}
                     style={{
-                      width: '28px',
-                      height: '28px',
+                      width: isMobile ? '44px' : '28px',
+                      height: isMobile ? '44px' : '28px',
                       border: '1px solid #002244',
                       background: 'white',
                       borderRadius: '4px',
@@ -1183,7 +1255,8 @@ const InstacartShoppingList = ({
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: '#002244',
-                      fontWeight: '600'
+                      fontWeight: '600',
+                      fontSize: isMobile ? '18px' : '14px'
                     }}
                   >
                     -
@@ -1193,20 +1266,21 @@ const InstacartShoppingList = ({
                     value={item.quantity || 1}
                     onChange={(e) => setQuantity(item.id, e.target.value)}
                     style={{
-                      width: '40px',
+                      width: isMobile ? '50px' : '40px',
                       textAlign: 'center',
                       border: 'none',
                       background: 'transparent',
                       fontWeight: '600',
-                      fontSize: '14px',
-                      color: '#002244'
+                      fontSize: isMobile ? '18px' : '14px',
+                      color: '#002244',
+                      minHeight: isMobile ? '44px' : 'auto'
                     }}
                   />
                   <button
                     onClick={() => updateQuantity(item.id, 1)}
                     style={{
-                      width: '28px',
-                      height: '28px',
+                      width: isMobile ? '44px' : '28px',
+                      height: isMobile ? '44px' : '28px',
                       border: '1px solid #002244',
                       background: 'white',
                       borderRadius: '4px',
@@ -1215,7 +1289,8 @@ const InstacartShoppingList = ({
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: '#002244',
-                      fontWeight: '600'
+                      fontWeight: '600',
+                      fontSize: isMobile ? '18px' : '14px'
                     }}
                   >
                     +
@@ -1231,17 +1306,22 @@ const InstacartShoppingList = ({
                   onShowPriceHistory && onShowPriceHistory(item);
                 }}
                 style={{
-                  fontSize: '18px',
+                  fontSize: isMobile ? '20px' : '18px',
                   fontWeight: '700',
                   color: '#002244',
-                  textAlign: 'right',
+                  textAlign: isMobile ? 'center' : 'right',
                   cursor: 'pointer',
                   pointerEvents: 'auto',
                   zIndex: 10,
                   position: 'relative',
-                  padding: '4px 8px',
+                  padding: isMobile ? '12px 16px' : '4px 8px',
                   borderRadius: '4px',
-                  transition: 'background-color 0.2s'
+                  transition: 'background-color 0.2s',
+                  order: isMobile ? '4' : 'unset',
+                  minHeight: isMobile ? '44px' : 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: isMobile ? 'center' : 'flex-end'
                 }}
                 onMouseEnter={(e) => {
                   e.target.style.backgroundColor = '#E8F5E9';
@@ -1252,16 +1332,26 @@ const InstacartShoppingList = ({
                 title="Click to see price comparison from all vendors"
               >
                 ${((parseFloat(item.price) || 0) * (item.quantity || 1)).toFixed(2)}
-                <span style={{ fontSize: '10px', verticalAlign: 'super', marginLeft: '4px' }}>📊</span>
+                <span style={{
+                  fontSize: isMobile ? '14px' : '10px',
+                  verticalAlign: 'super',
+                  marginLeft: '4px'
+                }}>📊</span>
               </div>
 
               {/* Actions */}
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                justifyContent: isMobile ? 'flex-end' : 'center',
+                order: isMobile ? '5' : 'unset',
+                alignItems: 'center'
+              }}>
                 <button
                   onClick={() => deleteSingleItem(item.id)}
                   style={{
-                    width: '32px',
-                    height: '32px',
+                    width: isMobile ? '44px' : '32px',
+                    height: isMobile ? '44px' : '32px',
                     border: '2px solid #002244',
                     background: 'white',
                     cursor: 'pointer',
@@ -1270,8 +1360,10 @@ const InstacartShoppingList = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#72767E',
-                    fontSize: '18px',
-                    transition: 'all 0.2s'
+                    fontSize: isMobile ? '20px' : '18px',
+                    transition: 'all 0.2s',
+                    minWidth: isMobile ? '44px' : 'auto',
+                    minHeight: isMobile ? '44px' : 'auto'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#FFF0F0';
