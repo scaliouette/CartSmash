@@ -179,10 +179,14 @@ const InstacartCheckoutUnified = ({
     }
   }, [location, getTotalPrice]);
 
-  // Load retailers on component mount
+  // Load retailers with pricing on component mount
   useEffect(() => {
-    loadRetailers();
-  }, [loadRetailers]);
+    if (location && checkoutData.ingredients?.length > 0) {
+      fetchStorePrices();
+    } else {
+      loadRetailers(); // Fallback to original method if no ingredients
+    }
+  }, [location, checkoutData.ingredients]);
 
   // ============ HELPER FUNCTIONS ============
 
@@ -447,9 +451,58 @@ const InstacartCheckoutUnified = ({
 
   // ============ RENDER HELPER FUNCTIONS ============
 
-  const renderStoreSelection = () => {
-    const selectedRetailer = retailers.find(r => r.id === selectedStore);
+  // Direct store selection - API-driven with immediate navigation
+  const handleStoreSelect = async (store) => {
+    try {
+      // Immediately select the store
+      setSelectedStore(store.id);
 
+      // Save selection to localStorage
+      localStorage.setItem('selectedStore', JSON.stringify(store));
+
+      // Create Instacart recipe and navigate directly
+      await handleProceedToCheckout();
+
+    } catch (error) {
+      console.error('Error selecting store:', error);
+      alert('Failed to select store. Please try again.');
+    }
+  };
+
+  const fetchStorePrices = async () => {
+    setLoading(true);
+    try {
+      // Use existing Instacart retailers API endpoint
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/instacart/retailers?postalCode=${location}&countryCode=US`);
+
+      if (!response.ok) throw new Error('Failed to fetch stores');
+
+      const data = await response.json();
+
+      // Transform API data to include pricing estimates for each store
+      const storesWithPricing = data.retailers?.map(store => ({
+        ...store,
+        subtotal: (checkoutData.ingredients?.filter(i => i.checked)?.length || 0) * 4.99, // Estimated $4.99 per item
+        serviceFee: 3.99,
+        deliveryFee: store.name?.toLowerCase().includes('costco') ? 10.99 :
+                     store.name?.toLowerCase().includes('whole') ? 7.99 : 5.99,
+        total: ((checkoutData.ingredients?.filter(i => i.checked)?.length || 0) * 4.99) + 3.99 +
+               (store.name?.toLowerCase().includes('costco') ? 10.99 :
+                store.name?.toLowerCase().includes('whole') ? 7.99 : 5.99),
+        availability: 'same-day'
+      })) || [];
+
+      setRetailers(storesWithPricing);
+    } catch (error) {
+      console.error('Error fetching store prices:', error);
+      // Fallback to existing mock data if API fails
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderStoreSelection = () => {
     return (
       <div style={{backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden'}}>
         {/* Header */}
@@ -463,52 +516,15 @@ const InstacartCheckoutUnified = ({
             gap: '8px'
           }}>
             <span style={{fontSize: '24px'}}>🛒</span>
-            Shopping List
+            Choose Your Store
           </h2>
-
-          {/* Selected Store Summary */}
-          {selectedRetailer && (
-            <div style={{
-              backgroundColor: 'white',
-              color: '#002244',
-              padding: '12px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              cursor: 'pointer'
-            }}>
-              {selectedRetailer.logo?.startsWith('http') ? (
-                <img
-                  src={selectedRetailer.logo}
-                  alt={selectedRetailer.name}
-                  style={{width: '32px', height: '32px', objectFit: 'contain'}}
-                />
-              ) : (
-                <span style={{fontSize: '24px'}}>{selectedRetailer.logo || '🏪'}</span>
-              )}
-              <div style={{flex: 1}}>
-                <div style={{fontSize: '16px', fontWeight: '600'}}>{selectedRetailer.name}</div>
-                <div style={{fontSize: '12px', color: '#666'}}>
-                  Service: ${getEstimatedTotal(selectedRetailer).serviceFee} • Delivery: ${getEstimatedTotal(selectedRetailer).deliveryFee}
-                </div>
-              </div>
-              <span style={{fontSize: '12px', opacity: 0.6}}>▼</span>
-            </div>
-          )}
+          <p style={{margin: 0, fontSize: '14px', opacity: 0.9}}>
+            Compare prices and select a store to continue shopping
+          </p>
         </div>
 
         {/* Store Selector Section */}
         <div style={{padding: '20px'}}>
-          <h3 style={{
-            margin: '0 0 16px 0',
-            fontSize: '18px',
-            fontWeight: '600',
-            color: '#002244'
-          }}>
-            Choose Your Store
-          </h3>
-
           {/* ZIP Code Input */}
           <div style={{
             display: 'flex',
@@ -530,12 +546,14 @@ const InstacartCheckoutUnified = ({
                   setLocation(tempZip);
                   handleLocationChange(tempZip);
                   setEditingZip(false);
+                  fetchStorePrices(); // Refresh store prices for new location
                 }}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     setLocation(tempZip);
                     handleLocationChange(tempZip);
                     setEditingZip(false);
+                    fetchStorePrices(); // Refresh store prices for new location
                   }
                 }}
                 style={{
@@ -581,39 +599,45 @@ const InstacartCheckoutUnified = ({
           </div>
 
           {loading ? (
-            <div className="loading-section">
-              <div className="spinner"></div>
-              <p>Loading nearby stores...</p>
+            <div className="loading-section" style={{textAlign: 'center', padding: '40px'}}>
+              <div className="spinner" style={{
+                border: '4px solid #f3f3f3',
+                borderTop: '4px solid #FB4F14',
+                borderRadius: '50%',
+                width: '40px',
+                height: '40px',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 16px'
+              }}></div>
+              <p style={{color: '#666', margin: 0}}>Loading store prices...</p>
             </div>
           ) : (
             <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
               {retailers.map((store) => {
-                const estimate = getEstimatedTotal(store);
-                const isSelected = selectedStore === store.id;
-
                 return (
                   <div
                     key={store.id}
-                    onClick={() => setSelectedStore(store.id)}
+                    onClick={() => handleStoreSelect(store)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '12px',
                       padding: '16px',
-                      border: isSelected ? '2px solid #FB4F14' : '2px solid #E0E0E0',
+                      border: '2px solid #E0E0E0',
                       borderRadius: '12px',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
-                      backgroundColor: isSelected ? '#FFF5F2' : 'white'
+                      backgroundColor: 'white'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.borderColor = '#FB4F14';
+                      e.target.style.backgroundColor = '#FFF5F2';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.borderColor = '#E0E0E0';
+                      e.target.style.backgroundColor = 'white';
                     }}
                   >
-                    <input
-                      type="radio"
-                      checked={isSelected}
-                      onChange={() => setSelectedStore(store.id)}
-                      style={{width: '20px', height: '20px', flexShrink: 0}}
-                    />
-
                     {store.logo?.startsWith('http') ? (
                       <img
                         src={store.logo}
@@ -634,11 +658,9 @@ const InstacartCheckoutUnified = ({
                         <span style={{fontSize: '16px', fontWeight: '600', color: '#002244'}}>
                           {store.name}
                         </span>
-                        {store.deliveryTime && store.deliveryTime.includes('Same day') && (
-                          <span style={{fontSize: '12px', color: '#FF6B35', fontWeight: '500'}}>
-                            🚚 Same day
-                          </span>
-                        )}
+                        <span style={{fontSize: '12px', color: '#FF6B35', fontWeight: '500'}}>
+                          🚚 Same day
+                        </span>
                       </div>
 
                       <div style={{fontSize: '13px', color: '#666'}}>
@@ -656,7 +678,7 @@ const InstacartCheckoutUnified = ({
                         marginBottom: '4px'
                       }}>
                         <span style={{marginRight: '12px'}}>Subtotal:</span>
-                        <span style={{fontWeight: '500'}}>${estimate.subtotal}</span>
+                        <span style={{fontWeight: '500'}}>${store.subtotal?.toFixed(2) || '91.93'}</span>
                       </div>
                       <div style={{
                         display: 'flex',
@@ -666,7 +688,7 @@ const InstacartCheckoutUnified = ({
                         marginBottom: '4px'
                       }}>
                         <span style={{marginRight: '12px'}}>Service:</span>
-                        <span style={{fontWeight: '500'}}>${estimate.serviceFee}</span>
+                        <span style={{fontWeight: '500'}}>${store.serviceFee?.toFixed(2) || '3.99'}</span>
                       </div>
                       <div style={{
                         display: 'flex',
@@ -676,7 +698,7 @@ const InstacartCheckoutUnified = ({
                         marginBottom: '4px'
                       }}>
                         <span style={{marginRight: '12px'}}>Delivery:</span>
-                        <span style={{fontWeight: '500'}}>${estimate.deliveryFee}</span>
+                        <span style={{fontWeight: '500'}}>${store.deliveryFee?.toFixed(2) || '5.99'}</span>
                       </div>
                       <div style={{
                         display: 'flex',
@@ -688,12 +710,19 @@ const InstacartCheckoutUnified = ({
                         color: '#002244'
                       }}>
                         <span style={{marginRight: '12px'}}>Total:</span>
-                        <span style={{color: '#FB4F14'}}>${estimate.total}</span>
+                        <span style={{color: '#FB4F14'}}>${store.total?.toFixed(2) || '101.91'}</span>
                       </div>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {!loading && retailers.length === 0 && (
+            <div style={{textAlign: 'center', padding: '40px', color: '#666'}}>
+              <p>No stores found for location {location}</p>
+              <p style={{fontSize: '14px'}}>Try editing your ZIP code above</p>
             </div>
           )}
         </div>

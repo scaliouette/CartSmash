@@ -92,7 +92,7 @@ const PriceHistory = ({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000,
+      zIndex: 9998,
       padding: '1rem'
     }}>
       <div style={{
@@ -102,7 +102,10 @@ const PriceHistory = ({
         width: '100%',
         maxHeight: '90vh',
         overflowY: 'auto',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        zIndex: 9999,
+        position: 'relative',
+        isolation: 'isolate'
       }}>
         {/* Header */}
         <div style={{
