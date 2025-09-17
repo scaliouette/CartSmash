@@ -229,7 +229,7 @@ const GroceryListForm = ({
       <div className="input-section bg-white rounded-xl shadow-lg p-6 mb-6">
         <div className="flex items-center mb-4">
           <Sparkles className="w-6 h-6 text-orange-500 mr-2" />
-          <h1 className="text-2xl font-bold text-gray-800">Paste or Create Grocery List</ดวน>
+          <h1 className="text-2xl font-bold text-gray-800">Paste or Create Grocery List</h1>
         </div>
         
         <textarea

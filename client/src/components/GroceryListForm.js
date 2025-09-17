@@ -1430,59 +1430,39 @@ function GroceryListForm({
 
   const templates = [
     {
-      id: 'weekly-meal',
-      icon: '📅',
+      id: 'weekly-meal',      
       title: 'AI Meal Plan Generator',
       description: 'Generate a complete 7-day meal plan with recipes and shopping list using AI.',
       isFunction: true,
       action: generateCompleteMealPlan,
-      prompt: `Create a detailed 7-day meal plan with MULTIPLE SEPARATE RECIPES for a family of 4. Format as follows:
-
-**Day 1**
-- Breakfast: 
-- Lunch:  
-- Dinner: 
-- Snack:  
-
-**Day 2**
-- Breakfast:  
-- Lunch:  
-- Dinner:
-- Snack:
-
-Continue for all 7 days. After the meal plan, provide the complete grocery shopping list organized by category. Make sure each meal is a SEPARATE recipe with its own name and description, not a generic overview.`
+      prompt: `Create a detailed 7-day meal plan with MULTIPLE SEPARATE RECIPES for a family of 4.`
     },
     {
-      id: 'budget',
-      icon: '💰',
+      id: 'budget',      
       title: 'Budget Shopping',
       description: 'Create a budget-friendly grocery list for $75 per week for 2 people.',
       prompt: 'Create a budget-friendly grocery list for $75 per week for 2 people. Focus on nutritious, filling meals with affordable ingredients.'
     },
     {
-      id: 'quick-dinners',
-      icon: '⚡',
+      id: 'quick-dinners',      
       title: 'Quick Dinners',
       description: 'Get 5 quick 30-minute dinner recipes using convenience ingredients.',
       prompt: 'Give me 5 quick 30-minute dinner recipes using basic store-bought ingredients like jarred sauces, pre-made dough, and convenience items.'
     },
     {
-      id: 'healthy',
-      icon: '🥗',
+      id: 'healthy',      
       title: 'Healthy Options',
       description: 'Clean eating grocery list and meal plan focused on whole foods.',
       prompt: 'Create a clean eating grocery list and meal plan for one week, focused on whole foods, lean proteins, fresh vegetables, and minimal processed foods.'
     },
     {
-      id: 'party',
-      icon: '🎉',
+      id: 'party',      
       title: 'Party Planning',
       description: 'Plan a complete party menu for 10 people with shopping list.',
       prompt: 'Help me plan a party for 10 people. I need appetizers, main dishes, sides, desserts, and drinks with a complete shopping list.'
     },
     {
       id: 'special-diet',
-      icon: '🍽️',
       title: 'Special Diet',
       description: 'Get customized meal plans for specific dietary needs.',
       prompt: 'Create a meal plan and grocery list for specific dietary needs. Please specify: keto, vegan, gluten-free, dairy-free, or other requirements.'
