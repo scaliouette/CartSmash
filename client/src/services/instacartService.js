@@ -292,6 +292,109 @@ class InstacartService {
     }
   }
 
+  // 🆕 CREATE PRODUCTS LINK WITH ALTERNATIVES - Via CartSmash backend API
+  async createProductsLinkWithAlternatives(lineItems, options = {}) {
+    console.log('🛒 ===== INSTACART PRODUCTS LINK DEBUG =====');
+    console.log('📝 createProductsLinkWithAlternatives called with:', {
+      lineItemsCount: lineItems.length,
+      title: options.title,
+      linkType: options.linkType || 'shopping_list',
+      retailerKey: options.retailerKey,
+      timestamp: new Date().toISOString()
+    });
+    console.log('📦 Line items to send:', lineItems.map((item, index) => ({
+      index,
+      name: item.name || item.productName,
+      upcs: item.upcs,
+      product_ids: item.product_ids || item.productIds,
+      measurements: item.line_item_measurements || item.measurements,
+      filters: item.filters,
+      hasAlternatives: !!(item.upcs || item.product_ids || item.productIds),
+      hasFilters: !!item.filters
+    })));
+
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3086';
+
+      // Add timeout controller for API calls
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      const requestPayload = {
+        title: options.title || 'CartSmash Shopping List',
+        imageUrl: options.imageUrl,
+        lineItems: lineItems,
+        partnerUrl: options.partnerUrl || 'https://cartsmash.com',
+        expiresIn: options.expiresIn || 365,
+        instructions: options.instructions,
+        linkType: options.linkType || 'shopping_list',
+        retailerKey: options.retailerKey,
+        filters: options.filters || {}
+      };
+
+      console.log('📤 Sending products link request:', JSON.stringify(requestPayload, null, 2));
+
+      const response = await fetch(`${apiUrl}/api/instacart/products-link/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestPayload),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId); // Clear timeout if request completes
+
+      console.log('📞 API Response status:', response.status);
+      console.log('📞 API Response headers:', Object.fromEntries(response.headers.entries()));
+
+      const data = await response.json();
+      console.log('📞 API Response data:', data);
+
+      if (data.success) {
+        console.log('✅ ===== PRODUCTS LINK CREATION SUCCESS =====');
+        console.log('🎉 Products link with alternatives created successfully');
+        console.log('🔗 Instacart URL:', data.instacartUrl);
+        console.log('📊 Items count:', data.itemsCount);
+        console.log('🔄 Alternatives supported:', data.alternativesSupported);
+
+        return {
+          success: true,
+          productsLinkId: data.productsLinkId,
+          instacartUrl: data.instacartUrl,
+          title: data.title,
+          itemsCount: data.itemsCount,
+          type: data.type,
+          alternativesSupported: data.alternativesSupported,
+          createdAt: data.createdAt,
+          expiresAt: data.expiresAt,
+          cached: data.cached,
+          mockMode: data.mockMode
+        };
+      } else {
+        console.error('❌ ===== PRODUCTS LINK CREATION FAILED =====');
+        console.error('💥 Backend products link creation failed:', data.error);
+        throw new Error(data.error || 'Products link creation failed');
+      }
+    } catch (error) {
+      console.error('❌ ===== INSTACART PRODUCTS LINK ERROR =====');
+
+      if (error.name === 'AbortError') {
+        console.error('⏰ Request timed out after 30 seconds');
+        console.error('🌐 This is likely due to the remote API being slow or unresponsive');
+      } else {
+        console.error('💥 Error creating products link with alternatives:', error);
+        console.error('🔍 Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 5) // First 5 lines of stack trace
+        });
+      }
+
+      throw error;
+    }
+  }
+
   // 🆕 CREATE DIRECT CART - Via CartSmash backend API
   async createDirectCart(cartItems, retailerId, zipCode, metadata = {}) {
     console.log('🛒 ===== INSTACART SERVICE DEBUG =====');

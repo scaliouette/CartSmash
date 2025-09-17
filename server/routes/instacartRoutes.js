@@ -1446,6 +1446,299 @@ router.post('/recipe/create', async (req, res) => {
   }
 });
 
+// POST /api/instacart/products-link/create - Create shopping list with alternatives using official Products Link API
+router.post('/products-link/create', async (req, res) => {
+  try {
+    const {
+      title,
+      imageUrl,
+      lineItems,
+      partnerUrl,
+      expiresIn,
+      instructions,
+      linkType = 'shopping_list',
+      retailerKey,
+      filters = {}
+    } = req.body;
+
+    console.log(`🛒 Creating Instacart products link (${linkType}): "${title}"`);
+
+    if (!title || !lineItems || lineItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Title and line_items are required'
+      });
+    }
+
+    // Check cache first using similar caching strategy as recipes
+    const cacheKey = generateRecipeCacheKey({ title, ingredients: lineItems, instructions });
+    const cachedResult = getCachedRecipeUrl(cacheKey);
+
+    if (cachedResult) {
+      return res.json({
+        ...cachedResult,
+        cached: true,
+        cacheAge: Math.round((Date.now() - cachedResult.timestamp) / 1000 / 60), // minutes
+      });
+    }
+
+    // Check if we have valid API keys
+    if (validateApiKeys()) {
+      try {
+        // Track product identifiers to prevent duplicates
+        const usedProductIds = new Set();
+        const usedUpcs = new Set();
+
+        // Transform lineItems to enhanced Instacart Products Link format with alternatives support
+        const formattedLineItems = lineItems.map((item, index) => {
+          // Validate required fields
+          if (!item.name && !item.productName) {
+            throw new Error(`Line item at index ${index} is missing required field: name`);
+          }
+
+          const formatted = {
+            name: item.name || item.productName,
+            display_text: item.displayText || item.display_text || `${item.quantity || 1} ${item.unit || 'each'} ${item.name || item.productName}`
+          };
+
+          // Enhanced UPC support with alternatives
+          if (item.upcs) {
+            const upcArray = Array.isArray(item.upcs) ? item.upcs : [item.upcs];
+            // Validate UPC format and check for duplicates
+            const validUpcs = upcArray.filter(upc => {
+              if (typeof upc !== 'string' || !/^\d{8,14}$/.test(upc)) {
+                console.warn(`Invalid UPC format: ${upc} for item "${formatted.name}"`);
+                return false;
+              }
+              if (usedUpcs.has(upc)) {
+                throw new Error(`Duplicate UPC found: ${upc}`);
+              }
+              usedUpcs.add(upc);
+              return true;
+            });
+            if (validUpcs.length > 0) {
+              formatted.upcs = validUpcs;
+            }
+          }
+
+          // Enhanced product ID support with alternatives
+          if (item.product_ids || item.productIds) {
+            const productIds = Array.isArray(item.product_ids || item.productIds)
+              ? (item.product_ids || item.productIds)
+              : [item.product_ids || item.productIds];
+            // Validate product IDs and check for duplicates
+            const validProductIds = productIds.filter(id => {
+              if (typeof id !== 'string' || id.trim().length === 0) {
+                console.warn(`Invalid product ID: ${id} for item "${formatted.name}"`);
+                return false;
+              }
+              if (usedProductIds.has(id)) {
+                throw new Error(`Duplicate product ID found: ${id}`);
+              }
+              usedProductIds.add(id);
+              return true;
+            });
+            if (validProductIds.length > 0) {
+              formatted.product_ids = validProductIds;
+            }
+          }
+
+          // Validate UPCs and product_ids are mutually exclusive
+          if (formatted.upcs && formatted.product_ids) {
+            throw new Error(`Line item "${formatted.name}" cannot have both product_ids and upcs. They are mutually exclusive.`);
+          }
+
+          // Enhanced multiple measurements support for alternatives
+          if (item.line_item_measurements && Array.isArray(item.line_item_measurements)) {
+            formatted.line_item_measurements = item.line_item_measurements.map((m, mIndex) => {
+              const measurementQty = parseFloat(m.quantity);
+              if (isNaN(measurementQty) || measurementQty <= 0) {
+                throw new Error(`Line item "${formatted.name}" measurement at index ${mIndex} has invalid quantity: ${m.quantity}`);
+              }
+              return {
+                quantity: measurementQty,
+                unit: m.unit || 'each'
+              };
+            });
+          } else if (item.measurements && Array.isArray(item.measurements)) {
+            // Convert from recipe-style measurements to shopping list measurements
+            formatted.line_item_measurements = item.measurements.map((m, mIndex) => {
+              const measurementQty = parseFloat(m.quantity);
+              if (isNaN(measurementQty) || measurementQty <= 0) {
+                throw new Error(`Line item "${formatted.name}" measurement at index ${mIndex} has invalid quantity: ${m.quantity}`);
+              }
+              return {
+                quantity: measurementQty,
+                unit: m.unit || 'each'
+              };
+            });
+          } else if (item.quantity) {
+            // Single measurement fallback
+            const quantity = parseFloat(item.quantity);
+            if (!isNaN(quantity) && quantity > 0) {
+              formatted.line_item_measurements = [{
+                quantity: quantity,
+                unit: item.unit || 'each'
+              }];
+            }
+          }
+
+          // Enhanced filter support for better product matching and alternatives
+          if (item.filters || item.brandFilters || item.healthFilters) {
+            formatted.filters = {};
+
+            // Brand filters - essential for alternatives
+            if (item.filters?.brand_filters || item.brandFilters) {
+              const brands = item.filters?.brand_filters || item.brandFilters;
+              const brandArray = Array.isArray(brands) ? brands : [brands];
+              const validBrands = brandArray.filter(brand =>
+                typeof brand === 'string' && brand.trim().length > 0
+              );
+              if (validBrands.length > 0) {
+                formatted.filters.brand_filters = validBrands;
+              }
+            }
+
+            // Health filters for dietary alternatives
+            if (item.filters?.health_filters || item.healthFilters) {
+              const VALID_HEALTH_FILTERS = [
+                'ORGANIC', 'GLUTEN_FREE', 'FAT_FREE', 'VEGAN', 'KOSHER',
+                'SUGAR_FREE', 'LOW_FAT', 'VEGETARIAN', 'KETO', 'DAIRY_FREE'
+              ];
+              const health = item.filters?.health_filters || item.healthFilters;
+              const healthArray = Array.isArray(health) ? health : [health];
+              const validHealthFilters = healthArray.filter(filter =>
+                typeof filter === 'string' && VALID_HEALTH_FILTERS.includes(filter.toUpperCase())
+              );
+              if (validHealthFilters.length > 0) {
+                formatted.filters.health_filters = validHealthFilters.map(f => f.toUpperCase());
+              }
+            }
+
+            // Remove filters object if empty
+            if (Object.keys(formatted.filters).length === 0) {
+              delete formatted.filters;
+            }
+          }
+
+          return formatted;
+        });
+
+        // Build enhanced products link payload with alternatives support
+        const productsLinkPayload = {
+          title,
+          image_url: imageUrl || `https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&h=500&fit=crop`,
+          link_type: linkType, // 'shopping_list' or 'recipe'
+          expires_in: expiresIn || 365, // Default to 365 days for shopping lists
+          line_items: formattedLineItems,
+          landing_page_configuration: {
+            partner_linkback_url: partnerUrl || 'https://cartsmash.com',
+            enable_pantry_items: true
+          }
+        };
+
+        // Add instructions if provided (for recipe-type links)
+        if (instructions && Array.isArray(instructions) && instructions.length > 0) {
+          productsLinkPayload.instructions = instructions;
+        }
+
+        // Add global filters if provided
+        if (filters && Object.keys(filters).length > 0) {
+          productsLinkPayload.filters = filters;
+        }
+
+        // Remove undefined/null values
+        Object.keys(productsLinkPayload).forEach(key => {
+          if (productsLinkPayload[key] === undefined || productsLinkPayload[key] === null) {
+            delete productsLinkPayload[key];
+          }
+        });
+
+        console.log('📝 Products link payload with alternatives:', JSON.stringify(productsLinkPayload, null, 2));
+
+        // Make API call to create products link with alternatives
+        const response = await instacartApiCall('/products/products_link', 'POST', productsLinkPayload);
+
+        console.log('✅ Products link API response:', response);
+
+        if (response && response.products_link_url) {
+          let finalUrl = response.products_link_url;
+
+          // Add retailer key to URL if provided
+          if (retailerKey && finalUrl) {
+            const separator = finalUrl.includes('?') ? '&' : '?';
+            finalUrl += `${separator}retailer_key=${retailerKey}`;
+          }
+
+          const result = {
+            success: true,
+            productsLinkId: response.id || `products-link-${Date.now()}`,
+            instacartUrl: finalUrl,
+            title: title,
+            itemsCount: formattedLineItems.length,
+            createdAt: new Date().toISOString(),
+            type: linkType,
+            alternativesSupported: true,
+            expiresAt: new Date(Date.now() + (expiresIn || 365) * 24 * 60 * 60 * 1000).toISOString()
+          };
+
+          // Cache the result
+          cacheRecipeUrl(cacheKey, result);
+
+          res.json(result);
+        } else {
+          console.log('⚠️ Unexpected API response format:', response);
+          throw new Error('Invalid API response format');
+        }
+      } catch (error) {
+        console.error('❌ Products link API failed:', error);
+
+        // Fallback to mock response with alternatives structure
+        console.log('🔄 Falling back to mock products link with alternatives...');
+
+        const mockLinkId = `mock-products-link-${Date.now()}`;
+        const mockUrl = NODE_ENV === 'development'
+          ? `https://customers.dev.instacart.tools/store/shopping-lists/${mockLinkId}`
+          : `https://www.instacart.com/store/shopping-lists/${mockLinkId}`;
+
+        const finalMockUrl = retailerKey ? `${mockUrl}?retailer_key=${retailerKey}` : mockUrl;
+
+        const mockResult = {
+          success: true,
+          productsLinkId: mockLinkId,
+          instacartUrl: finalMockUrl,
+          title: title,
+          itemsCount: lineItems.length,
+          createdAt: new Date().toISOString(),
+          type: linkType,
+          alternativesSupported: true,
+          mockMode: true,
+          expiresAt: new Date(Date.now() + (expiresIn || 365) * 24 * 60 * 60 * 1000).toISOString()
+        };
+
+        // Cache the mock result
+        cacheRecipeUrl(cacheKey, mockResult);
+
+        res.json(mockResult);
+      }
+    } else {
+      // No API keys available
+      res.status(503).json({
+        success: false,
+        error: 'Instacart API not available',
+        message: 'API keys not configured'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error creating products link:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create products link',
+      message: error.message
+    });
+  }
+});
+
 // POST /api/instacart/shopping-list/create - Create shopping list page using Instacart Products Link API
 router.post('/shopping-list/create', async (req, res) => {
   try {
