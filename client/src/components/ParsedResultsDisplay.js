@@ -1530,47 +1530,84 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
         </div>
       )}
 
-      {/* Batch Operations Bar */}
-      {(selectedItems.size > 0 || items.some(i => (i.confidence || 0) < 0.6)) && (
-        <div style={styles.batchOperationsBar}>
-          <div style={styles.batchOperationsTitle}>
-            {selectedItems.size > 0 ? `${selectedItems.size} items selected` : 'Batch Operations:'}
-          </div>
-          <div style={styles.batchOperationsButtons}>
-            {selectedItems.size > 0 && (
-              <>
-                <button
-                  onClick={() => handleBulkOperation('delete-selected')}
-                  style={styles.batchButton}
-                >
-                  🗑️ 
-                </button>
-                <button
-                  onClick={() => setShowListCreator(true)}
-                  style={styles.batchButton}
-                >
-                  📋 Add to List
-                </button>
-              </>
-            )}
+      {/* Enhanced Selection Toolbar */}
+      <div style={styles.selectionToolbar}>
+        <div style={styles.selectionToolbarLeft}>
+          <span style={styles.selectionItemsCount}>
+            All Items {selectedItems.size > 0 && `(${selectedItems.size})`}
+          </span>
+
+          <button style={styles.filterDropdownBtn} title="Filter options">
+            ▼
+          </button>
+
+          {/* Save button - always visible with save icon */}
+          <button
+            onClick={() => setShowListCreator(true)}
+            disabled={selectedItems.size === 0}
+            style={{
+              ...styles.selectionIconBtn,
+              backgroundColor: selectedItems.size > 0 ? '#FB4F14' : '#f3f4f6',
+              color: selectedItems.size > 0 ? 'white' : '#9ca3af',
+              cursor: selectedItems.size > 0 ? 'pointer' : 'not-allowed'
+            }}
+            title="Save selected items to list"
+          >
+            💾
+          </button>
+
+          {/* Delete button */}
+          <button
+            onClick={() => handleBulkOperation('delete-selected')}
+            disabled={selectedItems.size === 0}
+            style={{
+              ...styles.selectionIconBtn,
+              backgroundColor: selectedItems.size > 0 ? '#ef4444' : '#f3f4f6',
+              color: selectedItems.size > 0 ? 'white' : '#9ca3af',
+              cursor: selectedItems.size > 0 ? 'pointer' : 'not-allowed'
+            }}
+            title="Delete selected items"
+          >
+            🗑️
+          </button>
+
+          {/* Validate All button */}
+          <button
+            onClick={() => handleBulkOperation('validate-all')}
+            disabled={validatingAll}
+            style={{
+              ...styles.selectionIconBtn,
+              backgroundColor: '#10b981',
+              color: 'white'
+            }}
+            title="Validate all items"
+          >
+            {validatingAll ? '⏳' : '✅'}
+          </button>
+
+          {/* Remove Low Confidence button */}
+          {items.some(i => (i.confidence || 0) < 0.6) && (
             <button
-              onClick={() => handleBulkOperation('validate-all')}
-              style={styles.batchButtonSuccess}
-              disabled={validatingAll}
+              onClick={() => handleBulkOperation('delete-low-confidence')}
+              style={{
+                ...styles.selectionIconBtn,
+                backgroundColor: '#f59e0b',
+                color: 'white'
+              }}
+              title="Remove low confidence items"
             >
-              {validatingAll ? <InlineSpinner text="Validating..." /> : '✅ Validate All'}
+              ⚠️
             </button>
-            {items.some(i => (i.confidence || 0) < 0.6) && (
-              <button
-                onClick={() => handleBulkOperation('delete-low-confidence')}
-                style={styles.batchButtonDanger}
-              >
-                ⚠️ Remove Low Confidence
-              </button>
-            )}
-          </div>
+          )}
         </div>
-      )}
+
+        {/* Right side - Selection count */}
+        {selectedItems.size > 0 && (
+          <div style={styles.selectionCount}>
+            {selectedItems.size} items selected
+          </div>
+        )}
+      </div>
 
       {/* Stats Panel (Collapsible) */}
       {showStats && (
@@ -2148,67 +2185,60 @@ const styles = {
     justifyContent: 'center',
   },
 
-  // Batch operations styles
-  batchOperationsBar: {
-    background: 'linear-gradient(135deg, #FFF5F0, #FFE5D9)',
-    padding: '12px 16px',
-    borderRadius: '8px',
-    marginBottom: '16px',
+  // Enhanced Selection Toolbar styles
+  selectionToolbar: {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: '10px',
-    border: '1px solid #FB4F14'
+    justifyContent: 'space-between',
+    padding: '12px 20px',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    marginBottom: '20px',
+    border: '1px solid #e5e7eb'
   },
 
-  batchOperationsTitle: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#002244'
-  },
-
-  batchOperationsButtons: {
+  selectionToolbarLeft: {
     display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap'
+    alignItems: 'center',
+    gap: '10px'
   },
 
-  batchButton: {
-    padding: '6px 12px',
-    backgroundColor: '#002244',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: '500'
-  },
-
-  batchButtonSuccess: {
-    padding: '6px 12px',
+  selectionItemsCount: {
     backgroundColor: '#FB4F14',
     color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: '500',
-    minWidth: '110px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center'
+    padding: '4px 10px',
+    borderRadius: '20px',
+    fontSize: '14px',
+    fontWeight: 'bold'
   },
 
-  batchButtonDanger: {
-    padding: '6px 12px',
-    backgroundColor: '#8B0000',
-    color: 'white',
+  filterDropdownBtn: {
+    backgroundColor: 'transparent',
     border: 'none',
-    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: '500'
+    fontSize: '12px',
+    color: '#666',
+    padding: '4px'
+  },
+
+  selectionIconBtn: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '6px',
+    border: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '16px',
+    fontWeight: '500',
+    transition: 'all 0.2s'
+  },
+
+  selectionCount: {
+    color: '#FB4F14',
+    fontSize: '14px',
+    fontWeight: 'bold'
   },
 
   statsPanel: {
