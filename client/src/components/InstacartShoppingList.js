@@ -1270,40 +1270,148 @@ const InstacartShoppingList = ({
 
       {/* Footer Stats */}
       <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        padding: '20px',
-        marginTop: '24px',
         display: 'flex',
-        justifyContent: 'center',
+        justifyContent: 'space-around',
         alignItems: 'center',
-        boxShadow: '0 4px 12px rgba(0,2,68,0.12)',
-        border: '2px solid #002244'
+        padding: '12px 8px',
+        backgroundColor: 'white',
+        border: '2px solid #002244',
+        borderRadius: '12px',
+        margin: '12px 16px',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+        boxShadow: '0 4px 12px rgba(0,2,68,0.12)'
       }}>
-        <div style={{ display: 'flex', gap: '48px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <span style={{ fontSize: '24px', fontWeight: '700', color: '#FB4F14' }}>{itemCount}</span>
-            <span style={{ fontSize: '12px', color: '#002244', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
-              Total Items
-            </span>
+        <div style={{
+          flex: '1',
+          textAlign: 'center',
+          minWidth: 0,
+          padding: '0 4px'
+        }}>
+          <div style={{
+            fontSize: '20px',
+            fontWeight: 'bold',
+            color: '#FB4F14',
+            marginBottom: '2px'
+          }}>
+            {itemCount}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <span style={{ fontSize: '24px', fontWeight: '700', color: '#FB4F14' }}>{selectedItems.size}</span>
-            <span style={{ fontSize: '12px', color: '#002244', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
-              Selected
-            </span>
+          <div style={{
+            fontSize: '11px',
+            color: '#666',
+            fontWeight: '500',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            Items
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <span style={{ fontSize: '24px', fontWeight: '700', color: '#FB4F14' }}>{totalQuantity}</span>
-            <span style={{ fontSize: '12px', color: '#002244', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
-              Total Quantity
-            </span>
+        </div>
+
+        <div style={{
+          width: '1px',
+          height: '30px',
+          backgroundColor: '#E0E0E0',
+          flexShrink: 0
+        }} />
+
+        <div style={{
+          flex: '1',
+          textAlign: 'center',
+          minWidth: 0,
+          padding: '0 4px'
+        }}>
+          <div style={{
+            fontSize: '20px',
+            fontWeight: 'bold',
+            color: '#FB4F14',
+            marginBottom: '2px'
+          }}>
+            {selectedItems.size}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <span style={{ fontSize: '24px', fontWeight: '700', color: '#FB4F14' }}>{Math.round((itemCount > 0 ? (selectedItems.size / itemCount) * 100 : 0))}%</span>
-            <span style={{ fontSize: '12px', color: '#002244', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
-              Selection Rate
-            </span>
+          <div style={{
+            fontSize: '11px',
+            color: '#666',
+            fontWeight: '500',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            Selected
+          </div>
+        </div>
+
+        <div style={{
+          width: '1px',
+          height: '30px',
+          backgroundColor: '#E0E0E0',
+          flexShrink: 0
+        }} />
+
+        <div style={{
+          flex: '1',
+          textAlign: 'center',
+          minWidth: 0,
+          padding: '0 4px'
+        }}>
+          <div style={{
+            fontSize: '20px',
+            fontWeight: 'bold',
+            color: '#FB4F14',
+            marginBottom: '2px'
+          }}>
+            {totalQuantity}
+          </div>
+          <div style={{
+            fontSize: '11px',
+            color: '#666',
+            fontWeight: '500',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            Quantity
+          </div>
+        </div>
+
+        <div style={{
+          width: '1px',
+          height: '30px',
+          backgroundColor: '#E0E0E0',
+          flexShrink: 0
+        }} />
+
+        <div style={{
+          flex: '1',
+          textAlign: 'center',
+          minWidth: 0,
+          padding: '0 4px'
+        }}>
+          <div style={{
+            fontSize: '20px',
+            fontWeight: 'bold',
+            color: '#FB4F14',
+            marginBottom: '2px'
+          }}>
+            {Math.round((itemCount > 0 ? (selectedItems.size / itemCount) * 100 : 0))}%
+          </div>
+          <div style={{
+            fontSize: '11px',
+            color: '#666',
+            fontWeight: '500',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            Selected
           </div>
         </div>
       </div>

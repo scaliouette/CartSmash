@@ -288,12 +288,6 @@ const InstacartCheckoutDemo = ({ onClose }) => {
               </button>
             </div>
 
-            <div className="enhancement-features">
-              <div className="enhancement-item">✅ Step-by-step progress</div>
-              <div className="enhancement-item">✅ Store price comparison</div>
-              <div className="enhancement-item">✅ Ingredient customization</div>
-              <div className="enhancement-item">✅ Mobile-optimized design</div>
-            </div>
           </div>
 
           {renderRecipeSection(sampleRecipe, handleStartRecipeIntegration)}
