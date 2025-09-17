@@ -4000,16 +4000,13 @@ Return as JSON with this structure:
         {/* Controls Bar */}
         <div style={styles.controlsBar}>
           {/* Action Buttons */}
-          <div style={styles.actionButtons}>
-            <button onClick={handleNewList} style={styles.actionBtn}>
-              📝 Clear List
-            </button>
-            {isAdmin && (
+          {isAdmin && (
+            <div style={styles.actionButtons}>
               <button onClick={() => setShowAISettings(true)} style={styles.actionBtn}>
                 ⚙️ AI Settings
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Responsive Controls Section */}
           {isMobile ? (
@@ -4045,95 +4042,90 @@ Return as JSON with this structure:
                     setShowResults(false);
                   }}
                   title="Clear all content"
+                  aria-label="Clear list"
                 >
-                  ×
+                  🗑️
                 </button>
               </div>
             </div>
           ) : (
             // Full Version for Desktop/Tablet
             <div style={styles.controlsWrapper}>
-              {/* Top action bar */}
-              <div style={styles.actionBar}>
+
+              {/* Streamlined Controls */}
+              <div style={styles.streamlinedControls}>
+                {/* Mode Toggle Group */}
+                <div style={styles.toggleGroupContainer}>
+                  <div style={styles.toggleButtons}>
+                    <button
+                      onClick={() => setMergeCart(false)}
+                      style={{
+                        ...styles.streamlinedToggle,
+                        ...(!mergeCart ? styles.streamlinedToggleActive : {})
+                      }}
+                      title="Replace entire cart with new items"
+                    >
+                      <span style={styles.toggleIcon}>🔄</span>
+                      <span>Replace cart</span>
+                    </button>
+                    <button
+                      onClick={() => setMergeCart(true)}
+                      style={{
+                        ...styles.streamlinedToggle,
+                        ...(mergeCart ? styles.streamlinedToggleActive : {})
+                      }}
+                      title={`Add to existing ${currentCart.length} items`}
+                    >
+                      <span style={styles.toggleIcon}>➕</span>
+                      <span>Add to cart</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Ingredient Style Toggle Group */}
+                <div style={styles.toggleGroupContainer}>
+                  <div style={styles.toggleButtons}>
+                    <button
+                      onClick={() => setIngredientStyle('basic')}
+                      style={{
+                        ...styles.streamlinedToggle,
+                        ...(ingredientStyle === 'basic' ? styles.streamlinedToggleActive : {})
+                      }}
+                      title="Use convenient store-bought ingredients"
+                    >
+                      <span style={styles.toggleIcon}>🏪</span>
+                      <span>Basic items</span>
+                    </button>
+                    <button
+                      onClick={() => setIngredientStyle('homemade')}
+                      style={{
+                        ...styles.streamlinedToggle,
+                        ...(ingredientStyle === 'homemade' ? styles.streamlinedToggleActive : {})
+                      }}
+                      title="Use fresh, whole ingredients"
+                    >
+                      <span style={styles.toggleIcon}>🌱</span>
+                      <span>Fresh items</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Clear Button */}
                 <button
-                  style={styles.controlActionBtn}
                   onClick={() => {
                     setInputText('');
                     setCurrentCart([]);
                     setError('');
                     setShowResults(false);
                   }}
+                  style={styles.streamlinedClearButton}
                   title="Clear all content"
+                  aria-label="Clear list"
                 >
-                  <span>🗑️</span>
-                  <span>Clear</span>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/>
+                  </svg>
                 </button>
-                <button
-                  style={styles.controlActionBtn}
-                  onClick={() => {
-                    // Toggle settings or preferences could be added here
-                    alert('Settings feature coming soon!');
-                  }}
-                  title="Open settings"
-                >
-                  <span>⚙️</span>
-                  <span>Settings</span>
-                </button>
-              </div>
-
-              {/* Toggle controls */}
-              <div style={isMobile || isTablet ? styles.toggleRowMobile : styles.toggleRow}>
-                <div style={isMobile ? styles.toggleGroupMobile : styles.toggleGroup}>
-                  <span style={isMobile ? styles.controlLabelMobile : styles.controlLabel}>Mode:</span>
-                  <div style={styles.toggleButtons}>
-                    <button
-                      onClick={() => setMergeCart(true)}
-                      style={{
-                        ...styles.toggle,
-                        ...(mergeCart ? styles.toggleActive : {})
-                      }}
-                      title={`Add to existing ${currentCart.length} items`}
-                    >
-                      Merge
-                    </button>
-                    <button
-                      onClick={() => setMergeCart(false)}
-                      style={{
-                        ...styles.toggle,
-                        ...(!mergeCart ? styles.toggleActive : {})
-                      }}
-                      title="Replace entire cart with new items"
-                    >
-                      Replace
-                    </button>
-                  </div>
-                </div>
-
-                <div style={isMobile ? styles.toggleGroupMobile : styles.toggleGroup}>
-                  <span style={isMobile ? styles.controlLabelMobile : styles.controlLabel}>Type:</span>
-                  <div style={styles.toggleButtons}>
-                    <button
-                      onClick={() => setIngredientStyle('basic')}
-                      style={{
-                        ...styles.toggle,
-                        ...(ingredientStyle === 'basic' ? styles.toggleActive : {})
-                      }}
-                      title="Use convenient store-bought ingredients"
-                    >
-                      Basic
-                    </button>
-                    <button
-                      onClick={() => setIngredientStyle('homemade')}
-                      style={{
-                        ...styles.toggle,
-                        ...(ingredientStyle === 'homemade' ? styles.toggleActive : {})
-                      }}
-                      title="Use fresh, whole ingredients"
-                    >
-                      Fresh
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -6120,6 +6112,67 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
+  },
+
+  // Streamlined Controls for Desktop
+  streamlinedControls: {
+    display: 'flex',
+    gap: '8px',
+    padding: '12px',
+    backgroundColor: '#F8F9FA',
+    alignItems: 'center'
+  },
+
+  toggleGroupContainer: {
+    flex: 1,
+    display: 'flex',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    padding: '2px',
+    border: '1px solid #E0E0E0'
+  },
+
+  streamlinedToggle: {
+    flex: 1,
+    padding: '8px 4px',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '11px',
+    fontWeight: '600',
+    backgroundColor: 'transparent',
+    color: '#666',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '2px',
+    minHeight: '44px'
+  },
+
+  streamlinedToggleActive: {
+    backgroundColor: '#002244',
+    color: 'white'
+  },
+
+  toggleIcon: {
+    fontSize: '16px',
+    flexShrink: 0
+  },
+
+  streamlinedClearButton: {
+    width: '44px',
+    height: '44px',
+    backgroundColor: '#DC3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    flexShrink: 0,
+    transition: 'background 0.2s'
   },
 
   // Mobile responsive adjustments
