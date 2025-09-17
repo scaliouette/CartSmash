@@ -266,6 +266,33 @@ const InstacartShoppingList = ({
             </select>
           </div>
 
+          {/* Store Selection Control */}
+          <div style={styles.controlGroup}>
+            <span style={styles.controlLabel}>Store:</span>
+            {loadingRetailers ? (
+              <div style={styles.inlineLoadingSpinner}>
+                <div style={styles.miniSpinner}></div>
+                <span style={styles.loadingText}>Loading...</span>
+              </div>
+            ) : retailers.length > 0 ? (
+              <select
+                value={selectedRetailerId}
+                onChange={(e) => handleRetailerChange(e.target.value)}
+                style={styles.select}
+              >
+                {retailers.map(retailer => (
+                  <option key={retailer.retailer_key} value={retailer.retailer_key}>
+                    {retailer.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select style={styles.select} disabled>
+                <option>🏬 Kroger (Default)</option>
+              </select>
+            )}
+          </div>
+
           <div style={styles.actionButtons}>
             <button style={styles.btnStats}>
               <span>📊</span>
@@ -431,108 +458,6 @@ const InstacartShoppingList = ({
         ))}
       </div>
 
-      {/* Retailer Selection */}
-      <div style={styles.retailerSection}>
-        <div style={styles.retailerHeader}>
-          <h3 style={styles.retailerTitle}>Choose Your Store</h3>
-          <span style={styles.retailerSubtitle}>Select where you'd like to shop</span>
-        </div>
-
-        {loadingRetailers ? (
-          <div style={styles.retailerLoading}>
-            <div style={styles.loadingSpinner}></div>
-            <span>Loading nearby stores...</span>
-          </div>
-        ) : retailers.length > 0 ? (
-          <div style={styles.retailerDropdownContainer}>
-            <select
-              value={selectedRetailerId}
-              onChange={(e) => handleRetailerChange(e.target.value)}
-              style={styles.retailerDropdown}
-              onMouseEnter={(e) => {
-                e.target.style.borderColor = '#0AAD0A';
-                e.target.style.boxShadow = '0 0 0 2px rgba(10, 173, 10, 0.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.borderColor = '#E8EAED';
-                e.target.style.boxShadow = 'none';
-              }}
-            >
-              {retailers.map((retailer) => {
-                const retailerId = retailer.id || retailer.retailer_key;
-                const distance = retailer.distance ? `${retailer.distance.toFixed(1)} mi` : '';
-                const deliveryTime = retailer.estimatedDelivery || retailer.delivery_time || '';
-
-                return (
-                  <option key={retailerId} value={retailerId}>
-                    {retailer.name} {distance && `• ${distance}`} {deliveryTime && `• ${deliveryTime}`}
-                  </option>
-                );
-              })}
-            </select>
-
-            {/* Selected Retailer Details */}
-            {getSelectedRetailer() && (
-              <div style={styles.selectedRetailerInfo}>
-                <div style={styles.retailerInfoRow}>
-                  <div style={styles.retailerLogo}>
-                    {getSelectedRetailer().retailer_logo_url ? (
-                      <img
-                        src={getSelectedRetailer().retailer_logo_url}
-                        alt={getSelectedRetailer().name}
-                        style={styles.retailerLogoImage}
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                    ) : (
-                      <div style={styles.retailerLogoFallback}>🏪</div>
-                    )}
-                  </div>
-                  <div style={styles.retailerDetails}>
-                    <div style={styles.retailerName}>{getSelectedRetailer().name}</div>
-                    <div style={styles.retailerMeta}>
-                      {getSelectedRetailer().distance && (
-                        <span style={styles.retailerMetaItem}>
-                          📍 {getSelectedRetailer().distance.toFixed(1)} miles away
-                        </span>
-                      )}
-                      {getSelectedRetailer().estimatedDelivery && (
-                        <span style={styles.retailerMetaItem}>
-                          🚚 {getSelectedRetailer().estimatedDelivery} delivery
-                        </span>
-                      )}
-                      {getSelectedRetailer().address && (
-                        <span style={styles.retailerMetaItem}>
-                          📍 {getSelectedRetailer().address}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div style={styles.noRetailers}>
-            <span>No stores found for {userZipCode}</span>
-            <button
-              onClick={loadRetailers}
-              style={styles.retryButton}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#007A00';
-                e.target.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = '#0AAD0A';
-                e.target.style.transform = 'translateY(0)';
-              }}
-            >
-              Try Again
-            </button>
-          </div>
-        )}
-      </div>
 
       {/* Footer Stats */}
       <div style={styles.footerStats}>
@@ -1016,6 +941,32 @@ const styles = {
     borderTop: '2px solid #0AAD0A',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite'
+  },
+
+  // Inline loading spinner for controls
+  inlineLoadingSpinner: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    borderRadius: '6px',
+    backgroundColor: '#f9fafb',
+    border: '1px solid #E8E9EB'
+  },
+
+  miniSpinner: {
+    width: '12px',
+    height: '12px',
+    border: '1.5px solid #E8E9EB',
+    borderTop: '1.5px solid #0AAD0A',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  },
+
+  loadingText: {
+    fontSize: '12px',
+    color: '#6B7280',
+    fontWeight: '500'
   },
 
   retailerDropdownContainer: {
