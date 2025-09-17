@@ -23,6 +23,8 @@ const InstacartCheckoutUnified = ({
   const [error, setError] = useState(null);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
   const [location, setLocation] = useState(initialLocation);
+  const [editingZip, setEditingZip] = useState(false);
+  const [tempZip, setTempZip] = useState(initialLocation);
 
   // Initialize ingredients state from items prop
   // eslint-disable-next-line no-unused-vars
@@ -446,87 +448,255 @@ const InstacartCheckoutUnified = ({
   // ============ RENDER HELPER FUNCTIONS ============
 
   const renderStoreSelection = () => {
-    return (
-      <div className="checkout-step-content">
-        <h3 className="checkout-title">Choose Your Store</h3>
+    const selectedRetailer = retailers.find(r => r.id === selectedStore);
 
-        <div className="location-input">
-          <label>
-            <span>📍 Delivery Location (ZIP Code):</span>
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              onBlur={() => handleLocationChange(location)}
-              placeholder="Enter ZIP code"
-            />
-          </label>
+    return (
+      <div style={{backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden'}}>
+        {/* Header */}
+        <div style={{backgroundColor: '#002244', color: 'white', padding: '16px'}}>
+          <h2 style={{
+            margin: '0 0 12px 0',
+            fontSize: '20px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{fontSize: '24px'}}>🛒</span>
+            Shopping List
+          </h2>
+
+          {/* Selected Store Summary */}
+          {selectedRetailer && (
+            <div style={{
+              backgroundColor: 'white',
+              color: '#002244',
+              padding: '12px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              cursor: 'pointer'
+            }}>
+              {selectedRetailer.logo?.startsWith('http') ? (
+                <img
+                  src={selectedRetailer.logo}
+                  alt={selectedRetailer.name}
+                  style={{width: '32px', height: '32px', objectFit: 'contain'}}
+                />
+              ) : (
+                <span style={{fontSize: '24px'}}>{selectedRetailer.logo || '🏪'}</span>
+              )}
+              <div style={{flex: 1}}>
+                <div style={{fontSize: '16px', fontWeight: '600'}}>{selectedRetailer.name}</div>
+                <div style={{fontSize: '12px', color: '#666'}}>
+                  Service: ${getEstimatedTotal(selectedRetailer).serviceFee} • Delivery: ${getEstimatedTotal(selectedRetailer).deliveryFee}
+                </div>
+              </div>
+              <span style={{fontSize: '12px', opacity: 0.6}}>▼</span>
+            </div>
+          )}
         </div>
 
-        {loading ? (
-          <div className="loading-section">
-            <div className="spinner"></div>
-            <p>Loading nearby stores...</p>
-          </div>
-        ) : (
-          <div className="stores-list">
-            {retailers.map((store) => {
-              const estimate = getEstimatedTotal(store);
-              return (
-                <div
-                  key={store.id}
-                  onClick={() => setSelectedStore(store.id)}
-                  className={`store-card ${selectedStore === store.id ? 'store-selected' : ''}`}
+        {/* Store Selector Section */}
+        <div style={{padding: '20px'}}>
+          <h3 style={{
+            margin: '0 0 16px 0',
+            fontSize: '18px',
+            fontWeight: '600',
+            color: '#002244'
+          }}>
+            Choose Your Store
+          </h3>
+
+          {/* ZIP Code Input */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '20px',
+            padding: '12px',
+            backgroundColor: '#F8F9FA',
+            borderRadius: '8px'
+          }}>
+            <span style={{fontSize: '18px'}}>📍</span>
+            <span style={{fontSize: '14px', color: '#666'}}>Delivery Location (ZIP Code):</span>
+            {editingZip ? (
+              <input
+                type="text"
+                value={tempZip}
+                onChange={(e) => setTempZip(e.target.value)}
+                onBlur={() => {
+                  setLocation(tempZip);
+                  handleLocationChange(tempZip);
+                  setEditingZip(false);
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    setLocation(tempZip);
+                    handleLocationChange(tempZip);
+                    setEditingZip(false);
+                  }
+                }}
+                style={{
+                  padding: '4px 8px',
+                  border: '1px solid #002244',
+                  borderRadius: '4px',
+                  fontSize: '16px',
+                  width: '80px'
+                }}
+                autoFocus
+              />
+            ) : (
+              <>
+                <span style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#002244',
+                  marginLeft: '8px'
+                }}>
+                  {location}
+                </span>
+                <button
+                  onClick={() => {
+                    setTempZip(location);
+                    setEditingZip(true);
+                  }}
+                  style={{
+                    marginLeft: 'auto',
+                    padding: '6px 16px',
+                    backgroundColor: '#FB4F14',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
                 >
-                  <div className="store-info">
-                    <div className="store-selection">
-                      <div className={`radio-button ${selectedStore === store.id ? 'radio-selected' : ''}`}>
-                        {selectedStore === store.id && <Check className="check-icon" />}
-                      </div>
-                      <div className="store-details">
-                        <div className="store-header">
-                          {store.logo.startsWith('http') ? (
-                            <img src={store.logo} alt={store.name} className="store-logo" />
-                          ) : (
-                            <span className="store-emoji">{store.logo}</span>
-                          )}
-                          <span className="store-name">{store.name}</span>
-                        </div>
-                        <div className="store-meta">
-                          <span className="store-distance">📍 {store.distance}</span>
-                          <span className="store-delivery">🚚 {store.deliveryTime}</span>
-                        </div>
-                        {store.address && (
-                          <div className="store-address">{store.address}</div>
+                  Edit
+                </button>
+              </>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="loading-section">
+              <div className="spinner"></div>
+              <p>Loading nearby stores...</p>
+            </div>
+          ) : (
+            <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+              {retailers.map((store) => {
+                const estimate = getEstimatedTotal(store);
+                const isSelected = selectedStore === store.id;
+
+                return (
+                  <div
+                    key={store.id}
+                    onClick={() => setSelectedStore(store.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '16px',
+                      border: isSelected ? '2px solid #FB4F14' : '2px solid #E0E0E0',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      backgroundColor: isSelected ? '#FFF5F2' : 'white'
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      checked={isSelected}
+                      onChange={() => setSelectedStore(store.id)}
+                      style={{width: '20px', height: '20px', flexShrink: 0}}
+                    />
+
+                    {store.logo?.startsWith('http') ? (
+                      <img
+                        src={store.logo}
+                        alt={store.name}
+                        style={{width: '48px', height: '48px', objectFit: 'contain', flexShrink: 0}}
+                      />
+                    ) : (
+                      <span style={{fontSize: '36px', flexShrink: 0}}>{store.logo || '🏪'}</span>
+                    )}
+
+                    <div style={{flex: 1}}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '4px'
+                      }}>
+                        <span style={{fontSize: '16px', fontWeight: '600', color: '#002244'}}>
+                          {store.name}
+                        </span>
+                        {store.deliveryTime && store.deliveryTime.includes('Same day') && (
+                          <span style={{fontSize: '12px', color: '#FF6B35', fontWeight: '500'}}>
+                            🚚 Same day
+                          </span>
                         )}
                       </div>
+
+                      <div style={{fontSize: '13px', color: '#666'}}>
+                        <span style={{marginRight: '8px'}}>📍 {store.distance}</span>
+                        {store.address && <span style={{opacity: 0.8}}>{store.address}</span>}
+                      </div>
                     </div>
-                    <div className="store-pricing">
-                      <div className="price-breakdown">
-                        <div className="price-row">
-                          <span>Subtotal:</span>
-                          <span>${estimate.subtotal}</span>
-                        </div>
-                        <div className="price-row">
-                          <span>Service Fee:</span>
-                          <span>${estimate.serviceFee}</span>
-                        </div>
-                        <div className="price-row">
-                          <span>Delivery:</span>
-                          <span>${estimate.deliveryFee}</span>
-                        </div>
-                        <div className="price-row total-row">
-                          <span>Total:</span>
-                          <span className="total-price">${estimate.total}</span>
-                        </div>
+
+                    <div style={{minWidth: '120px', textAlign: 'right'}}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '13px',
+                        color: '#666',
+                        marginBottom: '4px'
+                      }}>
+                        <span style={{marginRight: '12px'}}>Subtotal:</span>
+                        <span style={{fontWeight: '500'}}>${estimate.subtotal}</span>
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '13px',
+                        color: '#666',
+                        marginBottom: '4px'
+                      }}>
+                        <span style={{marginRight: '12px'}}>Service:</span>
+                        <span style={{fontWeight: '500'}}>${estimate.serviceFee}</span>
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '13px',
+                        color: '#666',
+                        marginBottom: '4px'
+                      }}>
+                        <span style={{marginRight: '12px'}}>Delivery:</span>
+                        <span style={{fontWeight: '500'}}>${estimate.deliveryFee}</span>
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        paddingTop: '8px',
+                        borderTop: '1px solid #E0E0E0',
+                        fontSize: '16px',
+                        fontWeight: '700',
+                        color: '#002244'
+                      }}>
+                        <span style={{marginRight: '12px'}}>Total:</span>
+                        <span style={{color: '#FB4F14'}}>${estimate.total}</span>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     );
   };
