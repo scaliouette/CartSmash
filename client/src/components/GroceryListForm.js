@@ -4213,7 +4213,18 @@ Or paste any grocery list directly!"
 
       {/* Display Parsed Recipes */}
       {(parsedRecipes.length > 0 || recipes.length > 0) && (
-        <RecipesFound recipes={[...parsedRecipes, ...recipes]} />
+        <RecipesFound
+          recipes={[...parsedRecipes, ...recipes]}
+          onClearAll={handleClearAllRecipes}
+          onCollapseExpand={handleCollapseExpandAll}
+          expanded={mealPlanExpanded}
+          individualExpansionStates={individualExpansionStates}
+          onToggleIndividualExpansion={toggleIndividualRecipeExpansion}
+          onAddToCart={handleAddRecipeToCart}
+          onAddToLibrary={handleAddToRecipeLibrary}
+          onAddToMealPlan={handleAddToMealPlan}
+          onRemove={handleRemoveRecipe}
+        />
       )}
 
       {showResults && currentCart.length > 0 && (
