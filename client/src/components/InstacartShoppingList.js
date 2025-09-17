@@ -446,7 +446,7 @@ const InstacartShoppingList = ({
             <div style={{
               position: 'relative',
               minWidth: '250px',
-              zIndex: 10000
+              zIndex: 99999
             }} ref={dropdownRef}>
               <button
                 onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
@@ -522,7 +522,7 @@ const InstacartShoppingList = ({
                   border: '2px solid #002244',
                   borderRadius: '12px',
                   boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                  zIndex: 9999,
+                  zIndex: 99998,
                   minWidth: '380px',
                   maxHeight: '500px',
                   overflowY: 'auto'
@@ -898,7 +898,7 @@ const InstacartShoppingList = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '16px', color: '#002244' }}>⚙️</span>
+            <span style={{ fontSize: '16px', color: '#002244' }}>🔽</span>
             <select
               value={filterBy}
               onChange={(e) => setFilterBy(e.target.value)}
