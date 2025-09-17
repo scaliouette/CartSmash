@@ -179,9 +179,6 @@ const InstacartShoppingList = ({
   const handleStoreSelect = (store) => {
     setSelectedRetailerId(store.retailer_key || store.id);
     setIsStoreDropdownOpen(false);
-    if (onChooseStore) {
-      onChooseStore();
-    }
   };
 
   // Handle zip code update
@@ -464,7 +461,8 @@ const InstacartShoppingList = ({
             {/* Store Selector with Dropdown */}
             <div style={{
               position: 'relative',
-              minWidth: '250px'
+              minWidth: '250px',
+              zIndex: 10000
             }} ref={dropdownRef}>
               <button
                 onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
@@ -514,15 +512,6 @@ const InstacartShoppingList = ({
                     Delivery: ${currentRetailer?.delivery_fee?.toFixed(2) || '5.99'}
                   </span>
                 </div>
-                <span style={{
-                  marginLeft: 'auto',
-                  marginRight: '20px',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  color: '#FB4F14'
-                }}>
-                  ${(total + parseFloat(currentRetailer?.service_fee || 3.99) + parseFloat(currentRetailer?.delivery_fee || 5.99)).toFixed(2)}
-                </span>
               </button>
 
               <div style={{
@@ -849,10 +838,10 @@ const InstacartShoppingList = ({
           gap: '16px',
           alignItems: 'center',
           flexWrap: 'wrap',
-          background: '#FFE0B3',
+          background: '#FFF0E6',
           padding: '12px 16px',
           borderRadius: '8px',
-          border: '1px solid #FFB74D'
+          border: '1px solid #FB4F14'
         }}>
           {someItemsSelected && (
             <div style={{
