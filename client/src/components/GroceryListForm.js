@@ -1506,6 +1506,43 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
     }
   };
 
+  const handleChooseStore = () => {
+    console.log('🏪 Store selection clicked');
+
+    // Show a simple store selection dialog
+    const availableRetailers = [
+      { id: 'kroger', name: 'Kroger', logo: '🏬' },
+      { id: 'safeway', name: 'Safeway', logo: '🛒' },
+      { id: 'costco', name: 'Costco', logo: '🏪' },
+      { id: 'target', name: 'Target', logo: '🎯' },
+      { id: 'walmart', name: 'Walmart', logo: '🛍️' },
+      { id: 'wholefoods', name: 'Whole Foods', logo: '🥬' }
+    ];
+
+    const retailerOptions = availableRetailers.map(retailer =>
+      `${retailer.logo} ${retailer.name}`
+    ).join('\n');
+
+    const selectedStore = prompt(`Choose your preferred store:\n\n${retailerOptions}\n\nEnter store name:`);
+
+    if (selectedStore) {
+      const found = availableRetailers.find(retailer =>
+        retailer.name.toLowerCase().includes(selectedStore.toLowerCase())
+      );
+
+      if (found) {
+        setSelectedRetailerId(found.id);
+        console.log(`🏪 Store changed to: ${found.name} (${found.id})`);
+
+        // Show success message
+        setSuccessMessage(`Store changed to ${found.name}`);
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        alert('Store not found. Please try again.');
+      }
+    }
+  };
+
   const extractAIResponseText = (aiData) => {
     // Check if the response is a string
     if (typeof aiData === 'string') {
@@ -4164,6 +4201,7 @@ Or paste any grocery list directly!"
               setSelectedProductForPrice(product);
               setShowPriceHistory(true);
             }}
+            onChooseStore={handleChooseStore}
             userZipCode={currentUser?.zipCode || currentUser?.postalCode || '95670'}
             selectedRetailer={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'kroger'}
           />
