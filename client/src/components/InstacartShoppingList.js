@@ -47,7 +47,8 @@ const InstacartShoppingList = ({
   onCheckout,
   onSaveList,
   onValidateItems,
-  onShowPriceHistory,
+  onShowPriceComparison,
+  onChooseStore,
   userZipCode = '95670',
   selectedRetailer = 'kroger'
 }) => {
@@ -191,6 +192,24 @@ const InstacartShoppingList = ({
     // if (onRetailerChange) onRetailerChange(retailerId);
   };
 
+  // Calculate detailed pricing breakdown when store is selected
+  const calculateDetailedPricing = useCallback(() => {
+    const subtotal = total;
+    const serviceFee = 3.99;
+    const delivery = 5.99;
+    const finalTotal = subtotal + serviceFee + delivery;
+
+    return {
+      subtotal,
+      serviceFee,
+      delivery,
+      finalTotal,
+      hasStoreSelected: retailers.length > 0 && selectedRetailerId
+    };
+  }, [total, retailers.length, selectedRetailerId]);
+
+  const pricing = calculateDetailedPricing();
+
   // Handle direct quantity input
   const setQuantity = (itemId, value) => {
     const qty = parseInt(value) || 1;
@@ -307,7 +326,11 @@ const InstacartShoppingList = ({
           </div>
 
           {/* Store Selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+            onClick={() => onChooseStore && onChooseStore()}
+            title="Click to choose your store"
+          >
             <img
               src="https://www.groceryoutlet.com/favicon.ico"
               alt="Store"
@@ -326,9 +349,7 @@ const InstacartShoppingList = ({
                 <span style={{ fontSize: '14px', color: '#72767E' }}>Loading stores...</span>
               </div>
             ) : retailers.length > 0 ? (
-              <select
-                value={selectedRetailerId}
-                onChange={(e) => handleRetailerChange(e.target.value)}
+              <div
                 style={{
                   padding: '8px 36px 8px 12px',
                   border: '2px solid #002244',
@@ -338,17 +359,19 @@ const InstacartShoppingList = ({
                   fontWeight: '600',
                   color: '#002244',
                   cursor: 'pointer',
-                  minWidth: '180px'
+                  minWidth: '180px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
                 }}
               >
-                {retailers.map(retailer => (
-                  <option key={retailer.retailer_key} value={retailer.retailer_key}>
-                    {retailer.name}
-                  </option>
-                ))}
-              </select>
+                <span>
+                  {retailers.find(r => r.retailer_key === selectedRetailerId)?.name || 'Select Store'}
+                </span>
+                <span style={{ fontSize: '12px', color: '#002244' }}>▼</span>
+              </div>
             ) : (
-              <select
+              <div
                 style={{
                   padding: '8px 36px 8px 12px',
                   border: '2px solid #002244',
@@ -358,14 +381,15 @@ const InstacartShoppingList = ({
                   fontWeight: '600',
                   color: '#002244',
                   cursor: 'pointer',
-                  minWidth: '180px'
+                  minWidth: '180px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
                 }}
-                disabled
               >
-                {stores.map(store => (
-                  <option key={store.value} value={store.value}>{store.label}</option>
-                ))}
-              </select>
+                <span>🏬 Choose Your Store</span>
+                <span style={{ fontSize: '12px', color: '#002244' }}>▼</span>
+              </div>
             )}
           </div>
 
@@ -377,14 +401,47 @@ const InstacartShoppingList = ({
             padding: '12px 24px',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'flex-end'
+            alignItems: 'flex-end',
+            minWidth: '200px'
           }}>
             <span style={{ fontSize: '12px', color: '#72767E', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Estimated Total
+              {pricing.hasStoreSelected ? 'Order Total' : 'Estimated Total'}
             </span>
-            <span style={{ fontSize: '32px', fontWeight: '700', color: '#FF8800' }}>
-              ${total.toFixed(2)}
-            </span>
+
+            {pricing.hasStoreSelected ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '14px', color: '#72767E' }}>
+                  <span>Subtotal:</span>
+                  <span>${pricing.subtotal.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '14px', color: '#72767E' }}>
+                  <span>Service Fee:</span>
+                  <span>${pricing.serviceFee.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '14px', color: '#72767E' }}>
+                  <span>Delivery:</span>
+                  <span>${pricing.delivery.toFixed(2)}</span>
+                </div>
+                <div style={{
+                  borderTop: '1px solid #FF8800',
+                  paddingTop: '4px',
+                  marginTop: '4px',
+                  width: '100%',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: '16px', fontWeight: '600', color: '#FF8800' }}>Total:</span>
+                  <span style={{ fontSize: '24px', fontWeight: '700', color: '#FF8800' }}>
+                    ${pricing.finalTotal.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <span style={{ fontSize: '32px', fontWeight: '700', color: '#FF8800' }}>
+                ${total.toFixed(2)}
+              </span>
+            )}
           </div>
         </div>
 
@@ -720,7 +777,7 @@ const InstacartShoppingList = ({
 
               {/* Price */}
               <div
-                onClick={() => onShowPriceHistory && onShowPriceHistory(item)}
+                onClick={() => onShowPriceComparison && onShowPriceComparison(item)}
                 style={{
                   fontSize: '18px',
                   fontWeight: '700',
@@ -728,6 +785,7 @@ const InstacartShoppingList = ({
                   textAlign: 'right',
                   cursor: 'pointer'
                 }}
+                title="Click to see price comparison from all vendors"
               >
                 ${((parseFloat(item.price) || 0) * (item.quantity || 1)).toFixed(2)}
                 <span style={{ fontSize: '10px', verticalAlign: 'super', marginLeft: '4px' }}>📊</span>
