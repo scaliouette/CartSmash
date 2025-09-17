@@ -1044,275 +1044,224 @@ const InstacartShoppingList = ({
             <div
               key={item.id}
               style={{
-                display: isMobile ? 'flex' : 'grid',
-                flexDirection: isMobile ? 'column' : 'unset',
-                gridTemplateColumns: isMobile ? 'unset' : '60px 1fr 120px 120px 50px',
-                padding: isMobile ? '16px 12px' : '20px',
-                alignItems: isMobile ? 'stretch' : 'center',
-                borderBottom: '1px solid #F6F7F8',
-                minHeight: isMobile ? 'auto' : '84px',
-                background: isChecked ? '#FFF5F2' : 'white',
+                display: 'flex',
+                gap: '12px',
+                padding: '12px',
+                backgroundColor: isChecked ? '#FFF5F2' : 'white',
+                borderBottom: '1px solid #E5E5E5',
                 borderLeft: isChecked ? '3px solid #FB4F14' : 'none',
-                gap: isMobile ? '12px' : '0'
+                alignItems: 'flex-start'
               }}
             >
-              {/* Checkbox */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: isMobile ? 'flex-start' : 'center',
-                order: isMobile ? '1' : 'unset'
-              }}>
-                <div
-                  onClick={() => toggleItemSelection(item.id)}
-                  style={{
-                    width: isMobile ? '24px' : '20px',
-                    height: isMobile ? '24px' : '20px',
-                    border: isChecked ? 'none' : '2px solid #002244',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    background: isChecked ? '#FB4F14' : 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontSize: isMobile ? '16px' : '14px',
-                    minHeight: isMobile ? '44px' : 'auto',
-                    minWidth: isMobile ? '44px' : 'auto',
-                    padding: isMobile ? '10px' : '0'
-                  }}
-                >
-                  {isChecked && '✓'}
-                </div>
-              </div>
+              {/* Left: Checkbox */}
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={() => toggleItemSelection(item.id)}
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  marginTop: '20px', // Align with product image center
+                  flexShrink: 0,
+                  cursor: 'pointer'
+                }}
+              />
 
-              {/* Product Info with orange badge as 3rd line */}
+              {/* Center: Product Info */}
               <div style={{
+                flex: 1,
                 display: 'flex',
-                alignItems: isMobile ? 'flex-start' : 'center',
-                gap: isMobile ? '12px' : '16px',
-                order: isMobile ? '2' : 'unset',
-                flex: isMobile ? '1' : 'unset'
+                flexDirection: 'column',
+                gap: '12px'
               }}>
-                <img
-                  src={getProductImage(item)}
-                  alt={item.productName || item.name}
-                  style={{
-                    width: isMobile ? '80px' : '64px',
-                    height: isMobile ? '80px' : '64px',
-                    borderRadius: '8px',
-                    objectFit: 'cover',
-                    border: '2px solid #002244',
-                    flexShrink: 0
-                  }}
-                />
+                {/* Top Row: Image and Details */}
                 <div style={{
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: isMobile ? '4px' : '2px',
-                  flex: 1,
-                  minWidth: 0
+                  gap: '12px',
+                  alignItems: 'flex-start'
                 }}>
-                  <span style={{
-                    fontSize: isMobile ? '18px' : '16px',
-                    fontWeight: '600',
-                    color: '#002244',
-                    lineHeight: isMobile ? '1.3' : '1.2'
-                  }}>
-                    {formatProductName(item.productName || item.name || 'Unknown Item')}
-                    <span style={{
-                      display: 'inline-block',
-                      padding: isMobile ? '4px 8px' : '2px 6px',
-                      borderRadius: '4px',
-                      fontSize: isMobile ? '12px' : '10px',
-                      fontWeight: '600',
-                      marginLeft: isMobile ? '0' : '8px',
-                      marginTop: isMobile ? '4px' : '0',
-                      background: confidence.level === 'high' ? '#E8F5E9' :
-                                 confidence.level === 'medium' ? '#FFF5F2' : '#F0F4F8',
-                      color: confidence.level === 'high' ? '#0AAD0A' :
-                             confidence.level === 'medium' ? '#FB4F14' : '#002244'
-                    }}>
-                      {confidence.value}% match
-                    </span>
-                  </span>
-                  <span style={{
-                    fontSize: isMobile ? '15px' : '13px',
-                    color: '#666',
-                    lineHeight: isMobile ? '1.4' : '1.2'
-                  }}>
-                    {getCategory(item)} • {item.brand ? formatProductName(item.brand) : 'Generic'}
-                  </span>
-                  <div style={{ marginTop: isMobile ? '6px' : '2px' }}>
-                    <span style={{
-                      background: '#FB4F14',
-                      color: 'white',
-                      padding: isMobile ? '6px 12px' : '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: isMobile ? '14px' : '12px',
-                      fontWeight: '600',
-                      whiteSpace: 'nowrap',
-                      display: 'inline-block'
-                    }}>
-                      {formatUnitDisplay(item)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quantity Controls */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: isMobile ? 'space-between' : 'center',
-                order: isMobile ? '3' : 'unset',
-                gap: isMobile ? '16px' : '0'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: isMobile ? '12px' : '8px',
-                  background: '#F0F4F8',
-                  borderRadius: '8px',
-                  padding: isMobile ? '8px' : '4px',
-                  border: '1px solid #002244'
-                }}>
-                  <button
-                    onClick={() => updateQuantity(item.id, -1)}
+                  <img
+                    src={getProductImage(item)}
+                    alt={item.productName || item.name}
                     style={{
-                      width: isMobile ? '44px' : '28px',
-                      height: isMobile ? '44px' : '28px',
-                      border: '1px solid #002244',
-                      background: 'white',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#002244',
-                      fontWeight: '600',
-                      fontSize: isMobile ? '18px' : '14px'
-                    }}
-                  >
-                    -
-                  </button>
-                  <input
-                    type="text"
-                    value={item.quantity || 1}
-                    onChange={(e) => setQuantity(item.id, e.target.value)}
-                    style={{
-                      width: isMobile ? '50px' : '40px',
-                      textAlign: 'center',
-                      border: 'none',
-                      background: 'transparent',
-                      fontWeight: '600',
-                      fontSize: isMobile ? '18px' : '14px',
-                      color: '#002244',
-                      minHeight: isMobile ? '44px' : 'auto'
+                      width: '60px',
+                      height: '60px',
+                      borderRadius: '8px',
+                      objectFit: 'cover',
+                      backgroundColor: '#F5F5F5',
+                      flexShrink: 0
                     }}
                   />
-                  <button
-                    onClick={() => updateQuantity(item.id, 1)}
-                    style={{
-                      width: isMobile ? '44px' : '28px',
-                      height: isMobile ? '44px' : '28px',
-                      border: '1px solid #002244',
-                      background: 'white',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
+                  <div style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    <div style={{
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: '#002244',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#002244',
-                      fontWeight: '600',
-                      fontSize: isMobile ? '18px' : '14px'
-                    }}
-                  >
-                    +
-                  </button>
+                      gap: '8px',
+                      flexWrap: 'wrap'
+                    }}>
+                      {formatProductName(item.productName || item.name || 'Unknown Item')}
+                      <span style={{
+                        fontSize: '12px',
+                        color: '#FB4F14',
+                        fontWeight: '500',
+                        backgroundColor: '#FFF5F2',
+                        padding: '2px 6px',
+                        borderRadius: '4px'
+                      }}>
+                        {confidence.value}% match
+                      </span>
+                    </div>
+                    <div style={{
+                      fontSize: '14px',
+                      color: '#666'
+                    }}>
+                      {getCategory(item)} • {item.brand ? formatProductName(item.brand) : 'Generic'}
+                    </div>
+                    {formatUnitDisplay(item) && (
+                      <span style={{
+                        display: 'inline-block',
+                        backgroundColor: '#FB4F14',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        marginTop: '4px',
+                        width: 'fit-content'
+                      }}>
+                        {formatUnitDisplay(item)}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Price */}
-              <div
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onShowPriceHistory && onShowPriceHistory(item);
-                }}
-                style={{
-                  fontSize: isMobile ? '20px' : '18px',
-                  fontWeight: '700',
-                  color: '#002244',
-                  textAlign: isMobile ? 'center' : 'right',
-                  cursor: 'pointer',
-                  pointerEvents: 'auto',
-                  zIndex: 10,
-                  position: 'relative',
-                  padding: isMobile ? '12px 16px' : '4px 8px',
-                  borderRadius: '4px',
-                  transition: 'background-color 0.2s',
-                  order: isMobile ? '4' : 'unset',
-                  minHeight: isMobile ? '44px' : 'auto',
+                {/* Bottom Row: Quantity and Price */}
+                <div style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: isMobile ? 'center' : 'flex-end'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#E8F5E9';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                }}
-                title="Click to see price comparison from all vendors"
-              >
-                ${((parseFloat(item.price) || 0) * (item.quantity || 1)).toFixed(2)}
-                <span style={{
-                  fontSize: isMobile ? '14px' : '10px',
-                  verticalAlign: 'super',
-                  marginLeft: '4px'
-                }}>📊</span>
-              </div>
-
-              {/* Actions */}
-              <div style={{
-                display: 'flex',
-                gap: '8px',
-                justifyContent: isMobile ? 'flex-end' : 'center',
-                order: isMobile ? '5' : 'unset',
-                alignItems: 'center'
-              }}>
-                <button
-                  onClick={() => deleteSingleItem(item.id)}
-                  style={{
-                    width: isMobile ? '44px' : '32px',
-                    height: isMobile ? '44px' : '32px',
-                    border: '2px solid #002244',
-                    background: 'white',
-                    cursor: 'pointer',
-                    borderRadius: '4px',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#72767E',
-                    fontSize: isMobile ? '20px' : '18px',
-                    transition: 'all 0.2s',
-                    minWidth: isMobile ? '44px' : 'auto',
-                    minHeight: isMobile ? '44px' : 'auto'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#FFF0F0';
-                    e.currentTarget.style.borderColor = '#D32F2F';
-                    e.currentTarget.style.color = '#D32F2F';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'white';
-                    e.currentTarget.style.borderColor = '#002244';
-                    e.currentTarget.style.color = '#72767E';
-                  }}
-                >
-                  🗑️
-                </button>
+                    gap: '4px',
+                    backgroundColor: '#F5F5F5',
+                    borderRadius: '8px',
+                    padding: '2px'
+                  }}>
+                    <button
+                      onClick={() => updateQuantity(item.id, -1)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        border: 'none',
+                        backgroundColor: 'white',
+                        borderRadius: '6px',
+                        fontSize: '18px',
+                        fontWeight: '600',
+                        color: '#002244',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background 0.2s'
+                      }}
+                    >
+                      −
+                    </button>
+                    <input
+                      type="text"
+                      value={item.quantity || 1}
+                      onChange={(e) => setQuantity(item.id, e.target.value)}
+                      style={{
+                        minWidth: '40px',
+                        textAlign: 'center',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#002244',
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        padding: '4px'
+                      }}
+                    />
+                    <button
+                      onClick={() => updateQuantity(item.id, 1)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        border: 'none',
+                        backgroundColor: 'white',
+                        borderRadius: '6px',
+                        fontSize: '18px',
+                        fontWeight: '600',
+                        color: '#002244',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background 0.2s'
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onShowPriceHistory && onShowPriceHistory(item);
+                      }}
+                      style={{
+                        fontSize: '18px',
+                        fontWeight: '700',
+                        color: '#002244',
+                        cursor: 'pointer'
+                      }}
+                      title="Click to see price comparison from all vendors"
+                    >
+                      ${((parseFloat(item.price) || 0) * (item.quantity || 1)).toFixed(2)} 📊
+                    </div>
+                    <button
+                      onClick={() => deleteSingleItem(item.id)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        border: '2px solid #E0E0E0',
+                        background: 'white',
+                        cursor: 'pointer',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '14px',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#FFF0F0';
+                        e.currentTarget.style.borderColor = '#D32F2F';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'white';
+                        e.currentTarget.style.borderColor = '#E0E0E0';
+                      }}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           );

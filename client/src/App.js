@@ -732,14 +732,6 @@ function AppContent({
       {/* Footer - appears on home page only */}
       <Footer onViewChange={setCurrentView} currentView={currentView} />
       
-      {/* Sync Status Indicator */}
-      {currentUser && (
-        <div className={`sync-indicator sync-${syncStatus}`}>
-          {syncStatus === 'syncing' && '🔄 Syncing...'}
-          {syncStatus === 'synced' && '✅ Synced'}
-          {syncStatus === 'error' && '⚠️ Sync Error'}
-        </div>
-      )}
     </div>
   );
 }
