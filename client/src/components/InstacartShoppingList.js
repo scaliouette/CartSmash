@@ -66,16 +66,6 @@ const InstacartShoppingList = ({
   const [currentZipCode, setCurrentZipCode] = useState(userZipCode);
   const dropdownRef = useRef(null);
 
-  const stores = [
-    { value: 'grocery-outlet', label: 'Grocery Outlet' },
-    { value: 'kroger', label: 'Kroger' },
-    { value: 'safeway', label: 'Safeway' },
-    { value: 'whole-foods', label: 'Whole Foods' },
-    { value: 'trader-joes', label: "Trader Joe's" },
-    { value: 'target', label: 'Target' },
-    { value: 'walmart', label: 'Walmart' },
-    { value: 'costco', label: 'Costco' }
-  ];
 
   // Sync local items with parent
   useEffect(() => {
@@ -133,15 +123,9 @@ const InstacartShoppingList = ({
         setRetailers(sortedRetailers);
         console.log(`✅ Loaded ${sortedRetailers.length} retailers, sorted by lowest prices`);
 
-        // Auto-select Safeway if available, otherwise the lowest-priced retailer
+        // Auto-select the first retailer (lowest-priced) if none is selected
         if (!selectedRetailerId && sortedRetailers.length > 0) {
-          // Try to find Safeway first
-          const safeway = sortedRetailers.find(r =>
-            r.name?.toLowerCase().includes('safeway') ||
-            r.retailer_key?.includes('safeway')
-          );
-
-          const defaultRetailer = safeway || sortedRetailers[0];
+          const defaultRetailer = sortedRetailers[0];
           const defaultRetailerId = defaultRetailer.id || defaultRetailer.retailer_key;
           setSelectedRetailerId(defaultRetailerId);
           console.log(`🎯 Auto-selected retailer: ${defaultRetailer.name} (${defaultRetailerId})`);
@@ -501,7 +485,7 @@ const InstacartShoppingList = ({
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                   <span style={{ fontSize: '16px', fontWeight: '600' }}>
-                    {retailerName || 'Safeway'}
+                    {retailerName || 'Choose Your Store'}
                   </span>
                   <span style={{
                     fontSize: '12px',
@@ -892,7 +876,7 @@ const InstacartShoppingList = ({
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', color: '#002244', fontWeight: '600' }}>Sort by:</span>
+            <span style={{ fontSize: '16px', color: '#002244' }}>↕️</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -914,7 +898,7 @@ const InstacartShoppingList = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', color: '#002244', fontWeight: '600' }}>List Option:</span>
+            <span style={{ fontSize: '16px', color: '#002244' }}>⚙️</span>
             <select
               value={filterBy}
               onChange={(e) => setFilterBy(e.target.value)}
