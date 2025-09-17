@@ -971,8 +971,9 @@
   .draft-banner-actions button {
     flex: 1;
   }
+}
 
-  /* Fix Recipe Manager Modal Display */
+/* Fix Recipe Manager Modal Display */
 .recipe-manager-modal {
   max-width: 800px !important;
   width: 90% !important;

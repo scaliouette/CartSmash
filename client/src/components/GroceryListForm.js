@@ -4000,87 +4000,132 @@ Return as JSON with this structure:
             )}
           </div>
 
-          {/* Settings */}
-          <div style={styles.settings}>
-            {/* Merge/Replace Toggle */}
-            <div style={styles.settingGroup}>
-              <label style={styles.settingLabel}>List Option:</label>
-              <div style={styles.toggleButtons}>
-                <button
-                  onClick={() => setMergeCart(true)}
-                  style={{
-                    ...styles.toggleBtn,
-                    ...(mergeCart ? styles.toggleActive : {})
-                  }}
-                  title={`Add to existing ${currentCart.length} items`}
+          {/* Responsive Controls Section */}
+          {isMobile ? (
+            // Minimal Version for Mobile
+            <div style={styles.controlsWrapperMobile}>
+              <div style={styles.minimalControlsBar}>
+                <select
+                  value={mergeCart ? 'merge' : 'replace'}
+                  onChange={(e) => setMergeCart(e.target.value === 'merge')}
+                  style={styles.minimalSelect}
+                  title="Choose how to handle cart items"
                 >
-                  🔀 Merge
-                </button>
-                <button
-                  onClick={() => setMergeCart(false)}
-                  style={{
-                    ...styles.toggleBtn,
-                    ...(!mergeCart ? styles.toggleActive : {})
-                  }}
-                  title="Replace entire cart with new items"
-                >
-                  🔥 Replace
-                </button>
-              </div>
-            </div>
+                  <option value="merge">➕ Merge with cart</option>
+                  <option value="replace">🔄 Replace cart</option>
+                </select>
 
-            {/* Ingredient Style */}
-            <div style={styles.settingGroup}>
-              <label style={styles.settingLabel}>Ingredients:</label>
-              <div style={styles.toggleButtons}>
-                <button
-                  onClick={() => setIngredientStyle('basic')}
-                  style={{
-                    ...styles.toggleBtn,
-                    ...(ingredientStyle === 'basic' ? styles.toggleActive : {})
-                  }}
+                <select
+                  value={ingredientStyle}
+                  onChange={(e) => setIngredientStyle(e.target.value)}
+                  style={styles.minimalSelect}
+                  title="Choose ingredient style"
                 >
-                  🏪 Basic
-                </button>
+                  <option value="basic">🏪 Basic items</option>
+                  <option value="homemade">🌱 Fresh items</option>
+                </select>
+
                 <button
-                  onClick={() => setIngredientStyle('homemade')}
-                  style={{
-                    ...styles.toggleBtn,
-                    ...(ingredientStyle === 'homemade' ? styles.toggleActive : {})
+                  style={styles.minimalClearBtn}
+                  onClick={() => {
+                    setInputText('');
+                    setCurrentCart([]);
+                    setError('');
+                    setShowResults(false);
                   }}
+                  title="Clear all content"
                 >
-                  🍳 Homemade
-                </button>
-              </div>
-            </div>
-            
-            {/* AI Model */}
-            {/*
-            <div style={styles.settingGroup}>
-              <label style={styles.settingLabel}>AI:</label>
-              <div style={styles.toggleButtons}>
-                <button
-                  onClick={() => setSelectedAI('claude')}
-                  style={{
-                    ...styles.toggleBtn,
-                    ...(selectedAI === 'claude' ? styles.toggleActive : {})
-                  }}
-                >
-                  🤖 Claude
-                </button>
-                <button
-                  onClick={() => setSelectedAI('chatgpt')}
-                  style={{
-                    ...styles.toggleBtn,
-                    ...(selectedAI === 'chatgpt' ? styles.toggleActive : {})
-                  }}
-                >
-                  🧠 GPT
+                  ×
                 </button>
               </div>
             </div>
-            */}
-          </div>
+          ) : (
+            // Full Version for Desktop/Tablet
+            <div style={styles.controlsWrapper}>
+              {/* Top action bar */}
+              <div style={styles.actionBar}>
+                <button
+                  style={styles.controlActionBtn}
+                  onClick={() => {
+                    setInputText('');
+                    setCurrentCart([]);
+                    setError('');
+                    setShowResults(false);
+                  }}
+                  title="Clear all content"
+                >
+                  <span>🗑️</span>
+                  <span>Clear</span>
+                </button>
+                <button
+                  style={styles.controlActionBtn}
+                  onClick={() => {
+                    // Toggle settings or preferences could be added here
+                    alert('Settings feature coming soon!');
+                  }}
+                  title="Open settings"
+                >
+                  <span>⚙️</span>
+                  <span>Settings</span>
+                </button>
+              </div>
+
+              {/* Toggle controls */}
+              <div style={isMobile || isTablet ? styles.toggleRowMobile : styles.toggleRow}>
+                <div style={isMobile ? styles.toggleGroupMobile : styles.toggleGroup}>
+                  <span style={isMobile ? styles.controlLabelMobile : styles.controlLabel}>Mode:</span>
+                  <div style={styles.toggleButtons}>
+                    <button
+                      onClick={() => setMergeCart(true)}
+                      style={{
+                        ...styles.toggle,
+                        ...(mergeCart ? styles.toggleActive : {})
+                      }}
+                      title={`Add to existing ${currentCart.length} items`}
+                    >
+                      Merge
+                    </button>
+                    <button
+                      onClick={() => setMergeCart(false)}
+                      style={{
+                        ...styles.toggle,
+                        ...(!mergeCart ? styles.toggleActive : {})
+                      }}
+                      title="Replace entire cart with new items"
+                    >
+                      Replace
+                    </button>
+                  </div>
+                </div>
+
+                <div style={isMobile ? styles.toggleGroupMobile : styles.toggleGroup}>
+                  <span style={isMobile ? styles.controlLabelMobile : styles.controlLabel}>Type:</span>
+                  <div style={styles.toggleButtons}>
+                    <button
+                      onClick={() => setIngredientStyle('basic')}
+                      style={{
+                        ...styles.toggle,
+                        ...(ingredientStyle === 'basic' ? styles.toggleActive : {})
+                      }}
+                      title="Use convenient store-bought ingredients"
+                    >
+                      Basic
+                    </button>
+                    <button
+                      onClick={() => setIngredientStyle('homemade')}
+                      style={{
+                        ...styles.toggle,
+                        ...(ingredientStyle === 'homemade' ? styles.toggleActive : {})
+                      }}
+                      title="Use fresh, whole ingredients"
+                    >
+                      Fresh
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Main Input Area */}
@@ -4566,42 +4611,77 @@ const styles = {
     cursor: 'not-allowed'
   },
   
-  settings: {
-    display: 'flex',
-    gap: '20px',
-    alignItems: 'center'
+  // Refined Controls Section Styles
+  controlsWrapper: {
+    backgroundColor: '#F8F9FA',
+    borderBottom: '2px solid #E0E0E0',
+    padding: '12px 16px',
+    marginBottom: '20px'
   },
-  
-  settingGroup: {
+
+  actionBar: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '12px'
+  },
+
+  controlActionBtn: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    padding: '8px',
+    backgroundColor: 'white',
+    border: '1px solid #D0D0D0',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#002244',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    minHeight: '44px'
+  },
+
+  toggleRow: {
+    display: 'flex',
+    gap: '16px'
+  },
+
+  toggleGroup: {
+    flex: 1,
     display: 'flex',
     alignItems: 'center',
     gap: '8px'
   },
-  
-  settingLabel: {
+
+  controlLabel: {
     fontSize: '13px',
     fontWeight: '600',
-    color: '#002244'
+    color: '#666',
+    minWidth: '40px'
   },
-  
+
   toggleButtons: {
+    flex: 1,
     display: 'flex',
     backgroundColor: 'white',
     borderRadius: '6px',
     padding: '2px',
-    border: '2px solid #002244'
+    border: '1px solid #D0D0D0'
   },
-  
-  toggleBtn: {
+
+  toggle: {
+    flex: 1,
     padding: '6px 12px',
     border: 'none',
     borderRadius: '4px',
-    cursor: 'pointer',
     fontSize: '13px',
+    fontWeight: '500',
     backgroundColor: 'transparent',
-    color: '#002244',
-    transition: 'all 0.2s',
-    fontWeight: '500'
+    color: '#666',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
   },
   
   toggleActive: {
@@ -5991,6 +6071,59 @@ const styles = {
     display: '-webkit-box',
     WebkitLineClamp: 1,
     WebkitBoxOrient: 'vertical'
+  },
+
+  // Mobile responsive controls
+  controlsWrapperMobile: {
+    backgroundColor: '#F8F9FA',
+    borderBottom: '1px solid #E0E0E0',
+    padding: '12px'
+  },
+
+  minimalControlsBar: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center'
+  },
+
+  minimalSelect: {
+    flex: 1,
+    padding: '8px',
+    border: '1px solid #D0D0D0',
+    borderRadius: '6px',
+    fontSize: '13px',
+    backgroundColor: 'white',
+    minHeight: '44px'
+  },
+
+  minimalClearBtn: {
+    width: '44px',
+    height: '44px',
+    backgroundColor: '#DC3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '20px',
+    cursor: 'pointer',
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  // Mobile responsive adjustments
+  toggleRowMobile: {
+    flexDirection: 'column',
+    gap: '8px'
+  },
+
+  toggleGroupMobile: {
+    width: '100%'
+  },
+
+  controlLabelMobile: {
+    minWidth: '50px',
+    fontSize: '12px'
   }
 };
 

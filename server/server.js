@@ -185,10 +185,12 @@ initializeFirebase();
 // Import MongoDB-based token store
 const tokenStore = require('./services/TokenStore');
 
-// Security Middleware
+// Security Middleware - Enhanced for CORS compatibility
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false,
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
@@ -306,6 +308,38 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Additional CORS header enforcement for production deployment
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  console.log('\n🔧 CORS Header Enforcement:');
+  console.log('- Origin:', origin);
+  console.log('- Method:', req.method);
+  console.log('- URL:', req.url);
+
+  // Ensure CORS headers are always present for allowed origins
+  const allowedOrigins = [
+    'https://cart-smash.vercel.app',
+    'https://cartsmash.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    process.env.CLIENT_URL
+  ].filter(Boolean);
+
+  const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+
+  if (!origin || allowedOrigins.includes(origin) || vercelPattern.test(origin)) {
+    // Set CORS headers explicitly for allowed origins
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+    res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization,X-API-Key,User-ID,user-id');
+    res.header('Access-Control-Max-Age', '86400');
+    console.log('✅ CORS: Headers enforced for origin:', origin);
+  }
+
+  next();
+});
 
 // Enhanced request logging for CORS debugging
 app.use((req, res, next) => {

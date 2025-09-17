@@ -526,7 +526,8 @@
       "Bash(del test-products-link-alternatives.js)",
       "Bash(REACT_APP_API_URL=http://localhost:3088 PORT=3089 npm start)",
       "Bash(start http://localhost:3089)",
-      "Bash(NODE_ENV=development PORT=3090 npm start)"
+      "Bash(NODE_ENV=development PORT=3090 npm start)",
+      "Bash(NODE_ENV=development PORT=3091 npm start)"
     ],
     "deny": [],
     "ask": []
