@@ -110,7 +110,7 @@ function updatePackageJson() {
       
       // Update core fields
       pkg.name = name;
-      pkg.description = pkg.description?.replace(/HulkCart/g, 'Cart Smash') || 'Cart Smash - AI-powered grocery list destroyer';
+      pkg.description = pkg.description?.replace(/HulkCart/g, 'Cart Smash') || 'Compare. Save. Smile.';
       
       if (pkg.repository?.url) {
         pkg.repository.url = pkg.repository.url.replace(/hulkcart/g, 'cartsmash');
@@ -223,8 +223,8 @@ function updateHtmlMeta() {
   let html = fs.readFileSync(htmlPath, 'utf8');
   
   // Update title and meta tags
-  html = html.replace(/<title>.*<\/title>/, '<title>Cart Smash - AI-Powered Grocery List Destroyer</title>');
-  html = html.replace(/content=".*Instacart.*"/, 'content="Cart Smash - AI-powered grocery list destroyer. Smash through your shopping lists with superhuman efficiency!"');
+  html = html.replace(/<title>.*<\/title>/, '<title>Compare. Save. Smile.</title>');
+  html = html.replace(/content=".*Instacart.*"/, 'content="Compare. Save. Smile.. Smash through your shopping lists with superhuman efficiency!"');
   html = html.replace(/content="#00D084"/, 'content="#FF6B35"');
   
   fs.writeFileSync(htmlPath, html);

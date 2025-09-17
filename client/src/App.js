@@ -739,38 +739,260 @@ function AppContent({
 // Features Section Component
 function FeaturesSection() {
   return (
-    <section className="features-section">
-      <div className="features-grid">
-        <div className="feature-card">
-          <div className="feature-icon">🤖</div>
-          <h3 className="feature-title">AI-Powered Parsing</h3>
-          <p className="feature-description">
-            Intelligent product detection with smart unit recognition
+    <section style={{
+      background: 'linear-gradient(135deg, #f9fafb 0%, #ffffff 100%)',
+      padding: '2.5rem 1rem 3rem',
+      marginTop: '1rem',
+      borderTop: '1px solid #e5e7eb'
+    }}>
+      <div style={{
+        maxWidth: '800px',
+        margin: '0 auto'
+      }}>
+        <div style={{
+          textAlign: 'center',
+          marginBottom: '2rem'
+        }}>
+          <h2 style={{
+            fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+            fontWeight: '700',
+            background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            margin: '0 0 0.5rem 0'
+          }}>
+            Why Choose CARTSMASH?
+          </h2>
+          <p style={{
+            color: '#6b7280',
+            fontSize: 'clamp(0.9rem, 2.5vw, 1rem)',
+            margin: 0
+          }}>
+            Transform your grocery shopping with AI-powered intelligence
           </p>
         </div>
-        
-        <div className="feature-card">
-          <div className="feature-icon">☁️</div>
-          <h3 className="feature-title">Cloud Sync</h3>
-          <p className="feature-description">
-            Your data syncs automatically across all devices
-          </p>
-        </div>
-        
-        <div className="feature-card">
-          <div className="feature-icon">📝</div>
-          <h3 className="feature-title">Recipe Manager</h3>
-          <p className="feature-description">
-            Save and reuse your favorite recipes instantly
-          </p>
-        </div>
-        
-        <div className="feature-card">
-          <div className="feature-icon">✨</div>
-          <h3 className="feature-title">Smart Validation</h3>
-          <p className="feature-description">
-            Review and validate items with confidence scoring
-          </p>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: 'clamp(1rem, 3vw, 1.5rem)',
+          marginBottom: '1rem'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '1rem',
+            padding: 'clamp(1.25rem, 4vw, 1.75rem)',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)';
+          }}>
+            <div style={{
+              fontSize: 'clamp(2rem, 6vw, 2.5rem)',
+              marginBottom: 'clamp(0.75rem, 2vw, 1rem)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 'clamp(3rem, 8vw, 4rem)',
+              height: 'clamp(3rem, 8vw, 4rem)',
+              background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
+              borderRadius: '50%',
+              margin: '0 auto clamp(0.75rem, 2vw, 1rem)',
+              filter: 'drop-shadow(0 4px 6px rgba(255, 107, 53, 0.2))'
+            }}>
+              🤖
+            </div>
+            <h3 style={{
+              fontSize: 'clamp(1rem, 3vw, 1.25rem)',
+              fontWeight: '600',
+              color: '#111827',
+              margin: '0 0 clamp(0.5rem, 1.5vw, 0.75rem) 0',
+              textAlign: 'center'
+            }}>
+              AI-Powered Parsing
+            </h3>
+            <p style={{
+              fontSize: 'clamp(0.8rem, 2.2vw, 0.9rem)',
+              color: '#6b7280',
+              lineHeight: '1.5',
+              margin: 0,
+              textAlign: 'center'
+            }}>
+              Smart product detection with unit recognition
+            </p>
+          </div>
+
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '1rem',
+            padding: 'clamp(1.25rem, 4vw, 1.75rem)',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)';
+          }}>
+            <div style={{
+              fontSize: 'clamp(2rem, 6vw, 2.5rem)',
+              marginBottom: 'clamp(0.75rem, 2vw, 1rem)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 'clamp(3rem, 8vw, 4rem)',
+              height: 'clamp(3rem, 8vw, 4rem)',
+              background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+              borderRadius: '50%',
+              margin: '0 auto clamp(0.75rem, 2vw, 1rem)',
+              filter: 'drop-shadow(0 4px 6px rgba(59, 130, 246, 0.2))'
+            }}>
+              ☁️
+            </div>
+            <h3 style={{
+              fontSize: 'clamp(1rem, 3vw, 1.25rem)',
+              fontWeight: '600',
+              color: '#111827',
+              margin: '0 0 clamp(0.5rem, 1.5vw, 0.75rem) 0',
+              textAlign: 'center'
+            }}>
+              Cloud Sync
+            </h3>
+            <p style={{
+              fontSize: 'clamp(0.8rem, 2.2vw, 0.9rem)',
+              color: '#6b7280',
+              lineHeight: '1.5',
+              margin: 0,
+              textAlign: 'center'
+            }}>
+              Automatic sync across all your devices
+            </p>
+          </div>
+
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '1rem',
+            padding: 'clamp(1.25rem, 4vw, 1.75rem)',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)';
+          }}>
+            <div style={{
+              fontSize: 'clamp(2rem, 6vw, 2.5rem)',
+              marginBottom: 'clamp(0.75rem, 2vw, 1rem)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 'clamp(3rem, 8vw, 4rem)',
+              height: 'clamp(3rem, 8vw, 4rem)',
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              borderRadius: '50%',
+              margin: '0 auto clamp(0.75rem, 2vw, 1rem)',
+              filter: 'drop-shadow(0 4px 6px rgba(16, 185, 129, 0.2))'
+            }}>
+              📝
+            </div>
+            <h3 style={{
+              fontSize: 'clamp(1rem, 3vw, 1.25rem)',
+              fontWeight: '600',
+              color: '#111827',
+              margin: '0 0 clamp(0.5rem, 1.5vw, 0.75rem) 0',
+              textAlign: 'center'
+            }}>
+              Recipe Manager
+            </h3>
+            <p style={{
+              fontSize: 'clamp(0.8rem, 2.2vw, 0.9rem)',
+              color: '#6b7280',
+              lineHeight: '1.5',
+              margin: 0,
+              textAlign: 'center'
+            }}>
+              Save and reuse favorite recipes instantly
+            </p>
+          </div>
+
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '1rem',
+            padding: 'clamp(1.25rem, 4vw, 1.75rem)',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)';
+          }}>
+            <div style={{
+              fontSize: 'clamp(2rem, 6vw, 2.5rem)',
+              marginBottom: 'clamp(0.75rem, 2vw, 1rem)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 'clamp(3rem, 8vw, 4rem)',
+              height: 'clamp(3rem, 8vw, 4rem)',
+              background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+              borderRadius: '50%',
+              margin: '0 auto clamp(0.75rem, 2vw, 1rem)',
+              filter: 'drop-shadow(0 4px 6px rgba(139, 92, 246, 0.2))'
+            }}>
+              ✨
+            </div>
+            <h3 style={{
+              fontSize: 'clamp(1rem, 3vw, 1.25rem)',
+              fontWeight: '600',
+              color: '#111827',
+              margin: '0 0 clamp(0.5rem, 1.5vw, 0.75rem) 0',
+              textAlign: 'center'
+            }}>
+              Smart Validation
+            </h3>
+            <p style={{
+              fontSize: 'clamp(0.8rem, 2.2vw, 0.9rem)',
+              color: '#6b7280',
+              lineHeight: '1.5',
+              margin: 0,
+              textAlign: 'center'
+            }}>
+              Review items with confidence scoring
+            </p>
+          </div>
         </div>
       </div>
     </section>

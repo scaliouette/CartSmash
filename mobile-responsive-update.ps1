@@ -311,8 +311,8 @@ if (Test-Path $HtmlFile) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>Cart Smash - AI-Powered Grocery List Destroyer</title>
-    <meta name="description" content="Cart Smash - AI-powered grocery list destroyer. Smash through your shopping lists with superhuman efficiency!">
+    <title>Compare. Save. Smile.</title>
+    <meta name="description" content="Compare. Save. Smile.. Smash through your shopping lists with superhuman efficiency!">
     
     <!-- Theme colors -->
     <meta name="theme-color" content="#FF6B35">
@@ -334,14 +334,14 @@ if (Test-Path $HtmlFile) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     
     <!-- Social sharing -->
-    <meta property="og:title" content="Cart Smash - AI-Powered Grocery List Destroyer">
+    <meta property="og:title" content="Compare. Save. Smile.">
     <meta property="og:description" content="Smash through your grocery lists with AI power! 🛒💥">
     <meta property="og:type" content="website">
     <meta property="og:image" content="%PUBLIC_URL%/cart-smash-social.png">
     
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Cart Smash - AI-Powered Grocery List Destroyer">
+    <meta name="twitter:title" content="Compare. Save. Smile.">
     <meta name="twitter:description" content="Smash through your grocery lists with AI power! 🛒💥">
     
     <!-- Favicon -->
@@ -367,7 +367,7 @@ Write-Host "Creating PWA manifest..." -ForegroundColor Cyan
 $ManifestContent = @'
 {
   "short_name": "Cart Smash",
-  "name": "Cart Smash - AI-Powered Grocery List Destroyer",
+  "name": "Compare. Save. Smile.",
   "description": "Smash through your grocery lists with AI power!",
   "icons": [
     {
