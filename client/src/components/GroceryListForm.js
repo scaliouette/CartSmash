@@ -1,7 +1,7 @@
 // client/src/components/GroceryListForm.js - FIXED VERSION
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import ParsedResultsDisplay from './ParsedResultsDisplay';
+import InstacartShoppingList from './InstacartShoppingList';
 // eslint-disable-next-line no-unused-vars
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
@@ -3831,25 +3831,19 @@ Or paste any grocery list directly!"
 
       {showResults && currentCart.length > 0 && (
         <>
-          <ParsedResultsDisplay
+          <InstacartShoppingList
             items={currentCart}
-            currentUser={currentUser}
             onItemsChange={handleItemsChange}
-            onDeleteItem={handleDeleteItem} // Add dedicated delete handler
-            parsingStats={parsingStats}
-            savedRecipes={savedRecipes}
-            setSavedRecipes={setSavedRecipes}
-            saveCartAsList={saveCartAsList}
-            // Pass a prop to hide the export button in ParsedResultsDisplay
-            hideExportButton={true}
-            // Pass user's retailer preference and zip code for catalog searches
-            selectedRetailer={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'kroger'}
-            userZipCode={currentUser?.zipCode || currentUser?.postalCode || '95670'}
-            // Price history integration
+            onDeleteItem={handleDeleteItem}
+            onCheckout={() => setShowInstacartCheckout(true)}
+            onSaveList={() => saveCartAsList('Quick Save', currentCart)}
+            onValidateItems={() => setShowValidator(true)}
             onShowPriceHistory={(product) => {
               setSelectedProductForPrice(product);
               setShowPriceHistory(true);
             }}
+            userZipCode={currentUser?.zipCode || currentUser?.postalCode || '95670'}
+            selectedRetailer={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'kroger'}
           />
           
 
