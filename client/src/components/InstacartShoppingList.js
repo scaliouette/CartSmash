@@ -64,7 +64,9 @@ const InstacartShoppingList = ({
   const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState(false);
   const [isEditingZip, setIsEditingZip] = useState(false);
   const [currentZipCode, setCurrentZipCode] = useState(userZipCode);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const dropdownRef = useRef(null);
+  const buttonRef = useRef(null);
 
 
   // Sync local items with parent
@@ -513,7 +515,7 @@ const InstacartShoppingList = ({
               {/* Dropdown Menu */}
               {isStoreDropdownOpen && (
                 <div style={{
-                  position: 'absolute',
+                  position: 'fixed',
                   top: '100%',
                   left: 0,
                   right: 0,
@@ -522,7 +524,7 @@ const InstacartShoppingList = ({
                   border: '2px solid #002244',
                   borderRadius: '12px',
                   boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                  zIndex: 99998,
+                  zIndex: 999999,
                   minWidth: '380px',
                   maxHeight: '500px',
                   overflowY: 'auto'
