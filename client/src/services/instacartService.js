@@ -32,6 +32,29 @@ class InstacartService {
     };
   }
 
+  // Get default recipe image with reliable fallback
+  getDefaultRecipeImage() {
+    // For production environments, use a reliable placeholder service
+    if (process.env.NODE_ENV === 'production') {
+      return 'data:image/svg+xml;base64,' + btoa(`
+        <svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+          <rect width="400" height="300" fill="#FF6B35"/>
+          <text x="200" y="120" font-family="Arial, sans-serif" font-size="48" text-anchor="middle" fill="white">🍳</text>
+          <text x="200" y="200" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">Recipe</text>
+        </svg>
+      `.replace(/\s+/g, ' ').trim());
+    }
+
+    // For local development, try a simple fallback
+    return 'data:image/svg+xml;base64,' + btoa(`
+      <svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+        <rect width="400" height="300" fill="#FF6B35"/>
+        <text x="200" y="120" font-family="Arial, sans-serif" font-size="48" text-anchor="middle" fill="white">🍳</text>
+        <text x="200" y="200" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">Recipe</text>
+      </svg>
+    `.replace(/\s+/g, ' ').trim());
+  }
+
   // Find nearby retailers using backend API
   async getNearbyRetailers(zipCode = '95670') {
     console.log('🏪 InstacartService: Getting nearby retailers for', zipCode);
@@ -85,7 +108,7 @@ class InstacartService {
     try {
       const payload = {
         title: recipeData.title,
-        image_url: recipeData.imageUrl || 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop',
+        image_url: recipeData.imageUrl || this.getDefaultRecipeImage(),
         ingredients: recipeData.ingredients || [],
         instructions: recipeData.instructions || ['Enjoy your meal!'],
         landing_page_configuration: {
@@ -143,7 +166,7 @@ class InstacartService {
 
     const recipeData = {
       title: recipeTitle,
-      imageUrl: options.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=300&fit=crop',
+      imageUrl: options.imageUrl || this.getDefaultRecipeImage(),
       ingredients: ingredients,
       instructions: [
         'This is a grocery shopping list created with CartSmash.',

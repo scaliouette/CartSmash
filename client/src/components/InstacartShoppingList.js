@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import imageService, { formatProductName } from '../utils/imageService';
 
 const InstacartShoppingList = ({
   items = [],
@@ -51,6 +52,31 @@ const InstacartShoppingList = ({
     });
   };
 
+  // Handle select all toggle
+  const toggleSelectAll = () => {
+    if (selectedItems.size === localItems.length) {
+      // If all items are selected, deselect all
+      setSelectedItems(new Set());
+    } else {
+      // Select all items
+      setSelectedItems(new Set(localItems.map(item => item.id)));
+    }
+  };
+
+  // Handle delete selected items
+  const deleteSelectedItems = () => {
+    const updatedItems = localItems.filter(item => !selectedItems.has(item.id));
+    setLocalItems(updatedItems);
+    setSelectedItems(new Set());
+    if (onItemsChange) {
+      onItemsChange(updatedItems);
+    }
+  };
+
+  // Calculate if all items are selected
+  const allItemsSelected = localItems.length > 0 && selectedItems.size === localItems.length;
+  const someItemsSelected = selectedItems.size > 0;
+
   // Handle quantity change
   const updateQuantity = (itemId, delta) => {
     const updatedItems = localItems.map(item => {
@@ -89,19 +115,9 @@ const InstacartShoppingList = ({
     return item.category || 'Other';
   };
 
-  // Get product image placeholder based on category
+  // Get product image using the centralized image service
   const getProductImage = (item) => {
-    // Use data URLs for reliable placeholders
-    const categoryImages = {
-      'Pantry': 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#4CAF50"/><text x="24" y="30" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="white">P</text></svg>`),
-      'Produce': 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#8BC34A"/><text x="24" y="30" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="white">PR</text></svg>`),
-      'Dairy': 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#03A9F4"/><text x="24" y="30" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="white">D</text></svg>`),
-      'Meat': 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#F44336"/><text x="24" y="30" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="white">M</text></svg>`),
-      'Bakery': 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#FF9800"/><text x="24" y="30" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="white">B</text></svg>`),
-      'Other': 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#9E9E9E"/><text x="24" y="30" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="white">?</text></svg>`)
-    };
-
-    return item.imageUrl || categoryImages[getCategory(item)] || categoryImages.Other;
+    return imageService.getProductImage(item, { width: 48, height: 48 });
   };
 
   // Sort items
@@ -112,7 +128,7 @@ const InstacartShoppingList = ({
       case 'price':
         return (a.price || 0) - (b.price || 0);
       case 'alphabetical':
-        return (a.productName || '').localeCompare(b.productName || '');
+        return formatProductName(a.productName || '').localeCompare(formatProductName(b.productName || ''));
       case 'category':
         return getCategory(a).localeCompare(getCategory(b));
       default:
@@ -142,6 +158,19 @@ const InstacartShoppingList = ({
         </div>
 
         <div style={styles.controls}>
+          {someItemsSelected && (
+            <div style={styles.deleteControls}>
+              <span style={styles.selectedCount}>
+                {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
+              </span>
+              <button
+                style={styles.deleteButton}
+                onClick={deleteSelectedItems}
+              >
+                🗑️ Delete Selected
+              </button>
+            </div>
+          )}
           <div style={styles.controlGroup}>
             <span style={styles.controlLabel}>Sort by:</span>
             <select
@@ -198,7 +227,18 @@ const InstacartShoppingList = ({
       {/* Shopping List */}
       <div style={styles.shoppingList}>
         <div style={styles.listHeader}>
-          <div></div>
+          <div style={styles.selectAllWrapper}>
+            <div
+              style={{
+                ...styles.checkbox,
+                ...(allItemsSelected ? styles.checkboxChecked : {}),
+                ...(someItemsSelected && !allItemsSelected ? styles.checkboxIndeterminate : {})
+              }}
+              onClick={toggleSelectAll}
+            >
+              {allItemsSelected ? '✓' : (someItemsSelected ? '−' : '')}
+            </div>
+          </div>
           <div>Product Name</div>
           <div>Qty</div>
           <div>Items Needed</div>
@@ -228,18 +268,18 @@ const InstacartShoppingList = ({
 
             <div style={styles.productInfo}>
               <img
-                src={getProductImage(item)}
+                {...imageService.createImageWithFallback(
+                  getProductImage(item),
+                  imageService.getCategoryFromItem(item)
+                )}
                 alt={item.productName}
                 style={styles.productImage}
-                onError={(e) => {
-                  e.target.src = 'data:image/svg+xml;base64,' + btoa(`<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="#9E9E9E"/><text x="24" y="30" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="white">?</text></svg>`);
-                }}
               />
               <div style={styles.productDetails}>
-                <span style={styles.productName}>{item.productName}</span>
+                <span style={styles.productName}>{formatProductName(item.productName)}</span>
                 <span style={styles.productCategory}>
                   {getCategory(item)}
-                  {item.brand && ` • ${item.brand}`}
+                  {item.brand && ` • ${formatProductName(item.brand)}`}
                 </span>
               </div>
             </div>
@@ -519,7 +559,7 @@ const styles = {
     background: '#343538',
     color: 'white',
     display: 'grid',
-    gridTemplateColumns: '60px 1fr 120px 180px 100px 50px',
+    gridTemplateColumns: '60px 1fr 120px 200px 100px 50px',
     padding: '16px 20px',
     fontSize: '12px',
     fontWeight: '600',
@@ -530,7 +570,7 @@ const styles = {
 
   listItem: {
     display: 'grid',
-    gridTemplateColumns: '60px 1fr 120px 180px 100px 50px',
+    gridTemplateColumns: '60px 1fr 120px 200px 100px 50px',
     padding: '16px 20px',
     alignItems: 'center',
     borderBottom: '1px solid #F6F7F8',
@@ -645,7 +685,50 @@ const styles = {
     padding: '2px 8px',
     borderRadius: '4px',
     fontSize: '12px',
+    fontWeight: '600',
+    marginLeft: '4px'
+  },
+
+  selectAllWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  checkboxIndeterminate: {
+    background: '#0AAD0A',
+    borderColor: '#0AAD0A'
+  },
+
+  deleteControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    background: '#FFF3E0',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    border: '1px solid #FFB74D'
+  },
+
+  selectedCount: {
+    fontSize: '14px',
+    color: '#E65100',
     fontWeight: '600'
+  },
+
+  deleteButton: {
+    background: '#F44336',
+    color: 'white',
+    border: 'none',
+    padding: '6px 12px',
+    borderRadius: '6px',
+    fontSize: '12px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
   },
 
   price: {

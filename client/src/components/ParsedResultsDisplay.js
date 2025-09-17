@@ -1281,14 +1281,14 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
   // Get category-based thumbnail
   const getCategoryThumbnail = (category) => {
     const categoryImages = {
-      'produce': 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=100&h=100&fit=crop',
-      'dairy': 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=100&h=100&fit=crop',
-      'meat': 'https://images.unsplash.com/photo-1615485500704-8e990f9900f7?w=100&h=100&fit=crop',
-      'bakery': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=100&h=100&fit=crop',
-      'beverages': 'https://images.unsplash.com/photo-1623065422902-4fa88dc2584b?w=100&h=100&fit=crop',
-      'frozen': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop',
-      'snacks': 'https://images.unsplash.com/photo-1576618148400-f54bed99fcfd?w=100&h=100&fit=crop',
-      'default': 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=100&h=100&fit=crop'
+      'produce': 'data:image/svg+xml;base64,' + btoa(`<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#4CAF50"/><text x="50" y="45" font-family="Arial" font-size="24" text-anchor="middle" fill="white">🥬</text><text x="50" y="75" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="white">Produce</text></svg>`),
+      'dairy': 'data:image/svg+xml;base64,' + btoa(`<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#03A9F4"/><text x="50" y="45" font-family="Arial" font-size="24" text-anchor="middle" fill="white">🥛</text><text x="50" y="75" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="white">Dairy</text></svg>`),
+      'meat': 'data:image/svg+xml;base64,' + btoa(`<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#F44336"/><text x="50" y="45" font-family="Arial" font-size="24" text-anchor="middle" fill="white">🥩</text><text x="50" y="75" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="white">Meat</text></svg>`),
+      'bakery': 'data:image/svg+xml;base64,' + btoa(`<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#FF9800"/><text x="50" y="45" font-family="Arial" font-size="24" text-anchor="middle" fill="white">🍞</text><text x="50" y="75" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="white">Bakery</text></svg>`),
+      'beverages': 'data:image/svg+xml;base64,' + btoa(`<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#9C27B0"/><text x="50" y="45" font-family="Arial" font-size="24" text-anchor="middle" fill="white">🥤</text><text x="50" y="75" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="white">Drinks</text></svg>`),
+      'frozen': 'data:image/svg+xml;base64,' + btoa(`<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#00BCD4"/><text x="50" y="45" font-family="Arial" font-size="24" text-anchor="middle" fill="white">🧊</text><text x="50" y="75" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="white">Frozen</text></svg>`),
+      'snacks': 'data:image/svg+xml;base64,' + btoa(`<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#FFC107"/><text x="50" y="45" font-family="Arial" font-size="24" text-anchor="middle" fill="white">🍿</text><text x="50" y="75" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="white">Snacks</text></svg>`),
+      'default': 'data:image/svg+xml;base64,' + btoa(`<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#9E9E9E"/><text x="50" y="45" font-family="Arial" font-size="24" text-anchor="middle" fill="white">📦</text><text x="50" y="75" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="white">Item</text></svg>`)
     };
 
     return categoryImages[category?.toLowerCase()] || categoryImages.default;

@@ -8,6 +8,7 @@ import ProductValidator from './ProductValidator';
 import InstacartCheckoutUnified from './InstacartCheckoutUnified';
 import InstacartProductMatcher from './InstacartProductMatcher';
 import PriceHistory from './PriceHistory';
+import { formatProductName } from '../utils/imageService';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { ButtonSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
@@ -2769,7 +2770,7 @@ Return as JSON with this structure:
                         style={styles.itemCheckbox}
                       />
                       <div style={styles.itemDetails}>
-                        <div style={styles.itemName}>{item.productName}</div>
+                        <div style={styles.itemName}>{formatProductName(item.productName)}</div>
                         <div style={styles.itemInfo}>
                           Qty: {item.quantity}{item.size ? ` | ${item.size}` : item.unit !== 'each' ? ` ${item.unit}` : ''} | ${item.price ? item.price.toFixed(2) : 'N/A'}
                         </div>

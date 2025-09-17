@@ -9,6 +9,20 @@ class InstacartShoppingListService {
   }
 
   /**
+   * Get default shopping list image with reliable fallback
+   * @returns {string} Default image URL
+   */
+  getDefaultShoppingImage() {
+    return 'data:image/svg+xml;base64,' + btoa(`
+      <svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">
+        <rect width="500" height="500" fill="#00B894"/>
+        <text x="250" y="200" font-family="Arial, sans-serif" font-size="64" text-anchor="middle" fill="white">🛒</text>
+        <text x="250" y="350" font-family="Arial, sans-serif" font-size="32" font-weight="bold" text-anchor="middle" fill="white">Shopping List</text>
+      </svg>
+    `.replace(/\s+/g, ' ').trim());
+  }
+
+  /**
    * Create an enhanced shopping list with full Instacart API format
    * @param {Object} listData - Shopping list data
    * @param {Array} listData.items - Array of items to add
@@ -25,7 +39,7 @@ class InstacartShoppingListService {
 
       const requestBody = {
         title: listData.title || 'My CartSmash Shopping List',
-        imageUrl: listData.imageUrl || `https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&h=500&fit=crop`,
+        imageUrl: listData.imageUrl || this.getDefaultShoppingImage(),
         lineItems: enhancedLineItems,
         partnerUrl: options.partnerUrl || 'https://cartsmash.com',
         expiresIn: options.expiresIn || 365,
