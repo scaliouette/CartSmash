@@ -36,7 +36,7 @@ class InstacartService {
   getDefaultRecipeImage() {
     // For production environments, use a reliable placeholder service
     if (process.env.NODE_ENV === 'production') {
-      return 'data:image/svg+xml;base64,' + btoa(`
+      return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
         <svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
           <rect width="400" height="300" fill="#FF6B35"/>
           <text x="200" y="120" font-family="Arial, sans-serif" font-size="48" text-anchor="middle" fill="white">🍳</text>
@@ -46,7 +46,7 @@ class InstacartService {
     }
 
     // For local development, try a simple fallback
-    return 'data:image/svg+xml;base64,' + btoa(`
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
       <svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
         <rect width="400" height="300" fill="#FF6B35"/>
         <text x="200" y="120" font-family="Arial, sans-serif" font-size="48" text-anchor="middle" fill="white">🍳</text>

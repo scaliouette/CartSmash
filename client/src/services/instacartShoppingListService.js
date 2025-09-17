@@ -13,7 +13,7 @@ class InstacartShoppingListService {
    * @returns {string} Default image URL
    */
   getDefaultShoppingImage() {
-    return 'data:image/svg+xml;base64,' + btoa(`
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
       <svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">
         <rect width="500" height="500" fill="#00B894"/>
         <text x="250" y="200" font-family="Arial, sans-serif" font-size="64" text-anchor="middle" fill="white">🛒</text>

@@ -50,7 +50,8 @@ class ImageService {
       </svg>
     `.replace(/\s+/g, ' ').trim();
 
-    return `data:image/svg+xml;base64,${btoa(svg)}`;
+    // Use URL encoding instead of btoa for Unicode safety
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   }
 
   /**
