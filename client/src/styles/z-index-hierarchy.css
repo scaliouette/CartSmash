@@ -1,0 +1,188 @@
+/* Z-index hierarchy for CartSmash application */
+/* This file establishes a consistent z-index system to prevent overlap issues */
+
+:root {
+  /* Z-index CSS custom properties for consistent layering */
+  --z-base-content: 1;
+  --z-sticky-headers: 10;
+  --z-dropdowns: 100;
+  --z-tooltips: 200;
+  --z-store-selector: 999;
+  --z-modal-backdrop: 1000;
+  --z-modal-content: 1001;
+  --z-notifications: 2000;
+  --z-debug-overlays: 10000;
+}
+
+/* Base content layer */
+.base-content {
+  z-index: var(--z-base-content);
+}
+
+/* Sticky headers and navigation */
+.sticky-headers,
+.navigation-header,
+.table-header-sticky {
+  z-index: var(--z-sticky-headers);
+}
+
+/* Dropdown menus */
+.dropdowns,
+.context-menu,
+.autocomplete-dropdown {
+  z-index: var(--z-dropdowns);
+}
+
+/* Tooltips and hover information */
+.tooltips,
+.tooltip,
+.info-popup {
+  z-index: var(--z-tooltips);
+}
+
+/* Store selector when open */
+.store-selector-open,
+.retailer-selector-dropdown {
+  z-index: var(--z-store-selector);
+}
+
+/* Modal backdrops */
+.modal-backdrop,
+.overlay-backdrop {
+  z-index: var(--z-modal-backdrop);
+}
+
+/* Modal content */
+.modal-content,
+.dialog-content,
+.popup-content {
+  z-index: var(--z-modal-content);
+}
+
+/* Notifications and alerts */
+.notifications,
+.toast-notifications,
+.alert-system {
+  z-index: var(--z-notifications);
+}
+
+/* Debug overlays and development tools */
+.debug-overlays,
+.development-tools {
+  z-index: var(--z-debug-overlays);
+}
+
+/* Specific component overrides */
+
+/* Instacart checkout components */
+.instacart-checkout-modal {
+  z-index: var(--z-modal-backdrop);
+}
+
+.instacart-checkout-content {
+  z-index: var(--z-modal-content);
+}
+
+/* Price history modal */
+.price-history-backdrop {
+  z-index: var(--z-modal-backdrop);
+}
+
+.price-history-content {
+  z-index: var(--z-modal-content);
+}
+
+/* Product validator */
+.product-validator-modal {
+  z-index: var(--z-modal-backdrop);
+}
+
+/* Smart AI Assistant */
+.smart-ai-assistant {
+  z-index: var(--z-modal-content);
+}
+
+/* Loading spinners */
+.loading-spinner-overlay {
+  z-index: var(--z-modal-content);
+}
+
+/* Enhanced dropdown system */
+.enhanced-dropdown {
+  position: relative;
+}
+
+.enhanced-dropdown.open {
+  z-index: var(--z-store-selector);
+}
+
+.enhanced-dropdown-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: transparent;
+  z-index: calc(var(--z-store-selector) - 1);
+}
+
+.enhanced-dropdown-content {
+  position: absolute;
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: var(--z-store-selector);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Utility classes for dynamic z-index management */
+.z-index-base { z-index: var(--z-base-content); }
+.z-index-sticky { z-index: var(--z-sticky-headers); }
+.z-index-dropdown { z-index: var(--z-dropdowns); }
+.z-index-tooltip { z-index: var(--z-tooltips); }
+.z-index-store-selector { z-index: var(--z-store-selector); }
+.z-index-modal-backdrop { z-index: var(--z-modal-backdrop); }
+.z-index-modal { z-index: var(--z-modal-content); }
+.z-index-notification { z-index: var(--z-notifications); }
+.z-index-debug { z-index: var(--z-debug-overlays); }
+
+/* Animation helpers for dropdowns */
+.dropdown-enter {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.dropdown-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.dropdown-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.dropdown-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Focus management for accessibility */
+.enhanced-dropdown[aria-expanded="true"] {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* Print media - hide all overlays */
+@media print {
+  .modal-backdrop,
+  .enhanced-dropdown-content,
+  .tooltips,
+  .notifications {
+    display: none !important;
+  }
+}

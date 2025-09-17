@@ -4,6 +4,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import instacartCheckoutService from '../services/instacartCheckoutService';
 import './RetailerSelector.css';
+import '../styles/z-index-hierarchy.css';
+import { StoreButton } from './StoreSelector';
 
 const RetailerSelector = ({
   onRetailerSelect,
@@ -106,43 +108,14 @@ const RetailerSelector = ({
 
   if (compact) {
     return (
-      <div className="retailer-selector compact">
-        <div className="current-retailer">
-          {selectedRetailer ? (
-            <div className="selected-retailer-display">
-              <span className="retailer-logo">{selectedRetailer.logo || '🏪'}</span>
-              <div className="retailer-details">
-                <span className="retailer-name">{selectedRetailer.name}</span>
-                <span className="delivery-info">{selectedRetailer.estimatedDelivery}</span>
-              </div>
-            </div>
-          ) : (
-            <div className="no-retailer">Select a store</div>
-          )}
-        </div>
-
-        <div className="retailers-dropdown">
-          <select
-            value={selectedRetailer?.id || selectedRetailer?.retailer_key || ''}
-            onChange={(e) => {
-              const retailer = retailers.find(r => r.id === e.target.value || r.retailer_key === e.target.value);
-              if (retailer) handleRetailerClick(retailer);
-            }}
-            disabled={loading}
-          >
-            <option value="">Choose store...</option>
-            {retailers.map(retailer => (
-              <option
-                key={retailer.id || retailer.retailer_key}
-                value={retailer.id || retailer.retailer_key}
-                disabled={!retailer.available}
-              >
-                {retailer.name} - {retailer.estimatedDelivery}
-                {!retailer.available && ' (Unavailable)'}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="retailer-selector compact enhanced-dropdown">
+        <StoreButton
+          selectedStore={selectedRetailer}
+          stores={retailers}
+          onStoreSelect={handleRetailerClick}
+          loading={loading}
+          disabled={false}
+        />
       </div>
     );
   }

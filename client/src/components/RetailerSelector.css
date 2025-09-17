@@ -299,6 +299,13 @@
   background: #f8f9fa;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
+  position: relative;
+}
+
+.retailer-selector.compact.enhanced-dropdown {
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
 .current-retailer {

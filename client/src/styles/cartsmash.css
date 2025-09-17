@@ -4,6 +4,9 @@
    CARTSMASH MAIN STYLESHEET
    ============================================ */
 
+/* Import z-index hierarchy for proper layering */
+@import './z-index-hierarchy.css';
+
 /* Root Variables */
 :root {
   /* Brand Colors */
