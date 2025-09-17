@@ -584,8 +584,6 @@ function GroceryListForm({
   const [aiRecipeText, setAiRecipeText] = useState('');
   const [generatingMealPlan, setGeneratingMealPlan] = useState(false);
   // eslint-disable-next-line no-unused-vars
-  const [selectedRetailerId, setSelectedRetailerId] = useState('default');
-  // eslint-disable-next-line no-unused-vars
   const [successMessage, setSuccessMessage] = useState('');
 
   // Validation wrapper functions for state setters
@@ -615,7 +613,7 @@ function GroceryListForm({
     includeSnacks: true,
     daysCount: 7
   });
-  const { currentUser, isAdmin } = useAuth();
+  const { currentUser, isAdmin, updateUserProfile } = useAuth();
   
   // Hydration-safe ID generator with stable sequence
   const idCounterRef = useRef(0);
@@ -1506,7 +1504,7 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
     }
   };
 
-  const handleChooseStore = () => {
+  const handleChooseStore = async () => {
     console.log('🏪 Store selection clicked');
 
     // Show a simple store selection dialog
@@ -1531,12 +1529,23 @@ Continue for all 7 days. After the meal plan, provide the complete grocery shopp
       );
 
       if (found) {
-        setSelectedRetailerId(found.id);
-        console.log(`🏪 Store changed to: ${found.name} (${found.id})`);
+        try {
+          // Update user's preferred retailer in the database
+          await updateUserProfile({
+            preferredRetailer: found.id,
+            selectedRetailer: found.id
+          });
 
-        // Show success message
-        setSuccessMessage(`Store changed to ${found.name}`);
-        setTimeout(() => setSuccessMessage(''), 3000);
+          console.log(`🏪 Store changed to: ${found.name} (${found.id})`);
+
+          // Show success message
+          setSuccessMessage(`Store changed to ${found.name}`);
+          setTimeout(() => setSuccessMessage(''), 3000);
+        } catch (error) {
+          console.error('Error updating preferred retailer:', error);
+          setErrorMessage('Failed to update store preference. Please try again.');
+          setTimeout(() => setErrorMessage(''), 3000);
+        }
       } else {
         alert('Store not found. Please try again.');
       }
@@ -4324,7 +4333,7 @@ Or paste any grocery list directly!"
       {showProductMatcher && (
         <InstacartProductMatcher
           searchTerm={productMatcherTerm}
-          retailerId={selectedRetailerId}
+          retailerId={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'kroger'}
           onProductSelect={(product) => {
             // Add selected product to cart with confidence score
             const newItem = {

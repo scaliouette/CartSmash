@@ -151,6 +151,14 @@ const InstacartShoppingList = ({
     loadRetailers();
   }, [loadRetailers]);
 
+  // Sync internal selectedRetailerId with selectedRetailer prop
+  useEffect(() => {
+    if (selectedRetailer && selectedRetailer !== selectedRetailerId) {
+      setSelectedRetailerId(selectedRetailer);
+      console.log(`🏪 Store selection synced: ${selectedRetailer}`);
+    }
+  }, [selectedRetailer, selectedRetailerId]);
+
   // Calculate totals
   const calculateTotals = useCallback(() => {
     const total = localItems.reduce((sum, item) => {
@@ -368,19 +376,19 @@ const InstacartShoppingList = ({
           {/* Title */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{
-              width: '48px',
-              height: '48px',
+              width: '64px',
+              height: '64px',
               background: 'white',
               border: '3px solid #002244',
               borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '6px'
+              padding: '8px'
             }}>
               <svg
-                width="28"
-                height="28"
+                width="40"
+                height="40"
                 viewBox="0 0 24 24"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
@@ -636,13 +644,13 @@ const InstacartShoppingList = ({
                 borderRadius: '8px',
                 fontSize: '14px',
                 fontWeight: '600',
-                border: 'none',
+                border: '2px solid #002244',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'linear-gradient(135deg, #FB4F14, #FF6B35)',
-                color: 'white',
+                background: 'white',
+                color: '#002244',
                 width: '40px',
                 height: '40px'
               }}
@@ -665,21 +673,23 @@ const InstacartShoppingList = ({
             <button
               onClick={() => onValidateItems && onValidateItems(filteredItems)}
               style={{
-                padding: '10px 20px',
+                padding: '10px',
                 borderRadius: '8px',
-                fontSize: '14px',
+                fontSize: '18px',
                 fontWeight: '600',
-                border: 'none',
+                border: '2px solid #002244',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                background: '#FB4F14',
-                color: 'white'
+                justifyContent: 'center',
+                background: 'white',
+                color: '#002244',
+                width: '40px',
+                height: '40px'
               }}
+              title="Validate Items"
             >
               <span>✓</span>
-              <span>Validate Items</span>
             </button>
           </div>
         </div>
