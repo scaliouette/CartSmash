@@ -60,6 +60,7 @@ const InstacartShoppingList = ({
   const [retailers, setRetailers] = useState([]);
   const [selectedRetailerId, setSelectedRetailerId] = useState(selectedRetailer);
   const [loadingRetailers, setLoadingRetailers] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Store selector dropdown state
   const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState(false);
@@ -871,185 +872,119 @@ const InstacartShoppingList = ({
           </div>
         </div>
 
-        {/* Controls */}
-        <div style={{
-          display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
-          gap: isMobile ? '12px' : '16px',
-          alignItems: isMobile ? 'stretch' : 'center',
-          flexWrap: 'wrap',
-          background: '#FFF0E6',
-          padding: isMobile ? '16px 12px' : '12px 16px',
-          borderRadius: '8px',
-          border: '1px solid #FB4F14'
-        }}>
-          {someItemsSelected && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              background: '#FFF3E0',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: '1px solid #FFB74D'
-            }}>
-              <span style={{ fontSize: '14px', color: '#E65100', fontWeight: '600' }}>
-                {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
+        {/* Streamlined Filter Bar */}
+        <div style={filterBarStyles.container}>
+          {/* Main controls in one line */}
+          <div style={filterBarStyles.mainControls}>
+            <button
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              style={filterBarStyles.filterToggle}
+            >
+              <span style={filterBarStyles.filterText}>
+                {filterBy === 'all' ? 'All Items' :
+                 filterBy === 'ingredients' ? 'Ingredients' :
+                 filterBy === 'pantry' ? 'Pantry' :
+                 filterBy === 'produce' ? 'Produce' : 'Dairy'}
               </span>
+              <span style={filterBarStyles.badge}>{filteredItems.length}</span>
+              <span style={{
+                ...filterBarStyles.dropdownArrow,
+                transform: showAdvancedFilters ? 'rotate(180deg)' : 'rotate(0deg)'
+              }}>▼</span>
+            </button>
+
+            <div style={filterBarStyles.rightControls}>
               <button
-                style={{
-                  background: 'white',
-                  color: '#F44336',
-                  border: '2px solid #F44336',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
+                onClick={() => {
+                  if (allItemsSelected) {
+                    setSelectedItems(new Set());
+                  } else {
+                    setSelectedItems(new Set(filteredItems.map(item => item.id)));
+                  }
                 }}
-                onClick={deleteSelectedItems}
-                title="Delete selected items"
+                style={{
+                  ...filterBarStyles.iconBtn,
+                  backgroundColor: allItemsSelected ? '#FB4F14' : 'white',
+                  color: allItemsSelected ? 'white' : '#002244'
+                }}
+                title={allItemsSelected ? "Deselect All" : "Select All"}
               >
-                🗑️
+                ✓
               </button>
+
+              {someItemsSelected && (
+                <button
+                  onClick={deleteSelectedItems}
+                  style={{
+                    ...filterBarStyles.iconBtn,
+                    backgroundColor: '#F44336',
+                    color: 'white'
+                  }}
+                  title={`Delete ${selectedItems.size} selected items`}
+                >
+                  🗑️
+                </button>
+              )}
+
               <button
-                style={{
-                  background: 'white',
-                  color: '#002244',
-                  border: '2px solid #002244',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-                onClick={() => onSaveList && onSaveList()}
-                title="Save selected items to grocery list"
+                onClick={() => onValidateItems && onValidateItems(filteredItems)}
+                style={filterBarStyles.iconBtn}
+                title="Validate Items"
               >
-                💾
+                ↗
               </button>
+            </div>
+          </div>
+
+          {/* Advanced filters dropdown */}
+          {showAdvancedFilters && (
+            <div style={filterBarStyles.filterDropdown}>
+              <div style={filterBarStyles.dropdownSection}>
+                <label style={filterBarStyles.dropdownLabel}>Category:</label>
+                <select
+                  value={filterBy}
+                  onChange={(e) => setFilterBy(e.target.value)}
+                  style={filterBarStyles.sortSelect}
+                >
+                  <option value="all">All Items</option>
+                  <option value="ingredients">Ingredients</option>
+                  <option value="pantry">Pantry</option>
+                  <option value="produce">Produce</option>
+                  <option value="dairy">Dairy</option>
+                </select>
+              </div>
+
+              <div style={filterBarStyles.dropdownSection}>
+                <label style={filterBarStyles.dropdownLabel}>Sort by:</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  style={filterBarStyles.sortSelect}
+                >
+                  <option value="confidence">High to Low Confidence</option>
+                  <option value="price">Price (Low to High)</option>
+                  <option value="alphabetical">A-Z</option>
+                  <option value="category">Category</option>
+                </select>
+              </div>
             </div>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: isMobile ? '100%' : 'auto' }}>
-            <span style={{ fontSize: '16px', color: '#002244' }}>↕️</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              style={{
-                padding: isMobile ? '12px 36px 12px 16px' : '8px 36px 8px 12px',
-                border: '2px solid #002244',
-                borderRadius: '8px',
-                background: 'white',
-                fontSize: isMobile ? '16px' : '14px',
-                fontWeight: '500',
-                color: '#002244',
-                minHeight: isMobile ? '44px' : 'auto',
-                flex: isMobile ? '1' : 'none'
-              }}
-            >
-              <option value="confidence">Confidence (High to Low)</option>
-              <option value="price">Price (Low to High)</option>
-              <option value="alphabetical">Alphabetical</option>
-              <option value="category">Category</option>
-            </select>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            flex: isMobile ? '1' : 'none',
-            width: isMobile ? '100%' : 'auto'
-          }}>
-            <span style={{ fontSize: '16px', color: '#002244' }}>⌥</span>
-            <select
-              value={filterBy}
-              onChange={(e) => setFilterBy(e.target.value)}
-              style={{
-                padding: isMobile ? '12px 36px 12px 16px' : '8px 36px 8px 12px',
-                border: '2px solid #002244',
-                borderRadius: '8px',
-                background: 'white',
-                fontSize: isMobile ? '16px' : '14px',
-                fontWeight: '500',
-                color: '#002244',
-                minHeight: isMobile ? '44px' : 'auto',
-                flex: isMobile ? '1' : 'none',
-                width: isMobile ? '100%' : 'auto'
-              }}
-            >
-              <option value="all" style={{ color: '#002244', background: 'white' }}>All Items</option>
-              <option value="ingredients" style={{ color: '#002244', background: 'white' }}>Ingredients</option>
-              <option value="pantry" style={{ color: '#002244', background: 'white' }}>Pantry</option>
-              <option value="produce" style={{ color: '#002244', background: 'white' }}>Produce</option>
-              <option value="dairy" style={{ color: '#002244', background: 'white' }}>Dairy</option>
-            </select>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            gap: isMobile ? '8px' : '12px',
-            marginLeft: isMobile ? '0' : 'auto',
-            flex: isMobile ? '1' : 'none',
-            justifyContent: isMobile ? 'space-between' : 'flex-start'
-          }}>
-            <button
-              style={{
-                padding: isMobile ? '12px' : '10px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: '600',
-                border: '2px solid #002244',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'white',
-                color: '#002244',
-                minWidth: isMobile ? '44px' : '40px',
-                minHeight: isMobile ? '44px' : '40px',
-                flex: isMobile ? '1' : 'none'
-              }}
-              title="Share shopping list"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
+          {/* Selected items banner */}
+          {someItemsSelected && (
+            <div style={filterBarStyles.selectedBanner}>
+              <span style={filterBarStyles.selectedText}>
+                {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
+              </span>
+              <button
+                onClick={() => onSaveList && onSaveList()}
+                style={filterBarStyles.saveBtn}
+                title="Save selected items to grocery list"
               >
-                <path
-                  d="M18 16.08C17.24 16.08 16.56 16.38 16.04 16.85L8.91 12.7C8.96 12.47 9 12.24 9 12C9 11.76 8.96 11.53 8.91 11.3L15.96 7.19C16.5 7.69 17.21 8 18 8C19.66 8 21 6.66 21 5C21 3.34 19.66 2 18 2C16.34 2 15 3.34 15 5C15 5.24 15.04 5.47 15.09 5.7L8.04 9.81C7.5 9.31 6.79 9 6 9C4.34 9 3 10.34 3 12C3 13.66 4.34 15 6 15C6.79 15 7.5 14.69 8.04 14.19L15.16 18.34C15.11 18.55 15.08 18.77 15.08 19C15.08 20.61 16.39 21.92 18 21.92C19.61 21.92 20.92 20.61 20.92 19C20.92 17.39 19.61 16.08 18 16.08Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </button>
-
-            <button
-              onClick={() => onValidateItems && onValidateItems(filteredItems)}
-              style={{
-                padding: isMobile ? '12px' : '10px',
-                borderRadius: '8px',
-                fontSize: '18px',
-                fontWeight: '600',
-                border: '2px solid #002244',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'white',
-                color: '#002244',
-                minWidth: isMobile ? '44px' : '40px',
-                minHeight: isMobile ? '44px' : '40px',
-                flex: isMobile ? '1' : 'none'
-              }}
-              title="Validate Items"
-            >
-              <span>✓</span>
-            </button>
-          </div>
+                💾 Save Selected
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1425,6 +1360,135 @@ const InstacartShoppingList = ({
       </div>
     </div>
   );
+};
+
+const filterBarStyles = {
+  container: {
+    backgroundColor: 'white',
+    border: '2px solid #002244',
+    borderRadius: '12px',
+    padding: '12px 16px',
+    marginBottom: '16px',
+    boxShadow: '0 2px 8px rgba(0,2,68,0.08)'
+  },
+  mainControls: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: '40px'
+  },
+  filterToggle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    backgroundColor: '#F0F4F8',
+    border: '1px solid #E0E7FF',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#002244',
+    transition: 'all 0.2s',
+    minHeight: '40px'
+  },
+  filterText: {
+    fontWeight: '600'
+  },
+  badge: {
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '700',
+    minWidth: '20px',
+    textAlign: 'center'
+  },
+  dropdownArrow: {
+    fontSize: '10px',
+    transition: 'transform 0.2s',
+    color: '#6B7280'
+  },
+  rightControls: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center'
+  },
+  iconBtn: {
+    width: '40px',
+    height: '40px',
+    border: '2px solid #E0E7FF',
+    borderRadius: '8px',
+    backgroundColor: 'white',
+    color: '#002244',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s'
+  },
+  filterDropdown: {
+    backgroundColor: '#F8F9FA',
+    border: '1px solid #E0E7FF',
+    borderRadius: '8px',
+    padding: '12px',
+    marginTop: '12px',
+    display: 'flex',
+    gap: '16px',
+    flexWrap: 'wrap'
+  },
+  dropdownSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    minWidth: '140px'
+  },
+  dropdownLabel: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#002244',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  sortSelect: {
+    padding: '6px 8px',
+    border: '1px solid #D1D5DB',
+    borderRadius: '6px',
+    fontSize: '14px',
+    backgroundColor: 'white',
+    color: '#002244'
+  },
+  selectedBanner: {
+    backgroundColor: '#FFF3E0',
+    border: '1px solid #FFB74D',
+    borderRadius: '8px',
+    padding: '8px 12px',
+    marginTop: '12px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  selectedText: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#E65100'
+  },
+  saveBtn: {
+    backgroundColor: '#FB4F14',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '6px 12px',
+    fontSize: '12px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
+  }
 };
 
 export default InstacartShoppingList;
