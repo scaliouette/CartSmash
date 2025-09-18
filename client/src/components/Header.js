@@ -43,25 +43,21 @@ function Header({ currentView, onViewChange }) {
         {/* Logo Section */}
         <div style={styles.logoSection} onClick={() => handleViewChange('home')}>
           {isMobile ? (
-            // Mobile header logo - compact version
-            <svg width="120" height="32" viewBox="0 0 120 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <g transform="translate(3, 8)">
+            // Mobile header logo - icon mark only (larger)
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g transform="translate(10, 12)">
                 {/* Enhanced smash burst effect */}
-                <path d="M12 8 L6 4 M12 8 L6 12 M12 8 L2 8" stroke="#FB4F14" strokeWidth="1.5" opacity="0.8"/>
-                <path d="M12 8 L7 1 M12 8 L1 5 M12 8 L1 11" stroke="#FB4F14" strokeWidth="1" opacity="0.6"/>
+                <path d="M14 12 L6 6 M14 12 L6 18 M14 12 L2 12" stroke="#FB4F14" strokeWidth="2.5" opacity="0.8"/>
+                <path d="M14 12 L8 2 M14 12 L2 8 M14 12 L2 16" stroke="#FB4F14" strokeWidth="2" opacity="0.6"/>
 
                 {/* Shopping cart */}
-                <path d="M10 6 L14 6 L16 14 L26 14 L28 8 L16 8" stroke="#002244" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="18" cy="18" r="1.5" fill="#FB4F14"/>
-                <circle cx="24" cy="18" r="1.5" fill="#FB4F14"/>
+                <path d="M11 9 L17 9 L20 21 L32 21 L35 13 L19 13" stroke="#002244" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="22" cy="27" r="2.5" fill="#FB4F14"/>
+                <circle cx="30" cy="27" r="2.5" fill="#FB4F14"/>
 
                 {/* Impact lines */}
-                <path d="M29 8 L32 6 M29 10 L32 12 M28 14 L31 16" stroke="#FB4F14" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M36 13 L40 11 M36 17 L40 19 M35 21 L39 23" stroke="#FB4F14" strokeWidth="2.5" strokeLinecap="round"/>
               </g>
-
-              <text x="40" y="20" fontFamily="Arial, sans-serif" fontSize="12" fontWeight="bold">
-                <tspan fill="#002244">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
-              </text>
             </svg>
           ) : (
             // Desktop header logo - full version
@@ -89,24 +85,6 @@ function Header({ currentView, onViewChange }) {
 
         {/* Navigation + User Section */}
         <div style={styles.navSection}>
-          {/* Quick Home Nav (Always Visible) */}
-          {currentUser && (
-            <nav style={styles.mainNav}>
-              <button
-                onClick={() => handleViewChange('home')}
-                style={{
-                  ...styles.navLink,
-                  ...(currentView === 'home' ? styles.navLinkActive : {})
-                }}
-              >
-                <span style={styles.navIcon}>🏠</span>
-                <span style={{...styles.navText, display: isMobile ? 'none' : 'inline'}}>
-                  Home
-                </span>
-              </button>
-            </nav>
-          )}
-
           {/* User Menu or Sign In */}
           {isLoading ? (
             <div style={styles.loadingContainer}>
