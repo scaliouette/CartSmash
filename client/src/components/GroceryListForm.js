@@ -4052,8 +4052,7 @@ Or paste any grocery list directly!"
           }}>
             {isMobile ? (
               // Mobile Version - Simple Row
-              <>
-                <div style={{
+              <div style={{
                   display: 'flex',
                   gap: '8px',
                   flexWrap: 'wrap',
@@ -4115,10 +4114,9 @@ Or paste any grocery list directly!"
                     </svg>
                   </button>
                 </div>
-              </>
             ) : (
               // Desktop Version - Toggle Buttons
-              <>
+              <div style={{ display: 'contents' }}>
             {/* Ingredient Style Toggle Group */}
             <div style={styles.toggleGroupContainer}>
               <div style={styles.toggleButtons}>
@@ -4203,7 +4201,7 @@ Or paste any grocery list directly!"
                 <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/>
               </svg>
             </button>
-              </>
+              </div>
             )}
           </div>
 
