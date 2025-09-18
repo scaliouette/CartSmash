@@ -4003,38 +4003,6 @@ Return as JSON with this structure:
         </div>
 
 
-        {/* Controls Bar */}
-        <div style={styles.controlsBar}>
-
-          {/* Responsive Controls Section */}
-          {!isMobile && (
-            // Full Version for Desktop/Tablet
-            <div style={styles.controlsWrapper}>
-
-              {/* Streamlined Controls */}
-              <div style={styles.streamlinedControls}>
-
-
-                {/* Clear Button */}
-                <button
-                  onClick={() => {
-                    setInputText('');
-                    setCurrentCart([]);
-                    setError('');
-                    setShowResults(false);
-                  }}
-                  style={styles.streamlinedClearButton}
-                  title="Clear all content"
-                  aria-label="Clear list"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Main Input Area */}
         <div style={styles.mainInputArea}>
@@ -4118,6 +4086,34 @@ Or paste any grocery list directly!"
                     <option value="merge">➕ Add to cart</option>
                     <option value="replace">🔄 Replace cart</option>
                   </select>
+
+                  <button
+                    onClick={() => {
+                      setInputText('');
+                      setCurrentCart([]);
+                      setError('');
+                      setShowResults(false);
+                    }}
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      backgroundColor: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#2563eb',
+                      flexShrink: 0
+                    }}
+                    title="Clear all content"
+                    aria-label="Clear list"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/>
+                    </svg>
+                  </button>
                 </div>
               </>
             ) : (
@@ -4178,7 +4174,35 @@ Or paste any grocery list directly!"
                 </button>
               </div>
             </div>
-          </div>
+
+            {/* Clear Button for Desktop */}
+            <button
+              onClick={() => {
+                setInputText('');
+                setCurrentCart([]);
+                setError('');
+                setShowResults(false);
+              }}
+              style={{
+                width: '44px',
+                height: '44px',
+                backgroundColor: 'white',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#2563eb',
+                flexShrink: 0
+              }}
+              title="Clear all content"
+              aria-label="Clear list"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/>
+              </svg>
+            </button>
               </>
             )}
           </div>
