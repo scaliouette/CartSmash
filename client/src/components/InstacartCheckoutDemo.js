@@ -214,7 +214,10 @@ const InstacartCheckoutDemo = ({ onClose }) => {
           <div className="ingredients-grid">
             {recipe.ingredients.slice(0, 6).map((ingredient, index) => (
               <div key={index} className="ingredient-item">
-                {ingredient}
+                {typeof ingredient === 'string'
+                  ? ingredient
+                  : ingredient.name || `${ingredient.quantity || ''} ${ingredient.unit || ''} ${ingredient.name || 'ingredient'}`.trim()
+                }
               </div>
             ))}
             {recipe.ingredients.length > 6 && (
