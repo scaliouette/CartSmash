@@ -928,6 +928,47 @@ const InstacartShoppingList = ({
             )}
 
             <div style={filterBarStyles.rightControls}>
+              {/* Select All Button - visible on all devices */}
+              <button
+                onClick={toggleSelectAll}
+                style={{
+                  ...filterBarStyles.iconBtn,
+                  backgroundColor: allItemsSelected ? '#3b82f6' : (someItemsSelected ? '#3b82f6' : 'white'),
+                  color: allItemsSelected || someItemsSelected ? 'white' : '#002244',
+                  border: `2px solid ${allItemsSelected || someItemsSelected ? '#3b82f6' : '#d1d5db'}`,
+                  position: 'relative',
+                  width: '44px',
+                  height: '44px'
+                }}
+                title={allItemsSelected ? 'Deselect all items' : 'Select all items'}
+              >
+                {allItemsSelected && (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M5 13l4 4L19 7"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+                {someItemsSelected && !allItemsSelected && (
+                  <div style={{
+                    width: '12px',
+                    height: '2px',
+                    backgroundColor: 'currentColor'
+                  }} />
+                )}
+                {!allItemsSelected && !someItemsSelected && (
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid currentColor',
+                    borderRadius: '3px'
+                  }} />
+                )}
+              </button>
 
               {someItemsSelected && (
                 <button
