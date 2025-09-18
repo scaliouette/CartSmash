@@ -3923,7 +3923,7 @@ Return as JSON with this structure:
 
   // Main component return (this should be inside the main GroceryListForm function)
   return (
-    <div className="container">
+    <div className="container" style={{ paddingTop: '70px' }}>
       {(isLoading || showProgress) && (
         <MixingBowlLoader text={
           waitingForAIResponse ? "Organizing your list..." :
@@ -3937,30 +3937,30 @@ Return as JSON with this structure:
         <div style={styles.headerContainer}>
           <div style={styles.logoContainer}>
             {isMobile ? (
-              // Mobile logo - compact version
-              <svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g transform="translate(5, 8)">
-                  <path d="M15 12 L8 8 M15 12 L8 16 M15 12 L5 12" stroke="#FB4F14" strokeWidth="1.5" opacity="0.8"/>
+              // Mobile logo - compact header version
+              <svg width="100" height="32" viewBox="0 0 100 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g transform="translate(2, 6)">
+                  <path d="M12 10 L6 6 M12 10 L6 14 M12 10 L2 10" stroke="#FB4F14" strokeWidth="1.2" opacity="0.8"/>
+                  <path d="M10 8 L14 8 L17 18 L28 18 L30 12 L15 12" stroke="#002244" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="18" cy="22" r="1.5" fill="#FB4F14"/>
+                  <circle cx="26" cy="22" r="1.5" fill="#FB4F14"/>
+                  <path d="M31 12 L34 10 M31 15 L34 17" stroke="#FB4F14" strokeWidth="1.2" strokeLinecap="round"/>
+                </g>
+                <text x="40" y="20" fontFamily="Arial, sans-serif" fontSize="11" fontWeight="bold">
+                  <tspan fill="#002244">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
+                </text>
+              </svg>
+            ) : (
+              // Desktop logo - header version
+              <svg width="140" height="40" viewBox="0 0 140 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g transform="translate(3, 8)">
+                  <path d="M15 12 L8 8 M15 12 L8 16 M15 12 L3 12" stroke="#FB4F14" strokeWidth="1.5" opacity="0.8"/>
                   <path d="M13 10 L18 10 L21 22 L35 22 L38 14 L19 14" stroke="#002244" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                   <circle cx="23" cy="28" r="2" fill="#FB4F14"/>
                   <circle cx="33" cy="28" r="2" fill="#FB4F14"/>
                   <path d="M39 14 L42 12 M39 18 L42 20" stroke="#FB4F14" strokeWidth="1.5" strokeLinecap="round"/>
                 </g>
-                <text x="50" y="25" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="bold">
-                  <tspan fill="#002244">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
-                </text>
-              </svg>
-            ) : (
-              // Desktop logo - full version
-              <svg width="180" height="50" viewBox="0 0 180 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g transform="translate(5, 10)">
-                  <path d="M20 15 L10 10 M20 15 L10 20 M20 15 L5 15" stroke="#FB4F14" strokeWidth="2" opacity="0.8"/>
-                  <path d="M17 13 L23 13 L27 29 L45 29 L49 17 L25 17" stroke="#002244" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="29" cy="37" r="2.5" fill="#FB4F14"/>
-                  <circle cx="41" cy="37" r="2.5" fill="#FB4F14"/>
-                  <path d="M51 17 L55 15 M51 21 L55 23" stroke="#FB4F14" strokeWidth="2" strokeLinecap="round"/>
-                </g>
-                <text x="65" y="32" fontFamily="Arial, sans-serif" fontSize="20" fontWeight="bold">
+                <text x="50" y="25" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold">
                   <tspan fill="#002244">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
                 </text>
               </svg>
@@ -4153,11 +4153,12 @@ Or paste any grocery list directly!"
                 <div style={{
                   display: 'flex',
                   backgroundColor: 'white',
-                  borderRadius: '8px',
+                  borderRadius: '6px',
                   padding: '2px',
-                  border: '1px solid #002244',
+                  border: '1px solid #D0D0D0',
                   width: 'auto',
-                  minWidth: '44px'
+                  minWidth: '44px',
+                  height: '44px'
                 }}>
                   <button
                     onClick={() => {
@@ -4169,7 +4170,7 @@ Or paste any grocery list directly!"
                     style={{
                       padding: '8px 12px',
                       border: 'none',
-                      borderRadius: '6px',
+                      borderRadius: '4px',
                       backgroundColor: 'transparent',
                       cursor: 'pointer',
                       display: 'flex',
@@ -4178,7 +4179,9 @@ Or paste any grocery list directly!"
                       color: '#002244',
                       transition: 'all 0.2s',
                       fontSize: '11px',
-                      fontWeight: '600'
+                      fontWeight: '600',
+                      width: '100%',
+                      height: '100%'
                     }}
                     title="Clear all content"
                     aria-label="Clear list"
@@ -4189,7 +4192,7 @@ Or paste any grocery list directly!"
                       e.target.style.backgroundColor = 'transparent';
                     }}
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/>
                     </svg>
                   </button>
@@ -4258,11 +4261,12 @@ Or paste any grocery list directly!"
             <div style={{
               display: 'flex',
               backgroundColor: 'white',
-              borderRadius: '8px',
+              borderRadius: '6px',
               padding: '2px',
-              border: '1px solid #002244',
+              border: '1px solid #D0D0D0',
               width: 'auto',
-              minWidth: '44px'
+              minWidth: '44px',
+              height: '44px'
             }}>
               <button
                 onClick={() => {
@@ -4274,16 +4278,18 @@ Or paste any grocery list directly!"
                 style={{
                   padding: '8px 12px',
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: '4px',
                   backgroundColor: 'transparent',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#2563eb',
+                  color: '#002244',
                   transition: 'all 0.2s',
                   fontSize: '11px',
-                  fontWeight: '600'
+                  fontWeight: '600',
+                  width: '100%',
+                  height: '100%'
                 }}
                 title="Clear all content"
                 aria-label="Clear list"
@@ -4294,7 +4300,7 @@ Or paste any grocery list directly!"
                   e.target.style.backgroundColor = 'transparent';
                 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/>
                 </svg>
               </button>
@@ -4568,11 +4574,13 @@ const styles = {
   siteHeader: {
     backgroundColor: 'white',
     borderBottom: '1px solid #e5e7eb',
-    padding: '12px 0',
-    position: 'sticky',
+    padding: '8px 0',
+    position: 'fixed',
     top: 0,
-    zIndex: 100,
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
   },
 
   headerContainer: {
@@ -4580,7 +4588,7 @@ const styles = {
     margin: '0 auto',
     padding: '0 16px',
     display: 'flex',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'center'
   },
 
@@ -4592,13 +4600,14 @@ const styles = {
   headerActions: {
     display: 'flex',
     alignItems: 'center',
-    gap: '16px'
+    gap: '16px',
+    marginLeft: 'auto'
   },
 
   tagline: {
-    fontSize: '12px',
+    fontSize: '10px',
     color: '#6b7280',
-    fontWeight: '500',
+    fontWeight: '400',
     whiteSpace: 'nowrap'
   },
 
