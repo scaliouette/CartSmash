@@ -244,7 +244,7 @@ const ShoppingListItem = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#dc2626',
+            color: '#002244',
             transition: 'all 0.2s'
           }}
           onMouseEnter={(e) => {
