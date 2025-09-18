@@ -3941,30 +3941,44 @@ Return as JSON with this structure:
           marginBottom: '16px'
         }}>
           {isMobile ? (
-            // Mobile logo - hero version
-            <svg width="180" height="50" viewBox="0 0 180 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <g transform="translate(5, 10)">
-                <path d="M18 15 L10 10 M18 15 L10 20 M18 15 L3 15" stroke="#FB4F14" strokeWidth="2" opacity="0.8"/>
-                <path d="M15 12 L22 12 L26 28 L42 28 L45 18 L23 18" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="28" cy="34" r="2.5" fill="#FB4F14"/>
-                <circle cx="40" cy="34" r="2.5" fill="#FB4F14"/>
-                <path d="M46 18 L50 15 M46 23 L50 26" stroke="#FB4F14" strokeWidth="2" strokeLinecap="round"/>
+            // Mobile logo - enhanced version
+            <svg width="200" height="55" viewBox="0 0 200 55" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g transform="translate(8, 12)">
+                {/* Enhanced smash burst effect */}
+                <path d="M18 18 L10 10 M18 18 L10 26 M18 18 L3 18" stroke="#FB4F14" strokeWidth="2" opacity="0.8"/>
+                <path d="M18 18 L11 5 M18 18 L5 13 M18 18 L5 23" stroke="#FB4F14" strokeWidth="1.5" opacity="0.6"/>
+
+                {/* Shopping cart */}
+                <path d="M15 15 L21 15 L25 31 L40 31 L44 19 L23 19" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="27" cy="37" r="2.5" fill="#FB4F14"/>
+                <circle cx="37" cy="37" r="2.5" fill="#FB4F14"/>
+
+                {/* Impact lines */}
+                <path d="M46 19 L50 17 M46 23 L50 25 M44 31 L48 33" stroke="#FB4F14" strokeWidth="2" strokeLinecap="round"/>
               </g>
-              <text x="70" y="32" fontFamily="Arial, sans-serif" fontSize="20" fontWeight="bold">
+
+              <text x="75" y="34" fontFamily="Arial, sans-serif" fontSize="20" fontWeight="bold">
                 <tspan fill="white">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
               </text>
             </svg>
           ) : (
-            // Desktop logo - hero version
-            <svg width="280" height="60" viewBox="0 0 280 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <g transform="translate(8, 12)">
-                <path d="M24 18 L14 12 M24 18 L14 24 M24 18 L4 18" stroke="#FB4F14" strokeWidth="2.5" opacity="0.8"/>
-                <path d="M20 15 L28 15 L33 36 L56 36 L60 22 L30 22" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="36" cy="44" r="3" fill="#FB4F14"/>
-                <circle cx="52" cy="44" r="3" fill="#FB4F14"/>
-                <path d="M61 22 L66 18 M61 28 L66 32" stroke="#FB4F14" strokeWidth="2.5" strokeLinecap="round"/>
+            // Desktop logo - enhanced version
+            <svg width="280" height="70" viewBox="0 0 280 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g transform="translate(10, 15)">
+                {/* Enhanced smash burst effect */}
+                <path d="M25 25 L15 15 M25 25 L15 35 M25 25 L10 25" stroke="#FB4F14" strokeWidth="2" opacity="0.8"/>
+                <path d="M25 25 L18 12 M25 25 L12 20 M25 25 L12 30" stroke="#FB4F14" strokeWidth="1.5" opacity="0.6"/>
+
+                {/* Shopping cart */}
+                <path d="M22 22 L28 22 L32 38 L50 38 L54 26 L30 26" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="34" cy="46" r="2.5" fill="#FB4F14"/>
+                <circle cx="46" cy="46" r="2.5" fill="#FB4F14"/>
+
+                {/* Impact lines */}
+                <path d="M56 26 L60 24 M56 30 L60 32 M54 38 L58 40" stroke="#FB4F14" strokeWidth="2" strokeLinecap="round"/>
               </g>
-              <text x="100" y="38" fontFamily="Arial, sans-serif" fontSize="28" fontWeight="bold">
+
+              <text x="75" y="42" fontFamily="Arial, sans-serif" fontSize="24" fontWeight="bold">
                 <tspan fill="white">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
               </text>
             </svg>
