@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 const RecipesFound = ({
   recipes,
@@ -12,25 +12,26 @@ const RecipesFound = ({
   onAddToMealPlan,
   onRemove
 }) => {
-  // Use the expanded state from props instead of local state
-  const isExpanded = expanded;
+  if (!recipes || recipes.length === 0) {
+    return null;
+  }
 
   return (
     <div style={{
       backgroundColor: 'white',
-      borderRadius: '8px',
+      borderRadius: '12px',
       border: '1px solid #e5e5e5',
-      padding: '12px',
-      marginBottom: '16px'
+      padding: '16px',
+      marginBottom: '16px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
     }}>
-      {/* Header with collapse button in top left */}
+      {/* Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        marginBottom: isExpanded ? '12px' : '0',
-        gap: '8px'
+        marginBottom: expanded ? '16px' : '0',
+        gap: '12px'
       }}>
-        {/* Collapse/Expand button */}
         <button
           onClick={onCollapseExpand}
           style={{
@@ -39,11 +40,11 @@ const RecipesFound = ({
             border: 'none',
             backgroundColor: 'transparent',
             cursor: 'pointer',
+            color: '#6b7280',
+            padding: 0,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            color: '#6b7280',
-            padding: 0
+            justifyContent: 'center'
           }}
         >
           <svg
@@ -54,7 +55,7 @@ const RecipesFound = ({
             stroke="currentColor"
             strokeWidth="2"
             style={{
-              transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+              transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
               transition: 'transform 0.2s'
             }}
           >
@@ -62,53 +63,55 @@ const RecipesFound = ({
           </svg>
         </button>
 
-        {/* Play icon */}
         <div style={{
-          width: '32px',
-          height: '32px',
-          backgroundColor: '#1e40af',
-          borderRadius: '6px',
+          width: '36px',
+          height: '36px',
+          backgroundColor: '#2563eb',
+          borderRadius: '8px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
         }}>
           <svg
-            width="14"
-            height="16"
-            viewBox="0 0 14 16"
+            width="16"
+            height="18"
+            viewBox="0 0 14 18"
             fill="white"
           >
-            <path d="M0 0v16l14-8z" />
+            <path d="M0 0v18l14-9z" />
           </svg>
         </div>
 
-        {/* Title */}
         <span style={{
-          fontSize: '14px',
+          fontSize: '16px',
           fontWeight: '600',
-          color: '#1f2937'
+          color: '#111827'
         }}>
           Recipes Found
         </span>
         <span style={{
-          fontSize: '13px',
+          fontSize: '14px',
           color: '#6b7280'
         }}>
           ({recipes.length} recipes)
         </span>
 
-        {/* Delete button on the right */}
         <button
           onClick={onClearAll}
           style={{
             marginLeft: 'auto',
-            width: '28px',
-            height: '28px',
-            border: 'none',
-            backgroundColor: 'transparent',
+            width: '32px',
+            height: '32px',
+            border: '1px solid #e5e5e5',
+            borderRadius: '6px',
+            backgroundColor: 'white',
             cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             color: '#6b7280'
-          }}>
+          }}
+        >
           <svg
             width="18"
             height="18"
@@ -123,19 +126,18 @@ const RecipesFound = ({
       </div>
 
       {/* Recipe Cards */}
-      {isExpanded && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {expanded && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {recipes.map((recipe, index) => (
             <RecipeCard
               key={index}
               recipe={recipe}
-              index={index}
-              expanded={individualExpansionStates[index] !== undefined ? individualExpansionStates[index] : false}
-              onToggleExpanded={() => onToggleIndividualExpansion(index)}
-              onAddToCart={onAddToCart}
-              onAddToLibrary={onAddToLibrary}
-              onAddToMealPlan={onAddToMealPlan}
-              onRemove={onRemove}
+              isExpanded={individualExpansionStates?.[index] || false}
+              onToggleExpansion={() => onToggleIndividualExpansion && onToggleIndividualExpansion(index)}
+              onAddToCart={() => onAddToCart && onAddToCart(recipe)}
+              onAddToLibrary={() => onAddToLibrary && onAddToLibrary(recipe)}
+              onAddToMealPlan={() => onAddToMealPlan && onAddToMealPlan(recipe)}
+              onRemove={() => onRemove && onRemove(recipe)}
             />
           ))}
         </div>
@@ -144,76 +146,61 @@ const RecipesFound = ({
   );
 };
 
-const RecipeCard = ({ recipe, index, expanded, onToggleExpanded, onAddToCart, onAddToLibrary, onAddToMealPlan, onRemove }) => {
-  // Extract recipe data with fallbacks for both formats
-  const title = recipe.title || recipe.name || 'Untitled Recipe';
-  const ingredients = recipe.ingredients || [];
-  const instructions = recipe.instructions || [];
-
-  // Format ingredients for display
-  const formatIngredients = (ingredients) => {
-    if (Array.isArray(ingredients)) {
-      return ingredients.slice(0, 3).map(ing => {
-        if (typeof ing === 'string') return ing;
-        return ing.name || ing.item || ing.original || ing;
-      }).join(', ') + (ingredients.length > 3 ? `, +${ingredients.length - 3} more` : '');
-    }
-    return typeof ingredients === 'string' ? ingredients : '';
-  };
-
-  // Format instructions for preview
-  const formatInstructions = (instructions) => {
-    if (Array.isArray(instructions)) {
-      const firstInstruction = instructions[0];
-      const text = typeof firstInstruction === 'string' ? firstInstruction :
-                   firstInstruction?.instruction || firstInstruction?.step || firstInstruction;
-      return text ? text.substring(0, 60) + (text.length > 60 ? '...' : '') : '';
-    }
-    return typeof instructions === 'string' ? instructions.substring(0, 60) + '...' : '';
-  };
-
+const RecipeCard = ({
+  recipe,
+  isExpanded,
+  onToggleExpansion,
+  onAddToCart,
+  onAddToLibrary,
+  onAddToMealPlan,
+  onRemove
+}) => {
   return (
     <div style={{
-      border: '1px solid #fed7aa',
-      borderRadius: '8px',
-      padding: '12px',
-      backgroundColor: '#fff7ed'
+      border: '2px solid #ff8c66',
+      borderRadius: '12px',
+      backgroundColor: '#fff9f7',
+      overflow: 'hidden'
     }}>
       {/* Recipe Header */}
       <div style={{
+        padding: '12px 16px',
         display: 'flex',
+        alignItems: 'center',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: expanded ? '12px' : '0'
+        backgroundColor: '#fff5f2'
       }}>
-        {/* Left side - Recipe title with expand button */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Expand/Collapse button */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          flex: 1
+        }}>
+          {/* Expand button */}
           <button
-            onClick={onToggleExpanded}
+            onClick={onToggleExpansion}
             style={{
               width: '20px',
               height: '20px',
               border: 'none',
               backgroundColor: 'transparent',
               cursor: 'pointer',
+              color: '#6b7280',
+              padding: 0,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: '#6b7280',
-              padding: 0
+              justifyContent: 'center'
             }}
-            title={expanded ? "Show less" : "Show full recipe"}
           >
             <svg
-              width="12"
-              height="12"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
               style={{
-                transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
                 transition: 'transform 0.2s'
               }}
             >
@@ -221,30 +208,49 @@ const RecipeCard = ({ recipe, index, expanded, onToggleExpanded, onAddToCart, on
             </svg>
           </button>
 
-          {/* Recipe title - NO ICON */}
+          {/* Play button */}
+          <div style={{
+            width: '32px',
+            height: '32px',
+            backgroundColor: '#2563eb',
+            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            <svg
+              width="12"
+              height="14"
+              viewBox="0 0 12 14"
+              fill="white"
+            >
+              <path d="M0 0v14l12-7z" />
+            </svg>
+          </div>
+
+          {/* Recipe name */}
           <h3 style={{
             fontSize: '15px',
             fontWeight: '600',
             color: '#1f2937',
             margin: 0
           }}>
-            {title}
+            {recipe.name || recipe.title || 'Untitled Recipe'}
           </h3>
         </div>
 
-        {/* Right side - Action buttons */}
+        {/* Action buttons grid */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '4px',
-          marginLeft: '12px'
+          gap: '6px'
         }}>
-          {/* Add to Cart button */}
           <button
-            onClick={() => onAddToCart(recipe)}
+            onClick={onAddToCart}
             style={{
-              width: '32px',
-              height: '32px',
+              width: '30px',
+              height: '30px',
               border: '1px solid #e5e5e5',
               borderRadius: '6px',
               backgroundColor: 'white',
@@ -253,19 +259,18 @@ const RecipeCard = ({ recipe, index, expanded, onToggleExpanded, onAddToCart, on
               alignItems: 'center',
               justifyContent: 'center'
             }}
-            title="Add to cart"
+            title="Add to Cart"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
               <path d="M3 3h18v18H3zM12 8v8m-4-4h8"/>
             </svg>
           </button>
 
-          {/* Add to Library button */}
           <button
-            onClick={() => onAddToLibrary(recipe)}
+            onClick={onAddToLibrary}
             style={{
-              width: '32px',
-              height: '32px',
+              width: '30px',
+              height: '30px',
               border: '1px solid #e5e5e5',
               borderRadius: '6px',
               backgroundColor: 'white',
@@ -274,19 +279,18 @@ const RecipeCard = ({ recipe, index, expanded, onToggleExpanded, onAddToCart, on
               alignItems: 'center',
               justifyContent: 'center'
             }}
-            title="Add to recipe library"
+            title="Add to Library"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="#ef4444">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#ef4444">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
             </svg>
           </button>
 
-          {/* Add to Meal Plan button */}
           <button
-            onClick={() => onAddToMealPlan(recipe)}
+            onClick={onAddToMealPlan}
             style={{
-              width: '32px',
-              height: '32px',
+              width: '30px',
+              height: '30px',
               border: '1px solid #e5e5e5',
               borderRadius: '6px',
               backgroundColor: 'white',
@@ -295,21 +299,19 @@ const RecipeCard = ({ recipe, index, expanded, onToggleExpanded, onAddToCart, on
               alignItems: 'center',
               justifyContent: 'center'
             }}
-            title="Add to meal plan"
+            title="Add to Meal Plan"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
               <polyline points="17 21 17 13 7 13 7 21"/>
-              <polyline points="7 3 7 8 15 8"/>
             </svg>
           </button>
 
-          {/* Remove recipe button */}
           <button
-            onClick={() => onRemove(index)}
+            onClick={onRemove}
             style={{
-              width: '32px',
-              height: '32px',
+              width: '30px',
+              height: '30px',
               border: '1px solid #e5e5e5',
               borderRadius: '6px',
               backgroundColor: 'white',
@@ -318,95 +320,60 @@ const RecipeCard = ({ recipe, index, expanded, onToggleExpanded, onAddToCart, on
               alignItems: 'center',
               justifyContent: 'center'
             }}
-            title="Remove recipe"
+            title="Remove Recipe"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
               <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
             </svg>
           </button>
         </div>
       </div>
 
-      {/* Expanded Content */}
-      {expanded && (
+      {/* Expandable content */}
+      {isExpanded && (
         <div style={{
-          marginTop: '12px',
-          paddingTop: '12px',
+          padding: '16px',
           borderTop: '1px solid #fed7aa'
         }}>
           {/* Ingredients */}
-          {ingredients.length > 0 && (
-            <div style={{ marginBottom: '16px' }}>
-              <h4 style={{
-                fontSize: '13px',
-                fontWeight: '600',
-                color: '#4b5563',
-                margin: '0 0 8px 0'
-              }}>
-                Ingredients:
-              </h4>
-              <div style={{
-                fontSize: '12px',
-                color: '#6b7280',
-                lineHeight: '1.4'
-              }}>
-                {ingredients.map((ing, index) => {
-                  const ingredient = typeof ing === 'string' ? ing : ing.name || ing.item || ing.original || ing;
-                  return (
-                    <div key={index} style={{ marginBottom: '4px' }}>
-                      • {ingredient}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <div style={{ marginBottom: '12px' }}>
+            <h4 style={{
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#374151',
+              marginBottom: '6px'
+            }}>
+              Ingredients:
+            </h4>
+            <p style={{
+              fontSize: '13px',
+              color: '#6b7280',
+              lineHeight: '1.5',
+              margin: 0
+            }}>
+              {recipe.ingredients || 'No ingredients available'}
+            </p>
+          </div>
 
           {/* Instructions */}
-          {instructions.length > 0 && (
-            <div>
-              <h4 style={{
-                fontSize: '13px',
-                fontWeight: '600',
-                color: '#4b5563',
-                margin: '0 0 8px 0'
-              }}>
-                Instructions:
-              </h4>
-              <div style={{
-                fontSize: '12px',
-                color: '#6b7280',
-                lineHeight: '1.5'
-              }}>
-                {instructions.map((inst, index) => {
-                  const instruction = typeof inst === 'string' ? inst : inst.instruction || inst.step || inst;
-                  return (
-                    <div key={index} style={{ marginBottom: '8px' }}>
-                      <span style={{ fontWeight: '500' }}>{index + 1}.</span> {instruction}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Collapsed Preview */}
-      {!expanded && (
-        <div style={{
-          marginTop: '8px',
-          fontSize: '12px',
-          color: '#6b7280'
-        }}>
-          <div style={{ marginBottom: '4px' }}>
-            <span style={{ fontWeight: '500', color: '#4b5563' }}>Ingredients:</span> {formatIngredients(ingredients)}
+          <div>
+            <h4 style={{
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#374151',
+              marginBottom: '6px'
+            }}>
+              Instructions:
+            </h4>
+            <p style={{
+              fontSize: '13px',
+              color: '#6b7280',
+              lineHeight: '1.5',
+              margin: 0
+            }}>
+              {recipe.instructions || 'No instructions available'}
+            </p>
           </div>
-          {instructions.length > 0 && (
-            <div>
-              <span style={{ fontWeight: '500', color: '#4b5563' }}>Instructions:</span> {formatInstructions(instructions)}
-            </div>
-          )}
         </div>
       )}
     </div>
