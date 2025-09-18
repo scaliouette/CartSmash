@@ -4182,21 +4182,8 @@ Or paste any grocery list directly!"
                       setShowResults(false);
                     }}
                     style={{
-                      flex: 1,
-                      padding: '8px 4px',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      backgroundColor: 'transparent',
-                      color: '#002244',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '2px',
-                      minHeight: '44px'
+                      ...styles.streamlinedToggle,
+                      color: '#002244'
                     }}
                     title="Clear all content"
                     aria-label="Clear list"
