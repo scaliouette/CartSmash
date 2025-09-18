@@ -3932,6 +3932,46 @@ Return as JSON with this structure:
         } />
       )}
 
+      {/* Header with Logo */}
+      <header style={styles.siteHeader}>
+        <div style={styles.headerContainer}>
+          <div style={styles.logoContainer}>
+            {isMobile ? (
+              // Mobile logo - compact version
+              <svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g transform="translate(5, 8)">
+                  <path d="M15 12 L8 8 M15 12 L8 16 M15 12 L5 12" stroke="#FB4F14" strokeWidth="1.5" opacity="0.8"/>
+                  <path d="M13 10 L18 10 L21 22 L35 22 L38 14 L19 14" stroke="#002244" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="23" cy="28" r="2" fill="#FB4F14"/>
+                  <circle cx="33" cy="28" r="2" fill="#FB4F14"/>
+                  <path d="M39 14 L42 12 M39 18 L42 20" stroke="#FB4F14" strokeWidth="1.5" strokeLinecap="round"/>
+                </g>
+                <text x="50" y="25" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="bold">
+                  <tspan fill="#002244">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
+                </text>
+              </svg>
+            ) : (
+              // Desktop logo - full version
+              <svg width="180" height="50" viewBox="0 0 180 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g transform="translate(5, 10)">
+                  <path d="M20 15 L10 10 M20 15 L10 20 M20 15 L5 15" stroke="#FB4F14" strokeWidth="2" opacity="0.8"/>
+                  <path d="M17 13 L23 13 L27 29 L45 29 L49 17 L25 17" stroke="#002244" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="29" cy="37" r="2.5" fill="#FB4F14"/>
+                  <circle cx="41" cy="37" r="2.5" fill="#FB4F14"/>
+                  <path d="M51 17 L55 15 M51 21 L55 23" stroke="#FB4F14" strokeWidth="2" strokeLinecap="round"/>
+                </g>
+                <text x="65" y="32" fontFamily="Arial, sans-serif" fontSize="20" fontWeight="bold">
+                  <tspan fill="#002244">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
+                </text>
+              </svg>
+            )}
+          </div>
+          <div style={styles.headerActions}>
+            <span style={styles.tagline}>Smart Shopping Solutions</span>
+          </div>
+        </div>
+      </header>
+
       <div className="hero-section" style={styles.heroSectionMinimal}>
         <h1 style={styles.heroTitleMinimal}>CARTSMASH</h1>
         <h2 style={styles.heroSubtitleMinimal}>Shop Smarter, Save Faster</h2>
@@ -4524,6 +4564,44 @@ Or paste any grocery list directly!"
 
 // Styles
 const styles = {
+  // Header styles
+  siteHeader: {
+    backgroundColor: 'white',
+    borderBottom: '1px solid #e5e7eb',
+    padding: '12px 0',
+    position: 'sticky',
+    top: 0,
+    zIndex: 100,
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+  },
+
+  headerContainer: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '0 16px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+
+  logoContainer: {
+    display: 'flex',
+    alignItems: 'center'
+  },
+
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px'
+  },
+
+  tagline: {
+    fontSize: '12px',
+    color: '#6b7280',
+    fontWeight: '500',
+    whiteSpace: 'nowrap'
+  },
+
   heroSectionMinimal: {
     background: 'linear-gradient(135deg, #002244 0%, #003366 100%)',
     color: 'white',
