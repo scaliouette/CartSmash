@@ -4007,46 +4007,7 @@ Return as JSON with this structure:
         <div style={styles.controlsBar}>
 
           {/* Responsive Controls Section */}
-          {isMobile ? (
-            // Minimal Version for Mobile
-            <div style={styles.controlsWrapperMobile}>
-              <div style={styles.minimalControlsBar}>
-                <select
-                  value={mergeCart ? 'merge' : 'replace'}
-                  onChange={(e) => setMergeCart(e.target.value === 'merge')}
-                  style={styles.minimalSelect}
-                  title="Choose how to handle cart items"
-                >
-                  <option value="merge">➕ Merge with cart</option>
-                  <option value="replace">🔄 Replace cart</option>
-                </select>
-
-                <select
-                  value={ingredientStyle}
-                  onChange={(e) => setIngredientStyle(e.target.value)}
-                  style={styles.minimalSelect}
-                  title="Choose ingredient style"
-                >
-                  <option value="basic">🏪 Basic items</option>
-                  <option value="homemade">🌱 Fresh items</option>
-                </select>
-
-                <button
-                  style={styles.minimalClearBtn}
-                  onClick={() => {
-                    setInputText('');
-                    setCurrentCart([]);
-                    setError('');
-                    setShowResults(false);
-                  }}
-                  title="Clear all content"
-                  aria-label="Clear list"
-                >
-                  🗑️
-                </button>
-              </div>
-            </div>
-          ) : (
+          {!isMobile && (
             // Full Version for Desktop/Tablet
             <div style={styles.controlsWrapper}>
 
@@ -4121,6 +4082,47 @@ Or paste any grocery list directly!"
             marginBottom: '16px',
             flexWrap: 'wrap'
           }}>
+            {isMobile ? (
+              // Mobile Version - Simple Row
+              <>
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  flexWrap: 'wrap',
+                  width: '100%'
+                }}>
+                  <select
+                    value={ingredientStyle}
+                    onChange={(e) => setIngredientStyle(e.target.value)}
+                    style={{
+                      ...styles.minimalSelect,
+                      flex: '1',
+                      minWidth: '120px'
+                    }}
+                    title="Choose ingredient style"
+                  >
+                    <option value="basic">🏪 Basic items</option>
+                    <option value="homemade">🌱 Fresh items</option>
+                  </select>
+
+                  <select
+                    value={mergeCart ? 'merge' : 'replace'}
+                    onChange={(e) => setMergeCart(e.target.value === 'merge')}
+                    style={{
+                      ...styles.minimalSelect,
+                      flex: '1',
+                      minWidth: '120px'
+                    }}
+                    title="Choose how to handle cart items"
+                  >
+                    <option value="merge">➕ Add to cart</option>
+                    <option value="replace">🔄 Replace cart</option>
+                  </select>
+                </div>
+              </>
+            ) : (
+              // Desktop Version - Toggle Buttons
+              <>
             {/* Ingredient Style Toggle Group */}
             <div style={styles.toggleGroupContainer}>
               <div style={styles.toggleButtons}>
@@ -4176,6 +4178,9 @@ Or paste any grocery list directly!"
                 </button>
               </div>
             </div>
+          </div>
+              </>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} style={styles.formContainer}>
