@@ -4051,41 +4051,74 @@ Or paste any grocery list directly!"
             flexWrap: 'wrap'
           }}>
             {isMobile ? (
-              // Mobile Version - Simple Row
-              <div style={{
+              // Mobile Version - Toggle Buttons (same as desktop)
+              <div style={{ display: 'contents' }}>
+                {/* Ingredient Style Toggle Group */}
+                <div style={styles.toggleGroupContainer}>
+                  <div style={styles.toggleButtons}>
+                    <button
+                      onClick={() => setIngredientStyle('basic')}
+                      style={{
+                        ...styles.streamlinedToggle,
+                        ...(ingredientStyle === 'basic' ? styles.streamlinedToggleActive : {})
+                      }}
+                      title="Use convenient store-bought ingredients"
+                    >
+                      <span style={styles.toggleIcon}>🏪</span>
+                      <span>Basic items</span>
+                    </button>
+                    <button
+                      onClick={() => setIngredientStyle('homemade')}
+                      style={{
+                        ...styles.streamlinedToggle,
+                        ...(ingredientStyle === 'homemade' ? styles.streamlinedToggleActive : {})
+                      }}
+                      title="Use fresh, homemade ingredients"
+                    >
+                      <span style={styles.toggleIcon}>🌱</span>
+                      <span>Fresh items</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cart Behavior Toggle Group */}
+                <div style={styles.toggleGroupContainer}>
+                  <div style={styles.toggleButtons}>
+                    <button
+                      onClick={() => setMergeCart(false)}
+                      style={{
+                        ...styles.streamlinedToggle,
+                        ...(!mergeCart ? styles.streamlinedToggleActive : {})
+                      }}
+                      title="Replace entire cart with new items"
+                    >
+                      <span style={styles.toggleIcon}>🔄</span>
+                      <span>Replace cart</span>
+                    </button>
+                    <button
+                      onClick={() => setMergeCart(true)}
+                      style={{
+                        ...styles.streamlinedToggle,
+                        ...(mergeCart ? styles.streamlinedToggleActive : {})
+                      }}
+                      title={`Add to existing ${currentCart.length} items`}
+                    >
+                      <span style={styles.toggleIcon}>➕</span>
+                      <span>Add to cart</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Clear Button for Mobile */}
+                <div style={{
                   display: 'flex',
-                  gap: '8px',
-                  flexWrap: 'wrap',
-                  width: '100%'
+                  backgroundColor: 'white',
+                  borderRadius: '8px',
+                  padding: '2px',
+                  border: '1px solid #E0E0E0',
+                  width: 'auto',
+                  minWidth: '44px'
                 }}>
-                  <select
-                    value={ingredientStyle}
-                    onChange={(e) => setIngredientStyle(e.target.value)}
-                    style={{
-                      ...styles.minimalSelect,
-                      flex: '1',
-                      minWidth: '120px'
-                    }}
-                    title="Choose ingredient style"
-                  >
-                    <option value="basic">🏪 Basic items</option>
-                    <option value="homemade">🌱 Fresh items</option>
-                  </select>
-
-                  <select
-                    value={mergeCart ? 'merge' : 'replace'}
-                    onChange={(e) => setMergeCart(e.target.value === 'merge')}
-                    style={{
-                      ...styles.minimalSelect,
-                      flex: '1',
-                      minWidth: '120px'
-                    }}
-                    title="Choose how to handle cart items"
-                  >
-                    <option value="merge">➕ Add to cart</option>
-                    <option value="replace">🔄 Replace cart</option>
-                  </select>
-
                   <button
                     onClick={() => {
                       setInputText('');
@@ -4094,26 +4127,34 @@ Or paste any grocery list directly!"
                       setShowResults(false);
                     }}
                     style={{
-                      width: '44px',
-                      height: '44px',
-                      backgroundColor: 'white',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      border: 'none',
+                      borderRadius: '6px',
+                      backgroundColor: 'transparent',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: '#2563eb',
-                      flexShrink: 0
+                      transition: 'all 0.2s',
+                      fontSize: '11px',
+                      fontWeight: '600'
                     }}
                     title="Clear all content"
                     aria-label="Clear list"
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = '#f3f4f6';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = 'transparent';
+                    }}
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/>
                     </svg>
                   </button>
                 </div>
+              </div>
             ) : (
               // Desktop Version - Toggle Buttons
               <div style={{ display: 'contents' }}>
