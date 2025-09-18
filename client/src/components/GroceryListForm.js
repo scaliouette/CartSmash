@@ -4174,33 +4174,50 @@ Or paste any grocery list directly!"
             </div>
 
             {/* Clear Button for Desktop */}
-            <button
-              onClick={() => {
-                setInputText('');
-                setCurrentCart([]);
-                setError('');
-                setShowResults(false);
-              }}
-              style={{
-                width: '44px',
-                height: '44px',
-                backgroundColor: 'white',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#2563eb',
-                flexShrink: 0
-              }}
-              title="Clear all content"
-              aria-label="Clear list"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/>
-              </svg>
-            </button>
+            <div style={{
+              display: 'flex',
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '2px',
+              border: '1px solid #E0E0E0',
+              width: 'auto',
+              minWidth: '44px'
+            }}>
+              <button
+                onClick={() => {
+                  setInputText('');
+                  setCurrentCart([]);
+                  setError('');
+                  setShowResults(false);
+                }}
+                style={{
+                  padding: '8px 12px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  backgroundColor: 'transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2563eb',
+                  transition: 'all 0.2s',
+                  fontSize: '11px',
+                  fontWeight: '600'
+                }}
+                title="Clear all content"
+                aria-label="Clear list"
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#f3f4f6';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/>
+                </svg>
+              </button>
+            </div>
               </div>
             )}
           </div>
