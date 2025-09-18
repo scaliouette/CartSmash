@@ -10,6 +10,7 @@ import InstacartProductMatcher from './InstacartProductMatcher';
 import PriceHistory from './PriceHistory';
 import RecipesFoundCard from './RecipesFoundCard';
 import RecipesFound from './RecipesFound';
+import GroceryParsingInterface from './GroceryParsingInterface';
 import { formatProductName } from '../utils/imageService';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { ButtonSpinner } from './LoadingSpinner';
@@ -4166,7 +4167,10 @@ Or paste any grocery list directly!"
           />
           
           {/* Removed confusing message - process is now automatic */}
-          
+
+          {/* New Grocery Parsing Interface */}
+          <GroceryParsingInterface />
+
           <form onSubmit={handleSubmit} style={styles.formContainer}>
             <div style={styles.inputControls}>
               <button
