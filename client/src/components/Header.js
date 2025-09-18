@@ -42,10 +42,49 @@ function Header({ currentView, onViewChange }) {
       <header style={styles.header}>
         {/* Logo Section */}
         <div style={styles.logoSection} onClick={() => handleViewChange('home')}>
-          <div style={styles.logoIcon}>💥</div>
-          <span style={{...styles.logoText, display: isMobile ? 'none' : 'block'}}>
-            CARTSMASH
-          </span>
+          {isMobile ? (
+            // Mobile header logo - compact version
+            <svg width="120" height="32" viewBox="0 0 120 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g transform="translate(3, 8)">
+                {/* Enhanced smash burst effect */}
+                <path d="M12 8 L6 4 M12 8 L6 12 M12 8 L2 8" stroke="#FB4F14" strokeWidth="1.5" opacity="0.8"/>
+                <path d="M12 8 L7 1 M12 8 L1 5 M12 8 L1 11" stroke="#FB4F14" strokeWidth="1" opacity="0.6"/>
+
+                {/* Shopping cart */}
+                <path d="M10 6 L14 6 L16 14 L26 14 L28 8 L16 8" stroke="#002244" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="18" cy="18" r="1.5" fill="#FB4F14"/>
+                <circle cx="24" cy="18" r="1.5" fill="#FB4F14"/>
+
+                {/* Impact lines */}
+                <path d="M29 8 L32 6 M29 10 L32 12 M28 14 L31 16" stroke="#FB4F14" strokeWidth="1.5" strokeLinecap="round"/>
+              </g>
+
+              <text x="40" y="20" fontFamily="Arial, sans-serif" fontSize="12" fontWeight="bold">
+                <tspan fill="#002244">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
+              </text>
+            </svg>
+          ) : (
+            // Desktop header logo - full version
+            <svg width="160" height="36" viewBox="0 0 160 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g transform="translate(5, 10)">
+                {/* Enhanced smash burst effect */}
+                <path d="M15 8 L8 4 M15 8 L8 12 M15 8 L3 8" stroke="#FB4F14" strokeWidth="1.5" opacity="0.8"/>
+                <path d="M15 8 L10 1 M15 8 L3 5 M15 8 L3 11" stroke="#FB4F14" strokeWidth="1" opacity="0.6"/>
+
+                {/* Shopping cart */}
+                <path d="M13 6 L17 6 L19 16 L31 16 L33 9 L19 9" stroke="#002244" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="21" cy="20" r="2" fill="#FB4F14"/>
+                <circle cx="29" cy="20" r="2" fill="#FB4F14"/>
+
+                {/* Impact lines */}
+                <path d="M34 9 L37 7 M34 12 L37 14 M33 16 L36 18" stroke="#FB4F14" strokeWidth="1.5" strokeLinecap="round"/>
+              </g>
+
+              <text x="50" y="22" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="bold">
+                <tspan fill="#002244">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
+              </text>
+            </svg>
+          )}
         </div>
 
         {/* Navigation + User Section */}
