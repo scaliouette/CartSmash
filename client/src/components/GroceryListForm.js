@@ -4155,7 +4155,7 @@ Or paste any grocery list directly!"
                   backgroundColor: 'white',
                   borderRadius: '8px',
                   padding: '2px',
-                  border: '1px solid #2563eb',
+                  border: '1px solid #002244',
                   width: 'auto',
                   minWidth: '44px'
                 }}>
@@ -4175,7 +4175,7 @@ Or paste any grocery list directly!"
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#2563eb',
+                      color: '#002244',
                       transition: 'all 0.2s',
                       fontSize: '11px',
                       fontWeight: '600'
@@ -4260,7 +4260,7 @@ Or paste any grocery list directly!"
               backgroundColor: 'white',
               borderRadius: '8px',
               padding: '2px',
-              border: '1px solid #2563eb',
+              border: '1px solid #002244',
               width: 'auto',
               minWidth: '44px'
             }}>
