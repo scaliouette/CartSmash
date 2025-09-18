@@ -2293,8 +2293,8 @@
 }
 
 .edit-meal-plan-button:hover {
-  background: #d97706;
-  transform: scale(1.1);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 .delete-meal-plan-button {
