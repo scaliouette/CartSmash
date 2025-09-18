@@ -104,27 +104,26 @@ const GroceryParsingInterface = () => {
           ))}
         </div>
 
-        {/* Action Buttons - Organized Grid */}
+        {/* Action Buttons - Clean Row */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+          display: 'flex',
           gap: '12px',
-          marginBottom: '24px'
+          marginBottom: '24px',
+          flexWrap: 'wrap'
         }}>
           <button style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
             gap: '8px',
-            padding: '12px',
-            backgroundColor: '#1e3a8a',
+            padding: '10px 16px',
+            backgroundColor: '#3b82f6',
             color: 'white',
             border: 'none',
-            borderRadius: '10px',
+            borderRadius: '8px',
             fontSize: '14px',
             fontWeight: '500',
             cursor: 'pointer',
-            transition: 'transform 0.2s'
+            transition: 'all 0.2s'
           }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
               <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
@@ -135,59 +134,19 @@ const GroceryParsingInterface = () => {
           <button style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
             gap: '8px',
-            padding: '12px',
-            backgroundColor: '#7c3aed',
+            padding: '10px 16px',
+            backgroundColor: '#10b981',
             color: 'white',
             border: 'none',
-            borderRadius: '10px',
+            borderRadius: '8px',
             fontSize: '14px',
             fontWeight: '500',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            transition: 'all 0.2s'
           }}>
-            <span>+</span>
+            <span style={{ fontSize: '16px', fontWeight: 'bold' }}>+</span>
             Add to cart
-          </button>
-
-          <button style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            padding: '12px',
-            backgroundColor: 'white',
-            color: '#4b5563',
-            border: '2px solid #e5e7eb',
-            borderRadius: '10px',
-            fontSize: '14px',
-            fontWeight: '500',
-            cursor: 'pointer'
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 7h-3V6a4 4 0 0 0-8 0v1H5a1 1 0 0 0-1 1v11a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a1 1 0 0 0-1-1zM10 6a2 2 0 0 1 4 0v1h-4V6zm8 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9h2v1a1 1 0 0 0 2 0V9h4v1a1 1 0 0 0 2 0V9h2v10z"/>
-            </svg>
-            Basic items
-          </button>
-
-          <button style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            padding: '12px',
-            backgroundColor: 'white',
-            color: '#4b5563',
-            border: '2px solid #e5e7eb',
-            borderRadius: '10px',
-            fontSize: '14px',
-            fontWeight: '500',
-            cursor: 'pointer'
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            </svg>
-            Fresh items
           </button>
         </div>
 
