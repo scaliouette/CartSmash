@@ -894,24 +894,40 @@ const InstacartShoppingList = ({
               }}>▼</span>
             </button>
 
+            {/* Selected items count and Save Selected button */}
+            {someItemsSelected && (
+              <>
+                <span style={{
+                  fontSize: '14px',
+                  color: '#6b7280',
+                  marginLeft: '16px'
+                }}>
+                  {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
+                </span>
+                <button
+                  onClick={() => onSaveList && onSaveList()}
+                  style={{
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    marginLeft: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  title="Save selected items to grocery list"
+                >
+                  💾 Save Selected
+                </button>
+              </>
+            )}
+
             <div style={filterBarStyles.rightControls}>
-              <button
-                onClick={() => {
-                  if (allItemsSelected) {
-                    setSelectedItems(new Set());
-                  } else {
-                    setSelectedItems(new Set(filteredItems.map(item => item.id)));
-                  }
-                }}
-                style={{
-                  ...filterBarStyles.iconBtn,
-                  backgroundColor: allItemsSelected ? '#FB4F14' : 'white',
-                  color: allItemsSelected ? 'white' : '#002244'
-                }}
-                title={allItemsSelected ? "Deselect All" : "Select All"}
-              >
-                ✓
-              </button>
 
               {someItemsSelected && (
                 <button
@@ -932,7 +948,7 @@ const InstacartShoppingList = ({
                 style={filterBarStyles.iconBtn}
                 title="Validate Items"
               >
-                ↗
+                ✓
               </button>
             </div>
           </div>
@@ -971,21 +987,6 @@ const InstacartShoppingList = ({
             </div>
           )}
 
-          {/* Selected items banner */}
-          {someItemsSelected && (
-            <div style={filterBarStyles.selectedBanner}>
-              <span style={filterBarStyles.selectedText}>
-                {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
-              </span>
-              <button
-                onClick={() => onSaveList && onSaveList()}
-                style={filterBarStyles.saveBtn}
-                title="Save selected items to grocery list"
-              >
-                💾 Save Selected
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
