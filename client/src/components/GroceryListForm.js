@@ -3937,55 +3937,44 @@ Return as JSON with this structure:
         <div style={{
           display: 'flex',
           justifyContent: 'center',
-          alignItems: 'center',
-          marginBottom: '16px'
+          alignItems: 'center'
         }}>
           {isMobile ? (
-            // Mobile logo - enhanced version
-            <svg width="200" height="55" viewBox="0 0 200 55" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <g transform="translate(8, 12)">
-                {/* Enhanced smash burst effect */}
-                <path d="M18 18 L10 10 M18 18 L10 26 M18 18 L3 18" stroke="#FB4F14" strokeWidth="2" opacity="0.8"/>
-                <path d="M18 18 L11 5 M18 18 L5 13 M18 18 L5 23" stroke="#FB4F14" strokeWidth="1.5" opacity="0.6"/>
+            // Mobile logo - clean design
+            <svg width="220" height="60" viewBox="0 0 220 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g transform="translate(15, 15)">
+                {/* Cart with motion lines */}
+                <path d="M20 15 L26 15 L30 33 L50 33 L54 19 L28 19" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="34" cy="40" r="3" fill="white"/>
+                <circle cx="46" cy="40" r="3" fill="white"/>
 
-                {/* Shopping cart */}
-                <path d="M15 15 L21 15 L25 31 L40 31 L44 19 L23 19" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="27" cy="37" r="2.5" fill="#FB4F14"/>
-                <circle cx="37" cy="37" r="2.5" fill="#FB4F14"/>
-
-                {/* Impact lines */}
-                <path d="M46 19 L50 17 M46 23 L50 25 M44 31 L48 33" stroke="#FB4F14" strokeWidth="2" strokeLinecap="round"/>
+                {/* Clean speed lines behind */}
+                <path d="M15 13 L5 13 M15 19 L8 19 M15 25 L5 25" stroke="#FB4F14" strokeWidth="2" strokeLinecap="round" opacity="0.6"/>
               </g>
 
-              <text x="75" y="34" fontFamily="Arial, sans-serif" fontSize="20" fontWeight="bold">
+              <text x="85" y="36" fontFamily="Arial, sans-serif" fontSize="20" fontWeight="bold">
                 <tspan fill="white">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
               </text>
             </svg>
           ) : (
-            // Desktop logo - enhanced version
-            <svg width="280" height="70" viewBox="0 0 280 70" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <g transform="translate(10, 15)">
-                {/* Enhanced smash burst effect */}
-                <path d="M25 25 L15 15 M25 25 L15 35 M25 25 L10 25" stroke="#FB4F14" strokeWidth="2" opacity="0.8"/>
-                <path d="M25 25 L18 12 M25 25 L12 20 M25 25 L12 30" stroke="#FB4F14" strokeWidth="1.5" opacity="0.6"/>
+            // Desktop logo - clean design
+            <svg width="320" height="80" viewBox="0 0 320 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g transform="translate(20, 20)">
+                {/* Cart with motion lines */}
+                <path d="M25 20 L33 20 L39 45 L67 45 L73 25 L35 25" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="43" cy="55" r="4" fill="white"/>
+                <circle cx="61" cy="55" r="4" fill="white"/>
 
-                {/* Shopping cart */}
-                <path d="M22 22 L28 22 L32 38 L50 38 L54 26 L30 26" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="34" cy="46" r="2.5" fill="#FB4F14"/>
-                <circle cx="46" cy="46" r="2.5" fill="#FB4F14"/>
-
-                {/* Impact lines */}
-                <path d="M56 26 L60 24 M56 30 L60 32 M54 38 L58 40" stroke="#FB4F14" strokeWidth="2" strokeLinecap="round"/>
+                {/* Clean speed lines behind */}
+                <path d="M20 18 L5 18 M20 25 L8 25 M20 32 L5 32" stroke="#FB4F14" strokeWidth="3" strokeLinecap="round" opacity="0.6"/>
               </g>
 
-              <text x="75" y="42" fontFamily="Arial, sans-serif" fontSize="24" fontWeight="bold">
+              <text x="120" y="50" fontFamily="Arial, sans-serif" fontSize="28" fontWeight="bold">
                 <tspan fill="white">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
               </text>
             </svg>
           )}
         </div>
-        <h2 style={styles.heroSubtitleMinimal}>Shop Smarter, Save Faster</h2>
-        <p style={styles.heroDescriptionMinimal}>AI-powered grocery parsing that understands what you actually want to buy.</p>
       </div>
 
 

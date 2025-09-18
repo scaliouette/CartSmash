@@ -43,40 +43,32 @@ function Header({ currentView, onViewChange }) {
         {/* Logo Section */}
         <div style={styles.logoSection} onClick={() => handleViewChange('home')}>
           {isMobile ? (
-            // Mobile header logo - icon mark only (larger)
-            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <g transform="translate(10, 12)">
-                {/* Enhanced smash burst effect */}
-                <path d="M14 12 L6 6 M14 12 L6 18 M14 12 L2 12" stroke="#FB4F14" strokeWidth="2.5" opacity="0.8"/>
-                <path d="M14 12 L8 2 M14 12 L2 8 M14 12 L2 16" stroke="#FB4F14" strokeWidth="2" opacity="0.6"/>
+            // Mobile header logo - icon mark only (clean design)
+            <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g transform="translate(12, 14)">
+                {/* Cart with motion lines */}
+                <path d="M8 6 L12 6 L15 18 L26 18 L29 9 L14 9" stroke="#002244" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="17" cy="23" r="2" fill="#002244"/>
+                <circle cx="24" cy="23" r="2" fill="#002244"/>
 
-                {/* Shopping cart */}
-                <path d="M11 9 L17 9 L20 21 L32 21 L35 13 L19 13" stroke="#002244" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="22" cy="27" r="2.5" fill="#FB4F14"/>
-                <circle cx="30" cy="27" r="2.5" fill="#FB4F14"/>
-
-                {/* Impact lines */}
-                <path d="M36 13 L40 11 M36 17 L40 19 M35 21 L39 23" stroke="#FB4F14" strokeWidth="2.5" strokeLinecap="round"/>
+                {/* Clean speed lines behind */}
+                <path d="M6 5 L1 5 M6 9 L3 9 M6 13 L1 13" stroke="#FB4F14" strokeWidth="2" strokeLinecap="round" opacity="0.6"/>
               </g>
             </svg>
           ) : (
-            // Desktop header logo - full version
-            <svg width="160" height="36" viewBox="0 0 160 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <g transform="translate(5, 10)">
-                {/* Enhanced smash burst effect */}
-                <path d="M15 8 L8 4 M15 8 L8 12 M15 8 L3 8" stroke="#FB4F14" strokeWidth="1.5" opacity="0.8"/>
-                <path d="M15 8 L10 1 M15 8 L3 5 M15 8 L3 11" stroke="#FB4F14" strokeWidth="1" opacity="0.6"/>
+            // Desktop header logo - full version (clean design)
+            <svg width="180" height="40" viewBox="0 0 180 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g transform="translate(8, 8)">
+                {/* Cart with motion lines */}
+                <path d="M15 12 L20 12 L24 26 L42 26 L46 16 L22 16" stroke="#002244" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="27" cy="32" r="2.5" fill="#002244"/>
+                <circle cx="39" cy="32" r="2.5" fill="#002244"/>
 
-                {/* Shopping cart */}
-                <path d="M13 6 L17 6 L19 16 L31 16 L33 9 L19 9" stroke="#002244" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="21" cy="20" r="2" fill="#FB4F14"/>
-                <circle cx="29" cy="20" r="2" fill="#FB4F14"/>
-
-                {/* Impact lines */}
-                <path d="M34 9 L37 7 M34 12 L37 14 M33 16 L36 18" stroke="#FB4F14" strokeWidth="1.5" strokeLinecap="round"/>
+                {/* Clean speed lines behind */}
+                <path d="M12 11 L2 11 M12 16 L5 16 M12 21 L2 21" stroke="#FB4F14" strokeWidth="2" strokeLinecap="round" opacity="0.6"/>
               </g>
 
-              <text x="50" y="22" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="bold">
+              <text x="70" y="26" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold">
                 <tspan fill="#002244">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
               </text>
             </svg>
