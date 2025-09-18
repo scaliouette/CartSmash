@@ -3970,7 +3970,7 @@ Return as JSON with this structure:
                 <path d="M20 18 L5 18 M20 25 L8 25 M20 32 L5 32" stroke="#FB4F14" strokeWidth="3" strokeLinecap="round" opacity="0.6"/>
               </g>
 
-              <text x="120" y="50" fontFamily="Arial, sans-serif" fontSize="28" fontWeight="bold">
+              <text x="120" y="50" fontFamily="Arial, sans-serif" fontSize="42" fontWeight="bold">
                 <tspan fill="white">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
               </text>
             </svg>
