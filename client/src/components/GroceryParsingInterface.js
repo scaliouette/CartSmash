@@ -201,8 +201,7 @@ const GroceryParsingInterface = () => {
               cursor: 'pointer',
               transition: 'opacity 0.2s'
             }}
-            onMouseEnter={(e) => e.target.style.opacity = '0.9'}
-            onMouseLeave={(e) => e.target.style.opacity = '1'}>
+>
               Generate List
             </button>
           </div>
