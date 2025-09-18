@@ -4081,33 +4081,6 @@ Return as JSON with this structure:
                   </div>
                 </div>
 
-                {/* Ingredient Style Toggle Group */}
-                <div style={styles.toggleGroupContainer}>
-                  <div style={styles.toggleButtons}>
-                    <button
-                      onClick={() => setIngredientStyle('basic')}
-                      style={{
-                        ...styles.streamlinedToggle,
-                        ...(ingredientStyle === 'basic' ? styles.streamlinedToggleActive : {})
-                      }}
-                      title="Use convenient store-bought ingredients"
-                    >
-                      <span style={styles.toggleIcon}>🏪</span>
-                      <span>Basic items</span>
-                    </button>
-                    <button
-                      onClick={() => setIngredientStyle('homemade')}
-                      style={{
-                        ...styles.streamlinedToggle,
-                        ...(ingredientStyle === 'homemade' ? styles.streamlinedToggleActive : {})
-                      }}
-                      title="Use fresh, whole ingredients"
-                    >
-                      <span style={styles.toggleIcon}>🌱</span>
-                      <span>Fresh items</span>
-                    </button>
-                  </div>
-                </div>
 
                 {/* Clear Button */}
                 <button
@@ -4170,6 +4143,34 @@ Or paste any grocery list directly!"
 
           {/* New Grocery Parsing Interface */}
           <GroceryParsingInterface />
+
+          {/* Ingredient Style Toggle Group */}
+          <div style={styles.toggleGroupContainer}>
+            <div style={styles.toggleButtons}>
+              <button
+                onClick={() => setIngredientStyle('basic')}
+                style={{
+                  ...styles.streamlinedToggle,
+                  ...(ingredientStyle === 'basic' ? styles.streamlinedToggleActive : {})
+                }}
+                title="Use convenient store-bought ingredients"
+              >
+                <span style={styles.toggleIcon}>🏪</span>
+                <span>Basic items</span>
+              </button>
+              <button
+                onClick={() => setIngredientStyle('homemade')}
+                style={{
+                  ...styles.streamlinedToggle,
+                  ...(ingredientStyle === 'homemade' ? styles.streamlinedToggleActive : {})
+                }}
+                title="Use fresh, whole ingredients"
+              >
+                <span style={styles.toggleIcon}>🌱</span>
+                <span>Fresh items</span>
+              </button>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit} style={styles.formContainer}>
             <div style={styles.inputControls}>
