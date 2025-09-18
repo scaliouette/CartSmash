@@ -16,22 +16,22 @@ const GroceryParsingInterface = () => {
     },
     {
       id: 'quick',
-      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>,
       label: 'Quick Dinners'
     },
     {
       id: 'healthy',
-      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2z"/></svg>,
       label: 'Healthy Options'
     },
     {
       id: 'party',
-      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h20v2H2zm1.15-4.05L4 11l.85 1.95L6.8 13l-1.95.85L4 15.8l-.85-1.95L1.2 13l1.95-.05zm6.7-6.7L11 5l.85 1.95L13.8 7l-1.95.85L11 9.8 10.15 7.85 8.2 7l1.65-.75zm8.15 6.7L19 11l.85 1.95L21.8 13l-1.95.85L19 15.8l-.85-1.95L16.2 13l1.95-.05z"/></svg>,
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>,
       label: 'Party Planning'
     },
     {
       id: 'special',
-      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v2c0 .55-.45 1-1 1s-1-.45-1-1V4c0-.55.45-1 1-1s1 .45 1 1zm4 0v2c0 .55-.45 1-1 1s-1-.45-1-1V4c0-.55.45-1 1-1s1 .45 1 1zm4 0v2c0 .55-.45 1-1 1s-1-.45-1-1V4c0-.55.45-1 1-1s1 .45 1 1zm4 0v2c0 .55-.45 1-1 1s-1-.45-1-1V4c0-.55.45-1 1-1s1 .45 1 1zM7 20v-2c0-.55-.45-1-1-1s-1 .45-1 1v2c0 .55.45 1 1 1s1-.45 1-1zm4 0v-2c0-.55-.45-1-1-1s-1 .45-1 1v2c0 .55.45 1 1 1s1-.45 1-1zm4 0v-2c0-.55-.45-1-1-1s-1 .45-1 1v2c0 .55.45 1 1 1s1-.45 1-1zm4 0v-2c0-.55-.45-1-1-1s-1 .45-1 1v2c0 .55.45 1 1 1s1-.45 1-1z"/></svg>,
       label: 'Special Diet'
     }
   ];
@@ -40,15 +40,15 @@ const GroceryParsingInterface = () => {
     <div style={{
       maxWidth: '800px',
       margin: '0 auto',
-      backgroundColor: '#f9fafb',
+      backgroundColor: '#ffffff',
       borderRadius: '16px',
       overflow: 'hidden',
-      boxShadow: '0 4px 6px rgba(0,0,0,0.07)'
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
     }}>
-      {/* Header - Simplified */}
+      {/* Header */}
       <div style={{
-        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-        padding: '24px',
+        background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)',
+        padding: '20px',
         textAlign: 'center'
       }}>
         <h2 style={{
@@ -65,17 +65,15 @@ const GroceryParsingInterface = () => {
       {/* Main Content Area */}
       <div style={{
         backgroundColor: 'white',
-        padding: '24px'
+        padding: '20px'
       }}>
-        {/* Category Pills - Horizontal Scroll */}
+        {/* Category Pills */}
         <div style={{
           display: 'flex',
-          gap: '10px',
+          gap: '8px',
           overflowX: 'auto',
-          paddingBottom: '12px',
-          marginBottom: '24px',
-          WebkitScrollbar: { display: 'none' },
-          msOverflowStyle: 'none',
+          paddingBottom: '8px',
+          marginBottom: '20px',
           scrollbarWidth: 'none'
         }}>
           {categories.map(category => (
@@ -86,16 +84,26 @@ const GroceryParsingInterface = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '10px 16px',
-                backgroundColor: selectedCategory === category.id ? '#3b82f6' : '#f3f4f6',
-                color: selectedCategory === category.id ? 'white' : '#4b5563',
+                padding: '8px 14px',
+                backgroundColor: selectedCategory === category.id ? '#2563eb' : '#f3f4f6',
+                color: selectedCategory === category.id ? 'white' : '#6b7280',
                 border: 'none',
-                borderRadius: '24px',
-                fontSize: '14px',
+                borderRadius: '20px',
+                fontSize: '13px',
                 fontWeight: '500',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (selectedCategory !== category.id) {
+                  e.target.style.backgroundColor = '#e5e7eb';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedCategory !== category.id) {
+                  e.target.style.backgroundColor = '#f3f4f6';
+                }
               }}
             >
               {category.icon}
@@ -104,29 +112,30 @@ const GroceryParsingInterface = () => {
           ))}
         </div>
 
-        {/* Action Buttons - Clean Row */}
+        {/* Action Buttons Row - Simplified */}
         <div style={{
           display: 'flex',
-          gap: '12px',
-          marginBottom: '24px',
-          flexWrap: 'wrap'
+          gap: '10px',
+          marginBottom: '20px'
         }}>
           <button style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            padding: '10px 16px',
-            backgroundColor: '#3b82f6',
+            gap: '6px',
+            padding: '8px 14px',
+            backgroundColor: '#1e3a8a',
             color: 'white',
             border: 'none',
             borderRadius: '8px',
-            fontSize: '14px',
+            fontSize: '13px',
             fontWeight: '500',
             cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-              <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+            transition: 'opacity 0.2s'
+          }}
+          onMouseEnter={(e) => e.target.style.opacity = '0.9'}
+          onMouseLeave={(e) => e.target.style.opacity = '1'}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
             </svg>
             Replace cart
           </button>
@@ -134,18 +143,20 @@ const GroceryParsingInterface = () => {
           <button style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            padding: '10px 16px',
-            backgroundColor: '#10b981',
+            gap: '6px',
+            padding: '8px 14px',
+            backgroundColor: '#059669',
             color: 'white',
             border: 'none',
             borderRadius: '8px',
-            fontSize: '14px',
+            fontSize: '13px',
             fontWeight: '500',
             cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}>
-            <span style={{ fontSize: '16px', fontWeight: 'bold' }}>+</span>
+            transition: 'opacity 0.2s'
+          }}
+          onMouseEnter={(e) => e.target.style.opacity = '0.9'}
+          onMouseLeave={(e) => e.target.style.opacity = '1'}>
+            <span style={{ fontSize: '16px', lineHeight: '1' }}>+</span>
             Add to cart
           </button>
         </div>
@@ -155,15 +166,16 @@ const GroceryParsingInterface = () => {
           backgroundColor: '#f9fafb',
           borderRadius: '12px',
           padding: '16px',
-          border: '2px solid #e5e7eb'
+          border: '1px solid #e5e7eb'
         }}>
           <textarea
             placeholder="Ask for meal plans, recipes, or grocery lists... Examples:
 - Create a healthy 7-day meal plan for my family
-- I need ingredients for chicken tacos"
+- I need ingredients for chicken tacos
+- What can I make with ground beef and pasta?"
             style={{
               width: '100%',
-              minHeight: '100px',
+              minHeight: '120px',
               padding: '12px',
               backgroundColor: 'white',
               border: '1px solid #e5e7eb',
@@ -172,32 +184,37 @@ const GroceryParsingInterface = () => {
               color: '#374151',
               resize: 'vertical',
               outline: 'none',
-              lineHeight: '1.5'
+              lineHeight: '1.6',
+              fontFamily: 'inherit'
             }}
             onFocus={(e) => {
-              e.target.style.borderColor = '#3b82f6';
+              e.target.style.borderColor = '#2563eb';
+              e.target.style.boxShadow = '0 0 0 2px rgba(37, 99, 235, 0.1)';
             }}
             onBlur={(e) => {
               e.target.style.borderColor = '#e5e7eb';
+              e.target.style.boxShadow = 'none';
             }}
           />
 
           <div style={{
             display: 'flex',
             justifyContent: 'flex-end',
-            marginTop: '12px',
-            gap: '8px'
+            marginTop: '12px'
           }}>
             <button style={{
-              padding: '8px 20px',
-              backgroundColor: '#3b82f6',
+              padding: '8px 24px',
+              backgroundColor: '#2563eb',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
               fontSize: '14px',
               fontWeight: '500',
-              cursor: 'pointer'
-            }}>
+              cursor: 'pointer',
+              transition: 'opacity 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.opacity = '0.9'}
+            onMouseLeave={(e) => e.target.style.opacity = '1'}>
               Generate List
             </button>
           </div>
