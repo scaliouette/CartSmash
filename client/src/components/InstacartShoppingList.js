@@ -1012,27 +1012,60 @@ const InstacartShoppingList = ({
           alignItems: 'center'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div
-              style={{
-                width: '20px',
-                height: '20px',
-                border: allItemsSelected ? 'none' : '2px solid white',
+            <label style={{
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '22px',
+              height: '22px',
+              cursor: 'pointer'
+            }}>
+              <input
+                type="checkbox"
+                checked={allItemsSelected}
+                onChange={toggleSelectAll}
+                style={{
+                  position: 'absolute',
+                  opacity: 0,
+                  width: '100%',
+                  height: '100%',
+                  cursor: 'pointer'
+                }}
+              />
+              <div style={{
+                width: '22px',
+                height: '22px',
+                border: '2px solid #d1d5db',
                 borderRadius: '4px',
-                cursor: 'pointer',
-                background: allItemsSelected ? '#FB4F14' : (someItemsSelected ? '#FB4F14' : 'transparent'),
+                backgroundColor: allItemsSelected ? '#3b82f6' : (someItemsSelected ? '#3b82f6' : 'white'),
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'white',
-                fontSize: '14px'
-              }}
-              onClick={toggleSelectAll}
-            >
-              {allItemsSelected ? '✓' : (someItemsSelected ? '−' : '')}
-            </div>
+                transition: 'all 0.2s'
+              }}>
+                {allItemsSelected && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M5 13l4 4L19 7"
+                      stroke="white"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+                {someItemsSelected && !allItemsSelected && (
+                  <div style={{
+                    width: '10px',
+                    height: '2px',
+                    backgroundColor: 'white'
+                  }} />
+                )}
+              </div>
+            </label>
           </div>
           <div>PRODUCT NAME</div>
-          <div style={{ textAlign: 'center' }}>QTY</div>
           <div style={{ textAlign: 'right' }}>PRICE</div>
           <div></div>
         </div>
