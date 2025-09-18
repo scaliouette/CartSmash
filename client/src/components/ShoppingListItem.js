@@ -30,11 +30,10 @@ const ShoppingListItem = ({
       borderLeft: isChecked ? '3px solid #FB4F14' : 'none',
       alignItems: 'flex-start'
     }}>
-      {/* Left section: Checkbox, Image, and Quantity below */}
+      {/* Left section: Checkbox to the left of image and quantity */}
       <div style={{
         display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         gap: '8px'
       }}>
         {/* Checkbox with checkmark */}
@@ -45,7 +44,8 @@ const ShoppingListItem = ({
           justifyContent: 'center',
           width: '22px',
           height: '22px',
-          cursor: 'pointer'
+          cursor: 'pointer',
+          marginTop: '4px' // Align with top of image
         }}>
           <input
             type="checkbox"
@@ -84,83 +84,91 @@ const ShoppingListItem = ({
           </div>
         </label>
 
-        {/* Product Image */}
-        <img
-          src={getProductImage(item)}
-          alt={item.productName || item.name}
-          style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '8px',
-            objectFit: 'cover',
-            backgroundColor: '#F5F5F5',
-            flexShrink: 0
-          }}
-        />
-
-        {/* Quantity Controls underneath */}
+        {/* Image and Quantity stacked */}
         <div style={{
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          backgroundColor: '#f3f4f6',
-          borderRadius: '8px',
-          padding: '4px'
+          gap: '8px'
         }}>
-          <button
-            onClick={() => updateQuantity(item.id, -1)}
-            disabled={(item.quantity || 1) <= 1}
+          {/* Product Image */}
+          <img
+            src={getProductImage(item)}
+            alt={item.productName || item.name}
             style={{
-              width: '28px',
-              height: '28px',
-              border: 'none',
-              backgroundColor: (item.quantity || 1) > 1 ? 'white' : 'transparent',
-              borderRadius: '4px',
-              cursor: (item.quantity || 1) > 1 ? 'pointer' : 'not-allowed',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '18px',
-              color: (item.quantity || 1) > 1 ? '#111' : '#9ca3af'
-            }}
-          >
-            −
-          </button>
-
-          <input
-            type="text"
-            value={item.quantity || 1}
-            onChange={(e) => {
-              const val = parseInt(e.target.value) || 0;
-              setQuantity(item.id, val);
-            }}
-            style={{
-              width: '40px',
-              textAlign: 'center',
-              border: 'none',
-              backgroundColor: 'transparent',
-              fontSize: '14px',
-              fontWeight: '600'
+              width: '60px',
+              height: '60px',
+              borderRadius: '8px',
+              objectFit: 'cover',
+              backgroundColor: '#F5F5F5',
+              flexShrink: 0
             }}
           />
 
-          <button
-            onClick={() => updateQuantity(item.id, 1)}
-            style={{
-              width: '28px',
-              height: '28px',
-              border: 'none',
-              backgroundColor: 'white',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '18px',
-              color: '#111'
-            }}
-          >
-            +
-          </button>
+          {/* Quantity Controls underneath */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            backgroundColor: '#f3f4f6',
+            borderRadius: '8px',
+            padding: '4px'
+          }}>
+            <button
+              onClick={() => updateQuantity(item.id, -1)}
+              disabled={(item.quantity || 1) <= 1}
+              style={{
+                width: '28px',
+                height: '28px',
+                border: 'none',
+                backgroundColor: (item.quantity || 1) > 1 ? 'white' : 'transparent',
+                borderRadius: '4px',
+                cursor: (item.quantity || 1) > 1 ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '18px',
+                color: (item.quantity || 1) > 1 ? '#111' : '#9ca3af'
+              }}
+            >
+              −
+            </button>
+
+            <input
+              type="text"
+              value={item.quantity || 1}
+              onChange={(e) => {
+                const val = parseInt(e.target.value) || 0;
+                setQuantity(item.id, val);
+              }}
+              style={{
+                width: '40px',
+                textAlign: 'center',
+                border: 'none',
+                backgroundColor: 'transparent',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}
+            />
+
+            <button
+              onClick={() => updateQuantity(item.id, 1)}
+              style={{
+                width: '28px',
+                height: '28px',
+                border: 'none',
+                backgroundColor: 'white',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '18px',
+                color: '#111'
+              }}
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
 
