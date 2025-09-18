@@ -907,7 +907,7 @@ const InstacartShoppingList = ({
                 <button
                   onClick={() => onSaveList && onSaveList()}
                   style={{
-                    backgroundColor: '#28a745',
+                    backgroundColor: '#FFF5F0',
                     color: 'white',
                     border: 'none',
                     borderRadius: '6px',
@@ -922,7 +922,7 @@ const InstacartShoppingList = ({
                   }}
                   title="Save selected items to grocery list"
                 >
-                  💾 Save Selected
+                  💾
                 </button>
               </>
             )}

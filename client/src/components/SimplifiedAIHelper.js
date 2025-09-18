@@ -1,5 +1,6 @@
 // client/src/components/SimplifiedAIHelper.js - Clean, Simple AI Interface
 import React, { useState } from 'react';
+import { safeExtractIngredientString } from '../utils/ingredientUtils';
 
 const SimplifiedAIHelper = ({ onProductsGenerated }) => {
   const [prompt, setPrompt] = useState('');
@@ -208,7 +209,7 @@ const SimplifiedAIHelper = ({ onProductsGenerated }) => {
                       <ul style={styles.ingredientList}>
                         {recipe.ingredients.map((ingredient, idx) => (
                           <li key={idx} style={styles.ingredient}>
-                            {typeof ingredient === 'string' ? ingredient : ingredient.name || ingredient}
+                            {safeExtractIngredientString(ingredient)}
                           </li>
                         ))}
                       </ul>

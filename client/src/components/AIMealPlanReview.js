@@ -240,10 +240,11 @@ export default function AIMealPlanReview({
                             {recipe.servings && ` • 🍽️ Serves ${recipe.servings}`}
                           </p>
                           <p className="text-xs text-gray-500 line-clamp-2">
-                            {recipe.description || 
-                             (recipe.ingredients?.slice(0, 3).map(ing => 
-                               typeof ing === 'string' ? ing : ing.item || ing.original
-                             ).join(', '))}
+                            {recipe.description ||
+                             (recipe.ingredients?.slice(0, 3).map(ing => {
+                               if (typeof ing === 'string') return ing;
+                               return ing.item || ing.original || ing.name || (ing.quantity && ing.unit && ing.name ? `${ing.quantity} ${ing.unit} ${ing.name}` : '') || '';
+                             }).filter(Boolean).join(', '))}
                           </p>
                         </div>
                       ) : (
