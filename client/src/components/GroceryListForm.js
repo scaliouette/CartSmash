@@ -3923,7 +3923,7 @@ Return as JSON with this structure:
 
   // Main component return (this should be inside the main GroceryListForm function)
   return (
-    <div className="container" style={{ paddingTop: '70px' }}>
+    <div className="container" style={{ paddingTop: '20px' }}>
       {(isLoading || showProgress) && (
         <MixingBowlLoader text={
           waitingForAIResponse ? "Organizing your list..." :
@@ -3932,48 +3932,44 @@ Return as JSON with this structure:
         } />
       )}
 
-      {/* Header with Logo */}
-      <header style={styles.siteHeader}>
-        <div style={styles.headerContainer}>
-          <div style={styles.logoContainer}>
-            {isMobile ? (
-              // Mobile logo - compact header version
-              <svg width="100" height="32" viewBox="0 0 100 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g transform="translate(2, 6)">
-                  <path d="M12 10 L6 6 M12 10 L6 14 M12 10 L2 10" stroke="#FB4F14" strokeWidth="1.2" opacity="0.8"/>
-                  <path d="M10 8 L14 8 L17 18 L28 18 L30 12 L15 12" stroke="#002244" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="18" cy="22" r="1.5" fill="#FB4F14"/>
-                  <circle cx="26" cy="22" r="1.5" fill="#FB4F14"/>
-                  <path d="M31 12 L34 10 M31 15 L34 17" stroke="#FB4F14" strokeWidth="1.2" strokeLinecap="round"/>
-                </g>
-                <text x="40" y="20" fontFamily="Arial, sans-serif" fontSize="11" fontWeight="bold">
-                  <tspan fill="#002244">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
-                </text>
-              </svg>
-            ) : (
-              // Desktop logo - header version
-              <svg width="140" height="40" viewBox="0 0 140 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g transform="translate(3, 8)">
-                  <path d="M15 12 L8 8 M15 12 L8 16 M15 12 L3 12" stroke="#FB4F14" strokeWidth="1.5" opacity="0.8"/>
-                  <path d="M13 10 L18 10 L21 22 L35 22 L38 14 L19 14" stroke="#002244" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="23" cy="28" r="2" fill="#FB4F14"/>
-                  <circle cx="33" cy="28" r="2" fill="#FB4F14"/>
-                  <path d="M39 14 L42 12 M39 18 L42 20" stroke="#FB4F14" strokeWidth="1.5" strokeLinecap="round"/>
-                </g>
-                <text x="50" y="25" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold">
-                  <tspan fill="#002244">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
-                </text>
-              </svg>
-            )}
-          </div>
-          <div style={styles.headerActions}>
-            <span style={styles.tagline}>Smart Shopping Solutions</span>
-          </div>
-        </div>
-      </header>
 
       <div className="hero-section" style={styles.heroSectionMinimal}>
-        <h1 style={styles.heroTitleMinimal}>CARTSMASH</h1>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginBottom: '16px'
+        }}>
+          {isMobile ? (
+            // Mobile logo - hero version
+            <svg width="180" height="50" viewBox="0 0 180 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g transform="translate(5, 10)">
+                <path d="M18 15 L10 10 M18 15 L10 20 M18 15 L3 15" stroke="#FB4F14" strokeWidth="2" opacity="0.8"/>
+                <path d="M15 12 L22 12 L26 28 L42 28 L45 18 L23 18" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="28" cy="34" r="2.5" fill="#FB4F14"/>
+                <circle cx="40" cy="34" r="2.5" fill="#FB4F14"/>
+                <path d="M46 18 L50 15 M46 23 L50 26" stroke="#FB4F14" strokeWidth="2" strokeLinecap="round"/>
+              </g>
+              <text x="70" y="32" fontFamily="Arial, sans-serif" fontSize="20" fontWeight="bold">
+                <tspan fill="white">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
+              </text>
+            </svg>
+          ) : (
+            // Desktop logo - hero version
+            <svg width="280" height="60" viewBox="0 0 280 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g transform="translate(8, 12)">
+                <path d="M24 18 L14 12 M24 18 L14 24 M24 18 L4 18" stroke="#FB4F14" strokeWidth="2.5" opacity="0.8"/>
+                <path d="M20 15 L28 15 L33 36 L56 36 L60 22 L30 22" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="36" cy="44" r="3" fill="#FB4F14"/>
+                <circle cx="52" cy="44" r="3" fill="#FB4F14"/>
+                <path d="M61 22 L66 18 M61 28 L66 32" stroke="#FB4F14" strokeWidth="2.5" strokeLinecap="round"/>
+              </g>
+              <text x="100" y="38" fontFamily="Arial, sans-serif" fontSize="28" fontWeight="bold">
+                <tspan fill="white">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
+              </text>
+            </svg>
+          )}
+        </div>
         <h2 style={styles.heroSubtitleMinimal}>Shop Smarter, Save Faster</h2>
         <p style={styles.heroDescriptionMinimal}>AI-powered grocery parsing that understands what you actually want to buy.</p>
       </div>
