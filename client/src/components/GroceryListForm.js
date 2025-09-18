@@ -3953,7 +3953,7 @@ Return as JSON with this structure:
                 <path d="M15 13 L5 13 M15 19 L8 19 M15 25 L5 25" stroke="#FB4F14" strokeWidth="2" strokeLinecap="round" opacity="0.6"/>
               </g>
 
-              <text x="85" y="36" fontFamily="Arial, sans-serif" fontSize="28" fontWeight="bold">
+              <text x="85" y="36" fontFamily="Arial, sans-serif" fontSize="20" fontWeight="bold">
                 <tspan fill="white">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
               </text>
             </svg>
@@ -3970,14 +3970,14 @@ Return as JSON with this structure:
                 <path d="M20 18 L5 18 M20 25 L8 25 M20 32 L5 32" stroke="#FB4F14" strokeWidth="3" strokeLinecap="round" opacity="0.6"/>
               </g>
 
-              <text x="120" y="50" fontFamily="Arial, sans-serif" fontSize="42" fontWeight="bold">
+              <text x="120" y="50" fontFamily="Arial, sans-serif" fontSize="28" fontWeight="bold">
                 <tspan fill="white">CART</tspan><tspan fill="#FB4F14">SMASH</tspan>
               </text>
             </svg>
           )}
 
           <h2 style={{
-            color: 'white',
+            color: '#FB4F14',
             fontSize: isMobile ? '18px' : '24px',
             fontWeight: '600',
             margin: '16px 0 8px 0',
