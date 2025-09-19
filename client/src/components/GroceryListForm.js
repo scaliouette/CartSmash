@@ -5,7 +5,7 @@ import InstacartShoppingList from './InstacartShoppingList';
 // eslint-disable-next-line no-unused-vars
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
-import InstacartCheckoutFlow from './InstacartCheckoutFlow';
+import InstacartCheckoutUnified from './InstacartCheckoutUnified';
 import InstacartProductMatcher from './InstacartProductMatcher';
 import PriceHistory from './PriceHistory';
 import RecipesFoundCard from './RecipesFoundCard';
@@ -1330,26 +1330,6 @@ function GroceryListForm({
     setShowResults(currentCart.length > 0);
   }, [currentCart]);
 
-  // Close dropdowns when loading starts to prevent z-index conflicts
-  useEffect(() => {
-    if (isLoading || showProgress || waitingForAIResponse) {
-      console.log('🔒 Loading state detected - closing any open dropdowns');
-
-      // Close store dropdown in InstacartShoppingList
-      const storeDropdowns = document.querySelectorAll('[data-store-dropdown-open="true"]');
-      storeDropdowns.forEach(dropdown => {
-        dropdown.click();
-      });
-
-      // Close any other dropdowns that might be open
-      const allDropdowns = document.querySelectorAll('[aria-expanded="true"]');
-      allDropdowns.forEach(dropdown => {
-        if (dropdown.getAttribute('aria-expanded') === 'true') {
-          dropdown.click();
-        }
-      });
-    }
-  }, [isLoading, showProgress, waitingForAIResponse]);
 
   // Initialize expansion states when recipes change
   useEffect(() => {
@@ -1511,76 +1491,6 @@ function GroceryListForm({
     }
   };
 
-  const handleChooseStore = async (store) => {
-    console.log('🏪 Store selected from dropdown:', store);
-
-    if (!store) {
-      console.log('No store provided');
-      return;
-    }
-
-    try {
-      // Update user's preferred retailer
-      await updateUserProfile({
-        preferredRetailer: store.retailer_key || store.id,
-        selectedRetailer: store.retailer_key || store.id,
-        zipCode: currentUser?.zipCode || '95670'
-      });
-
-      // Update cart items with store-specific pricing
-      console.log(`🔄 Updating cart pricing for store: ${store.name}`);
-
-      // Simulate store-specific price variations
-      const storeMultipliers = {
-        'kroger': 1.0,
-        'safeway': 1.15,
-        'costco': 0.85,
-        'target': 1.05,
-        'walmart': 0.92,
-        'wholefoods': 1.35
-      };
-
-      const storeKey = store.retailer_key || store.id || 'kroger';
-      const multiplier = storeMultipliers[storeKey] || 1.0;
-
-      // Update cart with new pricing
-      const updatedCart = currentCart.map(item => {
-        const currentPrice = parseFloat(item.price) || 2.99;
-        const newPrice = (currentPrice * multiplier).toFixed(2);
-        return {
-          ...item,
-          price: newPrice,
-          originalPrice: item.originalPrice || item.price, // Preserve original price
-          store: store.name,
-          storeId: storeKey
-        };
-      });
-
-      // Update the cart state
-      setCurrentCart(updatedCart);
-
-      // Show success message with pricing info
-      const totalSavings = currentCart.reduce((sum, item, index) => {
-        const oldPrice = parseFloat(item.price) || 0;
-        const newPrice = parseFloat(updatedCart[index].price) || 0;
-        return sum + (oldPrice - newPrice);
-      }, 0);
-
-      const savingsText = totalSavings > 0
-        ? ` (Save $${totalSavings.toFixed(2)})`
-        : totalSavings < 0
-        ? ` (+$${Math.abs(totalSavings).toFixed(2)})`
-        : '';
-
-      setSuccessMessage(`Store changed to ${store.name}${savingsText}`);
-      setTimeout(() => setSuccessMessage(''), 4000);
-
-    } catch (error) {
-      console.error('Error updating store selection:', error);
-      setError('Failed to update store. Please try again.');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
 
   const extractAIResponseText = (aiData) => {
     // Check if the response is a string
@@ -4428,10 +4338,8 @@ Or paste any grocery list directly!"
               setSelectedProductForPrice(product);
               setShowPriceHistory(true);
             }}
-            onChooseStore={handleChooseStore}
             userZipCode={currentUser?.zipCode || currentUser?.postalCode || '95670'}
             selectedRetailer={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'kroger'}
-            isDisabled={isLoading || showProgress || waitingForAIResponse}
           />
           
 
@@ -4522,8 +4430,8 @@ Or paste any grocery list directly!"
 
 
       {showInstacartCheckout && (
-        <InstacartCheckoutFlow
-          currentCart={currentCart}
+        <InstacartCheckoutUnified
+          items={currentCart}
           onClose={() => setShowInstacartCheckout(false)}
         />
       )}
