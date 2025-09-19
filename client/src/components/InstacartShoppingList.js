@@ -547,7 +547,7 @@ const InstacartShoppingList = ({
               }}
               title={allItemsSelected ? "Deselect all items" : "Select all items"}
             >
-              {allItemsSelected ? '✓' : (someItemsSelected ? '−' : '☐')}
+              {allItemsSelected ? '✓' : (someItemsSelected ? '−' : '')}
             </button>
 
             <button
@@ -607,8 +607,9 @@ const InstacartShoppingList = ({
                   onClick={deleteSelectedItems}
                   style={{
                     ...filterBarStyles.iconBtn,
-                    backgroundColor: '#F44336',
-                    color: 'white'
+                    backgroundColor: 'white',
+                    color: '#374151',
+                    border: '1px solid #d1d5db'
                   }}
                   title={`Delete ${selectedItems.size} selected items`}
                 >

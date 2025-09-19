@@ -1554,7 +1554,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
             }}
             title={selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? "Deselect all items" : "Select all items"}
           >
-            {selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? '✓' : (selectedItems.size > 0 ? '−' : '☐')}
+            {selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? '✓' : (selectedItems.size > 0 ? '−' : '')}
           </button>
 
           <span style={styles.selectionItemsCount}>
@@ -1586,8 +1586,9 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
             disabled={selectedItems.size === 0}
             style={{
               ...styles.selectionIconBtn,
-              backgroundColor: selectedItems.size > 0 ? '#ef4444' : '#f3f4f6',
-              color: selectedItems.size > 0 ? 'white' : '#9ca3af',
+              backgroundColor: selectedItems.size > 0 ? 'white' : '#f3f4f6',
+              color: selectedItems.size > 0 ? '#374151' : '#9ca3af',
+              border: selectedItems.size > 0 ? '1px solid #d1d5db' : '1px solid #e5e7eb',
               cursor: selectedItems.size > 0 ? 'pointer' : 'not-allowed'
             }}
             title="Delete selected items"
