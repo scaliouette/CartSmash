@@ -18,12 +18,55 @@ const ShoppingListItem = ({
   toggleItemSelection,
   onShowPriceHistory
 }) => {
+  // Generate unique component ID for debug tracking
+  const componentId = `ShoppingListItem_${item?.id || 'unknown'}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  const renderStartTime = performance.now();
+
+  console.log(`🛒 [${componentId}] COMPONENT RENDER INITIATED:`, {
+    timestamp: new Date().toISOString(),
+    item: {
+      id: item?.id,
+      productName: item?.productName,
+      quantity: item?.quantity,
+      price: item?.price,
+      category: item?.category
+    },
+    props: {
+      hasOnQuantityChange: !!onQuantityChange,
+      hasOnDelete: !!onDelete,
+      hasOnSelect: !!onSelect,
+      isSelected,
+      hasGetProductImage: !!getProductImage,
+      hasGetConfidenceDisplay: !!getConfidenceDisplay,
+      hasGetCategory: !!getCategory,
+      hasFormatUnitDisplay: !!formatUnitDisplay,
+      hasUpdateQuantity: !!updateQuantity,
+      hasSetQuantity: !!setQuantity,
+      hasDeleteSingleItem: !!deleteSingleItem,
+      hasToggleItemSelection: !!toggleItemSelection,
+      hasOnShowPriceHistory: !!onShowPriceHistory
+    }
+  });
+
   const { isMobile } = useDeviceDetection();
+  console.log(`📱 [${componentId}] Device detection:`, { isMobile });
+
   const confidence = getConfidenceDisplay(item);
+  console.log(`🎯 [${componentId}] Confidence calculation:`, confidence);
+
   const isChecked = isSelected;
+  console.log(`☑️ [${componentId}] Selection state:`, { isSelected, isChecked });
 
   // Mobile layout with card-based design
   if (isMobile) {
+    console.log(`📱 [${componentId}] Rendering MOBILE layout:`, {
+      itemId: item?.id,
+      productName: item?.productName,
+      isChecked,
+      confidence: confidence?.level,
+      renderDuration: Math.round(performance.now() - renderStartTime)
+    });
+
     return (
       <div style={{
         padding: '16px',
@@ -53,7 +96,16 @@ const ShoppingListItem = ({
             <input
               type="checkbox"
               checked={isChecked}
-              onChange={() => toggleItemSelection(item.id)}
+              onChange={() => {
+                console.log(`☑️ [${componentId}] MOBILE checkbox toggle initiated:`, {
+                  itemId: item.id,
+                  productName: item.productName,
+                  currentState: isChecked,
+                  newState: !isChecked,
+                  timestamp: new Date().toISOString()
+                });
+                toggleItemSelection(item.id);
+              }}
               style={{
                 position: 'absolute',
                 opacity: 0,
@@ -167,7 +219,17 @@ const ShoppingListItem = ({
             gap: '8px'
           }}>
             <button
-              onClick={() => updateQuantity(item.id, -1)}
+              onClick={() => {
+                console.log(`➖ [${componentId}] MOBILE quantity decrease initiated:`, {
+                  itemId: item.id,
+                  productName: item.productName,
+                  currentQuantity: item.quantity || 1,
+                  targetQuantity: (item.quantity || 1) - 1,
+                  willHitMinimum: (item.quantity || 1) - 1 <= 1,
+                  timestamp: new Date().toISOString()
+                });
+                updateQuantity(item.id, -1);
+              }}
               disabled={(item.quantity || 1) <= 1}
               style={{
                 minWidth: '40px',
@@ -199,7 +261,16 @@ const ShoppingListItem = ({
             </span>
 
             <button
-              onClick={() => updateQuantity(item.id, 1)}
+              onClick={() => {
+                console.log(`➕ [${componentId}] MOBILE quantity increase initiated:`, {
+                  itemId: item.id,
+                  productName: item.productName,
+                  currentQuantity: item.quantity || 1,
+                  targetQuantity: (item.quantity || 1) + 1,
+                  timestamp: new Date().toISOString()
+                });
+                updateQuantity(item.id, 1);
+              }}
               style={{
                 minWidth: '40px',
                 minHeight: '40px',
@@ -262,7 +333,17 @@ const ShoppingListItem = ({
 
             {/* Delete Button with larger touch target */}
             <button
-              onClick={() => deleteSingleItem(item.id)}
+              onClick={() => {
+                console.log(`🗑️ [${componentId}] MOBILE delete button clicked:`, {
+                  itemId: item.id,
+                  productName: item.productName,
+                  quantity: item.quantity,
+                  price: item.price,
+                  isSelected: isChecked,
+                  timestamp: new Date().toISOString()
+                });
+                deleteSingleItem(item.id);
+              }}
               style={{
                 minWidth: '44px',
                 minHeight: '44px',
@@ -298,6 +379,14 @@ const ShoppingListItem = ({
   }
 
   // Desktop layout (original design)
+  console.log(`🖥️ [${componentId}] Rendering DESKTOP layout:`, {
+    itemId: item?.id,
+    productName: item?.productName,
+    isChecked,
+    confidence: confidence?.level,
+    renderDuration: Math.round(performance.now() - renderStartTime)
+  });
+
   return (
     <div style={{
       display: 'flex',
@@ -329,7 +418,16 @@ const ShoppingListItem = ({
           <input
             type="checkbox"
             checked={isChecked}
-            onChange={() => toggleItemSelection(item.id)}
+            onChange={() => {
+              console.log(`☑️ [${componentId}] DESKTOP checkbox toggle initiated:`, {
+                itemId: item.id,
+                productName: item.productName,
+                currentState: isChecked,
+                newState: !isChecked,
+                timestamp: new Date().toISOString()
+              });
+              toggleItemSelection(item.id);
+            }}
             style={{
               position: 'absolute',
               opacity: 0,
@@ -459,7 +557,17 @@ const ShoppingListItem = ({
         padding: '2px'
       }}>
         <button
-          onClick={() => updateQuantity(item.id, -1)}
+          onClick={() => {
+            console.log(`➖ [${componentId}] DESKTOP quantity decrease initiated:`, {
+              itemId: item.id,
+              productName: item.productName,
+              currentQuantity: item.quantity || 1,
+              targetQuantity: (item.quantity || 1) - 1,
+              willHitMinimum: (item.quantity || 1) - 1 <= 1,
+              timestamp: new Date().toISOString()
+            });
+            updateQuantity(item.id, -1);
+          }}
           disabled={(item.quantity || 1) <= 1}
           style={{
             width: '32px',
@@ -500,7 +608,16 @@ const ShoppingListItem = ({
         />
 
         <button
-          onClick={() => updateQuantity(item.id, 1)}
+          onClick={() => {
+            console.log(`➕ [${componentId}] DESKTOP quantity increase initiated:`, {
+              itemId: item.id,
+              productName: item.productName,
+              currentQuantity: item.quantity || 1,
+              targetQuantity: (item.quantity || 1) + 1,
+              timestamp: new Date().toISOString()
+            });
+            updateQuantity(item.id, 1);
+          }}
           style={{
             width: '32px',
             height: '32px',
@@ -572,7 +689,17 @@ const ShoppingListItem = ({
         alignItems: 'center'
       }}>
         <button
-          onClick={() => deleteSingleItem(item.id)}
+          onClick={() => {
+            console.log(`🗑️ [${componentId}] DESKTOP delete button clicked:`, {
+              itemId: item.id,
+              productName: item.productName,
+              quantity: item.quantity,
+              price: item.price,
+              isSelected: isChecked,
+              timestamp: new Date().toISOString()
+            });
+            deleteSingleItem(item.id);
+          }}
           style={{
             width: '36px',
             height: '36px',

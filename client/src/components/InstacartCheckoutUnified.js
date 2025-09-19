@@ -15,7 +15,33 @@ const InstacartCheckoutUnified = ({
   title = null, // Optional custom title
   recipeData = null // Recipe context data from CartSmash
 }) => {
+  // Generate unique component ID for debug tracking
+  const componentId = `InstacartCheckoutUnified_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const initStartTime = performance.now();
+
+  console.log(`🛒 [${componentId}] INSTACART CHECKOUT COMPONENT INITIALIZED:`, {
+    timestamp: new Date().toISOString(),
+    props: {
+      itemsCount: items?.length || 0,
+      hasOnClose: !!onClose,
+      mode,
+      initialLocation,
+      hasCustomTitle: !!title,
+      customTitle: title,
+      hasRecipeData: !!recipeData,
+      recipeDataStructure: recipeData ? Object.keys(recipeData) : null
+    },
+    items: items?.map(item => ({
+      id: item.id,
+      productName: item.productName || item.name,
+      quantity: item.quantity,
+      price: item.price,
+      category: item.category
+    }))
+  });
+
   // State management - Always start at step 1 (Select Store)
+  console.log(`🎯 [${componentId}] Initializing state management...`);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedStore, setSelectedStore] = useState(null);
   const [retailers, setRetailers] = useState([]);
@@ -26,36 +52,103 @@ const InstacartCheckoutUnified = ({
   const [editingZip, setEditingZip] = useState(false);
   const [tempZip, setTempZip] = useState(initialLocation);
 
+  console.log(`📊 [${componentId}] State initialized:`, {
+    currentStep: 1,
+    selectedStore: null,
+    retailersCount: 0,
+    loading: false,
+    hasError: false,
+    checkoutUrl: null,
+    location: initialLocation,
+    editingZip: false,
+    tempZip: initialLocation
+  });
+
   // Initialize ingredients state from items prop
+  console.log(`🧪 [${componentId}] Processing ingredients from items...`);
+  const ingredientProcessingStartTime = performance.now();
+
   // eslint-disable-next-line no-unused-vars
-  const [ingredients, setIngredients] = useState(() =>
-    items.map(item => ({
-      id: item.id || Math.random().toString(36).substr(2, 9),
-      name: item.productName || item.name,
-      amount: `${item.quantity || 1}${item.unit ? ` ${item.unit}` : ''}`,
-      price: item.price || 2.99,
-      category: item.category || 'General',
-      checked: true,
-      // Brand and health filter support
-      brandFilters: item.brandFilters || item.brand_filters || (item.preferredBrand ? [item.preferredBrand] : []),
-      healthFilters: item.healthFilters || item.health_filters || [],
-      // UPC and product ID support
-      upcs: item.upcs || [],
-      productIds: item.productIds || item.product_ids || []
-    }))
-  );
+  const [ingredients, setIngredients] = useState(() => {
+    const processedIngredients = items.map((item, index) => {
+      const processed = {
+        id: item.id || Math.random().toString(36).substr(2, 9),
+        name: item.productName || item.name,
+        amount: `${item.quantity || 1}${item.unit ? ` ${item.unit}` : ''}`,
+        price: item.price || 2.99,
+        category: item.category || 'General',
+        checked: true,
+        // Brand and health filter support
+        brandFilters: item.brandFilters || item.brand_filters || (item.preferredBrand ? [item.preferredBrand] : []),
+        healthFilters: item.healthFilters || item.health_filters || [],
+        // UPC and product ID support
+        upcs: item.upcs || [],
+        productIds: item.productIds || item.product_ids || []
+      };
+
+      console.log(`🧪 [${componentId}] Processed ingredient ${index + 1}/${items.length}:`, {
+        original: {
+          id: item.id,
+          productName: item.productName || item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          price: item.price,
+          category: item.category
+        },
+        processed: {
+          id: processed.id,
+          name: processed.name,
+          amount: processed.amount,
+          price: processed.price,
+          category: processed.category,
+          brandFiltersCount: processed.brandFilters.length,
+          healthFiltersCount: processed.healthFilters.length,
+          upcsCount: processed.upcs.length
+        }
+      });
+
+      return processed;
+    });
+
+    const processingDuration = Math.round(performance.now() - ingredientProcessingStartTime);
+    console.log(`✅ [${componentId}] Ingredients processing completed:`, {
+      originalCount: items.length,
+      processedCount: processedIngredients.length,
+      processingDuration,
+      totalPrice: processedIngredients.reduce((sum, ing) => sum + (ing.price || 0), 0).toFixed(2),
+      categories: [...new Set(processedIngredients.map(ing => ing.category))]
+    });
+
+    return processedIngredients;
+  });
 
   // Recipe/Cart data using real recipe data or fallback to mock
   const getRecipeInfo = () => {
-    console.log('🔍 Checking recipe data:', {
+    const functionId = `getRecipeInfo_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = performance.now();
+
+    console.log(`📜 [${componentId}] [${functionId}] Recipe info lookup initiated:`, {
       hasRecipeData: !!recipeData,
       hasRecipes: recipeData?.recipes?.length > 0,
-      recipeCount: recipeData?.recipes?.length || 0
+      recipeCount: recipeData?.recipes?.length || 0,
+      hasCustomTitle: !!title,
+      customTitle: title,
+      mode: mode
     });
 
     if (recipeData && recipeData.recipes && recipeData.recipes.length > 0) {
       const firstRecipe = recipeData.recipes[0];
-      return {
+      console.log(`📜 [${componentId}] [${functionId}] Using REAL recipe data:`, {
+        recipeTitle: firstRecipe.title || firstRecipe.name,
+        author: firstRecipe.author,
+        servings: firstRecipe.servings,
+        prepTime: firstRecipe.prepTime,
+        cookTime: firstRecipe.cookTime,
+        hasInstructions: !!firstRecipe.instructions,
+        instructionsCount: firstRecipe.instructions?.length || 0
+      });
+
+      const result = {
         name: title || firstRecipe.title || firstRecipe.name || 'My CartSmash Recipe',
         chef: firstRecipe.author || 'CartSmash Chef',
         servings: firstRecipe.servings || 4,
@@ -63,10 +156,15 @@ const InstacartCheckoutUnified = ({
         instructions: firstRecipe.instructions || ['Enjoy your meal!'],
         source: 'real_recipe'
       };
+
+      const duration = Math.round(performance.now() - startTime);
+      console.log(`✅ [${componentId}] [${functionId}] Real recipe processed:`, { ...result, duration });
+      return result;
     }
 
     // Fallback to mock data
-    return {
+    console.log(`📜 [${componentId}] [${functionId}] Using MOCK recipe data (no real data available)`);
+    const mockResult = {
       name: title || (mode === 'recipe' ? 'My CartSmash Recipe' : mode === 'cart' ? 'Shopping Cart' : 'Shopping List'),
       chef: 'CartSmash Chef',
       servings: 4,
@@ -74,6 +172,10 @@ const InstacartCheckoutUnified = ({
       instructions: ['Enjoy your meal!'],
       source: 'mock_data'
     };
+
+    const duration = Math.round(performance.now() - startTime);
+    console.log(`✅ [${componentId}] [${functionId}] Mock recipe generated:`, { ...mockResult, duration });
+    return mockResult;
   };
 
   const checkoutData = {
@@ -96,6 +198,16 @@ const InstacartCheckoutUnified = ({
   // ============ DATA LOADING ============
 
   const loadRetailers = useCallback(async () => {
+    const functionId = `loadRetailers_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = performance.now();
+
+    console.log(`🏪 [${componentId}] [${functionId}] Loading retailers initiated:`, {
+      location,
+      currentRetailersCount: retailers.length,
+      hasSelectedStore: !!selectedStore,
+      timestamp: new Date().toISOString()
+    });
+
     setLoading(true);
     setError(null);
 

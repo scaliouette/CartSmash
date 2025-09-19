@@ -360,141 +360,535 @@ const InstacartShoppingList = ({
 
   // Handle checkbox toggle
   const toggleItemSelection = (itemId) => {
+    const functionId = `toggleItemSelection_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = performance.now();
+
+    console.log(`🔲 [${componentId}] [${functionId}] Item selection toggle initiated:`, {
+      itemId,
+      timestamp: new Date().toISOString(),
+      currentSelectedCount: selectedItems.size,
+      totalItems: localItems.length
+    });
+
+    const itemDetails = localItems.find(item => item.id === itemId);
+    console.log(`🔍 [${componentId}] [${functionId}] Target item details:`, {
+      found: !!itemDetails,
+      productName: itemDetails?.productName || 'Unknown',
+      quantity: itemDetails?.quantity || 'Unknown',
+      price: itemDetails?.price || 'Unknown'
+    });
+
+    const wasSelected = selectedItems.has(itemId);
+    console.log(`📊 [${componentId}] [${functionId}] Current selection state:`, {
+      wasSelected,
+      action: wasSelected ? 'DESELECT' : 'SELECT'
+    });
+
     setSelectedItems(prev => {
       const newSet = new Set(prev);
+      console.log(`🔄 [${componentId}] [${functionId}] Previous selection set:`, {
+        size: prev.size,
+        items: Array.from(prev)
+      });
+
       if (newSet.has(itemId)) {
         newSet.delete(itemId);
+        console.log(`➖ [${componentId}] [${functionId}] Item removed from selection: ${itemId}`);
       } else {
         newSet.add(itemId);
+        console.log(`➕ [${componentId}] [${functionId}] Item added to selection: ${itemId}`);
       }
+
+      const duration = Math.round(performance.now() - startTime);
+      console.log(`✅ [${componentId}] [${functionId}] Selection toggle completed:`, {
+        newSize: newSet.size,
+        previousSize: prev.size,
+        sizeDelta: newSet.size - prev.size,
+        duration,
+        finalState: wasSelected ? 'DESELECTED' : 'SELECTED'
+      });
+
       return newSet;
     });
   };
 
   // Handle select all toggle
   const toggleSelectAll = () => {
-    if (selectedItems.size === localItems.length) {
+    const functionId = `toggleSelectAll_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = performance.now();
+
+    console.log(`☑️ [${componentId}] [${functionId}] Select all toggle initiated:`, {
+      timestamp: new Date().toISOString(),
+      currentSelectedCount: selectedItems.size,
+      totalItemsCount: localItems.length,
+      currentlyAllSelected: selectedItems.size === localItems.length
+    });
+
+    const allSelected = selectedItems.size === localItems.length;
+    const action = allSelected ? 'DESELECT_ALL' : 'SELECT_ALL';
+    console.log(`🎯 [${componentId}] [${functionId}] Action determined: ${action}`, {
+      selectedItems: Array.from(selectedItems),
+      availableItemIds: localItems.map(item => item.id)
+    });
+
+    if (allSelected) {
       // If all items are selected, deselect all
+      console.log(`🚫 [${componentId}] [${functionId}] Deselecting all items...`);
       setSelectedItems(new Set());
+
+      const duration = Math.round(performance.now() - startTime);
+      console.log(`✅ [${componentId}] [${functionId}] All items deselected:`, {
+        previousCount: selectedItems.size,
+        newCount: 0,
+        duration
+      });
     } else {
       // Select all items
-      setSelectedItems(new Set(localItems.map(item => item.id)));
+      console.log(`✅ [${componentId}] [${functionId}] Selecting all items...`);
+      const allItemIds = localItems.map(item => item.id);
+      console.log(`📋 [${componentId}] [${functionId}] Item IDs to select:`, allItemIds);
+
+      setSelectedItems(new Set(allItemIds));
+
+      const duration = Math.round(performance.now() - startTime);
+      console.log(`✅ [${componentId}] [${functionId}] All items selected:`, {
+        previousCount: selectedItems.size,
+        newCount: allItemIds.length,
+        duration,
+        itemsSelected: allItemIds
+      });
     }
   };
 
   // Handle delete selected items
   const deleteSelectedItems = () => {
-    console.log(`🗑️ Bulk deleting ${selectedItems.size} selected items`);
+    const functionId = `deleteSelectedItems_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = performance.now();
 
+    console.log(`🗑️ [${componentId}] [${functionId}] Bulk delete initiated:`, {
+      selectedCount: selectedItems.size,
+      totalItems: localItems.length,
+      selectedItemIds: Array.from(selectedItems),
+      timestamp: new Date().toISOString()
+    });
+
+    const itemsToDelete = localItems.filter(item => selectedItems.has(item.id));
+    console.log(`📋 [${componentId}] [${functionId}] Items to be deleted:`,
+      itemsToDelete.map(item => ({
+        id: item.id,
+        productName: item.productName,
+        quantity: item.quantity,
+        price: item.price
+      }))
+    );
+
+    const filterStartTime = performance.now();
     const updatedItems = localItems.filter(item => !selectedItems.has(item.id));
+    const filterDuration = Math.round(performance.now() - filterStartTime);
+
+    console.log(`🔍 [${componentId}] [${functionId}] Filter operation completed:`, {
+      originalCount: localItems.length,
+      deletedCount: itemsToDelete.length,
+      remainingCount: updatedItems.length,
+      filterDuration
+    });
+
     setLocalItems(updatedItems);
+    console.log(`📝 [${componentId}] [${functionId}] Local items state updated`);
+
     setSelectedItems(new Set());
+    console.log(`🔄 [${componentId}] [${functionId}] Selection cleared`);
 
     // Always notify parent component of the change
     if (onItemsChange) {
+      const notifyStartTime = performance.now();
       onItemsChange(updatedItems);
-      console.log(`📤 Notified parent: ${updatedItems.length} items remaining after bulk delete`);
+      const notifyDuration = Math.round(performance.now() - notifyStartTime);
+
+      console.log(`📤 [${componentId}] [${functionId}] Parent notified:`, {
+        remainingItems: updatedItems.length,
+        notifyDuration,
+        hasOnItemsChange: true
+      });
+    } else {
+      console.log(`⚠️ [${componentId}] [${functionId}] No onItemsChange callback provided`);
     }
+
+    const totalDuration = Math.round(performance.now() - startTime);
+    console.log(`✅ [${componentId}] [${functionId}] Bulk delete completed:`, {
+      deletedItems: itemsToDelete.length,
+      remainingItems: updatedItems.length,
+      totalDuration,
+      averageTimePerItem: itemsToDelete.length > 0 ? Math.round(totalDuration / itemsToDelete.length * 100) / 100 : 0
+    });
   };
 
   // Handle delete single item
   const deleteSingleItem = (itemId) => {
-    console.log(`🗑️ Deleting item: ${itemId}`);
+    const functionId = `deleteSingleItem_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = performance.now();
 
+    console.log(`🗑️ [${componentId}] [${functionId}] Single item delete initiated:`, {
+      itemId,
+      totalItems: localItems.length,
+      selectedItemsCount: selectedItems.size,
+      isItemSelected: selectedItems.has(itemId),
+      timestamp: new Date().toISOString()
+    });
+
+    const itemToDelete = localItems.find(item => item.id === itemId);
+    console.log(`🔍 [${componentId}] [${functionId}] Item to delete details:`, {
+      found: !!itemToDelete,
+      productName: itemToDelete?.productName || 'Unknown',
+      quantity: itemToDelete?.quantity || 'Unknown',
+      price: itemToDelete?.price || 'Unknown',
+      category: itemToDelete?.category || 'Unknown'
+    });
+
+    const filterStartTime = performance.now();
     const updatedItems = localItems.filter(item => item.id !== itemId);
+    const filterDuration = Math.round(performance.now() - filterStartTime);
+
+    console.log(`🔍 [${componentId}] [${functionId}] Filter operation completed:`, {
+      originalCount: localItems.length,
+      remainingCount: updatedItems.length,
+      deleted: localItems.length - updatedItems.length,
+      filterDuration
+    });
+
     setLocalItems(updatedItems);
+    console.log(`📝 [${componentId}] [${functionId}] Local items state updated`);
 
     // Remove from selected items if it was selected
+    const wasSelected = selectedItems.has(itemId);
     setSelectedItems(prev => {
       const newSet = new Set(prev);
+      const hadItem = newSet.has(itemId);
       newSet.delete(itemId);
+
+      console.log(`🔄 [${componentId}] [${functionId}] Selection update:`, {
+        wasSelected: hadItem,
+        previousSelectionSize: prev.size,
+        newSelectionSize: newSet.size,
+        removedFromSelection: hadItem
+      });
+
       return newSet;
     });
 
     // Always notify parent component of the change
     if (onItemsChange) {
+      const notifyStartTime = performance.now();
       onItemsChange(updatedItems);
-      console.log(`📤 Notified parent: ${updatedItems.length} items remaining`);
+      const notifyDuration = Math.round(performance.now() - notifyStartTime);
+
+      console.log(`📤 [${componentId}] [${functionId}] Parent notified via onItemsChange:`, {
+        remainingItems: updatedItems.length,
+        notifyDuration,
+        hasCallback: true
+      });
+    } else {
+      console.log(`⚠️ [${componentId}] [${functionId}] No onItemsChange callback provided`);
     }
 
     // Also try parent-specific delete callback
     if (onDeleteItem) {
+      const deleteCallbackStartTime = performance.now();
       onDeleteItem(itemId);
+      const deleteCallbackDuration = Math.round(performance.now() - deleteCallbackStartTime);
+
+      console.log(`🗑️ [${componentId}] [${functionId}] Parent notified via onDeleteItem:`, {
+        itemId,
+        deleteCallbackDuration,
+        hasCallback: true
+      });
+    } else {
+      console.log(`ℹ️ [${componentId}] [${functionId}] No onDeleteItem callback provided`);
     }
+
+    const totalDuration = Math.round(performance.now() - startTime);
+    console.log(`✅ [${componentId}] [${functionId}] Single item delete completed:`, {
+      deletedItemId: itemId,
+      remainingItems: updatedItems.length,
+      wasSelected,
+      totalDuration
+    });
   };
 
   // Calculate if all items are selected
+  console.log(`📊 [${componentId}] Selection state calculation:`, {
+    totalItems: localItems.length,
+    selectedCount: selectedItems.size,
+    calculatedAt: new Date().toISOString()
+  });
+
   const allItemsSelected = localItems.length > 0 && selectedItems.size === localItems.length;
   const someItemsSelected = selectedItems.size > 0;
 
+  console.log(`📊 [${componentId}] Selection state result:`, {
+    allItemsSelected,
+    someItemsSelected,
+    selectionPercentage: localItems.length > 0 ? Math.round((selectedItems.size / localItems.length) * 100) : 0
+  });
+
   // Handle quantity change
   const updateQuantity = (itemId, delta) => {
+    const functionId = `updateQuantity_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = performance.now();
+
+    console.log(`🔢 [${componentId}] [${functionId}] Quantity update initiated:`, {
+      itemId,
+      delta,
+      timestamp: new Date().toISOString()
+    });
+
+    const targetItem = localItems.find(item => item.id === itemId);
+    const currentQty = parseInt(targetItem?.quantity) || 1;
+    const newQty = Math.max(1, currentQty + delta);
+
+    console.log(`🔢 [${componentId}] [${functionId}] Quantity calculation:`, {
+      productName: targetItem?.productName || 'Unknown',
+      currentQty,
+      delta,
+      newQty,
+      isIncrease: delta > 0,
+      hitMinimum: newQty === 1 && currentQty + delta < 1
+    });
+
+    const mapStartTime = performance.now();
+    let itemsProcessed = 0;
     const updatedItems = localItems.map(item => {
+      itemsProcessed++;
       if (item.id === itemId) {
-        const currentQty = parseInt(item.quantity) || 1;
-        const newQty = Math.max(1, currentQty + delta);
+        console.log(`✏️ [${componentId}] [${functionId}] Updating target item:`, {
+          id: item.id,
+          productName: item.productName,
+          oldQuantity: item.quantity,
+          newQuantity: newQty
+        });
         return { ...item, quantity: newQty };
       }
       return item;
     });
+    const mapDuration = Math.round(performance.now() - mapStartTime);
+
+    console.log(`🔄 [${componentId}] [${functionId}] Map operation completed:`, {
+      itemsProcessed,
+      mapDuration,
+      totalItems: localItems.length
+    });
 
     setLocalItems(updatedItems);
+    console.log(`📝 [${componentId}] [${functionId}] Local items state updated`);
+
     if (onItemsChange) {
+      const notifyStartTime = performance.now();
       onItemsChange(updatedItems);
+      const notifyDuration = Math.round(performance.now() - notifyStartTime);
+
+      console.log(`📤 [${componentId}] [${functionId}] Parent notified of quantity change:`, {
+        notifyDuration,
+        updatedItemsCount: updatedItems.length
+      });
+    } else {
+      console.log(`⚠️ [${componentId}] [${functionId}] No onItemsChange callback provided`);
     }
+
+    const totalDuration = Math.round(performance.now() - startTime);
+    console.log(`✅ [${componentId}] [${functionId}] Quantity update completed:`, {
+      itemId,
+      oldQuantity: currentQty,
+      newQuantity: newQty,
+      delta,
+      totalDuration
+    });
   };
 
 
   // Calculate detailed pricing breakdown when store is selected
   const calculateDetailedPricing = useCallback(() => {
+    const functionId = `calculateDetailedPricing_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = performance.now();
+
+    console.log(`💰 [${componentId}] [${functionId}] Detailed pricing calculation initiated:`, {
+      subtotalInput: total,
+      retailersCount: retailers.length,
+      selectedRetailerId,
+      hasStoreSelected: retailers.length > 0 && selectedRetailerId,
+      timestamp: new Date().toISOString()
+    });
+
     const subtotal = total;
     const serviceFee = 3.99;
     const delivery = 5.99;
     const finalTotal = subtotal + serviceFee + delivery;
+    const hasStoreSelected = retailers.length > 0 && selectedRetailerId;
 
-    return {
+    const duration = Math.round(performance.now() - startTime);
+    const result = {
       subtotal,
       serviceFee,
       delivery,
       finalTotal,
-      hasStoreSelected: retailers.length > 0 && selectedRetailerId
+      hasStoreSelected
     };
+
+    console.log(`✅ [${componentId}] [${functionId}] Detailed pricing calculation completed:`, {
+      ...result,
+      duration,
+      markup: finalTotal - subtotal,
+      markupPercentage: subtotal > 0 ? Math.round(((finalTotal - subtotal) / subtotal) * 100) : 0
+    });
+
+    return result;
   }, [total, retailers.length, selectedRetailerId]);
 
 
   // Handle direct quantity input
   const setQuantity = (itemId, value) => {
+    const functionId = `setQuantity_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = performance.now();
+
+    console.log(`🔢 [${componentId}] [${functionId}] Direct quantity set initiated:`, {
+      itemId,
+      inputValue: value,
+      inputType: typeof value,
+      timestamp: new Date().toISOString()
+    });
+
     const qty = parseInt(value) || 1;
+    const finalQty = Math.max(1, qty);
+
+    console.log(`🔢 [${componentId}] [${functionId}] Quantity processing:`, {
+      rawInput: value,
+      parsedInt: qty,
+      finalQuantity: finalQty,
+      wasAdjustedToMinimum: finalQty === 1 && qty < 1
+    });
+
+    const targetItem = localItems.find(item => item.id === itemId);
+    console.log(`🔍 [${componentId}] [${functionId}] Target item details:`, {
+      found: !!targetItem,
+      productName: targetItem?.productName || 'Unknown',
+      currentQuantity: targetItem?.quantity || 'Unknown'
+    });
+
+    const mapStartTime = performance.now();
+    let itemsProcessed = 0;
     const updatedItems = localItems.map(item => {
+      itemsProcessed++;
       if (item.id === itemId) {
-        return { ...item, quantity: Math.max(1, qty) };
+        console.log(`✏️ [${componentId}] [${functionId}] Setting quantity for target item:`, {
+          id: item.id,
+          productName: item.productName,
+          oldQuantity: item.quantity,
+          newQuantity: finalQty
+        });
+        return { ...item, quantity: finalQty };
       }
       return item;
     });
+    const mapDuration = Math.round(performance.now() - mapStartTime);
+
+    console.log(`🔄 [${componentId}] [${functionId}] Map operation completed:`, {
+      itemsProcessed,
+      mapDuration,
+      totalItems: localItems.length
+    });
 
     setLocalItems(updatedItems);
+    console.log(`📝 [${componentId}] [${functionId}] Local items state updated`);
+
     if (onItemsChange) {
+      const notifyStartTime = performance.now();
       onItemsChange(updatedItems);
+      const notifyDuration = Math.round(performance.now() - notifyStartTime);
+
+      console.log(`📤 [${componentId}] [${functionId}] Parent notified of direct quantity set:`, {
+        notifyDuration,
+        updatedItemsCount: updatedItems.length
+      });
+    } else {
+      console.log(`⚠️ [${componentId}] [${functionId}] No onItemsChange callback provided`);
     }
+
+    const totalDuration = Math.round(performance.now() - startTime);
+    console.log(`✅ [${componentId}] [${functionId}] Direct quantity set completed:`, {
+      itemId,
+      inputValue: value,
+      finalQuantity: finalQty,
+      totalDuration
+    });
   };
 
   // Get category from item
   const getCategory = (item) => {
-    return item.category || 'Other';
+    const functionId = `getCategory_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+    console.log(`🏷️ [${componentId}] [${functionId}] Category lookup:`, {
+      itemId: item?.id || 'Unknown',
+      productName: item?.productName || 'Unknown',
+      hasCategory: !!item?.category,
+      rawCategory: item?.category
+    });
+
+    const result = item.category || 'Other';
+    console.log(`✅ [${componentId}] [${functionId}] Category result: "${result}"`);
+
+    return result;
   };
 
   // Get product image using the centralized image service
   const getProductImage = (item) => {
-    return imageService.getProductImage(item, { width: 64, height: 64 });
+    const functionId = `getProductImage_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = performance.now();
+
+    console.log(`🖼️ [${componentId}] [${functionId}] Image lookup initiated:`, {
+      itemId: item?.id || 'Unknown',
+      productName: item?.productName || 'Unknown',
+      hasImageUrl: !!item?.imageUrl,
+      hasImage: !!item?.image,
+      hasInstacartData: !!item?.instacartData,
+      timestamp: new Date().toISOString()
+    });
+
+    const result = imageService.getProductImage(item, { width: 64, height: 64 });
+    const duration = Math.round(performance.now() - startTime);
+
+    console.log(`✅ [${componentId}] [${functionId}] Image lookup completed:`, {
+      resultType: result ? (result.startsWith('data:') ? 'DATA_URL' : 'EXTERNAL_URL') : 'NULL',
+      resultLength: result ? result.length : 0,
+      duration,
+      hasResult: !!result
+    });
+
+    return result;
   };
 
   // Get confidence value and level for display
   const getConfidenceDisplay = (item) => {
+    const functionId = `getConfidenceDisplay_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+    console.log(`🎯 [${componentId}] [${functionId}] Confidence calculation:`, {
+      itemId: item?.id || 'Unknown',
+      productName: item?.productName || 'Unknown',
+      rawConfidence: item?.confidence,
+      confidenceType: typeof item?.confidence
+    });
+
     if (typeof item.confidence === 'number') {
-      return {
-        value: Math.round(item.confidence * 100),
-        level: item.confidence > 0.8 ? 'high' : item.confidence > 0.5 ? 'medium' : 'low'
-      };
+      const value = Math.round(item.confidence * 100);
+      const level = item.confidence > 0.8 ? 'high' : item.confidence > 0.5 ? 'medium' : 'low';
+      const result = { value, level };
+
+      console.log(`🔢 [${componentId}] [${functionId}] Numeric confidence processed:`, {
+        original: item.confidence,
+        percentage: value,
+        level,
+        thresholds: { high: '>80%', medium: '50-80%', low: '<50%' }
+      });
+
+      return result;
     }
 
     const confidenceMap = {
@@ -503,28 +897,76 @@ const InstacartShoppingList = ({
       'low': { value: 45, level: 'low' }
     };
 
-    return confidenceMap[item.confidence] || { value: 70, level: 'medium' };
+    const result = confidenceMap[item.confidence] || { value: 70, level: 'medium' };
+    console.log(`📋 [${componentId}] [${functionId}] String confidence mapped:`, {
+      input: item.confidence,
+      mapped: result,
+      usedDefault: !confidenceMap[item.confidence]
+    });
+
+    return result;
   };
 
   // Format the unit display for the orange badge
   const formatUnitDisplay = (item) => {
+    const functionId = `formatUnitDisplay_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+    console.log(`📦 [${componentId}] [${functionId}] Unit formatting:`, {
+      itemId: item?.id || 'Unknown',
+      productName: item?.productName || 'Unknown',
+      unitCount: item.unitCount,
+      quantity: item.quantity,
+      unit: item.unit,
+      size: item.size,
+      package_size: item.package_size
+    });
+
     const quantity = item.unitCount || item.quantity || 1;
     const unit = item.unit || item.size || item.package_size || 'each';
 
+    console.log(`📊 [${componentId}] [${functionId}] Resolved values:`, {
+      finalQuantity: quantity,
+      finalUnit: unit,
+      quantitySource: item.unitCount ? 'unitCount' : (item.quantity ? 'quantity' : 'default'),
+      unitSource: item.unit ? 'unit' : (item.size ? 'size' : (item.package_size ? 'package_size' : 'default'))
+    });
+
     // If unit is "each", don't display it
     if (unit === 'each') {
-      return `${quantity} item${quantity > 1 ? 's' : ''}`;
+      const result = `${quantity} item${quantity > 1 ? 's' : ''}`;
+      console.log(`✅ [${componentId}] [${functionId}] Each unit formatting: "${result}"`);
+      return result;
     }
 
     // Format as "quantity-unit" (e.g., "1-16 oz bag", "3-cups")
-    return `${quantity}-${unit}`;
+    const result = `${quantity}-${unit}`;
+    console.log(`✅ [${componentId}] [${functionId}] Standard unit formatting: "${result}"`);
+    return result;
   };
 
   // Get current retailer info and logo
   const getCurrentRetailer = () => {
+    const functionId = `getCurrentRetailer_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+    console.log(`🏪 [${componentId}] [${functionId}] Current retailer lookup:`, {
+      retailersCount: retailers.length,
+      selectedRetailerId,
+      hasSelection: retailers.length > 0 && selectedRetailerId,
+      availableRetailerIds: retailers.map(r => r.retailer_key || r.id)
+    });
+
     if (retailers.length > 0 && selectedRetailerId) {
-      return retailers.find(r => (r.retailer_key || r.id) === selectedRetailerId);
+      const result = retailers.find(r => (r.retailer_key || r.id) === selectedRetailerId);
+      console.log(`✅ [${componentId}] [${functionId}] Retailer lookup result:`, {
+        found: !!result,
+        retailerName: result?.name || 'Unknown',
+        retailerId: result?.retailer_key || result?.id || 'Unknown',
+        hasLogo: !!(result?.retailer_logo_url || result?.logo_url)
+      });
+      return result;
     }
+
+    console.log(`⚠️ [${componentId}] [${functionId}] No retailer selected or available`);
     return null;
   };
 
@@ -532,32 +974,117 @@ const InstacartShoppingList = ({
   const retailerLogo = currentRetailer?.retailer_logo_url || currentRetailer?.logo_url;
   const retailerName = currentRetailer?.name;
 
+  console.log(`🏪 [${componentId}] Current retailer setup:`, {
+    currentRetailer: currentRetailer?.name || 'None',
+    hasLogo: !!retailerLogo,
+    logoUrl: retailerLogo
+  });
+
   // Sort items
+  console.log(`🔄 [${componentId}] Sorting items:`, {
+    itemCount: localItems.length,
+    sortBy,
+    sortingMethod: sortBy || 'default'
+  });
+
+  const sortStartTime = performance.now();
+  let comparisons = 0;
   const sortedItems = [...localItems].sort((a, b) => {
+    comparisons++;
+
+    let result = 0;
     switch(sortBy) {
       case 'confidence':
-        return (b.confidence || 0) - (a.confidence || 0);
+        const aConf = a.confidence || 0;
+        const bConf = b.confidence || 0;
+        result = bConf - aConf;
+        console.log(`🎯 [${componentId}] Confidence comparison #${comparisons}: ${a.productName} (${aConf}) vs ${b.productName} (${bConf}) = ${result}`);
+        break;
       case 'price':
-        return (a.price || 0) - (b.price || 0);
+        const aPrice = a.price || 0;
+        const bPrice = b.price || 0;
+        result = aPrice - bPrice;
+        console.log(`💰 [${componentId}] Price comparison #${comparisons}: ${a.productName} ($${aPrice}) vs ${b.productName} ($${bPrice}) = ${result}`);
+        break;
       case 'alphabetical':
-        return formatProductName(a.productName || '').localeCompare(formatProductName(b.productName || ''));
+        const aName = formatProductName(a.productName || '');
+        const bName = formatProductName(b.productName || '');
+        result = aName.localeCompare(bName);
+        console.log(`🔤 [${componentId}] Alphabetical comparison #${comparisons}: "${aName}" vs "${bName}" = ${result}`);
+        break;
       case 'category':
-        return getCategory(a).localeCompare(getCategory(b));
+        const aCat = getCategory(a);
+        const bCat = getCategory(b);
+        result = aCat.localeCompare(bCat);
+        console.log(`🏷️ [${componentId}] Category comparison #${comparisons}: "${aCat}" vs "${bCat}" = ${result}`);
+        break;
       default:
-        return 0;
+        result = 0;
+        console.log(`➡️ [${componentId}] Default comparison #${comparisons}: no sorting applied`);
+        break;
     }
+
+    return result;
+  });
+
+  const sortDuration = Math.round(performance.now() - sortStartTime);
+  console.log(`✅ [${componentId}] Sorting completed:`, {
+    originalCount: localItems.length,
+    sortedCount: sortedItems.length,
+    totalComparisons: comparisons,
+    sortDuration,
+    averageComparisonTime: comparisons > 0 ? Math.round((sortDuration / comparisons) * 1000) / 1000 : 0
   });
 
   // Filter items
+  console.log(`🔍 [${componentId}] Filtering items:`, {
+    itemCount: sortedItems.length,
+    filterBy,
+    filterCriteria: filterBy || 'all'
+  });
+
+  const filterStartTime = performance.now();
+  let itemsEvaluated = 0;
+  let itemsFiltered = 0;
+
   const filteredItems = sortedItems.filter(item => {
-    if (filterBy === 'all') return true;
+    itemsEvaluated++;
+
+    if (filterBy === 'all') {
+      console.log(`✅ [${componentId}] Filter evaluation #${itemsEvaluated}: ${item.productName} - PASSED (show all)`);
+      return true;
+    }
+
     if (filterBy === 'ingredients') {
       // Show items that are typically cooking ingredients
       const category = getCategory(item).toLowerCase();
       const ingredientCategories = ['pantry', 'spices', 'oils', 'seasonings', 'baking', 'condiments'];
-      return ingredientCategories.some(cat => category.includes(cat));
+      const isIngredient = ingredientCategories.some(cat => category.includes(cat));
+
+      console.log(`🧄 [${componentId}] Filter evaluation #${itemsEvaluated}: ${item.productName} - ${isIngredient ? 'PASSED' : 'FILTERED'} (ingredient check: category="${category}", matches=${ingredientCategories.filter(cat => category.includes(cat))})`);
+
+      if (!isIngredient) itemsFiltered++;
+      return isIngredient;
     }
-    return getCategory(item).toLowerCase() === filterBy.toLowerCase();
+
+    const itemCategory = getCategory(item).toLowerCase();
+    const targetCategory = filterBy.toLowerCase();
+    const matches = itemCategory === targetCategory;
+
+    console.log(`🏷️ [${componentId}] Filter evaluation #${itemsEvaluated}: ${item.productName} - ${matches ? 'PASSED' : 'FILTERED'} (category check: "${itemCategory}" vs "${targetCategory}")`);
+
+    if (!matches) itemsFiltered++;
+    return matches;
+  });
+
+  const filterDuration = Math.round(performance.now() - filterStartTime);
+  console.log(`✅ [${componentId}] Filtering completed:`, {
+    originalCount: sortedItems.length,
+    filteredCount: filteredItems.length,
+    itemsEvaluated,
+    itemsFiltered,
+    filterDuration,
+    filterEfficiency: itemsEvaluated > 0 ? Math.round((filteredItems.length / itemsEvaluated) * 100) : 0
   });
 
   return (
