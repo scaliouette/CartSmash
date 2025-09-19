@@ -398,13 +398,21 @@ const InstacartCheckoutUnified = ({
       console.log('📊 Checkout creation result:', result);
 
       if (result.success && (result.checkoutUrl || result.instacartUrl)) {
-        setCheckoutUrl(result.checkoutUrl || result.instacartUrl);
-        console.log(`✅ ${mode === 'recipe' ? 'Recipe page' : 'Shopping cart'} created successfully:`, result.checkoutUrl || result.instacartUrl);
+        const finalUrl = result.checkoutUrl || result.instacartUrl;
+        setCheckoutUrl(finalUrl);
+        console.log(`✅ ${mode === 'recipe' ? 'Recipe page' : 'Shopping cart'} created successfully:`, finalUrl);
 
-        // Simulate processing time for better UX
+        // Open Instacart immediately after successful creation
+        console.log('🔗 Opening Instacart checkout:', finalUrl);
+        window.open(finalUrl, '_blank', 'noopener,noreferrer');
+
+        // Update to completion step
+        setCurrentStep(2);
+
+        // Close the modal after a brief delay
         setTimeout(() => {
-          setCurrentStep(4);
-        }, 2000);
+          onClose?.();
+        }, 1500);
       } else {
         console.error('❌ Checkout creation failed:', result);
         throw new Error(result.error || `${mode === 'recipe' ? 'Recipe creation' : 'Checkout creation'} failed`);
@@ -454,18 +462,25 @@ const InstacartCheckoutUnified = ({
   // Direct store selection - API-driven with immediate navigation
   const handleStoreSelect = async (store) => {
     try {
+      console.log('🏪 Store selected:', store.name);
+
       // Immediately select the store
       setSelectedStore(store.id);
 
       // Save selection to localStorage
       localStorage.setItem('selectedStore', JSON.stringify(store));
 
-      // Create Instacart recipe and navigate directly
-      await handleProceedToCheckout();
+      // Show loading state
+      setLoading(true);
+      setError(null);
+
+      // Create checkout immediately after store selection
+      await createCheckout();
 
     } catch (error) {
       console.error('Error selecting store:', error);
-      alert('Failed to select store. Please try again.');
+      setError('Failed to create checkout. Please try again.');
+      setLoading(false);
     }
   };
 
