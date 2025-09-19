@@ -323,11 +323,34 @@ async function extractRecipe(url) {
       return byHeur;
     }
 
-    throw new Error("Could not parse recipe from page.");
-    
+    // If all methods fail, return a minimal fallback recipe
+    console.warn(`⚠️ Could not parse recipe from ${url}, returning minimal fallback`);
+    return {
+      title: "Recipe from " + (url.includes('://') ? new URL(url).hostname : 'unknown source'),
+      ingredients: ["Unable to extract ingredients - please add manually"],
+      steps: ["Unable to extract instructions - please add manually"],
+      description: "Recipe extraction failed. Please manually add ingredients and instructions.",
+      url: url,
+      prepTime: "",
+      cookTime: "",
+      servings: ""
+    };
+
   } catch (error) {
     console.error(`❌ Recipe scraping failed for ${url}:`, error.message);
-    throw error;
+
+    // Return a fallback recipe instead of throwing
+    return {
+      title: "Recipe from " + (url.includes('://') ? new URL(url).hostname : 'unknown source'),
+      ingredients: ["Recipe extraction failed - please add ingredients manually"],
+      steps: ["Recipe extraction failed - please add instructions manually"],
+      description: `Failed to extract recipe from ${url}. Error: ${error.message}`,
+      url: url,
+      prepTime: "",
+      cookTime: "",
+      servings: "",
+      error: error.message
+    };
   }
 }
 
