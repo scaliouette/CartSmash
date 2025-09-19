@@ -501,11 +501,11 @@ IMPORTANT FOR RECIPES: Provide DETAILED, step-by-step cooking instructions with:
         // Then, ask about adding grocery items if found
         if (extractedItems && extractedItems.length > 0) {
           console.log(`🛒 Found ${extractedItems.length} grocery items, offering to add to cart...`);
-          let confirmMessage = `Found ${extractedItems.length} grocery items!\n\nAdd them to your cart?\n\nFirst few items:\n${extractedItems.slice(0, 3).map(item => `• ${item}`).join('\n')}${extractedItems.length > 3 ? '\n...and more' : ''}`;
+          let confirmMessage = `Found ${extractedItems.length} grocery items!\n\nAdd them to your cart?\n\nFirst few items:\n${extractedItems.slice(0, 3).map(item => `• ${typeof item === 'object' ? JSON.stringify(item) : String(item || '')}`).join('\n')}${extractedItems.length > 3 ? '\n...and more' : ''}`;
           
           if (window.confirm(confirmMessage)) {
             // Format the items properly for the main form
-            const formattedList = extractedItems.join('\n');
+            const formattedList = extractedItems.map(item => typeof item === 'object' ? JSON.stringify(item) : String(item || '')).join('\n');
             console.log('📝 Sending grocery list to main form:', formattedList);
             
             onGroceryListGenerated(formattedList);

@@ -249,6 +249,10 @@ const InstacartCheckoutUnified = ({
       const selectedRetailer = retailers.find(r => r.id === selectedStore);
       const checkedIngredients = checkoutData.ingredients.filter(item => item.checked);
 
+      if (!selectedRetailer) {
+        throw new Error('Please select a retailer before creating checkout');
+      }
+
       console.log('🛒 Creating checkout with:', {
         totalIngredients: checkoutData.ingredients.length,
         checkedIngredients: checkedIngredients.length,

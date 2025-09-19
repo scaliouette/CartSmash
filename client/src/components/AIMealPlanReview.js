@@ -243,7 +243,8 @@ export default function AIMealPlanReview({
                             {recipe.description ||
                              (recipe.ingredients?.slice(0, 3).map(ing => {
                                if (typeof ing === 'string') return ing;
-                               return ing.item || ing.original || ing.name || (ing.quantity && ing.unit && ing.name ? `${ing.quantity} ${ing.unit} ${ing.name}` : '') || '';
+                               const safeString = ing.item || ing.original || ing.name || (ing.quantity && ing.unit && ing.name ? `${ing.quantity} ${ing.unit} ${ing.name}` : '') || '';
+                               return typeof safeString === 'string' ? safeString : String(safeString || '');
                              }).filter(Boolean).join(', '))}
                           </p>
                         </div>
@@ -315,7 +316,7 @@ export default function AIMealPlanReview({
                           readOnly
                         />
                         <span className="text-sm text-gray-700">
-                          {item.item || `${item.quantity || ''} ${item.unit || ''} ${item.ingredient || ''}`}
+                          {typeof item === 'object' ? (item.item || `${item.quantity || ''} ${item.unit || ''} ${item.ingredient || ''}`.trim()) : String(item || '')}
                         </span>
                       </div>
                     ))}
