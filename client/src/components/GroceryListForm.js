@@ -6391,9 +6391,6 @@ const styles = {
     transition: 'background 0.2s'
   },
 
-  buttonIcon: {
-    fontSize: '18px'
-  },
 
   // Mobile responsive adjustments
   toggleRowMobile: {

@@ -67,9 +67,7 @@ const InstacartShoppingList = ({
   const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState(false);
   const [isEditingZip, setIsEditingZip] = useState(false);
   const [currentZipCode, setCurrentZipCode] = useState(userZipCode);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const dropdownRef = useRef(null);
-  const buttonRef = useRef(null);
 
   // Mobile device detection
   const deviceInfo = useDeviceDetection();
@@ -301,13 +299,6 @@ const InstacartShoppingList = ({
     }
   };
 
-  // Handle retailer selection
-  const handleRetailerChange = (retailerId) => {
-    console.log('🏪 Retailer changed to:', retailerId);
-    setSelectedRetailerId(retailerId);
-    // You can add a callback to notify parent component
-    // if (onRetailerChange) onRetailerChange(retailerId);
-  };
 
   // Calculate detailed pricing breakdown when store is selected
   const calculateDetailedPricing = useCallback(() => {
@@ -325,7 +316,6 @@ const InstacartShoppingList = ({
     };
   }, [total, retailers.length, selectedRetailerId]);
 
-  const pricing = calculateDetailedPricing();
 
   // Handle direct quantity input
   const setQuantity = (itemId, value) => {
@@ -430,9 +420,7 @@ const InstacartShoppingList = ({
       padding: isMobile ? '12px 8px' : '24px',
       fontFamily: 'system-ui, -apple-system, sans-serif',
       maxWidth: '100%',
-      boxSizing: 'border-box',
-      overflowX: 'hidden', // Prevent horizontal scroll on mobile
-      width: '100%'
+      boxSizing: 'border-box'
     }}>
       {/* Modern Header */}
       <div style={{
@@ -930,47 +918,6 @@ const InstacartShoppingList = ({
             )}
 
             <div style={filterBarStyles.rightControls}>
-              {/* Select All Button - visible on all devices */}
-              <button
-                onClick={toggleSelectAll}
-                style={{
-                  ...filterBarStyles.iconBtn,
-                  backgroundColor: allItemsSelected ? '#FB4F14' : (someItemsSelected ? '#FB4F14' : 'white'),
-                  color: allItemsSelected || someItemsSelected ? 'white' : '#002244',
-                  border: `2px solid ${allItemsSelected || someItemsSelected ? '#FB4F14' : '#d1d5db'}`,
-                  position: 'relative',
-                  width: '44px',
-                  height: '44px'
-                }}
-                title={allItemsSelected ? 'Deselect all items' : 'Select all items'}
-              >
-                {allItemsSelected && (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M5 13l4 4L19 7"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
-                {someItemsSelected && !allItemsSelected && (
-                  <div style={{
-                    width: '12px',
-                    height: '2px',
-                    backgroundColor: 'currentColor'
-                  }} />
-                )}
-                {!allItemsSelected && !someItemsSelected && (
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    border: '2px solid currentColor',
-                    borderRadius: '3px'
-                  }} />
-                )}
-              </button>
 
               {someItemsSelected && (
                 <button
@@ -1055,58 +1002,24 @@ const InstacartShoppingList = ({
           alignItems: 'center'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <label style={{
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '22px',
-              height: '22px',
-              cursor: 'pointer'
-            }}>
-              <input
-                type="checkbox"
-                checked={allItemsSelected}
-                onChange={toggleSelectAll}
-                style={{
-                  position: 'absolute',
-                  opacity: 0,
-                  width: '100%',
-                  height: '100%',
-                  cursor: 'pointer'
-                }}
-              />
-              <div style={{
-                width: '22px',
-                height: '22px',
-                border: `2px solid ${allItemsSelected || someItemsSelected ? '#FB4F14' : '#d1d5db'}`,
+            <div
+              style={{
+                width: '20px',
+                height: '20px',
+                border: allItemsSelected ? 'none' : '2px solid white',
                 borderRadius: '4px',
-                backgroundColor: allItemsSelected ? '#FB4F14' : (someItemsSelected ? '#FB4F14' : 'white'),
+                cursor: 'pointer',
+                background: allItemsSelected ? '#FB4F14' : (someItemsSelected ? '#FB4F14' : 'transparent'),
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.2s'
-              }}>
-                {allItemsSelected && (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M5 13l4 4L19 7"
-                      stroke="white"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
-                {someItemsSelected && !allItemsSelected && (
-                  <div style={{
-                    width: '10px',
-                    height: '2px',
-                    backgroundColor: 'white'
-                  }} />
-                )}
-              </div>
-            </label>
+                color: 'white',
+                fontSize: '14px'
+              }}
+              onClick={toggleSelectAll}
+            >
+              {allItemsSelected ? '✓' : (someItemsSelected ? '−' : '')}
+            </div>
           </div>
           <div>PRODUCT NAME</div>
           <div style={{ textAlign: 'right' }}>PRICE</div>
