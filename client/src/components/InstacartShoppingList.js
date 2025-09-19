@@ -340,7 +340,20 @@ const InstacartShoppingList = ({
       return sum + (quantity);
     }, 0);
 
-    return { total, totalQuantity, itemCount: localItems.length };
+    const quantityDuration = Math.round(performance.now() - quantityStartTime);
+    const totalDuration = Math.round(performance.now() - startTime);
+
+    console.log(`✅ [${componentId}] [${functionId}] Quantity calculation completed:`, {
+      quantityCalculations,
+      totalQuantity,
+      quantityDuration,
+      totalDuration
+    });
+
+    const result = { total, totalQuantity, itemCount: localItems.length };
+    console.log(`🎯 [${componentId}] [${functionId}] Final calculation result:`, result);
+
+    return result;
   }, [localItems]);
 
   const { total, totalQuantity, itemCount } = calculateTotals();
