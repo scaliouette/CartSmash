@@ -1249,11 +1249,50 @@ router.post('/smart-parse', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Smart parsing error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to parse text intelligently',
-      message: error.message
-    });
+    console.log('🔄 Attempting fallback parsing...');
+
+    try {
+      // Fallback to manual parsing when AI fails
+      const fallbackProducts = parseWithFallback(text);
+
+      console.log(`✅ Fallback parsing successful: ${fallbackProducts.length} products extracted`);
+
+      res.json({
+        success: true,
+        originalText: text,
+        products: fallbackProducts,
+        parsingStats: {
+          totalProducts: fallbackProducts.length,
+          highConfidence: 0,
+          mediumConfidence: fallbackProducts.length,
+          lowConfidence: 0,
+          categoriesFound: [...new Set(fallbackProducts.map(p => p.category))],
+          averageConfidence: 0.5,
+          processingMetrics: {
+            candidateItems: fallbackProducts.length,
+            validProducts: fallbackProducts.length,
+            filteringEfficiency: "100.0%"
+          }
+        },
+        comparison: {
+          intelligentProducts: fallbackProducts.length,
+          totalCandidates: fallbackProducts.length,
+          filteringEfficiency: "100.0%",
+          averageConfidence: 0.5
+        },
+        fallbackUsed: true,
+        aiError: error.message,
+        timestamp: new Date().toISOString()
+      });
+    } catch (fallbackError) {
+      console.error('❌ Fallback parsing also failed:', fallbackError);
+      res.status(500).json({
+        success: false,
+        error: 'Both AI and fallback parsing failed',
+        aiError: error.message,
+        fallbackError: fallbackError.message
+      });
+    }
   }
 });
 

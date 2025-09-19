@@ -163,12 +163,18 @@ class AIProductParser {
 Rules:
 - Only output JSON. No prose. No markdown. No trailing commas.
 - One object per product with fields: productName (string), quantity (number), unit (string or null), containerSize (string or null), category (produce|meat|dairy|grains|frozen|canned|pantry|deli|snacks|other).
-- CRITICAL: Preserve exact quantities from the input. If recipe says "8 eggs", output quantity=8, unit="each", NOT quantity=4, unit="dozen".
-- Normalize units (lb, oz, can, jar, bottle, box, bag, container, dozen, each) but preserve the original quantity scale.
+- CRITICAL: Preserve exact quantities AND units from the input. Examples:
+  * "20 oz cheese" → quantity=20, unit="oz"
+  * "2 lbs chicken" → quantity=2, unit="lbs"
+  * "1 gallon milk" → quantity=1, unit="gallon"
+  * "8 eggs" → quantity=8, unit="each"
+  * "3 cans tomatoes" → quantity=3, unit="can"
+- UNIT PARSING: Always extract the unit if present. Common units: oz, lb, lbs, gallon, cup, cups, tbsp, tsp, can, cans, jar, bottle, box, bag, container, dozen, each, bunch, head, loaf, package, pkg
 - Remove bullets (*), asterisks, numbers, and list markers from the beginning of lines. Clean "• 1 2 lbs chicken breast" to extract quantity=2, unit="lbs", productName="chicken breast".
 - Remove headings, recipes, instructions. Ignore lines like Breakfast/Lunch/Dinner.
 - Parse grouped sections (Produce:, Proteins & Dairy:, Grains & Bakery:, Pantry:).
 - If quantity missing, set quantity=1 and unit='each'.
+- If unit is missing but quantity is present, set unit='each'.
 - Keep productName concise (e.g., "boneless skinless chicken breast").
 - DO NOT convert units automatically (e.g., don't convert 8 eggs to dozens unless explicitly stated as dozens in the source).`;
 
