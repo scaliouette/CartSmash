@@ -1330,6 +1330,27 @@ function GroceryListForm({
     setShowResults(currentCart.length > 0);
   }, [currentCart]);
 
+  // Close dropdowns when loading starts to prevent z-index conflicts
+  useEffect(() => {
+    if (isLoading || showProgress || waitingForAIResponse) {
+      console.log('🔒 Loading state detected - closing any open dropdowns');
+
+      // Close store dropdown in InstacartShoppingList
+      const storeDropdowns = document.querySelectorAll('[data-store-dropdown-open="true"]');
+      storeDropdowns.forEach(dropdown => {
+        dropdown.click();
+      });
+
+      // Close any other dropdowns that might be open
+      const allDropdowns = document.querySelectorAll('[aria-expanded="true"]');
+      allDropdowns.forEach(dropdown => {
+        if (dropdown.getAttribute('aria-expanded') === 'true') {
+          dropdown.click();
+        }
+      });
+    }
+  }, [isLoading, showProgress, waitingForAIResponse]);
+
   // Initialize expansion states when recipes change
   useEffect(() => {
     const allRecipes = [...parsedRecipes, ...recipes];
@@ -4387,6 +4408,7 @@ Or paste any grocery list directly!"
             onChooseStore={handleChooseStore}
             userZipCode={currentUser?.zipCode || currentUser?.postalCode || '95670'}
             selectedRetailer={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'kroger'}
+            isDisabled={isLoading || showProgress || waitingForAIResponse}
           />
           
 

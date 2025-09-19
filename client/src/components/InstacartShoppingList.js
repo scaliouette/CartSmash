@@ -52,7 +52,8 @@ const InstacartShoppingList = ({
   onShowPriceHistory,
   onChooseStore,
   userZipCode = '95670',
-  selectedRetailer = 'kroger'
+  selectedRetailer = 'kroger',
+  isDisabled = false
 }) => {
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [sortBy, setSortBy] = useState('confidence');
@@ -73,6 +74,13 @@ const InstacartShoppingList = ({
   const deviceInfo = useDeviceDetection();
   const isMobile = deviceInfo.isMobile || window.innerWidth <= 768;
 
+  // Close dropdown when disabled to prevent z-index conflicts
+  useEffect(() => {
+    if (isDisabled && isStoreDropdownOpen) {
+      console.log('🔒 InstacartShoppingList disabled - closing store dropdown');
+      setIsStoreDropdownOpen(false);
+    }
+  }, [isDisabled, isStoreDropdownOpen]);
 
   // Sync local items with parent
   useEffect(() => {
@@ -496,7 +504,9 @@ const InstacartShoppingList = ({
               overflow: 'visible'
             }} ref={dropdownRef}>
               <button
-                onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
+                onClick={() => !isDisabled && setIsStoreDropdownOpen(!isStoreDropdownOpen)}
+                disabled={isDisabled}
+                data-store-dropdown-open={isStoreDropdownOpen ? "true" : "false"}
                 style={{
                   width: '100%',
                   padding: '10px 40px 10px 16px',
@@ -505,8 +515,10 @@ const InstacartShoppingList = ({
                   borderRadius: '8px',
                   fontSize: '14px',
                   fontWeight: '500',
-                  color: '#002244',
-                  cursor: 'pointer',
+                  color: isDisabled ? '#999' : '#002244',
+                  cursor: isDisabled ? 'not-allowed' : 'pointer',
+                  opacity: isDisabled ? 0.5 : 1,
+                  pointerEvents: isDisabled ? 'none' : 'auto',
                   outline: 'none',
                   display: 'flex',
                   alignItems: 'center',
@@ -558,7 +570,7 @@ const InstacartShoppingList = ({
               </div>
 
               {/* Dropdown Menu */}
-              {isStoreDropdownOpen && (
+              {isStoreDropdownOpen && !isDisabled && (
                 <div style={{
                   position: 'absolute',
                   top: '100%',
