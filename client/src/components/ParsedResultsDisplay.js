@@ -1539,7 +1539,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
             style={{
               width: '32px',
               height: '32px',
-              border: selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? 'none' : '2px solid #e5e7eb',
+              border: 'none',
               borderRadius: '6px',
               cursor: 'pointer',
               background: selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? '#FB4F14' : (selectedItems.size > 0 ? '#FB4F14' : 'white'),
@@ -1554,7 +1554,7 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
             }}
             title={selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? "Deselect all items" : "Select all items"}
           >
-            {selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? '✓' : (selectedItems.size > 0 ? '−' : '')}
+            {selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? '✓' : (selectedItems.size > 0 ? '−' : '☐')}
           </button>
 
           <span style={styles.selectionItemsCount}>

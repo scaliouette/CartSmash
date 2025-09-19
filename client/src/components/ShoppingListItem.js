@@ -266,7 +266,6 @@ const ShoppingListItem = ({
               style={{
                 minWidth: '44px',
                 minHeight: '44px',
-                border: 'none',
                 backgroundColor: '#FEF2F2',
                 borderRadius: '8px',
                 cursor: 'pointer',
@@ -577,7 +576,6 @@ const ShoppingListItem = ({
           style={{
             width: '36px',
             height: '36px',
-            border: 'none',
             backgroundColor: '#FEF2F2',
             borderRadius: '8px',
             cursor: 'pointer',

@@ -532,7 +532,7 @@ const InstacartShoppingList = ({
               style={{
                 width: '32px',
                 height: '32px',
-                border: allItemsSelected ? 'none' : '2px solid #e5e7eb',
+                border: 'none',
                 borderRadius: '6px',
                 cursor: 'pointer',
                 background: allItemsSelected ? '#FB4F14' : (someItemsSelected ? '#FB4F14' : 'white'),
@@ -547,7 +547,7 @@ const InstacartShoppingList = ({
               }}
               title={allItemsSelected ? "Deselect all items" : "Select all items"}
             >
-              {allItemsSelected ? '✓' : (someItemsSelected ? '−' : '')}
+              {allItemsSelected ? '✓' : (someItemsSelected ? '−' : '☐')}
             </button>
 
             <button

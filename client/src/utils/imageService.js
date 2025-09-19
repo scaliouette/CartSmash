@@ -119,7 +119,8 @@ class ImageService {
       this.setCachedImage(url, imageData);
       return imageData;
     } catch (error) {
-      console.warn('⚠️ Failed to preload image:', url, error);
+      // Silently handle preload failures (common with external images)
+      console.log('🔇 Preload failed (expected for external images):', url);
       return url; // Return original URL as fallback
     }
   }
@@ -203,7 +204,10 @@ class ImageService {
 
       // Preload and cache in background (don't wait)
       if (options.enableCaching !== false) {
-        this.preloadImage(item.imageUrl).catch(console.warn);
+        this.preloadImage(item.imageUrl).catch(error => {
+          // Silently handle image loading errors (like 404s from Unsplash)
+          console.log('🔇 Image preload failed (silently handled):', item.imageUrl);
+        });
       }
 
       return item.imageUrl;
@@ -220,7 +224,10 @@ class ImageService {
 
       // Preload and cache in background (don't wait)
       if (options.enableCaching !== false) {
-        this.preloadImage(item.image).catch(console.warn);
+        this.preloadImage(item.image).catch(error => {
+          // Silently handle image loading errors (like 404s from Unsplash)
+          console.log('🔇 Image preload failed (silently handled):', item.image);
+        });
       }
 
       return item.image;
@@ -240,7 +247,10 @@ class ImageService {
 
         // Preload and cache in background (don't wait)
         if (options.enableCaching !== false) {
-          this.preloadImage(instacartImageUrl).catch(console.warn);
+          this.preloadImage(instacartImageUrl).catch(error => {
+            // Silently handle image loading errors (like 404s from Unsplash)
+            console.log('🔇 Image preload failed (silently handled):', instacartImageUrl);
+          });
         }
 
         return instacartImageUrl;
