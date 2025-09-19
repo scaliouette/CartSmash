@@ -53,6 +53,29 @@ const InstacartShoppingList = ({
   userZipCode = '95670',
   selectedRetailer = 'kroger'
 }) => {
+  // 🚀 COMPONENT INITIALIZATION DEBUG
+  const componentId = `InstacartShoppingList_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`🎯 [${componentId}] COMPONENT MOUNTED:`, {
+    timestamp: new Date().toISOString(),
+    propsReceived: {
+      itemsCount: items?.length || 0,
+      hasOnItemsChange: !!onItemsChange,
+      hasOnDeleteItem: !!onDeleteItem,
+      hasOnCheckout: !!onCheckout,
+      hasOnSaveList: !!onSaveList,
+      hasOnValidateItems: !!onValidateItems,
+      hasOnShowPriceHistory: !!onShowPriceHistory,
+      userZipCode,
+      selectedRetailer
+    },
+    itemsSample: items?.slice(0, 2)?.map(item => ({
+      id: item.id,
+      name: item.productName || item.name,
+      price: item.price,
+      hasImage: !!item.image || !!item.imageUrl
+    }))
+  });
+
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [sortBy, setSortBy] = useState('confidence');
   const [filterBy, setFilterBy] = useState('all');
@@ -62,39 +85,123 @@ const InstacartShoppingList = ({
   const [loadingRetailers, setLoadingRetailers] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
+  // 🔧 STATE INITIALIZATION DEBUG
+  console.log(`📊 [${componentId}] INITIAL STATE SET:`, {
+    selectedItems: selectedItems.size,
+    sortBy,
+    filterBy,
+    localItemsCount: localItems?.length || 0,
+    retailersCount: retailers?.length || 0,
+    selectedRetailerId,
+    loadingRetailers,
+    showAdvancedFilters
+  });
+
 
   // Mobile device detection
   const deviceInfo = useDeviceDetection();
   const isMobile = deviceInfo.isMobile || window.innerWidth <= 768;
 
+  // 📱 DEVICE DETECTION DEBUG
+  console.log(`📱 [${componentId}] DEVICE DETECTION:`, {
+    deviceInfo,
+    isMobile,
+    windowWidth: window.innerWidth,
+    userAgent: navigator.userAgent.substring(0, 100)
+  });
 
   // Sync local items with parent
   useEffect(() => {
-    console.log('🔄 InstacartShoppingList received new items:', items.length);
-    debugShoppingListState(items, 'Items Received from Parent');
+    const effectId = `useEffect_items_${Date.now()}`;
+    console.log(`🔄 [${componentId}] [${effectId}] ITEMS SYNC TRIGGERED:`, {
+      newItemsCount: items?.length || 0,
+      previousLocalItemsCount: localItems?.length || 0,
+      itemsChanged: items !== localItems,
+      timestamp: new Date().toISOString()
+    });
+
+    debugShoppingListState(items, `Items Received from Parent [${effectId}]`);
+
+    // Deep comparison debug
+    if (items && localItems) {
+      const itemChanges = {
+        added: items.filter(item => !localItems.find(local => local.id === item.id)),
+        removed: localItems.filter(local => !items.find(item => item.id === local.id)),
+        modified: items.filter(item => {
+          const local = localItems.find(local => local.id === item.id);
+          return local && JSON.stringify(item) !== JSON.stringify(local);
+        })
+      };
+      console.log(`🔍 [${componentId}] [${effectId}] ITEM CHANGES ANALYSIS:`, itemChanges);
+    }
+
     setLocalItems(items);
-  }, [items]);
+    console.log(`✅ [${componentId}] [${effectId}] Local items state updated`);
+  }, [items, componentId, localItems]);
 
   // Load retailers based on user zip code
   const loadRetailers = useCallback(async () => {
-    if (!userZipCode) return;
+    const functionId = `loadRetailers_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = performance.now();
+
+    console.log(`🏪 [${componentId}] [${functionId}] LOAD RETAILERS STARTED:`, {
+      userZipCode,
+      hasZipCode: !!userZipCode,
+      timestamp: new Date().toISOString(),
+      currentRetailersCount: retailers?.length || 0,
+      selectedRetailerId
+    });
+
+    if (!userZipCode) {
+      console.log(`⚠️ [${componentId}] [${functionId}] No zip code provided, skipping retailer load`);
+      return;
+    }
 
     setLoadingRetailers(true);
+    console.log(`⏳ [${componentId}] [${functionId}] Loading state set to true`);
+
     try {
-      console.log('🏪 Loading retailers for zip code:', userZipCode);
+      console.log(`📡 [${componentId}] [${functionId}] Making API call to instacartService.getNearbyRetailers`);
+      const apiCallStart = performance.now();
       const result = await instacartService.getNearbyRetailers(userZipCode);
+      const apiCallDuration = Math.round(performance.now() - apiCallStart);
+
+      console.log(`📥 [${componentId}] [${functionId}] API Response received:`, {
+        success: result?.success,
+        retailersCount: result?.retailers?.length || 0,
+        apiCallDuration,
+        resultKeys: result ? Object.keys(result) : [],
+        firstRetailer: result?.retailers?.[0] ? {
+          id: result.retailers[0].id,
+          name: result.retailers[0].name,
+          hasLogo: !!result.retailers[0].logo_url
+        } : null
+      });
 
       if (result.success && result.retailers) {
+        console.log(`🔄 [${componentId}] [${functionId}] Starting retailer sorting logic`);
+
         // Sort retailers by estimated pricing (lowest prices first)
+        const sortStartTime = performance.now();
         const sortedRetailers = [...result.retailers].sort((a, b) => {
+          // Detailed debug for each comparison
+          console.log(`🔍 [${componentId}] [${functionId}] Comparing retailers:`, {
+            a: { name: a.name, estimated_total: a.estimated_total, delivery_fee: a.delivery_fee },
+            b: { name: b.name, estimated_total: b.estimated_total, delivery_fee: b.delivery_fee }
+          });
+
           // If retailers have pricing data, use it
           if (a.estimated_total && b.estimated_total) {
-            return parseFloat(a.estimated_total) - parseFloat(b.estimated_total);
+            const priceDiff = parseFloat(a.estimated_total) - parseFloat(b.estimated_total);
+            console.log(`💰 [${componentId}] [${functionId}] Sorting by price: ${a.name} (${a.estimated_total}) vs ${b.name} (${b.estimated_total}) = ${priceDiff}`);
+            return priceDiff;
           }
 
           // If they have delivery fees, prioritize lower fees
           if (a.delivery_fee && b.delivery_fee) {
-            return parseFloat(a.delivery_fee) - parseFloat(b.delivery_fee);
+            const feeDiff = parseFloat(a.delivery_fee) - parseFloat(b.delivery_fee);
+            console.log(`🚚 [${componentId}] [${functionId}] Sorting by delivery fee: ${a.name} (${a.delivery_fee}) vs ${b.name} (${b.delivery_fee}) = ${feeDiff}`);
+            return feeDiff;
           }
 
           // Default order: prefer well-known low-cost retailers
@@ -108,6 +215,8 @@ const InstacartShoppingList = ({
             (b.retailer_key || '').includes(store)
           );
 
+          console.log(`🏷️ [${componentId}] [${functionId}] Low-cost ranking: ${a.name} (rank: ${aRank}) vs ${b.name} (rank: ${bRank})`);
+
           // If both found in ranking, lower index = higher priority
           if (aRank !== -1 && bRank !== -1) {
             return aRank - bRank;
@@ -118,21 +227,44 @@ const InstacartShoppingList = ({
           if (bRank !== -1) return 1;
 
           // Fallback to alphabetical
-          return (a.name || '').localeCompare(b.name || '');
+          const alphabeticalResult = (a.name || '').localeCompare(b.name || '');
+          console.log(`🔤 [${componentId}] [${functionId}] Alphabetical sort: ${a.name} vs ${b.name} = ${alphabeticalResult}`);
+          return alphabeticalResult;
+        });
+
+        const sortDuration = Math.round(performance.now() - sortStartTime);
+        console.log(`⚡ [${componentId}] [${functionId}] Retailer sorting completed:`, {
+          originalCount: result.retailers.length,
+          sortedCount: sortedRetailers.length,
+          sortDuration,
+          topRetailers: sortedRetailers.slice(0, 3).map(r => ({ name: r.name, id: r.id || r.retailer_key }))
         });
 
         setRetailers(sortedRetailers);
-        console.log(`✅ Loaded ${sortedRetailers.length} retailers, sorted by lowest prices`);
+        console.log(`✅ [${componentId}] [${functionId}] Retailers state updated with ${sortedRetailers.length} retailers`);
 
         // Auto-select the first retailer (lowest-priced) if none is selected
         if (!selectedRetailerId && sortedRetailers.length > 0) {
           const defaultRetailer = sortedRetailers[0];
           const defaultRetailerId = defaultRetailer.id || defaultRetailer.retailer_key;
+          console.log(`🎯 [${componentId}] [${functionId}] Auto-selecting default retailer:`, {
+            name: defaultRetailer.name,
+            id: defaultRetailerId,
+            hasEstimatedTotal: !!defaultRetailer.estimated_total,
+            hasDeliveryFee: !!defaultRetailer.delivery_fee
+          });
           setSelectedRetailerId(defaultRetailerId);
-          console.log(`🎯 Auto-selected retailer: ${defaultRetailer.name} (${defaultRetailerId})`);
+          console.log(`✅ [${componentId}] [${functionId}] Default retailer selected: ${defaultRetailer.name} (${defaultRetailerId})`);
+        } else {
+          console.log(`ℹ️ [${componentId}] [${functionId}] Keeping current retailer selection: ${selectedRetailerId}`);
         }
       } else {
-        console.warn('⚠️ No retailers found, using default');
+        console.warn(`⚠️ [${componentId}] [${functionId}] No retailers found or request failed:`, {
+          success: result?.success,
+          hasRetailers: !!result?.retailers,
+          retailersLength: result?.retailers?.length,
+          resultStructure: result ? Object.keys(result) : 'null'
+        });
         setRetailers([]);
       }
     } catch (error) {
@@ -161,14 +293,51 @@ const InstacartShoppingList = ({
 
   // Calculate totals
   const calculateTotals = useCallback(() => {
-    const total = localItems.reduce((sum, item) => {
+    const functionId = `calculateTotals_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = performance.now();
+    console.log(`🧮 [${componentId}] [${functionId}] Starting total calculation:`, {
+      itemCount: localItems.length,
+      timestamp: new Date().toISOString()
+    });
+
+    let itemsProcessed = 0;
+    let totalCalculations = 0;
+    const total = localItems.reduce((sum, item, index) => {
       const price = parseFloat(item.price) || 0;
       const quantity = parseInt(item.quantity) || 1;
-      return sum + (price * quantity);
+      const itemTotal = price * quantity;
+
+      console.log(`🧮 [${componentId}] [${functionId}] Processing item ${index + 1}/${localItems.length}:`, {
+        productName: item.productName,
+        price: price,
+        quantity: quantity,
+        itemTotal: itemTotal,
+        runningSum: sum + itemTotal
+      });
+
+      itemsProcessed++;
+      totalCalculations++;
+      return sum + itemTotal;
     }, 0);
 
-    const totalQuantity = localItems.reduce((sum, item) => {
-      return sum + (parseInt(item.quantity) || 1);
+    const calculationDuration = Math.round(performance.now() - startTime);
+    console.log(`✅ [${componentId}] [${functionId}] Total calculation completed:`, {
+      itemsProcessed,
+      totalCalculations,
+      finalTotal: total,
+      calculationDuration,
+      averageTimePerItem: itemsProcessed > 0 ? Math.round(calculationDuration / itemsProcessed * 100) / 100 : 0
+    });
+
+    const quantityStartTime = performance.now();
+    console.log(`🔢 [${componentId}] [${functionId}] Starting quantity calculation...`);
+
+    let quantityCalculations = 0;
+    const totalQuantity = localItems.reduce((sum, item, index) => {
+      const quantity = parseInt(item.quantity) || 1;
+      console.log(`🔢 [${componentId}] [${functionId}] Quantity for item ${index + 1}: ${item.productName} = ${quantity} (running sum: ${sum + quantity})`);
+      quantityCalculations++;
+      return sum + (quantity);
     }, 0);
 
     return { total, totalQuantity, itemCount: localItems.length };

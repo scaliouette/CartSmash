@@ -433,6 +433,12 @@ const cleanRecipeTitle = (title) => {
 };
 
 const cleanMarkdown = (text) => {
+  // Ensure we always work with a string
+  if (typeof text !== 'string') {
+    console.warn('⚠️ cleanMarkdown received non-string input:', text);
+    return String(text || '');
+  }
+
   return text
     .replace(/\*\*/g, '') // Remove bold markdown
     .replace(/\*/g, '')   // Remove italic markdown
@@ -3546,8 +3552,11 @@ Return as JSON with this structure:
           console.log(`🔄 [RECIPE DEBUG] Processing ingredient ${idx}:`, ing);
           const formatted = formatIngredientWithQuantity(ing, idx);
           const cleaned = cleanMarkdown(formatted);
-          console.log(`✅ [RECIPE DEBUG] Final ingredient ${idx}: "${cleaned}"`);
-          return cleaned;
+
+          // Extra safety: ensure we always return a string
+          const result = typeof cleaned === 'string' ? cleaned : String(cleaned || 'Unknown ingredient');
+          console.log(`✅ [RECIPE DEBUG] Final ingredient ${idx}: "${result}" (type: ${typeof result})`);
+          return result;
         } catch (error) {
           console.error(`❌ [RECIPE DEBUG] Error formatting ingredient ${idx}:`, ing, error);
           return 'Unknown ingredient';
