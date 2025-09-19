@@ -1514,49 +1514,9 @@ function GroceryListForm({
   const handleChooseStore = async () => {
     console.log('🏪 Store selection clicked');
 
-    // Show a simple store selection dialog
-    const availableRetailers = [
-      { id: 'kroger', name: 'Kroger', logo: '🏬' },
-      { id: 'safeway', name: 'Safeway', logo: '🛒' },
-      { id: 'costco', name: 'Costco', logo: '🏪' },
-      { id: 'target', name: 'Target', logo: '🎯' },
-      { id: 'walmart', name: 'Walmart', logo: '🛍️' },
-      { id: 'wholefoods', name: 'Whole Foods', logo: '🥬' }
-    ];
-
-    const retailerOptions = availableRetailers.map(retailer =>
-      `${retailer.logo} ${retailer.name}`
-    ).join('\n');
-
-    const selectedStore = prompt(`Choose your preferred store:\n\n${retailerOptions}\n\nEnter store name:`);
-
-    if (selectedStore) {
-      const found = availableRetailers.find(retailer =>
-        retailer.name.toLowerCase().includes(selectedStore.toLowerCase())
-      );
-
-      if (found) {
-        try {
-          // Update user's preferred retailer in the database
-          await updateUserProfile({
-            preferredRetailer: found.id,
-            selectedRetailer: found.id
-          });
-
-          console.log(`🏪 Store changed to: ${found.name} (${found.id})`);
-
-          // Show success message
-          setSuccessMessage(`Store changed to ${found.name}`);
-          setTimeout(() => setSuccessMessage(''), 3000);
-        } catch (error) {
-          console.error('Error updating preferred retailer:', error);
-          setError('Failed to update store preference. Please try again.');
-          setTimeout(() => setError(''), 3000);
-        }
-      } else {
-        alert('Store not found. Please try again.');
-      }
-    }
+    // Simply open the InstacartCheckoutFlow
+    // It has its own store selection UI with real API data
+    setShowInstacartCheckout(true);
   };
 
   const extractAIResponseText = (aiData) => {
