@@ -933,9 +933,9 @@ const InstacartShoppingList = ({
                 onClick={toggleSelectAll}
                 style={{
                   ...filterBarStyles.iconBtn,
-                  backgroundColor: allItemsSelected ? '#3b82f6' : (someItemsSelected ? '#3b82f6' : 'white'),
+                  backgroundColor: allItemsSelected ? '#FB4F14' : (someItemsSelected ? '#FB4F14' : 'white'),
                   color: allItemsSelected || someItemsSelected ? 'white' : '#002244',
-                  border: `2px solid ${allItemsSelected || someItemsSelected ? '#3b82f6' : '#d1d5db'}`,
+                  border: `2px solid ${allItemsSelected || someItemsSelected ? '#FB4F14' : '#d1d5db'}`,
                   position: 'relative',
                   width: '44px',
                   height: '44px'
@@ -1077,9 +1077,9 @@ const InstacartShoppingList = ({
               <div style={{
                 width: '22px',
                 height: '22px',
-                border: '2px solid #d1d5db',
+                border: `2px solid ${allItemsSelected || someItemsSelected ? '#FB4F14' : '#d1d5db'}`,
                 borderRadius: '4px',
-                backgroundColor: allItemsSelected ? '#3b82f6' : (someItemsSelected ? '#3b82f6' : 'white'),
+                backgroundColor: allItemsSelected ? '#FB4F14' : (someItemsSelected ? '#FB4F14' : 'white'),
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
