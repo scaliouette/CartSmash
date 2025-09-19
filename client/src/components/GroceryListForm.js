@@ -5,7 +5,7 @@ import InstacartShoppingList from './InstacartShoppingList';
 // eslint-disable-next-line no-unused-vars
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
-import InstacartCheckoutUnified from './InstacartCheckoutUnified';
+import InstacartCheckoutFlow from './InstacartCheckoutFlow';
 import InstacartProductMatcher from './InstacartProductMatcher';
 import PriceHistory from './PriceHistory';
 import RecipesFoundCard from './RecipesFoundCard';
@@ -4459,20 +4459,9 @@ Or paste any grocery list directly!"
 
 
       {showInstacartCheckout && (
-        <InstacartCheckoutUnified
-          items={currentCart}
-          mode="recipe"
-          title="My CartSmash Shopping List"
+        <InstacartCheckoutFlow
+          currentCart={currentCart}
           onClose={() => setShowInstacartCheckout(false)}
-          initialLocation="95670"
-          recipeData={{
-            recipes: [...parsedRecipes, ...recipes],
-            shoppingList: currentCart,
-            context: {
-              source: 'CartSmash',
-              hasRecipes: parsedRecipes.length + recipes.length > 0
-            }
-          }}
         />
       )}
 
