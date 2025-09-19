@@ -1537,7 +1537,19 @@ function GroceryListForm({
 
 
   const submitGroceryList = async (listText, useAI = true) => {
+    // DEBUG: Start workflow session tracking
+    const sessionId = `workflow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const startTime = performance.now();
+    console.log(`🚀 [${sessionId}] Starting workflow session:`, {
+      inputLength: listText?.length || 0,
+      useAI,
+      selectedAI,
+      timestamp: new Date().toISOString(),
+      sessionId
+    });
+
     if (!listText.trim()) {
+      console.log(`❌ [${sessionId}] Workflow failed: Empty input`);
       setError('Please enter a grocery list');
       return;
     }
@@ -1546,9 +1558,18 @@ function GroceryListForm({
     setError('');
     setShowProgress(true);
     setParsingProgress(0);
-    
+
+    // DEBUG: Track state changes
+    console.log(`📊 [${sessionId}] Initial state set:`, {
+      isLoading: true,
+      showProgress: true,
+      parsingProgress: 0,
+      elapsedMs: Math.round(performance.now() - startTime)
+    });
+
     // Safety: prevent overlays from blocking UI if a request hangs
     const overlaySafety = setTimeout(() => {
+      console.log(`⚠️ [${sessionId}] Safety timeout triggered at 15s`);
       setIsLoading(false);
       setShowProgress(false);
       setWaitingForAIResponse(false);
@@ -1564,183 +1585,316 @@ function GroceryListForm({
       
       // STEP 1: Generate with AI (first click)
       if (useAI && selectedAI && !waitingForAIResponse) {
+        const aiStepStart = performance.now();
+        console.log(`🤖 [${sessionId}] STEP 1: AI Processing - Starting`, {
+          prompt: listText.substring(0, 100) + (listText.length > 100 ? '...' : ''),
+          ai: selectedAI,
+          ingredientStyle,
+          elapsedMs: Math.round(aiStepStart - startTime)
+        });
+
         try {
-          console.log('🤖 Starting AI processing:', { prompt: listText.substring(0, 100), ai: selectedAI, useAI, selectedAI });
-          
+          const requestPayload = {
+            prompt: listText,
+            context: 'grocery_list_generation',
+            ingredientChoice: ingredientStyle,
+            options: {
+              includeRecipes: true,
+              includeInstructions: true,
+              formatAsList: true,
+              structuredFormat: true
+            }
+          };
+
+          console.log(`📤 [${sessionId}] AI Request payload:`, {
+            payloadSize: JSON.stringify(requestPayload).length,
+            endpoint: `${API_URL}/api/ai/${selectedAI}`,
+            options: requestPayload.options
+          });
+
           const aiResponse = await fetch(`${API_URL}/api/ai/${selectedAI}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt: listText,
-              context: 'grocery_list_generation',
-              ingredientChoice: ingredientStyle,
-              options: {
-                includeRecipes: true,
-                includeInstructions: true,
-                formatAsList: true,
-                structuredFormat: true
-              }
-            })
+            body: JSON.stringify(requestPayload)
           });
 
           if (!aiResponse.ok) {
             const errorText = await aiResponse.text();
-            console.error('AI Response error:', errorText);
+            console.error(`❌ [${sessionId}] AI Response error:`, {
+              status: aiResponse.status,
+              statusText: aiResponse.statusText,
+              errorText: errorText.substring(0, 200),
+              elapsedMs: Math.round(performance.now() - aiStepStart)
+            });
             throw new Error(`AI request failed: ${aiResponse.status}`);
           }
 
           const aiData = await aiResponse.json();
-          console.log('AI response received, checking structure...');
+          const aiStepDuration = Math.round(performance.now() - aiStepStart);
+          console.log(`✅ [${sessionId}] AI Response received:`, {
+            responseSize: JSON.stringify(aiData).length,
+            hasRecipes: !!aiData.recipes,
+            hasShoppingList: !!aiData.shoppingList,
+            duration: aiStepDuration,
+            elapsedMs: Math.round(performance.now() - startTime)
+          });
           
           let groceryListProcessed = false;
           
           // Handle structured data response
           if (aiData.structuredData && aiData.recipes) {
-            console.log(`📊 Found ${aiData.recipes.length} recipes and ${aiData.products?.length || 0} products`);
-            
+            const structureProcessStart = performance.now();
+            console.log(`📊 [${sessionId}] STEP 1.1: Processing structured AI data`, {
+              recipesCount: aiData.recipes.length,
+              productsCount: aiData.products?.length || 0,
+              elapsedMs: Math.round(structureProcessStart - startTime)
+            });
+
             // Store structured recipes for display
             if (aiData.recipes.length > 0) {
-              console.log('Displaying structured recipes from AI:', aiData.recipes);
-              // FIXED: Only add to recipes array to avoid duplication 
-              // (parsedRecipes is for text parsing, recipes is for AI-generated)
+              console.log(`🍳 [${sessionId}] Setting ${aiData.recipes.length} AI-generated recipes`);
               setRecipes(aiData.recipes);
             }
-            
+
             // Use structured products - filter out meal descriptions
             if (aiData.products && aiData.products.length > 0) {
-              console.log('🔍 Processing structured products, total count:', aiData.products.length);
-              
+              const filterStart = performance.now();
+              console.log(`🔍 [${sessionId}] STEP 1.2: Filtering products`, {
+                totalProducts: aiData.products.length
+              });
+
               // Filter out any "products" that are actually meal descriptions
               const realGroceryItems = aiData.products.filter(product => {
                 const name = product.productName || product.name;
                 const isMealDescription = name.match(/^(Breakfast|Lunch|Dinner|Snack):/i);
-                
+
                 if (isMealDescription) {
-                  console.log('🍽️ Skipping meal plan item (should be recipe):', name);
+                  console.log(`🍽️ [${sessionId}] Skipping meal plan item:`, name);
                   return false;
                 }
                 return true;
               });
-              
-              console.log('🛒 Real grocery items after filtering:', realGroceryItems.length);
-              
+
+              const filterDuration = Math.round(performance.now() - filterStart);
+              console.log(`✅ [${sessionId}] Product filtering complete:`, {
+                realGroceryItems: realGroceryItems.length,
+                filteredOut: aiData.products.length - realGroceryItems.length,
+                duration: filterDuration
+              });
+
               if (realGroceryItems.length > 0) {
+                const mappingStart = performance.now();
                 const groceryItems = realGroceryItems.map(product => {
                   const quantity = product.quantity || '1';
                   const unit = product.unit ? ` ${product.unit}` : '';
                   const name = product.productName || product.name;
                   return `• ${quantity}${unit} ${name}`;
                 });
+
+                const mappingDuration = Math.round(performance.now() - mappingStart);
+                console.log(`🔄 [${sessionId}] Product mapping complete:`, {
+                  mappedItems: groceryItems.length,
+                  sampleItems: groceryItems.slice(0, 3),
+                  duration: mappingDuration
+                });
                 
                 const groceryListText = groceryItems.join('\n');
+                console.log(`📝 [${sessionId}] Setting grocery list text`, {
+                  textLength: groceryListText.length,
+                  lineCount: groceryItems.length
+                });
+
                 setInputText(groceryListText);
-                
+
                 if (textareaRef.current) {
                   textareaRef.current.value = groceryListText;
                 }
-                
+
                 groceryListProcessed = true;
               } else {
-                console.log('⚠️ No real grocery items found after filtering meal descriptions');
+                console.log(`⚠️ [${sessionId}] No real grocery items found after filtering meal descriptions`);
               }
             }
+
+            const structureProcessDuration = Math.round(performance.now() - structureProcessStart);
+            console.log(`⏱️ [${sessionId}] STEP 1.1-1.2 Complete: Structured data processing`, {
+              duration: structureProcessDuration,
+              success: groceryListProcessed
+            });
           }
-          
+
           // Fallback to text extraction if no structured data
           if (!groceryListProcessed) {
+            const fallbackStart = performance.now();
+            console.log(`🔄 [${sessionId}] STEP 1.3: Fallback text extraction`);
+
             const aiResponseText = extractAIResponseText(aiData);
             if (aiResponseText) {
               const cleanGroceryList = extractGroceryListOnly(aiResponseText);
+              console.log(`📝 [${sessionId}] Extracted grocery list text`, {
+                originalLength: aiResponseText.length,
+                cleanedLength: cleanGroceryList.length
+              });
+
               setInputText(cleanGroceryList);
-              
+
               if (textareaRef.current) {
                 textareaRef.current.value = cleanGroceryList;
               }
-              
+
               // Parse and display recipes from AI response  WHERE THE MAGIC HAPPENS FOR RECIPES
               try {
+                const recipeParseStart = performance.now();
+                console.log(`🍳 [${sessionId}] STEP 1.4: Parsing recipes from AI response`);
+
                 const recipeResult = await extractMealPlanRecipes(aiResponseText);
+                const recipeParseDuration = Math.round(performance.now() - recipeParseStart);
+
                 if (recipeResult.recipes && recipeResult.recipes.length > 0) {
-                  console.log('Parsed recipes from AI response:', recipeResult.recipes);
+                  console.log(`✅ [${sessionId}] Recipe parsing successful:`, {
+                    recipesFound: recipeResult.recipes.length,
+                    duration: recipeParseDuration
+                  });
                   setValidParsedRecipes(recipeResult.recipes);
+                } else {
+                  console.log(`⚠️ [${sessionId}] No recipes found in AI response`, {
+                    duration: recipeParseDuration
+                  });
                 }
               } catch (recipeError) {
-                console.error('❌ Failed to process recipes from AI response:', recipeError);
+                console.error(`❌ [${sessionId}] Recipe parsing failed:`, {
+                  error: recipeError.message,
+                  stack: recipeError.stack?.substring(0, 200)
+                });
               }
-              
+
               groceryListProcessed = true;
             }
+
+            const fallbackDuration = Math.round(performance.now() - fallbackStart);
+            console.log(`⏱️ [${sessionId}] STEP 1.3-1.4 Complete: Fallback processing`, {
+              duration: fallbackDuration,
+              success: groceryListProcessed
+            });
           }
           
           if (groceryListProcessed) {
+            const postProcessStart = performance.now();
+            console.log(`🎯 [${sessionId}] STEP 1.5: Post-processing AI results`);
+
             // Expand textarea
             setTimeout(() => {
               expandTextarea();
             }, 50);
 
-            // Clear loading states
-            // Don't stop here - continue to parsing step automatically
-            console.log('✅ AI has generated your list! Now parsing into cart items...');
-
             // Set flag and continue to parsing step without requiring second click
             setWaitingForAIResponse(true);
+            console.log(`✅ [${sessionId}] AI processing complete, proceeding to cart parsing`, {
+              elapsedMs: Math.round(performance.now() - startTime)
+            });
 
             // Continue to parsing step immediately using local control flag
             const shouldParseToCarts = true;
-            console.log('🔍 DEBUG: AI processing complete, proceeding to cart parsing...');
 
             // Jump directly to cart parsing section
             if (shouldParseToCarts) {
-              console.log('📦 Parsing grocery list into cart items...');
+              const cartParseStart = performance.now();
+              console.log(`📦 [${sessionId}] STEP 2: Cart Parsing - Starting`);
 
               // Use the processed grocery list text, not the original prompt
               const currentListText = textareaRef.current?.value || inputText || listText;
-              console.log('🔍 DEBUG: Using processed grocery list text length =', currentListText?.length);
-              console.log('🔍 DEBUG: Original listText length =', listText?.length);
-              console.log('🔍 DEBUG: inputText length =', inputText?.length);
+              console.log(`📝 [${sessionId}] Text sources analysis:`, {
+                textareaLength: textareaRef.current?.value?.length || 0,
+                inputTextLength: inputText?.length || 0,
+                originalListLength: listText?.length || 0,
+                usingSource: currentListText === (textareaRef.current?.value) ? 'textarea' :
+                           currentListText === inputText ? 'inputText' : 'original'
+              });
+
+              const parsePayload = {
+                listText: currentListText,
+                action: mergeCart ? 'merge' : 'replace',
+                userId: currentUser?.uid || null,
+                options: {
+                  mergeDuplicates: true,
+                  enhancedQuantityParsing: true,
+                  detectContainers: true
+                }
+              };
+
+              console.log(`📤 [${sessionId}] Cart parse request:`, {
+                payloadSize: JSON.stringify(parsePayload).length,
+                textLength: currentListText?.length,
+                action: parsePayload.action,
+                hasUserId: !!parsePayload.userId,
+                endpoint: `${API_URL}/api/cart/parse`
+              });
 
               const response = await fetch(`${API_URL}/api/cart/parse`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  listText: currentListText,
-                  action: mergeCart ? 'merge' : 'replace',
-                  userId: currentUser?.uid || null,
-                  options: {
-                    mergeDuplicates: true,
-                    enhancedQuantityParsing: true,
-                    detectContainers: true
-                  }
-                }),
+                body: JSON.stringify(parsePayload)
               });
 
               if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`❌ [${sessionId}] Cart parse failed:`, {
+                  status: response.status,
+                  statusText: response.statusText,
+                  errorText: errorText.substring(0, 200),
+                  elapsedMs: Math.round(performance.now() - cartParseStart)
+                });
                 throw new Error(`Failed to process list: ${response.status}`);
               }
 
               const data = await response.json();
-              console.log('🔍 DEBUG: Cart parse response =', data);
+              const cartParseDuration = Math.round(performance.now() - cartParseStart);
+              console.log(`✅ [${sessionId}] Cart parse response received:`, {
+                responseSize: JSON.stringify(data).length,
+                itemsCount: data.items?.length || 0,
+                categoriesCount: data.categories?.length || 0,
+                success: !!data.success,
+                duration: cartParseDuration
+              });
 
               if (data.success && data.cart) {
+                const structureFixStart = performance.now();
+                console.log(`🔧 [${sessionId}] STEP 2.1: Fixing cart item structure`);
+
                 // Fix cart item structure before setting
                 const fixedCart = fixCartItemStructure(data.cart);
+                const structureFixDuration = Math.round(performance.now() - structureFixStart);
 
-                console.log('Original cart:', data.cart);
-                console.log('Fixed cart:', fixedCart);
+                console.log(`✅ [${sessionId}] Cart structure fixed:`, {
+                  originalItems: data.cart?.length || 0,
+                  fixedItems: fixedCart?.length || 0,
+                  duration: structureFixDuration
+                });
 
                 // Update the cart with properly structured items
                 setCurrentCart(fixedCart);
 
                 // CRITICAL: Enrich cart items with real Instacart product data
-                console.log('🔍 Enriching cart items with Instacart product data...');
+                const enrichmentStart = performance.now();
+                console.log(`🔍 [${sessionId}] STEP 2.2: Enriching cart with Instacart data`);
+
+                // Note: enrichCartWithInstacartData is async but not awaited - runs in background
                 enrichCartWithInstacartData(fixedCart);
 
                 // Update parsing stats
                 if (data.stats) {
+                  console.log(`📊 [${sessionId}] Setting parsing stats:`, {
+                    totalParsed: data.stats.totalParsed,
+                    successRate: data.stats.successRate,
+                    duplicatesFound: data.stats.duplicatesFound
+                  });
                   setParsingStats(data.stats);
                 }
 
-                // Clear the waiting flag
+                // Clear the waiting flag and UI state
+                const cleanupStart = performance.now();
+                console.log(`🧹 [${sessionId}] STEP 2.3: Cleaning up UI state`);
+
                 setWaitingForAIResponse(false);
 
                 // Clear the input for next use
@@ -1752,7 +1906,15 @@ function GroceryListForm({
                 // Clear draft
                 clearDraft();
 
-                console.log(`✅ Added ${fixedCart.length} items to cart!`);
+                const cleanupDuration = Math.round(performance.now() - cleanupStart);
+                const totalWorkflowDuration = Math.round(performance.now() - startTime);
+
+                console.log(`🎉 [${sessionId}] WORKFLOW COMPLETE - SUCCESS:`, {
+                  itemsAdded: fixedCart.length,
+                  cleanupDuration,
+                  totalDuration: totalWorkflowDuration,
+                  avgTimePerItem: Math.round(totalWorkflowDuration / (fixedCart.length || 1))
+                });
 
                 // Clear loading states and return success
                 clearInterval(progressInterval);
@@ -1771,7 +1933,13 @@ function GroceryListForm({
           }
           
         } catch (aiError) {
-          console.error('AI request failed:', aiError);
+          const aiErrorDuration = Math.round(performance.now() - startTime);
+          console.error(`❌ [${sessionId}] AI request failed:`, {
+            error: aiError.message,
+            stack: aiError.stack?.substring(0, 200),
+            totalDuration: aiErrorDuration
+          });
+
           setError(`AI request failed: ${aiError.message}`);
           clearInterval(progressInterval);
           clearTimeout(overlaySafety);
@@ -1782,69 +1950,120 @@ function GroceryListForm({
           return;
         }
       }
-      
+
       // STEP 2: Parse text into cart items (second click or manual text)
       if (waitingForAIResponse || !useAI) {
-        console.log('📦 Parsing grocery list into cart items...');
-        console.log('🔍 DEBUG: waitingForAIResponse =', waitingForAIResponse);
-        console.log('🔍 DEBUG: useAI =', useAI);
-        console.log('🔍 DEBUG: listText length =', listText?.length);
+        const manualParseStart = performance.now();
+        console.log(`📦 [${sessionId}] STEP 3: Manual Cart Parsing - Starting`, {
+          waitingForAIResponse,
+          useAI,
+          textLength: listText?.length || 0,
+          elapsedMs: Math.round(manualParseStart - startTime)
+        });
+
+        const manualParsePayload = {
+          listText: listText,
+          action: mergeCart ? 'merge' : 'replace',
+          userId: currentUser?.uid || null,
+          options: {
+            mergeDuplicates: true,
+            enhancedQuantityParsing: true,
+            detectContainers: true
+          }
+        };
+
+        console.log(`📤 [${sessionId}] Manual parse request:`, {
+          payloadSize: JSON.stringify(manualParsePayload).length,
+          endpoint: `${API_URL}/api/cart/parse`
+        });
 
         const response = await fetch(`${API_URL}/api/cart/parse`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            listText: listText,
-            action: mergeCart ? 'merge' : 'replace',
-            userId: currentUser?.uid || null,
-            options: {
-              mergeDuplicates: true,
-              enhancedQuantityParsing: true,
-              detectContainers: true
-            }
-          }),
+          body: JSON.stringify(manualParsePayload)
         });
 
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ [${sessionId}] Manual parse failed:`, {
+            status: response.status,
+            errorText: errorText.substring(0, 200),
+            elapsedMs: Math.round(performance.now() - manualParseStart)
+          });
           throw new Error(`Failed to process list: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log('🔍 DEBUG: Cart parse response =', data);
+        const manualParseDuration = Math.round(performance.now() - manualParseStart);
+        console.log(`✅ [${sessionId}] Manual parse response:`, {
+          responseSize: JSON.stringify(data).length,
+          itemsCount: data.cart?.length || 0,
+          success: !!data.success,
+          duration: manualParseDuration
+        });
 
         if (data.success && data.cart) {
+          const manualStructureStart = performance.now();
+          console.log(`🔧 [${sessionId}] STEP 3.1: Manual structure fix`);
+
           // Fix cart item structure before setting
           const fixedCart = fixCartItemStructure(data.cart);
-          
-          console.log('Original cart:', data.cart);
-          console.log('Fixed cart:', fixedCart);
-          
+
+          const manualStructureDuration = Math.round(performance.now() - manualStructureStart);
+          console.log(`✅ [${sessionId}] Manual structure fixed:`, {
+            originalItems: data.cart.length,
+            fixedItems: fixedCart.length,
+            duration: manualStructureDuration
+          });
+
           // Update the cart with properly structured items
           setCurrentCart(fixedCart);
-          
+
           // Update parsing stats
           if (data.stats) {
+            console.log(`📊 [${sessionId}] STEP 3.2: Setting manual parsing stats:`, {
+              totalParsed: data.stats.totalParsed,
+              successRate: data.stats.successRate
+            });
             setParsingStats(data.stats);
           }
-          
-          // Clear the waiting flag
+
+          // Clear the waiting flag and UI state
+          const manualCleanupStart = performance.now();
+          console.log(`🧹 [${sessionId}] STEP 3.3: Manual cleanup`);
+
           setWaitingForAIResponse(false);
-          
+
           // Clear the input for next use
           setInputText('');
           if (textareaRef.current) {
             textareaRef.current.value = '';
           }
-          
+
           // Clear draft
           clearDraft();
-          
-          console.log(`✅ Added ${fixedCart.length} items to cart!`);
-          
+
+          const manualCleanupDuration = Math.round(performance.now() - manualCleanupStart);
+          const totalManualDuration = Math.round(performance.now() - startTime);
+
+          console.log(`🎉 [${sessionId}] MANUAL WORKFLOW COMPLETE - SUCCESS:`, {
+            itemsAdded: fixedCart.length,
+            cleanupDuration: manualCleanupDuration,
+            totalDuration: totalManualDuration,
+            avgTimePerItem: Math.round(totalManualDuration / (fixedCart.length || 1))
+          });
+
         } else {
+          const manualErrorDuration = Math.round(performance.now() - startTime);
+          console.error(`❌ [${sessionId}] Manual parse data error:`, {
+            error: data.error || 'Failed to process grocery list',
+            hasCart: !!data.cart,
+            success: !!data.success,
+            totalDuration: manualErrorDuration
+          });
           throw new Error(data.error || 'Failed to process grocery list');
         }
-        
+
         // Clear loading states
         clearInterval(progressInterval);
         clearTimeout(overlaySafety);
@@ -1855,20 +2074,43 @@ function GroceryListForm({
       }
 
       // If we get here, something went wrong
-      console.log('🔍 DEBUG: Reached fallback error - conditions not met');
-      console.log('🔍 DEBUG: Final state - waitingForAIResponse =', waitingForAIResponse);
-      console.log('🔍 DEBUG: Final state - useAI =', useAI);
+      const fallbackErrorDuration = Math.round(performance.now() - startTime);
+      console.error(`⚠️ [${sessionId}] WORKFLOW FALLBACK ERROR - Conditions not met:`, {
+        waitingForAIResponse,
+        useAI,
+        totalDuration: fallbackErrorDuration,
+        possibleCause: 'Logic flow issue - neither AI nor manual parsing executed'
+      });
       setError('Unable to process. Please try again.');
-      
+
     } catch (err) {
-      console.error('Processing failed:', err);
+      const errorDuration = Math.round(performance.now() - startTime);
+      console.error(`💥 [${sessionId}] WORKFLOW FATAL ERROR:`, {
+        error: err.message,
+        stack: err.stack?.substring(0, 300),
+        totalDuration: errorDuration,
+        type: err.name || 'Unknown'
+      });
       setError(`Failed to process: ${err.message}`);
     } finally {
+      const finalCleanupStart = performance.now();
+      console.log(`🧹 [${sessionId}] FINAL CLEANUP - Clearing all states`, {
+        elapsedMs: Math.round(finalCleanupStart - startTime)
+      });
+
       if (progressInterval) clearInterval(progressInterval);
       clearTimeout(overlaySafety);
       setIsLoading(false);
       setShowProgress(false);
       setParsingProgress(0);
+
+      const finalCleanupDuration = Math.round(performance.now() - finalCleanupStart);
+      const totalSessionDuration = Math.round(performance.now() - startTime);
+      console.log(`🏁 [${sessionId}] SESSION COMPLETE:`, {
+        cleanupDuration: finalCleanupDuration,
+        totalSessionDuration,
+        timestamp: new Date().toISOString()
+      });
     }
   };
 

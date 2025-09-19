@@ -1094,11 +1094,7 @@
   position: absolute !important;
 }
 
-/* Fix ParsedResultsDisplay Table Layout */
-.parsed-results {
-  overflow: visible !important;
-}
-
+/* Shopping list table layout */
 .results-table {
   overflow-x: auto !important;
   overflow-y: visible !important;

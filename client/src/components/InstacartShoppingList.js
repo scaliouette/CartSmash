@@ -530,24 +530,25 @@ const InstacartShoppingList = ({
             <button
               onClick={toggleSelectAll}
               style={{
+                background: 'white',
+                color: selectedItems.size > 0 ? '#dc3545' : '#0066cc',
+                border: '1px solid #e0e0e0',
+                borderRadius: '4px',
                 width: '32px',
                 height: '32px',
-                border: 'none',
-                borderRadius: '6px',
                 cursor: 'pointer',
-                background: allItemsSelected ? '#FB4F14' : (someItemsSelected ? '#FB4F14' : 'white'),
-                display: 'flex',
+                fontSize: '16px',
+                display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: allItemsSelected || someItemsSelected ? 'white' : '#9ca3af',
-                fontSize: '14px',
-                fontWeight: 'bold',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                 marginRight: '8px',
                 flexShrink: 0
               }}
               title={allItemsSelected ? "Deselect all items" : "Select all items"}
             >
-              {allItemsSelected ? '✓' : (someItemsSelected ? '−' : '☐')}
+              {allItemsSelected ? '✓' : (someItemsSelected ? '−' : '□')}
             </button>
 
             <button

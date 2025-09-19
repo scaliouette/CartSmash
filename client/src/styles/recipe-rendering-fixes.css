@@ -80,13 +80,6 @@
   hyphens: auto !important;
 }
 
-/* Fix ParsedResultsDisplay recipe titles */
-.parsed-results .recipe-title,
-.parsed-results h4 {
-  white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: unset !important;
-}
 
 /* Fix AI Assistant recipe titles */
 .ai-message .recipe-title,
