@@ -246,11 +246,11 @@ const InstacartCheckoutUnified = ({
     setError(null);
 
     try {
-      const selectedRetailer = retailers.find(r => r.id === selectedStore);
+      const selectedRetailer = retailers.find(r => r.id === selectedStore) || retailers[0];
       const checkedIngredients = checkoutData.ingredients.filter(item => item.checked);
 
       if (!selectedRetailer) {
-        throw new Error('Please select a retailer before creating checkout');
+        throw new Error('No retailers available for checkout');
       }
 
       console.log('🛒 Creating checkout with:', {
@@ -406,17 +406,11 @@ const InstacartCheckoutUnified = ({
         setCheckoutUrl(finalUrl);
         console.log(`✅ ${mode === 'recipe' ? 'Recipe page' : 'Shopping cart'} created successfully:`, finalUrl);
 
-        // Open Instacart immediately after successful creation
-        console.log('🔗 Opening Instacart checkout:', finalUrl);
-        window.open(finalUrl, '_blank', 'noopener,noreferrer');
+        // Store checkout URL for user to access later if desired
+        console.log('✅ Checkout URL created:', finalUrl);
 
         // Update to completion step
         setCurrentStep(2);
-
-        // Close the modal after a brief delay
-        setTimeout(() => {
-          onClose?.();
-        }, 1500);
       } else {
         console.error('❌ Checkout creation failed:', result);
         throw new Error(result.error || `${mode === 'recipe' ? 'Recipe creation' : 'Checkout creation'} failed`);
@@ -452,6 +446,7 @@ const InstacartCheckoutUnified = ({
 
   const handleProceedToCheckout = () => {
     if (checkoutUrl) {
+      console.log('🔗 User chose to open Instacart checkout:', checkoutUrl);
       window.open(checkoutUrl, '_blank');
     }
     onClose?.();
@@ -750,7 +745,7 @@ const InstacartCheckoutUnified = ({
   };
 
   const renderCheckoutCompletion = () => {
-    const selectedRetailer = retailers.find(s => s.id === selectedStore);
+    const selectedRetailer = retailers.find(s => s.id === selectedStore) || retailers[0];
     const finalEstimate = getEstimatedTotal(selectedRetailer);
 
     return (
