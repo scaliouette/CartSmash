@@ -1533,6 +1533,30 @@ function ParsedResultsDisplay({ items, onItemsChange, onDeleteItem, currentUser,
       {/* Enhanced Selection Toolbar */}
       <div style={styles.selectionToolbar}>
         <div style={styles.selectionToolbarLeft}>
+          {/* Select All Button - Mobile */}
+          <button
+            onClick={toggleSelectAll}
+            style={{
+              width: '32px',
+              height: '32px',
+              border: selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? 'none' : '2px solid #e5e7eb',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              background: selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? '#FB4F14' : (selectedItems.size > 0 ? '#FB4F14' : 'white'),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: selectedItems.size > 0 ? 'white' : '#9ca3af',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              marginRight: '8px',
+              flexShrink: 0
+            }}
+            title={selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? "Deselect all items" : "Select all items"}
+          >
+            {selectedItems.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0 ? '✓' : (selectedItems.size > 0 ? '−' : '☐')}
+          </button>
+
           <span style={styles.selectionItemsCount}>
             All Items {selectedItems.size > 0 && `(${selectedItems.size})`}
           </span>

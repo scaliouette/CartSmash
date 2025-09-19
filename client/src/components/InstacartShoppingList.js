@@ -526,6 +526,30 @@ const InstacartShoppingList = ({
         <div style={filterBarStyles.container}>
           {/* Main controls in one line */}
           <div style={filterBarStyles.mainControls}>
+            {/* Select All Button - Mobile */}
+            <button
+              onClick={toggleSelectAll}
+              style={{
+                width: '32px',
+                height: '32px',
+                border: allItemsSelected ? 'none' : '2px solid #e5e7eb',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                background: allItemsSelected ? '#FB4F14' : (someItemsSelected ? '#FB4F14' : 'white'),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: allItemsSelected || someItemsSelected ? 'white' : '#9ca3af',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                marginRight: '8px',
+                flexShrink: 0
+              }}
+              title={allItemsSelected ? "Deselect all items" : "Select all items"}
+            >
+              {allItemsSelected ? '✓' : (someItemsSelected ? '−' : '☐')}
+            </button>
+
             <button
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
               style={filterBarStyles.filterToggle}
