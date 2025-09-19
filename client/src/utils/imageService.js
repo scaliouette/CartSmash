@@ -3,6 +3,11 @@
 
 class ImageService {
   constructor() {
+    // Image cache for performance improvement
+    this.imageCache = new Map();
+    this.cacheMaxSize = 100; // Maximum number of cached images
+    this.cacheExpiry = 30 * 60 * 1000; // 30 minutes in milliseconds
+
     // SVG data URLs for reliable fallbacks
     this.fallbackImages = {
       recipe: this.generateSvg('R', '#FF6B35', 'Recipe'),
@@ -32,6 +37,91 @@ class ImageService {
       pantry: '/api/image/pantry-default.jpg',
       default: '/api/image/default-item.jpg'
     };
+  }
+
+  /**
+   * Cache management methods
+   */
+  getCachedImage(url) {
+    const cached = this.imageCache.get(url);
+    if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+      console.log('📷 Using cached image:', url);
+      return cached.data;
+    }
+    if (cached) {
+      // Remove expired cache entry
+      this.imageCache.delete(url);
+    }
+    return null;
+  }
+
+  setCachedImage(url, data) {
+    // Clean cache if it's getting too large
+    if (this.imageCache.size >= this.cacheMaxSize) {
+      const oldestKey = this.imageCache.keys().next().value;
+      this.imageCache.delete(oldestKey);
+    }
+
+    this.imageCache.set(url, {
+      data,
+      timestamp: Date.now()
+    });
+    console.log('💾 Cached image:', url, `(${this.imageCache.size}/${this.cacheMaxSize})`);
+  }
+
+  clearExpiredCache() {
+    const now = Date.now();
+    for (const [url, cached] of this.imageCache.entries()) {
+      if (now - cached.timestamp >= this.cacheExpiry) {
+        this.imageCache.delete(url);
+      }
+    }
+  }
+
+  /**
+   * Preload and cache image
+   */
+  async preloadImage(url) {
+    if (!url || !this.isValidImageUrl(url)) return null;
+
+    // Check cache first
+    const cached = this.getCachedImage(url);
+    if (cached) return cached;
+
+    try {
+      // Create a promise to load the image
+      const imageData = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+
+        img.onload = () => {
+          // Convert to data URL for caching
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+
+          try {
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            resolve(dataUrl);
+          } catch (e) {
+            // If canvas conversion fails, just use the original URL
+            resolve(url);
+          }
+        };
+
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = url;
+      });
+
+      // Cache the result
+      this.setCachedImage(url, imageData);
+      return imageData;
+    } catch (error) {
+      console.warn('⚠️ Failed to preload image:', url, error);
+      return url; // Return original URL as fallback
+    }
   }
 
   /**
@@ -103,12 +193,36 @@ class ImageService {
 
     // First priority: Use real product images from Instacart API if available
     if (item.imageUrl && this.isValidImageUrl(item.imageUrl)) {
+      // Check cache first for external images
+      const cached = this.getCachedImage(item.imageUrl);
+      if (cached) {
+        console.log('✅ Using cached Instacart image:', item.imageUrl);
+        return cached;
+      }
       console.log('✅ Using real Instacart image:', item.imageUrl);
+
+      // Preload and cache in background (don't wait)
+      if (options.enableCaching !== false) {
+        this.preloadImage(item.imageUrl).catch(console.warn);
+      }
+
       return item.imageUrl;
     }
 
     if (item.image && this.isValidImageUrl(item.image)) {
+      // Check cache first for external images
+      const cached = this.getCachedImage(item.image);
+      if (cached) {
+        console.log('✅ Using cached product image:', item.image);
+        return cached;
+      }
       console.log('✅ Using real product image:', item.image);
+
+      // Preload and cache in background (don't wait)
+      if (options.enableCaching !== false) {
+        this.preloadImage(item.image).catch(console.warn);
+      }
+
       return item.image;
     }
 
@@ -116,7 +230,19 @@ class ImageService {
     if (item.instacartData) {
       const instacartImageUrl = item.instacartData.image_url || item.instacartData.imageUrl || item.instacartData.image;
       if (instacartImageUrl && this.isValidImageUrl(instacartImageUrl)) {
+        // Check cache first for external images
+        const cached = this.getCachedImage(instacartImageUrl);
+        if (cached) {
+          console.log('✅ Using cached Instacart data image:', instacartImageUrl);
+          return cached;
+        }
         console.log('✅ Using Instacart data image:', instacartImageUrl);
+
+        // Preload and cache in background (don't wait)
+        if (options.enableCaching !== false) {
+          this.preloadImage(instacartImageUrl).catch(console.warn);
+        }
+
         return instacartImageUrl;
       }
     }
@@ -204,10 +330,73 @@ class ImageService {
       onLoad: onLoad
     };
   }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats() {
+    this.clearExpiredCache(); // Clean up first
+
+    return {
+      size: this.imageCache.size,
+      maxSize: this.cacheMaxSize,
+      usage: `${this.imageCache.size}/${this.cacheMaxSize}`,
+      expiry: `${this.cacheExpiry / 1000 / 60} minutes`,
+      urls: Array.from(this.imageCache.keys())
+    };
+  }
+
+  /**
+   * Clear all cache
+   */
+  clearCache() {
+    this.imageCache.clear();
+    console.log('🧹 Image cache cleared');
+  }
+
+  /**
+   * Bulk preload images for better performance
+   */
+  async bulkPreloadImages(urls, options = {}) {
+    const { maxConcurrent = 3, timeout = 10000 } = options;
+    const validUrls = urls.filter(url => url && this.isValidImageUrl(url));
+
+    console.log(`📦 Bulk preloading ${validUrls.length} images...`);
+
+    const chunks = [];
+    for (let i = 0; i < validUrls.length; i += maxConcurrent) {
+      chunks.push(validUrls.slice(i, i + maxConcurrent));
+    }
+
+    const results = [];
+    for (const chunk of chunks) {
+      const chunkPromises = chunk.map(url =>
+        Promise.race([
+          this.preloadImage(url),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout')), timeout)
+          )
+        ]).catch(error => ({ url, error: error.message }))
+      );
+
+      const chunkResults = await Promise.all(chunkPromises);
+      results.push(...chunkResults);
+    }
+
+    const successful = results.filter(r => !r.error).length;
+    console.log(`✅ Preloaded ${successful}/${validUrls.length} images`);
+
+    return results;
+  }
 }
 
 // Create singleton instance
 const imageService = new ImageService();
+
+// Set up automatic cache cleanup every 5 minutes
+setInterval(() => {
+  imageService.clearExpiredCache();
+}, 5 * 60 * 1000);
 
 /**
  * Format product name to proper title case
@@ -232,6 +421,16 @@ export const formatProductName = (name) => {
     })
     .join(' ');
 };
+
+// Export cache management for debugging
+if (typeof window !== 'undefined') {
+  window.imageCache = {
+    stats: () => imageService.getCacheStats(),
+    clear: () => imageService.clearCache(),
+    preload: (urls) => imageService.bulkPreloadImages(urls),
+    service: imageService
+  };
+}
 
 export default imageService;
 export { ImageService };
