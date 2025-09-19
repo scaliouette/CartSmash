@@ -430,7 +430,9 @@ const InstacartShoppingList = ({
       padding: isMobile ? '12px 8px' : '24px',
       fontFamily: 'system-ui, -apple-system, sans-serif',
       maxWidth: '100%',
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
+      overflowX: 'hidden', // Prevent horizontal scroll on mobile
+      width: '100%'
     }}>
       {/* Modern Header */}
       <div style={{
