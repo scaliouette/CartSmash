@@ -3129,19 +3129,26 @@ Return as JSON with this structure:
   const handleCollapseExpandAll = () => {
     const allRecipes = [...parsedRecipes, ...recipes];
     const newExpandedState = !mealPlanExpanded;
-    
-    console.log(`🔄 Toggling all ${allRecipes.length} recipes to ${newExpandedState ? 'expanded' : 'collapsed'}`);
-    console.log('Current states before toggle:', individualExpansionStates);
-    
+
+    console.log(`🎛️ [GLOBAL TOGGLE DEBUG] === COLLAPSE/EXPAND ALL CLICKED ===`);
+    console.log(`🔄 [GLOBAL TOGGLE DEBUG] Toggling all ${allRecipes.length} recipes to ${newExpandedState ? 'expanded' : 'collapsed'}`);
+    console.log(`📊 [GLOBAL TOGGLE DEBUG] Current states before toggle:`, individualExpansionStates);
+    console.log(`🍳 [GLOBAL TOGGLE DEBUG] Recipe details:`, allRecipes.map((recipe, idx) => ({
+      index: idx,
+      title: recipe.title || recipe.name,
+      ingredientsCount: recipe.ingredients?.length || 0,
+      hasValidIngredients: Array.isArray(recipe.ingredients)
+    })));
+
     setMealPlanExpanded(newExpandedState);
-    
+
     // Create a completely new state object for ALL recipes using loop for clarity
     const newIndividualStates = {};
     for (let i = 0; i < allRecipes.length; i++) {
       newIndividualStates[i] = newExpandedState;
     }
-    
-    console.log('New states to set:', newIndividualStates);
+
+    console.log(`🔄 [GLOBAL TOGGLE DEBUG] New states to set:`, newIndividualStates);
     
     // Replace the entire state object to force re-render
     setIndividualExpansionStates(newIndividualStates);
@@ -3158,25 +3165,58 @@ Return as JSON with this structure:
   };
 
   // Helper function to format ingredients with quantities
-  const formatIngredientWithQuantity = (item) => {
+  const formatIngredientWithQuantity = (item, debugIndex = -1) => {
+    console.log(`🔍 [INGREDIENT DEBUG ${debugIndex}] Processing item:`, {
+      type: typeof item,
+      value: item,
+      isNull: item === null,
+      isUndefined: item === undefined,
+      isArray: Array.isArray(item),
+      keys: typeof item === 'object' && item !== null ? Object.keys(item) : null
+    });
+
+    // Handle null, undefined, or empty values
+    if (!item) {
+      console.log(`🚨 [INGREDIENT DEBUG ${debugIndex}] Null/undefined item, returning fallback`);
+      return 'Unknown ingredient';
+    }
+
     if (typeof item === 'string') {
+      console.log(`📝 [INGREDIENT DEBUG ${debugIndex}] String ingredient: "${item}"`);
       // Try to parse if it's a string with quantity pattern
       const match = item.match(/^(\d+(?:\.\d+)?)\s*([\w\s]+?)\s+(.+)$/);
       if (match) {
-        return `${match[1]} ${match[2]} ${match[3]}`;
+        const result = `${match[1]} ${match[2]} ${match[3]}`;
+        console.log(`✅ [INGREDIENT DEBUG ${debugIndex}] Parsed with quantity: "${result}"`);
+        return result;
       }
       // If no quantity found, add default serving
-      return item.includes('1 ') || item.includes('2 ') || item.includes('cup') || item.includes('tsp') || item.includes('tbsp') || item.includes('lb') || item.includes('oz') 
-        ? item 
-        : `1 serving ${item}`;
+      const hasQuantity = item.includes('1 ') || item.includes('2 ') || item.includes('cup') || item.includes('tsp') || item.includes('tbsp') || item.includes('lb') || item.includes('oz');
+      const result = hasQuantity ? item : `1 serving ${item}`;
+      console.log(`✅ [INGREDIENT DEBUG ${debugIndex}] String result: "${result}" (had quantity: ${hasQuantity})`);
+      return result;
     }
-    
+
     // If it's an object with quantity and unit
-    const qty = item.quantity || 1;
-    const unit = item.unit || 'each';
-    const name = item.productName || item.name || item.original || item.item || '';
-    
-    return `${qty} ${unit} ${name}`.trim();
+    if (typeof item === 'object' && item !== null) {
+      console.log(`🏷️ [INGREDIENT DEBUG ${debugIndex}] Object ingredient with keys:`, Object.keys(item));
+      const qty = item.quantity || 1;
+      const unit = item.unit || 'each';
+      const name = item.productName || item.name || item.original || item.item || '';
+
+      console.log(`🔧 [INGREDIENT DEBUG ${debugIndex}] Extracted: qty="${qty}", unit="${unit}", name="${name}"`);
+
+      // Ensure we always return a string
+      const result = `${qty} ${unit} ${name}`.trim();
+      const finalResult = result || 'Unknown ingredient';
+      console.log(`✅ [INGREDIENT DEBUG ${debugIndex}] Object result: "${finalResult}"`);
+      return finalResult;
+    }
+
+    // Fallback for any other type - convert to string
+    const result = String(item) || 'Unknown ingredient';
+    console.log(`⚠️ [INGREDIENT DEBUG ${debugIndex}] Fallback conversion: "${result}" (original type: ${typeof item})`);
+    return result;
   };
 
   // Helper function to parse ingredients for shopping list
@@ -3217,16 +3257,27 @@ Return as JSON with this structure:
   const RecipeCard = ({ recipe, index, onAddToCart, onAddToLibrary, onAddToMealPlan, onRemove, onEdit, externalExpanded, onToggleExpanded }) => {
     // Use external expanded state directly - no internal state needed
     const expanded = externalExpanded ?? false; // Default to false if undefined
-    
-    // When clicking expand button, use the external toggle function
-    const handleToggle = () => {
-      if (onToggleExpanded) {
-        onToggleExpanded();
-      }
-    };
-    
+
     // Extract data with fallbacks for both formats
     const title = cleanRecipeTitle(recipe.title || recipe.name || 'Untitled Recipe');
+
+    // When clicking expand button, use the external toggle function
+    const handleToggle = () => {
+      console.log(`🎛️ [TOGGLE DEBUG] Recipe "${title}" toggle clicked - current expanded: ${expanded}`);
+      console.log(`🔍 [TOGGLE DEBUG] Recipe data:`, {
+        title,
+        ingredientsLength: recipe.ingredients?.length || 0,
+        ingredientsType: typeof recipe.ingredients,
+        hasOnToggle: !!onToggleExpanded
+      });
+
+      if (onToggleExpanded) {
+        console.log(`🔄 [TOGGLE DEBUG] Calling onToggleExpanded for "${title}"`);
+        onToggleExpanded();
+      } else {
+        console.warn(`⚠️ [TOGGLE DEBUG] No onToggleExpanded function for "${title}"`);
+      }
+    };
     const mealType = recipe.mealType || 'Dinner';
     const icon = recipe.icon || getMealTypeIcon(mealType);
     const day = recipe.day || recipe.dayAssigned;
@@ -3237,7 +3288,38 @@ Return as JSON with this structure:
     const cookTime = recipe.cookTime;
     
     // Handle both string arrays and object arrays for ingredients with proper quantity formatting
-    const displayIngredients = ingredients.map(ing => cleanMarkdown(formatIngredientWithQuantity(ing)));
+    console.log(`🍳 [RECIPE DEBUG] Processing recipe: "${title}" with ${ingredients.length} ingredients`);
+    console.log(`📋 [RECIPE DEBUG] Raw ingredients array:`, ingredients);
+
+    const displayIngredients = ingredients
+      .filter((ing, idx) => {
+        const isValid = ing !== null && ing !== undefined;
+        if (!isValid) {
+          console.log(`🚫 [RECIPE DEBUG] Filtered out ingredient at index ${idx}:`, ing);
+        }
+        return isValid;
+      }) // Filter out null/undefined ingredients
+      .map((ing, idx) => {
+        try {
+          console.log(`🔄 [RECIPE DEBUG] Processing ingredient ${idx}:`, ing);
+          const formatted = formatIngredientWithQuantity(ing, idx);
+          const cleaned = cleanMarkdown(formatted);
+          console.log(`✅ [RECIPE DEBUG] Final ingredient ${idx}: "${cleaned}"`);
+          return cleaned;
+        } catch (error) {
+          console.error(`❌ [RECIPE DEBUG] Error formatting ingredient ${idx}:`, ing, error);
+          return 'Unknown ingredient';
+        }
+      })
+      .filter((ing, idx) => {
+        const isValid = ing && ing.trim() !== '';
+        if (!isValid) {
+          console.log(`🚫 [RECIPE DEBUG] Filtered out empty ingredient at final index ${idx}:`, ing);
+        }
+        return isValid;
+      }); // Filter out empty strings
+
+    console.log(`✨ [RECIPE DEBUG] Final displayIngredients (${displayIngredients.length} items):`, displayIngredients);
     
     // Handle both string arrays and object arrays for instructions  
     const displayInstructions = instructions.map(inst => {
@@ -3344,9 +3426,25 @@ Return as JSON with this structure:
             <div style={styles.recipeSection}>
               <h5 style={styles.sectionTitle}>📝 Ingredients:</h5>
               <ul style={styles.ingredientsList}>
-                {displayIngredients.map((ingredient, idx) => (
-                  <li key={idx} style={styles.ingredientItem}>{ingredient}</li>
-                ))}
+                {displayIngredients.map((ingredient, idx) => {
+                  console.log(`🎯 [RENDER DEBUG] Rendering ingredient ${idx}:`, {
+                    type: typeof ingredient,
+                    value: ingredient,
+                    isString: typeof ingredient === 'string',
+                    length: ingredient?.length,
+                    isEmpty: !ingredient || ingredient.trim() === ''
+                  });
+
+                  // Extra safety check before rendering
+                  if (typeof ingredient !== 'string') {
+                    console.error(`💥 [RENDER DEBUG] NON-STRING INGREDIENT DETECTED at ${idx}:`, ingredient);
+                    return <li key={idx} style={styles.ingredientItem}>Invalid ingredient type</li>;
+                  }
+
+                  return (
+                    <li key={idx} style={styles.ingredientItem}>{ingredient}</li>
+                  );
+                })}
               </ul>
             </div>
           )}
