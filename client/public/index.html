@@ -2,14 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <!-- Favicon and icons -->
+    <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="%PUBLIC_URL%/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="192x192" href="%PUBLIC_URL%/logo192.svg" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#FF6B35" />
     <meta
       name="description"
       content="CARTSMASH - AI-powered grocery list parser that instantly transforms any list into organized, ready-to-order products with smart quantity parsing and recipe preservation."
     />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     
     <!-- Open Graph / Facebook -->
@@ -17,14 +20,14 @@
     <meta property="og:url" content="https://cartsmash.com/">
     <meta property="og:title" content="CARTSMASH - Smart Grocery List Parser">
     <meta property="og:description" content="Transform any grocery list into organized, ready-to-order products instantly with AI-powered parsing.">
-    <meta property="og:image" content="%PUBLIC_URL%/og-image.png">
+    <meta property="og:image" content="%PUBLIC_URL%/og-image.svg">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://cartsmash.com/">
     <meta property="twitter:title" content="CARTSMASH - Smart Grocery List Parser">
     <meta property="twitter:description" content="Transform any grocery list into organized, ready-to-order products instantly with AI-powered parsing.">
-    <meta property="twitter:image" content="%PUBLIC_URL%/twitter-image.png">
+    <meta property="twitter:image" content="%PUBLIC_URL%/twitter-image.svg">
 
     <title>CARTSMASH - AI-Powered Grocery List Parser</title>
 
@@ -149,19 +152,63 @@
       console.log('🔍 CARTSMASH: Page loading started');
       console.log('🔍 Location:', window.location.href);
       console.log('🔍 User agent:', navigator.userAgent);
-      
+      console.log('🔍 Screen:', window.screen.width + 'x' + window.screen.height);
+      console.log('🔍 Viewport:', window.innerWidth + 'x' + window.innerHeight);
+      console.log('🔍 Connection:', navigator.connection ?
+        `${navigator.connection.effectiveType} (${navigator.connection.downlink}Mbps)` : 'Unknown');
+      console.log('🔍 Memory:', navigator.deviceMemory ? `${navigator.deviceMemory}GB` : 'Unknown');
+      console.log('🔍 Cores:', navigator.hardwareConcurrency || 'Unknown');
+      console.log('🔍 Platform:', navigator.platform);
+      console.log('🔍 Cookies enabled:', navigator.cookieEnabled);
+      console.log('🔍 Local storage:', typeof(Storage) !== "undefined");
+      console.log('🔍 Session storage:', typeof(sessionStorage) !== "undefined");
+      console.log('🔍 IndexedDB:', typeof(indexedDB) !== "undefined");
+      console.log('🔍 WebGL:', !!window.WebGLRenderingContext);
+      console.log('🔍 Service worker:', 'serviceWorker' in navigator);
+      console.log('🔍 Timestamp:', Date.now(), new Date().toISOString());
+
+      // Performance monitoring
+      const perfStart = performance.now();
+      console.log('⏱️ Performance timing start:', perfStart);
+
+      // Network detection
+      if ('connection' in navigator) {
+        navigator.connection.addEventListener('change', function() {
+          console.log('📶 Network changed:', navigator.connection.effectiveType);
+        });
+      }
+
+      // Visibility API
+      document.addEventListener('visibilitychange', function() {
+        console.log('👁️ Page visibility changed:', document.hidden ? 'hidden' : 'visible');
+      });
+
       // Global error handler for script loading failures
+      let errorCount = 0;
       window.addEventListener('error', function(e) {
-        console.error('🚨 Script loading error:', e);
+        errorCount++;
+        console.error(`🚨 Script loading error #${errorCount}:`, e);
+        console.error('🚨 Error details:', {
+          message: e.message,
+          filename: e.filename,
+          lineno: e.lineno,
+          colno: e.colno,
+          type: e.type,
+          timeStamp: e.timeStamp,
+          target: e.target ? e.target.tagName : 'unknown'
+        });
+
         if (e.filename && e.filename.includes('.js')) {
           console.error('🚨 JavaScript file failed to load:', e.filename);
-          document.getElementById('loading-screen').innerHTML = 
+          document.getElementById('loading-screen').innerHTML =
             '<div class="loading-logo"><span class="loading-icon">⚠️</span><span>LOADING ERROR</span></div>' +
             '<div class="loading-text">JavaScript bundle failed to load</div>' +
             '<div style="margin-top: 20px; font-size: 14px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">' +
             '<strong>Error:</strong> ' + e.message + '<br/>' +
             '<strong>File:</strong> ' + e.filename + '<br/>' +
-            '<strong>Time:</strong> ' + new Date().toISOString() + '<br/><br/>' +
+            '<strong>Line:</strong> ' + e.lineno + ':' + e.colno + '<br/>' +
+            '<strong>Time:</strong> ' + new Date().toISOString() + '<br/>' +
+            '<strong>Count:</strong> Error #' + errorCount + '<br/><br/>' +
             '<button onclick="window.location.reload()" style="background: white; color: #FF6B35; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Retry</button>' +
             '</div>';
         }
@@ -169,20 +216,42 @@
       
       // Track when React starts loading
       let reactLoaded = false;
+      let loadingSteps = [];
+
       window.addEventListener('DOMContentLoaded', function() {
-        console.log('🔍 DOM Content loaded');
-        
-        // Check if React loaded after 5 seconds
-        setTimeout(function() {
-          if (!reactLoaded) {
-            console.error('🚨 React app did not load within 5 seconds');
-            document.getElementById('loading-screen').innerHTML = 
-              '<div class="loading-logo"><span class="loading-icon">⚠️</span><span>TIMEOUT</span></div>' +
-              '<div class="loading-text">App failed to initialize</div>' +
-              '<div style="margin-top: 20px; font-size: 14px;">Please refresh the page or check your internet connection.</div>' +
-              '<div style="margin-top: 15px;"><button onclick="window.location.reload()" style="background: white; color: #FF6B35; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Refresh Page</button></div>';
-          }
-        }, 5000);
+        const domLoadTime = performance.now() - perfStart;
+        console.log('🔍 DOM Content loaded in', domLoadTime.toFixed(2) + 'ms');
+        loadingSteps.push({step: 'DOM', time: domLoadTime});
+
+        // Enhanced React loading monitoring
+        const checkIntervals = [1000, 2500, 5000, 10000]; // Check at multiple intervals
+        checkIntervals.forEach((interval, index) => {
+          setTimeout(function() {
+            if (!reactLoaded) {
+              const elapsed = performance.now() - perfStart;
+              console.warn(`⚠️ React app status check #${index + 1} (${elapsed.toFixed(0)}ms): Still loading...`);
+              console.warn('📊 Loading steps so far:', loadingSteps);
+              console.warn('🔍 Root element:', document.getElementById('root') ? 'exists' : 'missing');
+              console.warn('🔍 React scripts:', document.querySelectorAll('script[src*="react"]').length);
+              console.warn('🔍 All scripts:', document.querySelectorAll('script').length);
+
+              if (index === checkIntervals.length - 1) { // Last check (10 seconds)
+                console.error('🚨 React app did not load within 10 seconds - showing timeout error');
+                document.getElementById('loading-screen').innerHTML =
+                  '<div class="loading-logo"><span class="loading-icon">⚠️</span><span>TIMEOUT</span></div>' +
+                  '<div class="loading-text">App failed to initialize after 10 seconds</div>' +
+                  '<div style="margin-top: 20px; font-size: 14px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">' +
+                  '<strong>Debug Info:</strong><br/>' +
+                  '<strong>Loading time:</strong> ' + elapsed.toFixed(0) + 'ms<br/>' +
+                  '<strong>Scripts found:</strong> ' + document.querySelectorAll('script').length + '<br/>' +
+                  '<strong>Errors:</strong> ' + errorCount + '<br/>' +
+                  '<strong>Connection:</strong> ' + (navigator.connection ? navigator.connection.effectiveType : 'Unknown') + '<br/><br/>' +
+                  '<button onclick="window.location.reload()" style="background: white; color: #FF6B35; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Refresh Page</button>' +
+                  '</div>';
+              }
+            }
+          }, interval);
+        });
         
         // Normal loading screen removal (only if React loads successfully)
         setTimeout(function() {
@@ -200,8 +269,33 @@
       
       // Function to call when React successfully loads
       window.markReactLoaded = function() {
-        console.log('✅ React app loaded successfully');
+        const reactLoadTime = performance.now() - perfStart;
+        console.log('✅ React app loaded successfully in', reactLoadTime.toFixed(2) + 'ms');
+        loadingSteps.push({step: 'React', time: reactLoadTime});
         reactLoaded = true;
+
+        // Log final loading summary
+        setTimeout(() => {
+          console.log('📊 Final loading summary:', {
+            totalTime: reactLoadTime.toFixed(2) + 'ms',
+            steps: loadingSteps,
+            errorCount: errorCount,
+            userAgent: navigator.userAgent,
+            performance: {
+              navigation: performance.navigation ? {
+                type: performance.navigation.type,
+                redirectCount: performance.navigation.redirectCount
+              } : null,
+              timing: performance.timing ? {
+                domainLookupTime: performance.timing.domainLookupEnd - performance.timing.domainLookupStart,
+                connectTime: performance.timing.connectEnd - performance.timing.connectStart,
+                responseTime: performance.timing.responseEnd - performance.timing.responseStart,
+                domLoadTime: performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart,
+                windowLoadTime: performance.timing.loadEventEnd - performance.timing.navigationStart
+              } : null
+            }
+          });
+        }, 100);
       };
       
       // Console branding

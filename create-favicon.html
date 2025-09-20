@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Favicon Generator</title>
+</head>
+<body>
+    <canvas id="canvas" width="32" height="32" style="image-rendering: pixelated; width: 320px; height: 320px; border: 1px solid #ccc;"></canvas>
+    <br><br>
+    <button onclick="generateIcon()">Generate ICO</button>
+    <br><br>
+    <a id="downloadLink" style="display: none;">Download favicon.ico</a>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Create a simple 32x32 favicon
+        function createFavicon() {
+            // Clear canvas
+            ctx.clearRect(0, 0, 32, 32);
+
+            // Background gradient (orange)
+            const gradient = ctx.createLinearGradient(0, 0, 32, 32);
+            gradient.addColorStop(0, '#FF6B35');
+            gradient.addColorStop(1, '#F7931E');
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 32, 32);
+
+            // Shopping cart in white
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+
+            // Cart body
+            ctx.fillRect(8, 12, 16, 10);
+            ctx.strokeRect(8, 12, 16, 10);
+
+            // Cart handle
+            ctx.beginPath();
+            ctx.moveTo(6, 16);
+            ctx.quadraticCurveTo(3, 12, 6, 8);
+            ctx.stroke();
+
+            // Wheels
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.arc(12, 26, 2, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(20, 26, 2, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Small explosion symbol
+            ctx.fillStyle = 'white';
+            ctx.font = '8px Arial';
+            ctx.fillText('💥', 22, 8);
+        }
+
+        function generateIcon() {
+            createFavicon();
+
+            // Convert canvas to ICO format (simplified)
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.getElementById('downloadLink');
+                link.href = url;
+                link.download = 'favicon.ico';
+                link.style.display = 'block';
+                link.textContent = 'Download favicon.ico';
+            }, 'image/x-icon');
+        }
+
+        // Draw initial favicon
+        createFavicon();
+    </script>
+</body>
+</html>
