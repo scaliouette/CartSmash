@@ -264,9 +264,11 @@ class ImageService {
       }
     }
 
-    // No real image found - return null to indicate no image available
-    console.log('⚠️ No real image found for product:', item.productName);
-    return null;
+    // No real image found - provide category-based fallback
+    const category = this.getCategoryFromItem(item);
+    const fallbackImage = this.getImageUrl(category);
+    console.log('💾 No real image found, using fallback for product:', item.productName, 'category:', category);
+    return fallbackImage;
   }
 
   /**

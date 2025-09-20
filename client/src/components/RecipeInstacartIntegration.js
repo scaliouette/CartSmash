@@ -5,6 +5,7 @@ import React, { useState, useCallback } from 'react';
 import instacartCheckoutService from '../services/instacartCheckoutService';
 import instacartShoppingListService from '../services/instacartShoppingListService';
 import RetailerSelector from './RetailerSelector';
+import { safeReactRender } from '../utils/reactSafeRender';
 import './RecipeInstacartIntegration.css';
 
 const RecipeInstacartIntegration = ({
@@ -335,11 +336,11 @@ const RecipeInstacartIntegration = ({
         </div>
 
         <div className="form-group">
-          <label>Ingredients ({recipeData.ingredients.length})</label>
+          <label>Ingredients ({(recipeData.ingredients || []).length})</label>
           <div className="ingredients-list">
-            {recipeData.ingredients.map((ingredient, index) => (
+            {(recipeData.ingredients || []).map((ingredient, index) => (
               <div key={index} className="ingredient-item">
-                <span>{typeof ingredient === 'string' ? ingredient : ingredient.name || ingredient.ingredient || `Ingredient ${index + 1}`}</span>
+                <span>{safeReactRender(ingredient, `Ingredient ${index + 1}`)}</span>
               </div>
             ))}
           </div>
@@ -349,9 +350,9 @@ const RecipeInstacartIntegration = ({
           <div className="form-group">
             <label>Instructions</label>
             <div className="instructions-list">
-              {recipeData.instructions.map((instruction, index) => (
+              {(recipeData.instructions || []).map((instruction, index) => (
                 <div key={index} className="instruction-item">
-                  <span>{index + 1}. {instruction}</span>
+                  <span>{index + 1}. {safeReactRender(instruction, 'Step description')}</span>
                 </div>
               ))}
             </div>
@@ -384,11 +385,11 @@ const RecipeInstacartIntegration = ({
 
       <div className="creation-summary">
         <div className="summary-card">
-          <h4>{recipeData.title}</h4>
+          <h4>{recipeData.title || 'Untitled Recipe'}</h4>
           <div className="summary-details">
-            <span>📍 Store: {selectedRetailer.name}</span>
-            <span>🍽️ Servings: {recipeData.servings}</span>
-            <span>📝 Ingredients: {recipeData.ingredients.length}</span>
+            <span>📍 Store: {selectedRetailer?.name || 'Store'}</span>
+            <span>🍽️ Servings: {recipeData.servings || 4}</span>
+            <span>📝 Ingredients: {(recipeData.ingredients || []).length}</span>
             {mode === 'recipe' && recipeData.cookingTime && (
               <span>⏱️ Time: {recipeData.cookingTime} min</span>
             )}
@@ -438,11 +439,11 @@ const RecipeInstacartIntegration = ({
 
         <div className="result-stats">
           <div className="stat">
-            <span className="stat-value">{recipeData.ingredients.length}</span>
+            <span className="stat-value">{(recipeData.ingredients || []).length}</span>
             <span className="stat-label">Ingredients</span>
           </div>
           <div className="stat">
-            <span className="stat-value">{selectedRetailer.name}</span>
+            <span className="stat-value">{selectedRetailer?.name || 'Store'}</span>
             <span className="stat-label">Default Store</span>
           </div>
           {mode === 'recipe' && (
