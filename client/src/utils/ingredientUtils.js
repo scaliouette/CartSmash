@@ -6,90 +6,127 @@
  * @returns {string} A safe string representation of the ingredient
  */
 export const safeExtractIngredientString = (ingredient) => {
-  if (!ingredient) return '';
+  try {
+    if (!ingredient) return '';
 
-  // If it's already a string, return it
-  if (typeof ingredient === 'string') return ingredient.trim();
-
-  // Helper function to safely convert any value to string
-  const safeToString = (value) => {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'string') return value;
-    if (typeof value === 'object') {
-      // If it's an object, try to extract meaningful properties
-      if (value.name) return String(value.name);
-      if (value.text) return String(value.text);
-      if (value.label) return String(value.label);
-      // If no meaningful property found, return empty string instead of "[object Object]"
-      return '';
-    }
-    return String(value);
-  };
-
-  // If ingredient is an object, try to extract string representation
-  if (typeof ingredient === 'object') {
-    // First try common ingredient properties
-    if (ingredient.original) {
-      return safeToString(ingredient.original);
+    // If it's already a string, validate and return
+    if (typeof ingredient === 'string') {
+      const trimmed = ingredient.trim();
+      // Prevent excessively long strings
+      return trimmed.length > 300 ? trimmed.substring(0, 300) + '...' : trimmed;
     }
 
-    // Try productName (common in cart items)
-    if (ingredient.productName) {
-      const productName = safeToString(ingredient.productName);
-      const quantity = safeToString(ingredient.quantity);
-      const unit = safeToString(ingredient.unit);
-
-      // Build ingredient string from parts
-      const parts = [quantity, unit, productName].filter(part => part && part.trim());
-      return parts.join(' ').trim();
-    }
-
-    if (ingredient.item) {
-      const item = safeToString(ingredient.item);
-      const quantity = safeToString(ingredient.quantity);
-      const unit = safeToString(ingredient.unit);
-
-      // Build ingredient string from parts
-      const parts = [quantity, unit, item].filter(part => part && part.trim());
-      return parts.join(' ').trim();
-    }
-
-    // Try other common property names
-    if (ingredient.name) return safeToString(ingredient.name);
-    if (ingredient.text) return safeToString(ingredient.text);
-    if (ingredient.ingredient) return safeToString(ingredient.ingredient);
-    if (ingredient.description) return safeToString(ingredient.description);
-
-    // If none of the above, try to build from quantity + unit + any name-like property
-    const quantity = safeToString(ingredient.quantity || ingredient.amount);
-    const unit = safeToString(ingredient.unit || ingredient.measure);
-    const name = safeToString(ingredient.ingredientName || ingredient.food || ingredient.product);
-
-    const parts = [quantity, unit, name].filter(part => part && part.trim());
-    if (parts.length > 0) {
-      return parts.join(' ').trim();
-    }
-
-    // Last resort: try to extract something meaningful
-    try {
-      const keys = Object.keys(ingredient);
-      if (keys.length <= 3 && keys.length > 0) {
-        // For small objects, show key-value pairs
-        return keys.map(key => {
-          const value = safeToString(ingredient[key]);
-          return value ? `${key}: ${value}` : '';
-        }).filter(Boolean).join(', ');
+    // Helper function to safely convert any value to string with validation
+    const safeToString = (value) => {
+      try {
+        if (value === null || value === undefined || value === '') return '';
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          return trimmed.length > 100 ? trimmed.substring(0, 100) + '...' : trimmed;
+        }
+        if (typeof value === 'number') {
+          return isFinite(value) ? String(value) : '';
+        }
+        if (typeof value === 'object') {
+          // If it's an object, try to extract meaningful properties
+          if (value && typeof value.name === 'string') return String(value.name).trim();
+          if (value && typeof value.text === 'string') return String(value.text).trim();
+          if (value && typeof value.label === 'string') return String(value.label).trim();
+          // If no meaningful property found, return empty string instead of "[object Object]"
+          return '';
+        }
+        const result = String(value);
+        return result === '[object Object]' ? '' : result.trim();
+      } catch (e) {
+        console.warn('safeToString error:', e);
+        return '';
       }
-    } catch (e) {
-      console.warn('Failed to extract ingredient info:', e);
+    };
+
+    // If ingredient is an object, try to extract string representation
+    if (typeof ingredient === 'object' && ingredient !== null) {
+      // Prevent circular references by limiting object depth
+      try {
+        const keys = Object.keys(ingredient);
+        if (keys.length > 50) {
+          return `[Complex ingredient with ${keys.length} properties]`;
+        }
+
+        // First try common ingredient properties in order of preference
+        const commonProps = [
+          'original', 'productName', 'name', 'item', 'text', 'ingredient',
+          'description', 'ingredientName', 'food', 'product', 'label'
+        ];
+
+        for (const prop of commonProps) {
+          if (ingredient[prop]) {
+            const value = safeToString(ingredient[prop]);
+            if (value && value.length > 0) {
+              // If we have quantity and unit, include them
+              const quantity = safeToString(ingredient.quantity || ingredient.amount);
+              const unit = safeToString(ingredient.unit || ingredient.measure);
+
+              if (quantity && unit) {
+                return `${quantity} ${unit} ${value}`.trim();
+              } else if (quantity) {
+                return `${quantity} ${value}`.trim();
+              } else {
+                return value;
+              }
+            }
+          }
+        }
+
+        // Try to build from quantity + unit + any name-like property
+        const quantity = safeToString(ingredient.quantity || ingredient.amount);
+        const unit = safeToString(ingredient.unit || ingredient.measure);
+
+        // Look for any property that might be a name
+        const nameProps = ['name', 'productName', 'item', 'ingredient', 'text', 'description'];
+        let name = '';
+        for (const prop of nameProps) {
+          if (ingredient[prop]) {
+            name = safeToString(ingredient[prop]);
+            if (name && name.length > 0) break;
+          }
+        }
+
+        const parts = [quantity, unit, name].filter(part => part && part.trim().length > 0);
+        if (parts.length > 0) {
+          return parts.join(' ').trim();
+        }
+
+        // Last resort: try to extract something meaningful from small objects
+        if (keys.length <= 3 && keys.length > 0) {
+          const pairs = keys
+            .map(key => {
+              const value = safeToString(ingredient[key]);
+              return value && value.length > 0 ? `${key}: ${value}` : '';
+            })
+            .filter(Boolean);
+
+          if (pairs.length > 0) {
+            return pairs.join(', ');
+          }
+        }
+
+        // Final fallback - return empty string to avoid React errors
+        return '';
+
+      } catch (e) {
+        console.warn('Failed to extract ingredient info:', e);
+        return '';
+      }
     }
 
-    // Final fallback - return empty string to avoid React errors
+    // For any other type, convert to string safely
+    const result = String(ingredient);
+    return result === '[object Object]' ? '' : result.trim();
+
+  } catch (e) {
+    console.error('safeExtractIngredientString error:', e);
     return '';
   }
-
-  // For any other type, convert to string safely
-  return String(ingredient);
 };
 
 /**

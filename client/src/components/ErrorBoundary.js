@@ -11,7 +11,9 @@ class ErrorBoundary extends React.Component {
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: null
+      errorId: null,
+      retryCount: 0,
+      isRecovering: false
     };
   }
 
@@ -48,11 +50,78 @@ class ErrorBoundary extends React.Component {
 
   handleRetry = () => {
     this.setState({
+      isRecovering: true
+    });
+
+    // Add a small delay to give user feedback
+    setTimeout(() => {
+      this.setState({
+        hasError: false,
+        error: null,
+        errorInfo: null,
+        errorId: null,
+        retryCount: this.state.retryCount + 1,
+        isRecovering: false
+      });
+    }, 500);
+  };
+
+  handleClearData = () => {
+    if (window.confirm('This will clear all app data including your shopping lists, recipes, and preferences. Are you sure?')) {
+      try {
+        // Clear potentially corrupted data from localStorage
+        const keysToRemove = [
+          'cartsmash_cart',
+          'cartsmash_recipes',
+          'cartsmash_meal_plans',
+          'cartsmash_user_preferences',
+          'cartsmash_cache',
+          'cartsmash_errors',
+          'cartsmash_debug_logs'
+        ];
+
+        keysToRemove.forEach(key => {
+          localStorage.removeItem(key);
+        });
+
+        // Clear sessionStorage as well
+        sessionStorage.clear();
+
+        // Clear any service worker cache if available
+        if ('serviceWorker' in navigator && 'caches' in window) {
+          caches.keys().then(names => {
+            names.forEach(name => {
+              if (name.includes('cartsmash')) {
+                caches.delete(name);
+              }
+            });
+          });
+        }
+
+        alert('App data has been cleared. The page will now reload.');
+        window.location.reload();
+      } catch (e) {
+        console.error('Failed to clear app data:', e);
+        alert('Failed to clear app data. Please manually clear your browser data for this site.');
+      }
+    }
+  };
+
+  handleResetComponent = () => {
+    // Force a complete re-render by clearing component state
+    this.setState({
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: null
+      errorId: null,
+      retryCount: 0,
+      isRecovering: false
     });
+
+    // If there's an onReset callback from parent, call it
+    if (this.props.onReset) {
+      this.props.onReset();
+    }
   };
 
   handleReportError = () => {
@@ -90,21 +159,53 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      // Show loading state while recovering
+      if (this.state.isRecovering) {
+        return (
+          <div style={styles.errorContainer}>
+            <div style={styles.loadingContainer}>
+              <div style={styles.spinner}></div>
+              <p style={styles.loadingText}>Recovering...</p>
+            </div>
+          </div>
+        );
+      }
+
+      // Determine if this is a critical error based on retry count and error type
+      const isCriticalError = this.state.retryCount >= 3 ||
+                             this.state.error?.message?.includes('Maximum update depth') ||
+                             this.state.error?.message?.includes('Cannot read property') ||
+                             this.state.error?.message?.includes('circular structure');
+
       // Fallback UI
       return (
         <div style={styles.errorContainer}>
           <div style={styles.errorCard}>
             <div style={styles.errorHeader}>
-              <h2 style={styles.errorTitle}>❌ Something went wrong</h2>
+              <h2 style={styles.errorTitle}>
+                {isCriticalError ? '🚨 Critical Error' : '⚠️ Something went wrong'}
+              </h2>
               <p style={styles.errorSubtitle}>
                 Component: {this.props.componentName || 'Unknown'}
+                {this.state.retryCount > 0 && ` • Retry ${this.state.retryCount}`}
               </p>
             </div>
 
             <div style={styles.errorBody}>
               <p style={styles.errorMessage}>
-                {this.state.error?.message || 'An unexpected error occurred'}
+                {isCriticalError
+                  ? "A critical error has occurred. Please try clearing app data or reloading the page."
+                  : this.state.error?.message || 'An unexpected error occurred'
+                }
               </p>
+
+              {/* Show fallback component if provided */}
+              {this.props.fallbackComponent && (
+                <div style={styles.fallbackContainer}>
+                  <p style={styles.fallbackTitle}>Alternative view:</p>
+                  {this.props.fallbackComponent}
+                </div>
+              )}
 
               <details style={styles.errorDetails}>
                 <summary style={styles.errorSummary}>Technical Details</summary>
@@ -112,6 +213,8 @@ class ErrorBoundary extends React.Component {
                   <p><strong>Error ID:</strong> {this.state.errorId}</p>
                   <p><strong>Error Type:</strong> {this.state.error?.name}</p>
                   <p><strong>Timestamp:</strong> {new Date().toISOString()}</p>
+                  <p><strong>Retry Count:</strong> {this.state.retryCount}</p>
+                  <p><strong>Critical:</strong> {isCriticalError ? 'Yes' : 'No'}</p>
 
                   {this.state.error?.stack && (
                     <div>
@@ -131,11 +234,21 @@ class ErrorBoundary extends React.Component {
             </div>
 
             <div style={styles.errorActions}>
+              {!isCriticalError && (
+                <button
+                  onClick={this.handleRetry}
+                  style={styles.retryButton}
+                  disabled={this.state.isRecovering}
+                >
+                  🔄 Try Again {this.state.retryCount > 0 && `(${this.state.retryCount})`}
+                </button>
+              )}
+
               <button
-                onClick={this.handleRetry}
-                style={styles.retryButton}
+                onClick={this.handleResetComponent}
+                style={styles.resetButton}
               >
-                🔄 Try Again
+                🔄 Reset Component
               </button>
 
               <button
@@ -151,11 +264,23 @@ class ErrorBoundary extends React.Component {
               >
                 🔄 Reload Page
               </button>
+
+              {isCriticalError && (
+                <button
+                  onClick={this.handleClearData}
+                  style={styles.clearDataButton}
+                >
+                  🗑️ Clear App Data
+                </button>
+              )}
             </div>
 
             <div style={styles.errorFooter}>
               <p style={styles.errorFooterText}>
-                If this problem persists, please copy the error report and contact support.
+                {isCriticalError
+                  ? "Critical errors may require clearing app data. Your data will be lost but the app should work again."
+                  : "If this problem persists, please copy the error report and contact support."
+                }
               </p>
             </div>
           </div>
@@ -289,7 +414,84 @@ const styles = {
     color: '#6c757d',
     fontSize: '12px',
     margin: '0'
+  },
+
+  // New styles for enhanced functionality
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '40px'
+  },
+
+  spinner: {
+    width: '32px',
+    height: '32px',
+    border: '3px solid #f3f3f3',
+    borderTop: '3px solid #FB4F14',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  },
+
+  loadingText: {
+    color: '#6c757d',
+    fontSize: '16px',
+    fontFamily: 'system-ui, -apple-system, sans-serif'
+  },
+
+  fallbackContainer: {
+    marginBottom: '20px',
+    padding: '16px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '8px',
+    border: '1px solid #dee2e6'
+  },
+
+  fallbackTitle: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#495057',
+    marginBottom: '12px'
+  },
+
+  resetButton: {
+    backgroundColor: '#6f42c1',
+    color: 'white',
+    border: 'none',
+    padding: '10px 20px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  clearDataButton: {
+    backgroundColor: '#dc3545',
+    color: 'white',
+    border: 'none',
+    padding: '10px 20px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500'
   }
 };
+
+// Add CSS animation for spinner
+if (typeof document !== 'undefined') {
+  const existingStyle = document.querySelector('#error-boundary-styles');
+  if (!existingStyle) {
+    const style = document.createElement('style');
+    style.id = 'error-boundary-styles';
+    style.textContent = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+}
 
 export default ErrorBoundary;
