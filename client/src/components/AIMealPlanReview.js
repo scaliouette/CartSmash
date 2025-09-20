@@ -249,7 +249,7 @@ export default function AIMealPlanReview({
                                  isString: typeof ing === 'string'
                                });
 
-                               const result = safeRender(ing, 'Unknown ingredient');
+                               const result = typeof ing === 'string' ? ing : 'Unknown ingredient';
                                console.log(`✅ [AIMealPlanReview] Safe render result for ${idx}: "${result}"`);
                                return result;
                              }).filter(Boolean).join(', '))}

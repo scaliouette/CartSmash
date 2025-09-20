@@ -3694,7 +3694,7 @@ Return as JSON with this structure:
 
                   return (
                     <li key={idx} style={styles.ingredientItem}>
-                      {safeRender(ingredient, 'Unknown ingredient')}
+                      {typeof ingredient === 'string' ? ingredient : 'Unknown ingredient'}
                     </li>
                   );
                 })}
