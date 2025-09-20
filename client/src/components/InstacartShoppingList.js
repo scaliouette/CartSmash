@@ -724,8 +724,16 @@ const InstacartShoppingList = ({
       package_size: item.package_size
     });
 
-    const quantity = item.unitCount || item.quantity || 1;
-    const unit = item.unit || item.size || item.package_size || 'each';
+    // Safely extract primitive values (avoid objects that cause React Error #31)
+    const extractPrimitive = (value, fallback = '') => {
+      if (typeof value === 'string' || typeof value === 'number') return value;
+      if (typeof value === 'object' && value?.name) return value.name;
+      if (typeof value === 'object' && value?.value) return value.value;
+      return fallback;
+    };
+
+    const quantity = extractPrimitive(item.unitCount) || extractPrimitive(item.quantity) || 1;
+    const unit = extractPrimitive(item.unit) || extractPrimitive(item.size) || extractPrimitive(item.package_size) || 'each';
 
     console.log(`📊 [${componentId}] [${functionId}] Resolved values:`, {
       finalQuantity: quantity,
@@ -735,14 +743,15 @@ const InstacartShoppingList = ({
     });
 
     // If unit is "each", don't display it
-    if (unit === 'each') {
-      const result = `${quantity} item${quantity > 1 ? 's' : ''}`;
+    if (String(unit) === 'each') {
+      const safeQuantity = String(quantity);
+      const result = `${safeQuantity} item${Number(safeQuantity) > 1 ? 's' : ''}`;
       console.log(`✅ [${componentId}] [${functionId}] Each unit formatting: "${result}"`);
       return result;
     }
 
     // Format as "quantity-unit" (e.g., "1-16 oz bag", "3-cups")
-    const result = `${quantity}-${unit}`;
+    const result = `${String(quantity)}-${String(unit)}`;
     console.log(`✅ [${componentId}] [${functionId}] Standard unit formatting: "${result}"`);
     return result;
   };
