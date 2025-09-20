@@ -132,65 +132,71 @@ router.post('/claude', async (req, res) => {
     'http://127.0.0.1:3000',
     ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [])
   ];
-  
+
   // Check for Vercel preview URLs
   const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
-  
+
   if (!origin || allowedOrigins.includes(origin) || vercelPattern.test(origin)) {
     res.header('Access-Control-Allow-Origin', origin || '*');
     res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.header('Access-Control-Allow-Credentials', 'true');
   }
-  
+
   console.log('🧠 Enhanced Claude API request received');
-  
+
   try {
     const { prompt, context, options = {} } = req.body;
-    
+
     if (!prompt) {
       return res.status(400).json({
         success: false,
         error: 'Prompt is required'
       });
     }
-    
+
     // Check if prompt contains URL and scrape recipe
     const urlRegex = /https?:\/\/[^\s]+/gi;
     const urls = prompt.match(urlRegex);
     let processedPrompt = prompt;
-    
+
     if (urls && urls.length > 0) {
       console.log(`🌐 Detected ${urls.length} URL(s) in prompt, scraping recipes...`);
-      
+
       try {
         // Process first URL (could be extended for multiple URLs)
         const url = urls[0];
         const scrapedRecipe = await extractRecipe(url);
-        
+
         // Convert to CartSmash format and replace URL with recipe content
         const recipeText = toCartSmashFormat(scrapedRecipe);
         processedPrompt = processedPrompt.replace(url, recipeText);
-        
+
         console.log(`✅ Successfully scraped recipe: "${scrapedRecipe.title}" from ${url}`);
-        
+
       } catch (scrapeError) {
         console.log(`⚠️ Recipe scraping failed: ${scrapeError.message}, continuing with original prompt`);
         // Continue with original prompt if scraping fails
       }
     }
-    
+
     // Enhanced prompt - detect content type and format accordingly
     const wasRecipeScraped = urls && urls.length > 0 && processedPrompt !== prompt;
     const isMealPlanning = /\b(meal\s*plan|weekly\s*plan|7-?day|seven\s*day|menu|dinner\s*recipes)\b/i.test(processedPrompt);
     const isBudgetPlanning = /\bbudget\b|\$\d+|\d+\s*dollar/i.test(processedPrompt);
-    
+
+    // NEW: Recipe request detection - detect dish names and cooking requests
+    const isRecipeRequest = /\b(recipe\s*for|how\s*to\s*(make|cook|prepare)|chicken\s*tacos|beef\s*stew|pasta\s*salad|lasagna|pizza|stir\s*fry|curry|soup|salad|sandwich|burgers?|tacos?|enchiladas?|quesadillas?|spaghetti|meatballs?|casserole|chili|risotto|paella|pad\s*thai|fried\s*rice|roast\s*chicken|grilled\s*salmon|baked\s*potato)\b/i.test(processedPrompt) ||
+                             /\b\w+\s+(tacos?|burgers?|soup|salad|curry|stew|casserole|pasta|pizza|sandwich)\b/i.test(processedPrompt) ||
+                             /\b(make|cook|prepare)\s+\w+/i.test(processedPrompt);
+
     console.log({
       wasRecipeScraped,
       isMealPlanning,
       isBudgetPlanning,
+      isRecipeRequest,
       lenPrompt: processedPrompt.length,
-      chosenBranch: wasRecipeScraped ? 'recipe' : (isMealPlanning || isBudgetPlanning) ? 'plan' : 'list'
+      chosenBranch: wasRecipeScraped ? 'recipe' : (isMealPlanning || isBudgetPlanning) ? 'plan' : isRecipeRequest ? 'recipe_list' : 'list'
     });
     
     let enhancedPrompt;
@@ -323,6 +329,52 @@ IMPORTANT STRUCTURE: Show meal plans and recipes FIRST, then consolidated shoppi
 }
 
 IMPORTANT: Return ONLY the JSON object, no additional text. Generate complete details for ALL requested days with specific ingredients and quantities.`;
+    } else if (isRecipeRequest) {
+      // NEW: Recipe request detected - generate structured recipe
+      enhancedPrompt = `${processedPrompt}
+
+Return a structured JSON response with complete recipe information:
+
+{
+  "type": "recipe_list",
+  "recipes": [
+    {
+      "name": "Recipe Name",
+      "description": "Brief description of the dish",
+      "servings": 4,
+      "prepTime": "15 minutes",
+      "cookTime": "30 minutes",
+      "totalTime": "45 minutes",
+      "ingredients": [
+        {
+          "name": "ingredient name",
+          "quantity": "2",
+          "unit": "cups",
+          "notes": "optional preparation notes"
+        }
+      ],
+      "instructions": [
+        "Step 1: Comprehensive detailed instruction with specific temperatures, times, and techniques (e.g., 'Heat 2 tablespoons olive oil in a 12-inch skillet over medium-high heat until shimmering, about 2 minutes.')",
+        "Step 2: Detailed next step with visual cues and precise methods (e.g., 'Add diced onions and sauté until golden brown and translucent, stirring occasionally, about 5-7 minutes.')",
+        "Step 3: Continue with thorough preparation steps (e.g., 'Add minced garlic and cook for 30 seconds until fragrant but not browned.')",
+        "Step 4: Main cooking process with timing and techniques (e.g., 'Pour in crushed tomatoes, add salt, pepper, and Italian herbs. Simmer uncovered for 15-20 minutes, stirring every 5 minutes until sauce reduces and thickens.')",
+        "Step 5: Quality checks and adjustments (e.g., 'Taste and adjust seasoning with salt and pepper as needed.')",
+        "Step 6: Finishing techniques and plating (e.g., 'Remove from heat and stir in fresh basil leaves and grated Parmesan cheese.')",
+        "Step 7: Serving and storage instructions (e.g., 'Serve immediately over al dente pasta with additional cheese on the side. Store leftovers covered in refrigerator for up to 3 days.')"
+      ],
+      "tags": ["dinner", "mexican", "easy"],
+      "difficulty": "Easy"
+    }
+  ]
+}
+
+IMPORTANT:
+- Provide as many instruction steps as the recipe naturally requires (6-10+ steps for complex dishes)
+- Each instruction step must be comprehensive and detailed with specific temperatures, times, techniques, and visual cues
+- Include precise measurements, cooking methods, and sensory indicators (e.g., "until golden brown", "165°F internal temperature")
+- Break complex recipes into logical, sequential steps that a novice cook can follow
+- Provide complete information so anyone can successfully prepare the dish
+- Return ONLY the JSON object, no additional text or formatting.`;
     } else {
       // Regular grocery list or simple recipe format - structured JSON
       enhancedPrompt = `${processedPrompt}
