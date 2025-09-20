@@ -6,7 +6,7 @@ import InstacartShoppingList from './InstacartShoppingList';
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
 import InstacartCheckoutUnified from './InstacartCheckoutUnified';
-import InstacartProductMatcher from './InstacartProductMatcher';
+// InstacartProductMatcher moved to Admin page
 import PriceHistory from './PriceHistory';
 import RecipesFoundCard from './RecipesFoundCard';
 import RecipesFound from './RecipesFound';
@@ -560,9 +560,7 @@ function GroceryListForm({
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
-  // Product Matcher state
-  const [showProductMatcher, setShowProductMatcher] = useState(false);
-  const [productMatcherTerm, setProductMatcherTerm] = useState('');
+  // Product Matcher moved to Admin page
   // Price History state
   const [showPriceHistory, setShowPriceHistory] = useState(false);
   const [selectedProductForPrice, setSelectedProductForPrice] = useState(null);
@@ -4696,63 +4694,11 @@ Or paste any grocery list directly!"
           />
           
 
-          {/* Smart Search Section */}
-          <div style={styles.smartSearchSection}>
-            <div style={styles.smartSearchInput}>
-              <input
-                type="text"
-                placeholder="Search Instacart products with confidence scores..."
-                value={productMatcherTerm}
-                onChange={(e) => setProductMatcherTerm(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && productMatcherTerm.trim()) {
-                    setShowProductMatcher(true);
-                  }
-                }}
-                style={styles.searchInput}
-              />
-              <button
-                onClick={() => productMatcherTerm.trim() && setShowProductMatcher(true)}
-                disabled={!productMatcherTerm.trim()}
-                style={{
-                  ...styles.smartSearchButton,
-                  opacity: productMatcherTerm.trim() ? 1 : 0.5
-                }}
-              >
-                🔍 Smart Search
-              </button>
-            </div>
-            <div style={styles.searchHint}>
-              Search for specific products with AI-powered confidence matching
-            </div>
-          </div>
+          {/* Smart Search moved to Admin page Testing tab */}
 
           {/* Unified Checkout Section with Statistics */}
           <div style={styles.unifiedCheckoutContainer}>
-            {/* Statistics Bar */}
-            <div style={styles.statsBar}>
-              <div style={styles.statItem}>
-                <span style={styles.statValue}>{currentCart.length}</span>
-                <span style={styles.statLabel}>ITEMS</span>
-              </div>
-              <div style={styles.divider} />
-              <div style={styles.statItem}>
-                <span style={styles.statValue}>{currentCart.filter(item => !item.isUnavailable).length}</span>
-                <span style={styles.statLabel}>AVAILABLE</span>
-              </div>
-              <div style={styles.divider} />
-              <div style={styles.statItem}>
-                <span style={styles.statValue}>{currentCart.reduce((total, item) => total + (parseFloat(item.quantity) || 1), 0)}</span>
-                <span style={styles.statLabel}>QUANTITY</span>
-              </div>
-              <div style={styles.divider} />
-              <div style={styles.statItem}>
-                <span style={styles.statValue}>
-                  {currentCart.length > 0 ? Math.round((currentCart.filter(item => !item.isUnavailable).length / currentCart.length) * 100) : 0}%
-                </span>
-                <span style={styles.statLabel}>READY</span>
-              </div>
-            </div>
+            {/* Statistics removed - now shown in Instacart checkout button */}
 
             {/* Checkout Button */}
             <button

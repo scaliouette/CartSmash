@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import userDataService from '../services/userDataService';
 import RecipeImporter from './RecipeImporter';
+import InstacartProductMatcher from './InstacartProductMatcher';
 
 // Helper function to safely extract string values from ingredient objects
 const safeExtractIngredientString = (ingredient) => {
@@ -111,6 +112,12 @@ function MyAccount({
   const [showMealPlanModal, setShowMealPlanModal] = useState(false);
   const [editingMealPlan, setEditingMealPlan] = useState(null);
   const [localMealPlans, setLocalMealPlans] = useState([]);
+
+  // Testing tab state
+  const [showProductMatcher, setShowProductMatcher] = useState(false);
+  const [productMatcherTerm, setProductMatcherTerm] = useState('');
+  const [debugInfo, setDebugInfo] = useState({});
+  const [testResults, setTestResults] = useState([]);
   const [editingList, setEditingList] = useState(null);
   const [showListEditModal, setShowListEditModal] = useState(false);
   const [showAddListModal, setShowAddListModal] = useState(false);
@@ -732,6 +739,139 @@ function MyAccount({
     </div>
   );
 
+  const renderTesting = () => (
+    <div style={styles.testingContainer}>
+      <div style={styles.testingHeader}>
+        <h2 style={styles.pageTitle}>🧪 Testing & Development Tools</h2>
+        <p style={styles.testingDescription}>
+          Advanced testing tools for debugging AI-powered features and system performance.
+        </p>
+      </div>
+
+      {/* Smart Search Section */}
+      <div style={styles.testingSection}>
+        <h3 style={styles.sectionTitle}>🔍 Smart Product Search</h3>
+        <p style={styles.sectionDescription}>
+          Search for specific products with AI-powered confidence matching and detailed debugging.
+        </p>
+
+        <div style={styles.smartSearchInput}>
+          <input
+            type="text"
+            placeholder="Search Instacart products with confidence scores..."
+            value={productMatcherTerm}
+            onChange={(e) => {
+              setProductMatcherTerm(e.target.value);
+              console.log('🔍 [Testing] Search term changed:', e.target.value);
+            }}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && productMatcherTerm.trim()) {
+                console.log('🔍 [Testing] Enter pressed, opening matcher');
+                setShowProductMatcher(true);
+              }
+            }}
+            style={styles.searchInput}
+          />
+          <button
+            onClick={() => {
+              if (productMatcherTerm.trim()) {
+                console.log('🔍 [Testing] Smart search button clicked:', productMatcherTerm);
+                setShowProductMatcher(true);
+              }
+            }}
+            disabled={!productMatcherTerm.trim()}
+            style={{
+              ...styles.smartSearchButton,
+              opacity: productMatcherTerm.trim() ? 1 : 0.5
+            }}
+          >
+            🔍 Smart Search
+          </button>
+        </div>
+        <div style={styles.searchHint}>
+          Search for specific products with AI-powered confidence matching (Admin Testing Only)
+        </div>
+      </div>
+
+      {/* Debug Information Section */}
+      <div style={styles.testingSection}>
+        <h3 style={styles.sectionTitle}>🐛 Debug Information</h3>
+        <div style={styles.debugContainer}>
+          <div style={styles.debugItem}>
+            <strong>User ID:</strong> {currentUser?.uid || 'Not logged in'}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>Email:</strong> {currentUser?.email || 'No email'}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>Preferred Retailer:</strong> {currentUser?.preferredRetailer || 'None set'}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>Zip Code:</strong> {currentUser?.zipCode || currentUser?.postalCode || 'None set'}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>Browser:</strong> {navigator.userAgent.split(' ').slice(-2).join(' ')}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>Screen:</strong> {window.screen.width}x{window.screen.height}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>Connection:</strong> {navigator.connection ?
+              `${navigator.connection.effectiveType} (${navigator.connection.downlink}Mbps)` : 'Unknown'}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>Memory:</strong> {navigator.deviceMemory ? `${navigator.deviceMemory}GB` : 'Unknown'}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>Cores:</strong> {navigator.hardwareConcurrency || 'Unknown'}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>Local Storage:</strong> {typeof(Storage) !== "undefined" ? 'Available' : 'Not available'}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>IndexedDB:</strong> {typeof(indexedDB) !== "undefined" ? 'Available' : 'Not available'}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>WebGL:</strong> {!!window.WebGLRenderingContext ? 'Supported' : 'Not supported'}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>Service Worker:</strong> {'serviceWorker' in navigator ? 'Supported' : 'Not supported'}
+          </div>
+          <div style={styles.debugItem}>
+            <strong>Timestamp:</strong> {new Date().toISOString()}
+          </div>
+        </div>
+      </div>
+
+      {/* Test Results Section */}
+      <div style={styles.testingSection}>
+        <h3 style={styles.sectionTitle}>📊 Test Results</h3>
+        <div style={styles.testResultsContainer}>
+          {testResults.length > 0 ? (
+            testResults.map((result, index) => (
+              <div key={index} style={styles.testResult}>
+                <div style={styles.testResultHeader}>
+                  <span style={styles.testResultTime}>{result.timestamp}</span>
+                  <span style={{...styles.testResultStatus, color: result.success ? '#10B981' : '#EF4444'}}>
+                    {result.success ? '✅ SUCCESS' : '❌ FAILED'}
+                  </span>
+                </div>
+                <div style={styles.testResultDescription}>{result.description}</div>
+                {result.details && (
+                  <pre style={styles.testResultDetails}>{JSON.stringify(result.details, null, 2)}</pre>
+                )}
+              </div>
+            ))
+          ) : (
+            <div style={styles.noTestResults}>
+              No test results yet. Run some tests to see results here.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -785,6 +925,15 @@ function MyAccount({
         >
           ⚙️ Settings
         </button>
+        <button
+          onClick={() => setActiveTab('testing')}
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'testing' ? styles.tabActive : {})
+          }}
+        >
+          🧪 Testing
+        </button>
       </div>
 
       <div style={styles.content}>
@@ -793,6 +942,7 @@ function MyAccount({
         {activeTab === 'mealplans' && renderMealPlans()}
         {activeTab === 'recipes' && renderRecipes()}
         {activeTab === 'settings' && renderSettings()}
+        {activeTab === 'testing' && renderTesting()}
       </div>
 
 
@@ -968,6 +1118,55 @@ function MyAccount({
               console.error('❌ Failed to save recipe:', error);
               alert('❌ Failed to save recipe. Please try again.');
             }
+          }}
+        />
+      )}
+
+      {/* Smart Product Search Modal - Testing Tab */}
+      {showProductMatcher && (
+        <InstacartProductMatcher
+          searchTerm={productMatcherTerm}
+          retailerId={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'kroger'}
+          onProductSelect={(product) => {
+            console.log('🔍 [Testing] Selected product from matcher:', product);
+
+            // Add test result
+            const testResult = {
+              timestamp: new Date().toISOString(),
+              description: `Product search successful: ${product.name}`,
+              success: true,
+              details: {
+                productName: product.name,
+                price: product.price,
+                confidence: product.confidence,
+                upc: product.upc,
+                category: product.category
+              }
+            };
+
+            setTestResults(prev => [testResult, ...prev]);
+            setShowProductMatcher(false);
+            setProductMatcherTerm('');
+
+            console.log(`✅ [Testing] Product search test completed successfully`);
+          }}
+          onClose={() => {
+            console.log('🔍 [Testing] Product matcher closed');
+            setShowProductMatcher(false);
+            setProductMatcherTerm('');
+
+            // Add test result for closure
+            const testResult = {
+              timestamp: new Date().toISOString(),
+              description: 'Product search modal closed without selection',
+              success: false,
+              details: {
+                searchTerm: productMatcherTerm,
+                reason: 'User closed modal'
+              }
+            };
+
+            setTestResults(prev => [testResult, ...prev]);
           }}
         />
       )}
@@ -2058,6 +2257,155 @@ const styles = {
     borderRadius: '8px',
     fontSize: '14px',
     textAlign: 'center'
+  },
+
+  // Testing Tab Styles
+  testingContainer: {
+    padding: '24px',
+    backgroundColor: '#f8fafc'
+  },
+
+  testingHeader: {
+    marginBottom: '32px',
+    textAlign: 'center'
+  },
+
+  testingDescription: {
+    fontSize: '16px',
+    color: '#64748b',
+    marginTop: '8px'
+  },
+
+  testingSection: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '24px',
+    marginBottom: '24px',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+    border: '1px solid #e2e8f0'
+  },
+
+  sectionTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+
+  sectionDescription: {
+    fontSize: '14px',
+    color: '#64748b',
+    marginBottom: '16px'
+  },
+
+  smartSearchInput: {
+    display: 'flex',
+    gap: '12px',
+    marginBottom: '8px'
+  },
+
+  searchInput: {
+    flex: 1,
+    padding: '12px',
+    fontSize: '16px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    outline: 'none',
+    transition: 'all 0.2s',
+    fontFamily: 'inherit'
+  },
+
+  smartSearchButton: {
+    padding: '12px 24px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap'
+  },
+
+  searchHint: {
+    fontSize: '12px',
+    color: '#64748b',
+    fontStyle: 'italic'
+  },
+
+  debugContainer: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+    gap: '12px'
+  },
+
+  debugItem: {
+    padding: '12px',
+    backgroundColor: '#f1f5f9',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontFamily: 'monospace',
+    border: '1px solid #e2e8f0'
+  },
+
+  testResultsContainer: {
+    maxHeight: '400px',
+    overflowY: 'auto',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px'
+  },
+
+  testResult: {
+    padding: '16px',
+    borderBottom: '1px solid #e2e8f0',
+    backgroundColor: 'white'
+  },
+
+  testResultHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '8px'
+  },
+
+  testResultTime: {
+    fontSize: '12px',
+    color: '#64748b',
+    fontFamily: 'monospace'
+  },
+
+  testResultStatus: {
+    fontSize: '12px',
+    fontWeight: '600',
+    fontFamily: 'monospace'
+  },
+
+  testResultDescription: {
+    fontSize: '14px',
+    color: '#1e293b',
+    marginBottom: '8px'
+  },
+
+  testResultDetails: {
+    fontSize: '12px',
+    fontFamily: 'monospace',
+    backgroundColor: '#f1f5f9',
+    padding: '12px',
+    borderRadius: '6px',
+    border: '1px solid #e2e8f0',
+    overflow: 'auto',
+    maxHeight: '200px'
+  },
+
+  noTestResults: {
+    padding: '32px',
+    textAlign: 'center',
+    color: '#64748b',
+    fontStyle: 'italic'
   }
 };
 
