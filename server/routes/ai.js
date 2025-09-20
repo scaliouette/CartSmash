@@ -328,7 +328,13 @@ IMPORTANT STRUCTURE: Show meal plans and recipes FIRST, then consolidated shoppi
   "totalEstimatedCost": "$85-95"
 }
 
-IMPORTANT: Return ONLY the JSON object, no additional text. Generate complete details for ALL requested days with specific ingredients and quantities.`;
+IMPORTANT:
+- Return ONLY the JSON object, no additional text
+- Generate complete details for ALL requested days with specific ingredients and quantities
+- Each recipe should have 5-8+ detailed instruction steps with specific temperatures, times, techniques, and visual cues
+- Include precise measurements, cooking methods, and sensory indicators (e.g., "until golden brown", "165°F internal temperature")
+- Break complex recipes into logical, sequential steps that a novice cook can follow
+- Provide complete information so anyone can successfully prepare each dish`;
     } else if (isRecipeRequest) {
       // NEW: Recipe request detected - generate structured recipe
       enhancedPrompt = `${processedPrompt}
