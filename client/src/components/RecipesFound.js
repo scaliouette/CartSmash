@@ -299,7 +299,7 @@ const RecipeCard = ({
               alignItems: 'center',
               justifyContent: 'center'
             }}
-            title="Add to Meal Plan"
+            title="Save Recipe"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
