@@ -111,7 +111,11 @@ class ImageService {
           }
         };
 
-        img.onerror = () => reject(new Error('Failed to load image'));
+        img.onerror = (e) => {
+          // Prevent image load errors from appearing in console
+          e.preventDefault && e.preventDefault();
+          reject(new Error('Failed to load image'));
+        };
         img.src = url;
       });
 
@@ -193,7 +197,8 @@ class ImageService {
     });
 
     // First priority: Use real product images from Instacart API if available
-    if (item.imageUrl && this.isValidImageUrl(item.imageUrl)) {
+    const optimizedImageUrl = this.optimizeImageUrl(item.imageUrl);
+    if (optimizedImageUrl) {
       // Check cache first for external images
       const cached = this.getCachedImage(item.imageUrl);
       if (cached) {
@@ -213,7 +218,8 @@ class ImageService {
       return item.imageUrl;
     }
 
-    if (item.image && this.isValidImageUrl(item.image)) {
+    const optimizedImage = this.optimizeImageUrl(item.image);
+    if (optimizedImage) {
       // Check cache first for external images
       const cached = this.getCachedImage(item.image);
       if (cached) {
@@ -236,7 +242,8 @@ class ImageService {
     // Check if instacartData has image URLs
     if (item.instacartData) {
       const instacartImageUrl = item.instacartData.image_url || item.instacartData.imageUrl || item.instacartData.image;
-      if (instacartImageUrl && this.isValidImageUrl(instacartImageUrl)) {
+      const optimizedInstacartUrl = this.optimizeImageUrl(instacartImageUrl);
+      if (optimizedInstacartUrl) {
         // Check cache first for external images
         const cached = this.getCachedImage(instacartImageUrl);
         if (cached) {
@@ -303,15 +310,15 @@ class ImageService {
     // Allow HTTPS URLs from trusted domains
     if (url.startsWith('https://')) {
       const trustedDomains = [
-        'images.unsplash.com',
-        'picsum.photos',
-        'via.placeholder.com',
-        'cdn.instacart.com',
-        'cartsmash.com',
-        'cartsmash.netlify.app',
-        'cartsmash.vercel.app'
+        'cdn.instacart.com',        // Instacart's official CDN
+        'cartsmash.com',            // Our domain
+        'cartsmash.netlify.app',    // Our deployment
+        'cartsmash.vercel.app',     // Our deployment
+        'via.placeholder.com'       // Reliable placeholder service
       ];
 
+      // Note: Removed unreliable external services like Unsplash
+      // to reduce 404 errors in production
       return trustedDomains.some(domain => url.includes(domain));
     }
 
@@ -332,7 +339,11 @@ class ImageService {
     return {
       src: src || fallbackSrc,
       onError: (e) => {
+        // Prevent error from propagating to console
+        e.preventDefault && e.preventDefault();
+
         if (e.target.src !== fallbackSrc) {
+          console.log('🔄 Image failed, switching to fallback:', e.target.src);
           e.target.src = fallbackSrc;
         }
         if (onError) onError(e);
@@ -362,6 +373,23 @@ class ImageService {
   clearCache() {
     this.imageCache.clear();
     console.log('🧹 Image cache cleared');
+  }
+
+  /**
+   * Optimize image URLs to prevent 404s
+   */
+  optimizeImageUrl(url) {
+    if (!url || !this.isValidImageUrl(url)) {
+      return null;
+    }
+
+    // Skip URLs that commonly cause 404s
+    if (url.includes('unsplash.com') || url.includes('picsum.photos')) {
+      console.log('🚫 Skipping unreliable image source:', url);
+      return null;
+    }
+
+    return url;
   }
 
   /**

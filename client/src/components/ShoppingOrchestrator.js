@@ -6,6 +6,7 @@ import InstacartCheckoutMobile from './InstacartCheckoutMobile';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
 import { useCart } from '../contexts/CartContext';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
+import { safeReactRender } from '../utils/reactSafeRender';
 
 function ShoppingOrchestrator({ items, recipe }) {
   const { currentCart } = useCart();
@@ -243,10 +244,10 @@ function ShoppingOrchestrator({ items, recipe }) {
             title: recipe.name,
             instructions: recipe.instructions || ['Follow the recipe instructions'],
             ingredients: effectiveItems.map(item => ({
-              name: item.name,
+              name: safeReactRender(item.name, 'Unknown ingredient'),
               quantity: item.quantity || 1,
-              unit: item.unit || 'each',
-              displayText: `${item.quantity || 1} ${item.unit || 'each'} ${item.name}`
+              unit: safeReactRender(item.unit, 'each'),
+              displayText: `${item.quantity || 1} ${safeReactRender(item.unit, 'each')} ${safeReactRender(item.name, 'Unknown ingredient')}`
             })),
             servings: recipe.servings || 4,
             id: recipe.id || `recipe-${Date.now()}`
@@ -257,7 +258,7 @@ function ShoppingOrchestrator({ items, recipe }) {
           if (recipeResult.success && recipeResult.instacartUrl) {
             console.log('✅ Enhanced Instacart recipe created:', recipeResult.instacartUrl);
             window.open(recipeResult.instacartUrl, '_blank');
-            alert(`✅ Recipe page created! Opening Instacart recipe: "${recipe.name}"`);
+            alert(`✅ Recipe page created! Opening Instacart recipe: "${safeReactRender(recipe.name, 'Recipe')}"`);
             return;
           }
         } catch (recipeError) {
@@ -266,7 +267,7 @@ function ShoppingOrchestrator({ items, recipe }) {
       }
       
       // Fallback: Create shopping list for non-recipe items or if recipe creation fails
-      const listName = recipe?.name ? `${recipe.name} - CartSmash` : 'CartSmash Grocery List';
+      const listName = recipe?.name ? `${safeReactRender(recipe.name, 'Recipe')} - CartSmash` : 'CartSmash Grocery List';
       const listResponse = await instacartService.createShoppingList(items, listName);
       
       if (listResponse.success) {
@@ -352,7 +353,7 @@ function ShoppingOrchestrator({ items, recipe }) {
                   
                   <div style={styles.vendorHeader}>
                     <span style={styles.vendorLogo}>{vendor.logo}</span>
-                    <h3 style={styles.vendorName}>{vendor.name}</h3>
+                    <h3 style={styles.vendorName}>{safeReactRender(vendor.name, 'Vendor')}</h3>
                   </div>
                   
                   <div style={styles.priceBreakdown}>
@@ -443,7 +444,7 @@ function ShoppingOrchestrator({ items, recipe }) {
                       onClick={() => setSelectedRetailer(retailer)}
                     >
                       <div style={styles.retailerHeader}>
-                        <h4 style={styles.retailerName}>{retailer.name}</h4>
+                        <h4 style={styles.retailerName}>{safeReactRender(retailer.name, 'Store')}</h4>
                         <span style={styles.retailerDistance}>{retailer.distance} mi</span>
                       </div>
                       

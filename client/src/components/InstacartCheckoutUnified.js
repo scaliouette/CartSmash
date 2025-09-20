@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronRight, Check, Store, CheckCircle, X, ArrowLeft } from 'lucide-react';
 import instacartCheckoutService from '../services/instacartCheckoutService';
 import instacartShoppingListService from '../services/instacartShoppingListService';
+import { logger, createTimer, conditionalLog } from '../utils/debugLogger';
 import './InstacartCheckoutEnhanced.css';
 
 const InstacartCheckoutUnified = ({
@@ -17,31 +18,18 @@ const InstacartCheckoutUnified = ({
 }) => {
   // Generate unique component ID for debug tracking
   const componentId = `InstacartCheckoutUnified_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const initStartTime = performance.now();
 
-  console.log(`🛒 [${componentId}] INSTACART CHECKOUT COMPONENT INITIALIZED:`, {
-    timestamp: new Date().toISOString(),
-    props: {
-      itemsCount: items?.length || 0,
-      hasOnClose: !!onClose,
-      mode,
-      initialLocation,
-      hasCustomTitle: !!title,
-      customTitle: title,
-      hasRecipeData: !!recipeData,
-      recipeDataStructure: recipeData ? Object.keys(recipeData) : null
-    },
-    items: items?.map(item => ({
-      id: item.id,
-      productName: item.productName || item.name,
-      quantity: item.quantity,
-      price: item.price,
-      category: item.category
-    }))
+  // Component lifecycle logging
+  conditionalLog.componentLifecycle(componentId, 'mounted', {
+    itemsCount: items?.length || 0,
+    hasOnClose: !!onClose,
+    mode,
+    initialLocation,
+    hasCustomTitle: !!title
   });
 
   // State management - Always start at step 1 (Select Store)
-  console.log(`🎯 [${componentId}] Initializing state management...`);
+  logger.debug(componentId, 'init', 'Initializing state management');
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedStore, setSelectedStore] = useState(null);
   const [retailers, setRetailers] = useState([]);
@@ -52,7 +40,7 @@ const InstacartCheckoutUnified = ({
   const [editingZip, setEditingZip] = useState(false);
   const [tempZip, setTempZip] = useState(initialLocation);
 
-  console.log(`📊 [${componentId}] State initialized:`, {
+  logger.debug(componentId, 'init', 'State initialized', {
     currentStep: 1,
     selectedStore: null,
     retailersCount: 0,
@@ -65,7 +53,7 @@ const InstacartCheckoutUnified = ({
   });
 
   // Initialize ingredients state from items prop
-  console.log(`🧪 [${componentId}] Processing ingredients from items...`);
+  logger.debug(componentId, 'processIngredients', 'Processing ingredients from items');
   const ingredientProcessingStartTime = performance.now();
 
   // eslint-disable-next-line no-unused-vars
@@ -198,21 +186,21 @@ const InstacartCheckoutUnified = ({
   // ============ DATA LOADING ============
 
   const loadRetailers = useCallback(async () => {
-    const functionId = `loadRetailers_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-    const startTime = performance.now();
+    const functionId = 'loadRetailers';
+    const timer = createTimer(componentId, functionId);
+    timer.start();
 
-    console.log(`🏪 [${componentId}] [${functionId}] Loading retailers initiated:`, {
+    logger.info(componentId, functionId, 'Loading retailers initiated', {
       location,
       currentRetailersCount: retailers.length,
-      hasSelectedStore: !!selectedStore,
-      timestamp: new Date().toISOString()
+      hasSelectedStore: !!selectedStore
     });
 
     setLoading(true);
     setError(null);
 
     try {
-      console.log(`🏪 Loading retailers for ${location}`);
+      conditionalLog.apiCall(componentId, `retailers for ${location}`, 'GET');
       const result = await instacartCheckoutService.getAvailableRetailers(location, 'US');
 
       if (result.success && result.retailers) {
@@ -232,12 +220,12 @@ const InstacartCheckoutUnified = ({
           _raw: retailer
         }));
         setRetailers(retailersWithPricing);
-        console.log(`✅ Loaded ${retailersWithPricing.length} retailers`);
+        logger.info(componentId, functionId, `Successfully loaded ${retailersWithPricing.length} retailers`);
       } else {
         throw new Error('Failed to load retailers');
       }
     } catch (err) {
-      console.error('❌ Error loading retailers:', err);
+      logger.error(componentId, functionId, 'Error loading retailers', { error: err.message });
       setError('Failed to load nearby retailers. Using sample stores.');
       // Enhanced fallback with better mock data
       setRetailers([
@@ -288,6 +276,8 @@ const InstacartCheckoutUnified = ({
       ]);
     } finally {
       setLoading(false);
+      const duration = timer.end('Retailers loading completed');
+      conditionalLog.performance(componentId, 'loadRetailers', duration, 2000);
     }
   }, [location, getTotalPrice]);
 
@@ -354,6 +344,10 @@ const InstacartCheckoutUnified = ({
   // ============ CHECKOUT CREATION ============
 
   const createCheckout = async () => {
+    const functionId = 'createCheckout';
+    const timer = createTimer(componentId, functionId);
+    timer.start();
+
     setLoading(true);
     setError(null);
 
@@ -365,7 +359,7 @@ const InstacartCheckoutUnified = ({
         throw new Error('No retailers available for checkout');
       }
 
-      console.log('🛒 Creating checkout with:', {
+      logger.info(componentId, functionId, 'Creating checkout', {
         totalIngredients: checkoutData.ingredients.length,
         checkedIngredients: checkedIngredients.length,
         retailer: selectedRetailer?.name,

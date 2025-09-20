@@ -99,8 +99,14 @@ if (isConfigValid) {
     
     // Initialize Analytics (only in browser environment)
     if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
-      analytics = getAnalytics(app);
-      console.log('✅ Analytics initialized');
+      try {
+        analytics = getAnalytics(app);
+        console.log('✅ Analytics initialized');
+      } catch (analyticsError) {
+        console.warn('⚠️ Analytics initialization failed, continuing without analytics:', analyticsError.message);
+        // This is common in development or when service workers are blocked
+        analytics = null;
+      }
     }
     
     console.log('🎉 All Firebase services initialized successfully!');

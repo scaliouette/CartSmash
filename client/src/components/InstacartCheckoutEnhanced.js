@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronRight, Check, ShoppingCart, Store, Plus, CheckCircle, X } from 'lucide-react';
 import instacartCheckoutService from '../services/instacartCheckoutService';
+import { safeReactRender } from '../utils/reactSafeRender';
 import './InstacartCheckoutEnhanced.css';
 
 const InstacartCheckoutEnhanced = ({ items = [], onClose, mode = 'recipe', initialLocation = '95670' }) => {
@@ -20,8 +21,8 @@ const InstacartCheckoutEnhanced = ({ items = [], onClose, mode = 'recipe', initi
     servings: 4,
     time: 30,
     ingredients: items.map(item => ({
-      name: item.productName || item.name,
-      amount: `${item.quantity || 1}${item.unit ? ` ${item.unit}` : ''}`,
+      name: safeReactRender(item.productName || item.name, 'Unknown ingredient'),
+      amount: `${safeReactRender(item.quantity, 1)}${item.unit ? ` ${safeReactRender(item.unit, '')}` : ''}`,
       price: item.price || 2.99,
       checked: true
     }))
@@ -201,11 +202,11 @@ const InstacartCheckoutEnhanced = ({ items = [], onClose, mode = 'recipe', initi
       case 1:
         return (
           <div className="checkout-step-content">
-            <h3 className="checkout-title">{recipeData.name}</h3>
+            <h3 className="checkout-title">{safeReactRender(recipeData.name, 'Recipe')}</h3>
 
             <div className="recipe-meta">
               <span className="meta-item">
-                <span>👨‍🍳</span> {recipeData.chef}
+                <span>👨‍🍳</span> {safeReactRender(recipeData.chef, 'CartSmash Chef')}
               </span>
               <span className="meta-item">
                 <span>🍽️</span> {recipeData.servings} servings
@@ -228,8 +229,8 @@ const InstacartCheckoutEnhanced = ({ items = [], onClose, mode = 'recipe', initi
                         className="ingredient-checkbox"
                       />
                       <div>
-                        <span className="ingredient-name">{ingredient.name}</span>
-                        <span className="ingredient-amount">({ingredient.amount})</span>
+                        <span className="ingredient-name">{safeReactRender(ingredient.name, 'Unknown ingredient')}</span>
+                        <span className="ingredient-amount">({safeReactRender(ingredient.amount, 'Unknown amount')})</span>
                       </div>
                     </div>
                     <span className="ingredient-price">${ingredient.price.toFixed(2)}</span>
@@ -271,7 +272,7 @@ const InstacartCheckoutEnhanced = ({ items = [], onClose, mode = 'recipe', initi
                           {selectedStore === store.id && <Check className="check-icon" />}
                         </div>
                         <div>
-                          <h4 className="store-name">{store.name}</h4>
+                          <h4 className="store-name">{safeReactRender(store.name, 'Store')}</h4>
                           <p className="store-distance">{store.distance} away • {store.deliveryTime || '2hr'} delivery</p>
                         </div>
                       </div>
@@ -298,7 +299,7 @@ const InstacartCheckoutEnhanced = ({ items = [], onClose, mode = 'recipe', initi
               <div className="spinner-large"></div>
               <h3 className="loading-title">Creating your shopping list...</h3>
               <p className="loading-subtitle">
-                We're adding all ingredients to your cart at {retailers.find(s => s.id === selectedStore)?.name}
+                We're adding all ingredients to your cart at {safeReactRender(retailers.find(s => s.id === selectedStore)?.name, 'your selected store')}
               </p>
               <button
                 onClick={onClose}
@@ -319,7 +320,7 @@ const InstacartCheckoutEnhanced = ({ items = [], onClose, mode = 'recipe', initi
               </div>
               <h3 className="success-title">Shopping List Created!</h3>
               <p className="success-subtitle">
-                Your ingredients have been added to your cart at {retailers.find(s => s.id === selectedStore)?.name}
+                Your ingredients have been added to your cart at {safeReactRender(retailers.find(s => s.id === selectedStore)?.name, 'your selected store')}
               </p>
 
               <div className="success-actions">

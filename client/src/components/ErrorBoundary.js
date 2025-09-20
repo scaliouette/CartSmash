@@ -92,9 +92,13 @@ class ErrorBoundary extends React.Component {
           caches.keys().then(names => {
             names.forEach(name => {
               if (name.includes('cartsmash')) {
-                caches.delete(name);
+                caches.delete(name).catch(err => {
+                  console.warn('Failed to delete cache:', name, err);
+                });
               }
             });
+          }).catch(err => {
+            console.warn('Failed to access cache storage:', err);
           });
         }
 

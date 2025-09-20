@@ -6,7 +6,7 @@ import InstacartShoppingList from './InstacartShoppingList';
 import SmartAIAssistant from './SmartAIAssistant';
 import ProductValidator from './ProductValidator';
 import InstacartCheckoutUnified from './InstacartCheckoutUnified';
-// InstacartProductMatcher moved to Admin page
+import InstacartProductMatcher from './InstacartProductMatcher';
 import PriceHistory from './PriceHistory';
 import RecipesFoundCard from './RecipesFoundCard';
 import RecipesFound from './RecipesFound';
@@ -580,6 +580,9 @@ function GroceryListForm({
   const [individualExpansionStates, setIndividualExpansionStates] = useState({});
   // eslint-disable-next-line no-unused-vars
   const [recipes, setRecipes] = useState([]);
+  // Product matcher state variables
+  const [showProductMatcher, setShowProductMatcher] = useState(false);
+  const [productMatcherTerm, setProductMatcherTerm] = useState('');
   const [waitingForAIResponse, setWaitingForAIResponse] = useState(false);
   // eslint-disable-next-line no-unused-vars
   // eslint-disable-next-line no-unused-vars

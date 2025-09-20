@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { saveParsedMealPlan, regenerateMeal } from '../services/aiMealPlanService';
 import { assignRecipeToMeal } from '../services/mealPlanService';
 import UnifiedRecipeCard from './UnifiedRecipeCard';
-import { safeRender } from '../utils/safeRender';
+import { safeReactRender } from '../utils/reactSafeRender';
 
 export default function AIMealPlanReview({ 
   mealPlan, 
@@ -235,7 +235,7 @@ export default function AIMealPlanReview({
                       
                       {recipe ? (
                         <div className="space-y-2">
-                          <h5 className="font-medium text-sm">{recipe.title || recipe.name}</h5>
+                          <h5 className="font-medium text-sm">{safeReactRender(recipe.title || recipe.name, 'Untitled Recipe')}</h5>
                           <p className="text-xs text-gray-600">
                             {recipe.prepTime && `⏱️ ${recipe.prepTime} min`}
                             {recipe.servings && ` • 🍽️ Serves ${recipe.servings}`}
