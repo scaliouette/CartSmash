@@ -142,8 +142,17 @@ const ShoppingListItem = ({
 
           {/* Product Image */}
           <img
-            src={getProductImage(item)}
+            src={getProductImage(item) || 'data:image/svg+xml;charset=utf-8,%3Csvg width="64" height="64" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="64" height="64" fill="%239E9E9E"/%3E%3Ctext x="32" y="32" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E'}
             alt={item.productName || item.name}
+            onError={(e) => {
+              console.log(`🚨 [${componentId}] MOBILE image load failed:`, {
+                itemId: item.id,
+                productName: item.productName,
+                originalSrc: e.target.src,
+                timestamp: new Date().toISOString()
+              });
+              e.target.src = 'data:image/svg+xml;charset=utf-8,%3Csvg width="64" height="64" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="64" height="64" fill="%239E9E9E"/%3E%3Ctext x="32" y="32" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E';
+            }}
             style={{
               width: '64px',
               height: '64px',
@@ -470,8 +479,17 @@ const ShoppingListItem = ({
         justifyContent: 'center'
       }}>
         <img
-          src={getProductImage(item)}
+          src={getProductImage(item) || 'data:image/svg+xml;charset=utf-8,%3Csvg width="56" height="56" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="56" height="56" fill="%239E9E9E"/%3E%3Ctext x="28" y="28" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E'}
           alt={item.productName || item.name}
+          onError={(e) => {
+            console.log(`🚨 [${componentId}] DESKTOP image load failed:`, {
+              itemId: item.id,
+              productName: item.productName,
+              originalSrc: e.target.src,
+              timestamp: new Date().toISOString()
+            });
+            e.target.src = 'data:image/svg+xml;charset=utf-8,%3Csvg width="56" height="56" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="56" height="56" fill="%239E9E9E"/%3E%3Ctext x="28" y="28" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E';
+          }}
           style={{
             width: '56px',
             height: '56px',
