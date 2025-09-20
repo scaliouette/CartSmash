@@ -3,42 +3,24 @@ import imageService, { formatProductName } from '../utils/imageService';
 import instacartService from '../services/instacartService';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import ShoppingListItem from './ShoppingListItem';
+import { logger, conditionalLog, createTimer } from '../utils/debugLogger';
 
-// 🔍 DEBUG FUNCTIONS FOR TRACING FALLBACK ISSUES
-const debugItemData = (item, context = '') => {
-  console.log(`🔍 [${context}] DEBUGGING ITEM:`, {
+// Optimized debug functions using configurable logging
+const debugItemData = (componentId, item, context = '') => {
+  logger.debug(componentId, 'debugItemData', `Item analysis: ${context}`, {
     id: item.id,
     productName: item.productName || item.name,
-    price: item.price,
-    priceType: typeof item.price,
-    hasPrice: !!item.price && item.price !== 0 && item.price !== '0.00',
-    image: item.image,
-    imageUrl: item.imageUrl,
+    hasPrice: !!item.price && item.price !== 0,
     hasRealImage: !!item.image && !item.image.includes('data:image/svg'),
-    brand: item.brand,
-    sku: item.sku,
-    productId: item.productId,
-    instacartData: !!item.instacartData,
-    enriched: !!item.enriched,
-    allFields: Object.keys(item)
+    enriched: !!item.enriched
   });
 };
 
-const debugShoppingListState = (items, context = '') => {
-  console.log(`🛒 [${context}] SHOPPING LIST STATE:`, {
+const debugShoppingListState = (componentId, items, context = '') => {
+  logger.debug(componentId, 'debugShoppingListState', `Shopping list state: ${context}`, {
     totalItems: items.length,
-    itemsWithPrices: items.filter(item => item.price && item.price !== 0 && item.price !== '0.00').length,
-    itemsWithRealImages: items.filter(item => item.image && !item.image.includes('data:image/svg')).length,
-    itemsEnriched: items.filter(item => item.enriched || item.instacartData).length,
-    priceRange: {
-      min: Math.min(...items.map(item => parseFloat(item.price) || 0)),
-      max: Math.max(...items.map(item => parseFloat(item.price) || 0))
-    }
-  });
-
-  // Log first few items for detail
-  items.slice(0, 3).forEach((item, index) => {
-    debugItemData(item, `Item ${index + 1}`);
+    itemsWithPrices: items.filter(item => item.price && item.price !== 0).length,
+    itemsEnriched: items.filter(item => item.enriched || item.instacartData).length
   });
 };
 
@@ -53,27 +35,12 @@ const InstacartShoppingList = ({
   userZipCode = '95670',
   selectedRetailer = 'kroger'
 }) => {
-  // 🚀 COMPONENT INITIALIZATION DEBUG
+  // Component initialization with optimized logging
   const componentId = `InstacartShoppingList_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  console.log(`🎯 [${componentId}] COMPONENT MOUNTED:`, {
-    timestamp: new Date().toISOString(),
-    propsReceived: {
-      itemsCount: items?.length || 0,
-      hasOnItemsChange: !!onItemsChange,
-      hasOnDeleteItem: !!onDeleteItem,
-      hasOnCheckout: !!onCheckout,
-      hasOnSaveList: !!onSaveList,
-      hasOnValidateItems: !!onValidateItems,
-      hasOnShowPriceHistory: !!onShowPriceHistory,
-      userZipCode,
-      selectedRetailer
-    },
-    itemsSample: items?.slice(0, 2)?.map(item => ({
-      id: item.id,
-      name: item.productName || item.name,
-      price: item.price,
-      hasImage: !!item.image || !!item.imageUrl
-    }))
+  conditionalLog.componentLifecycle(componentId, 'mounted', {
+    itemsCount: items?.length || 0,
+    userZipCode,
+    selectedRetailer
   });
 
   const [selectedItems, setSelectedItems] = useState(new Set());
@@ -85,16 +52,10 @@ const InstacartShoppingList = ({
   const [loadingRetailers, setLoadingRetailers] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  // 🔧 STATE INITIALIZATION DEBUG
-  console.log(`📊 [${componentId}] INITIAL STATE SET:`, {
-    selectedItems: selectedItems.size,
-    sortBy,
-    filterBy,
+  // State initialization (debug logging only when needed)
+  logger.trace(componentId, 'stateInit', 'Initial state set', {
     localItemsCount: localItems?.length || 0,
-    retailersCount: retailers?.length || 0,
-    selectedRetailerId,
-    loadingRetailers,
-    showAdvancedFilters
+    selectedRetailerId
   });
 
 
@@ -102,106 +63,60 @@ const InstacartShoppingList = ({
   const deviceInfo = useDeviceDetection();
   const isMobile = deviceInfo.isMobile || window.innerWidth <= 768;
 
-  // 📱 DEVICE DETECTION DEBUG
-  console.log(`📱 [${componentId}] DEVICE DETECTION:`, {
-    deviceInfo,
-    isMobile,
-    windowWidth: window.innerWidth,
-    userAgent: navigator.userAgent.substring(0, 100)
-  });
+  // Device detection logging
+  logger.debug(componentId, 'deviceDetection', 'Device detected', { isMobile });
 
   // Sync local items with parent
   useEffect(() => {
-    const effectId = `useEffect_items_${Date.now()}`;
-    console.log(`🔄 [${componentId}] [${effectId}] ITEMS SYNC TRIGGERED:`, {
-      newItemsCount: items?.length || 0,
-      previousLocalItemsCount: localItems?.length || 0,
-      itemsChanged: items !== localItems,
-      timestamp: new Date().toISOString()
-    });
+    const timer = createTimer(componentId, 'itemsSync');
+    timer.start();
 
-    debugShoppingListState(items, `Items Received from Parent [${effectId}]`);
-
-    // Deep comparison debug
-    if (items && localItems) {
-      const itemChanges = {
-        added: items.filter(item => !localItems.find(local => local.id === item.id)),
-        removed: localItems.filter(local => !items.find(item => item.id === local.id)),
-        modified: items.filter(item => {
-          const local = localItems.find(local => local.id === item.id);
-          return local && JSON.stringify(item) !== JSON.stringify(local);
-        })
-      };
-      console.log(`🔍 [${componentId}] [${effectId}] ITEM CHANGES ANALYSIS:`, itemChanges);
-    }
+    conditionalLog.stateChange(componentId, 'items', localItems?.length, items?.length);
+    debugShoppingListState(componentId, items, 'Items sync');
 
     setLocalItems(items);
-    console.log(`✅ [${componentId}] [${effectId}] Local items state updated`);
-  }, [items, componentId, localItems]);
+    timer.end('Items synchronized');
+  }, [items, componentId]);
 
   // Load retailers based on user zip code
   const loadRetailers = useCallback(async () => {
-    const functionId = `loadRetailers_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-    const startTime = performance.now();
+    const timer = createTimer(componentId, 'loadRetailers');
+    timer.start();
 
-    console.log(`🏪 [${componentId}] [${functionId}] LOAD RETAILERS STARTED:`, {
-      userZipCode,
-      hasZipCode: !!userZipCode,
-      timestamp: new Date().toISOString(),
-      currentRetailersCount: retailers?.length || 0,
-      selectedRetailerId
-    });
+    logger.info(componentId, 'loadRetailers', 'Loading retailers', { userZipCode });
 
     if (!userZipCode) {
-      console.log(`⚠️ [${componentId}] [${functionId}] No zip code provided, skipping retailer load`);
+      logger.warn(componentId, 'loadRetailers', 'No zip code provided');
       return;
     }
 
     setLoadingRetailers(true);
-    console.log(`⏳ [${componentId}] [${functionId}] Loading state set to true`);
 
     try {
-      console.log(`📡 [${componentId}] [${functionId}] Making API call to instacartService.getNearbyRetailers`);
-      const apiCallStart = performance.now();
-      const result = await instacartService.getNearbyRetailers(userZipCode);
-      const apiCallDuration = Math.round(performance.now() - apiCallStart);
+      conditionalLog.apiCall(componentId, 'getNearbyRetailers', 'GET', { userZipCode });
+      timer.mark('API call started');
 
-      console.log(`📥 [${componentId}] [${functionId}] API Response received:`, {
+      const result = await instacartService.getNearbyRetailers(userZipCode);
+      timer.mark('API call completed');
+
+      logger.debug(componentId, 'loadRetailers', 'API response received', {
         success: result?.success,
-        retailersCount: result?.retailers?.length || 0,
-        apiCallDuration,
-        resultKeys: result ? Object.keys(result) : [],
-        firstRetailer: result?.retailers?.[0] ? {
-          id: result.retailers[0].id,
-          name: result.retailers[0].name,
-          hasLogo: !!result.retailers[0].logo_url
-        } : null
+        retailersCount: result?.retailers?.length || 0
       });
 
       if (result.success && result.retailers) {
-        console.log(`🔄 [${componentId}] [${functionId}] Starting retailer sorting logic`);
+        timer.mark('Sorting retailers');
 
         // Sort retailers by estimated pricing (lowest prices first)
-        const sortStartTime = performance.now();
         const sortedRetailers = [...result.retailers].sort((a, b) => {
-          // Detailed debug for each comparison
-          console.log(`🔍 [${componentId}] [${functionId}] Comparing retailers:`, {
-            a: { name: a.name, estimated_total: a.estimated_total, delivery_fee: a.delivery_fee },
-            b: { name: b.name, estimated_total: b.estimated_total, delivery_fee: b.delivery_fee }
-          });
-
           // If retailers have pricing data, use it
           if (a.estimated_total && b.estimated_total) {
-            const priceDiff = parseFloat(a.estimated_total) - parseFloat(b.estimated_total);
-            console.log(`💰 [${componentId}] [${functionId}] Sorting by price: ${a.name} (${a.estimated_total}) vs ${b.name} (${b.estimated_total}) = ${priceDiff}`);
-            return priceDiff;
+            return parseFloat(a.estimated_total) - parseFloat(b.estimated_total);
           }
 
           // If they have delivery fees, prioritize lower fees
           if (a.delivery_fee && b.delivery_fee) {
-            const feeDiff = parseFloat(a.delivery_fee) - parseFloat(b.delivery_fee);
-            console.log(`🚚 [${componentId}] [${functionId}] Sorting by delivery fee: ${a.name} (${a.delivery_fee}) vs ${b.name} (${b.delivery_fee}) = ${feeDiff}`);
-            return feeDiff;
+            return parseFloat(a.delivery_fee) - parseFloat(b.delivery_fee);
           }
 
           // Default order: prefer well-known low-cost retailers
@@ -215,8 +130,6 @@ const InstacartShoppingList = ({
             (b.retailer_key || '').includes(store)
           );
 
-          console.log(`🏷️ [${componentId}] [${functionId}] Low-cost ranking: ${a.name} (rank: ${aRank}) vs ${b.name} (rank: ${bRank})`);
-
           // If both found in ranking, lower index = higher priority
           if (aRank !== -1 && bRank !== -1) {
             return aRank - bRank;
@@ -227,51 +140,38 @@ const InstacartShoppingList = ({
           if (bRank !== -1) return 1;
 
           // Fallback to alphabetical
-          const alphabeticalResult = (a.name || '').localeCompare(b.name || '');
-          console.log(`🔤 [${componentId}] [${functionId}] Alphabetical sort: ${a.name} vs ${b.name} = ${alphabeticalResult}`);
-          return alphabeticalResult;
+          return (a.name || '').localeCompare(b.name || '');
         });
 
-        const sortDuration = Math.round(performance.now() - sortStartTime);
-        console.log(`⚡ [${componentId}] [${functionId}] Retailer sorting completed:`, {
-          originalCount: result.retailers.length,
-          sortedCount: sortedRetailers.length,
-          sortDuration,
-          topRetailers: sortedRetailers.slice(0, 3).map(r => ({ name: r.name, id: r.id || r.retailer_key }))
-        });
+        timer.mark('Sorting completed');
 
         setRetailers(sortedRetailers);
-        console.log(`✅ [${componentId}] [${functionId}] Retailers state updated with ${sortedRetailers.length} retailers`);
+        logger.debug(componentId, 'loadRetailers', 'Retailers updated', {
+          count: sortedRetailers.length
+        });
 
         // Auto-select the first retailer (lowest-priced) if none is selected
         if (!selectedRetailerId && sortedRetailers.length > 0) {
           const defaultRetailer = sortedRetailers[0];
           const defaultRetailerId = defaultRetailer.id || defaultRetailer.retailer_key;
-          console.log(`🎯 [${componentId}] [${functionId}] Auto-selecting default retailer:`, {
-            name: defaultRetailer.name,
-            id: defaultRetailerId,
-            hasEstimatedTotal: !!defaultRetailer.estimated_total,
-            hasDeliveryFee: !!defaultRetailer.delivery_fee
-          });
           setSelectedRetailerId(defaultRetailerId);
-          console.log(`✅ [${componentId}] [${functionId}] Default retailer selected: ${defaultRetailer.name} (${defaultRetailerId})`);
-        } else {
-          console.log(`ℹ️ [${componentId}] [${functionId}] Keeping current retailer selection: ${selectedRetailerId}`);
+          logger.info(componentId, 'loadRetailers', 'Default retailer selected', {
+            name: defaultRetailer.name,
+            id: defaultRetailerId
+          });
         }
       } else {
-        console.warn(`⚠️ [${componentId}] [${functionId}] No retailers found or request failed:`, {
-          success: result?.success,
-          hasRetailers: !!result?.retailers,
-          retailersLength: result?.retailers?.length,
-          resultStructure: result ? Object.keys(result) : 'null'
+        logger.warn(componentId, 'loadRetailers', 'No retailers found', {
+          success: result?.success
         });
         setRetailers([]);
       }
     } catch (error) {
-      console.error('❌ Error loading retailers:', error);
+      logger.error(componentId, 'loadRetailers', 'Error loading retailers', { error: error.message });
       setRetailers([]);
     } finally {
       setLoadingRetailers(false);
+      timer.end('Load retailers completed');
     }
   }, [userZipCode, selectedRetailerId]);
 
@@ -287,126 +187,54 @@ const InstacartShoppingList = ({
   useEffect(() => {
     if (selectedRetailer && selectedRetailer !== selectedRetailerId) {
       setSelectedRetailerId(selectedRetailer);
-      console.log(`🏪 Store selection synced: ${selectedRetailer}`);
+      logger.debug(componentId, 'retailerSync', 'Store selection synced', { selectedRetailer });
     }
-  }, [selectedRetailer, selectedRetailerId]);
+  }, [selectedRetailer, selectedRetailerId, componentId]);
 
   // Calculate totals
   const calculateTotals = useCallback(() => {
-    const functionId = `calculateTotals_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-    const startTime = performance.now();
-    console.log(`🧮 [${componentId}] [${functionId}] Starting total calculation:`, {
-      itemCount: localItems.length,
-      timestamp: new Date().toISOString()
-    });
+    const timer = createTimer(componentId, 'calculateTotals');
+    timer.start();
 
-    let itemsProcessed = 0;
-    let totalCalculations = 0;
-    const total = localItems.reduce((sum, item, index) => {
+    const total = localItems.reduce((sum, item) => {
       const price = parseFloat(item.price) || 0;
       const quantity = parseInt(item.quantity) || 1;
-      const itemTotal = price * quantity;
-
-      console.log(`🧮 [${componentId}] [${functionId}] Processing item ${index + 1}/${localItems.length}:`, {
-        productName: item.productName,
-        price: price,
-        quantity: quantity,
-        itemTotal: itemTotal,
-        runningSum: sum + itemTotal
-      });
-
-      itemsProcessed++;
-      totalCalculations++;
-      return sum + itemTotal;
+      return sum + (price * quantity);
     }, 0);
 
-    const calculationDuration = Math.round(performance.now() - startTime);
-    console.log(`✅ [${componentId}] [${functionId}] Total calculation completed:`, {
-      itemsProcessed,
-      totalCalculations,
-      finalTotal: total,
-      calculationDuration,
-      averageTimePerItem: itemsProcessed > 0 ? Math.round(calculationDuration / itemsProcessed * 100) / 100 : 0
-    });
-
-    const quantityStartTime = performance.now();
-    console.log(`🔢 [${componentId}] [${functionId}] Starting quantity calculation...`);
-
-    let quantityCalculations = 0;
-    const totalQuantity = localItems.reduce((sum, item, index) => {
+    const totalQuantity = localItems.reduce((sum, item) => {
       const quantity = parseInt(item.quantity) || 1;
-      console.log(`🔢 [${componentId}] [${functionId}] Quantity for item ${index + 1}: ${item.productName} = ${quantity} (running sum: ${sum + quantity})`);
-      quantityCalculations++;
-      return sum + (quantity);
+      return sum + quantity;
     }, 0);
 
-    const quantityDuration = Math.round(performance.now() - quantityStartTime);
-    const totalDuration = Math.round(performance.now() - startTime);
-
-    console.log(`✅ [${componentId}] [${functionId}] Quantity calculation completed:`, {
-      quantityCalculations,
-      totalQuantity,
-      quantityDuration,
-      totalDuration
-    });
+    const duration = timer.end('Totals calculated');
+    conditionalLog.performance(componentId, 'calculateTotals', duration, 50); // Warn if > 50ms
 
     const result = { total, totalQuantity, itemCount: localItems.length };
-    console.log(`🎯 [${componentId}] [${functionId}] Final calculation result:`, result);
+    logger.trace(componentId, 'calculateTotals', 'Calculation result', result);
 
     return result;
-  }, [localItems]);
+  }, [localItems, componentId]);
 
   const { total, totalQuantity, itemCount } = calculateTotals();
 
   // Handle checkbox toggle
   const toggleItemSelection = (itemId) => {
-    const functionId = `toggleItemSelection_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-    const startTime = performance.now();
+    const timer = createTimer(componentId, 'toggleItemSelection');
+    timer.start();
 
-    console.log(`🔲 [${componentId}] [${functionId}] Item selection toggle initiated:`, {
-      itemId,
-      timestamp: new Date().toISOString(),
-      currentSelectedCount: selectedItems.size,
-      totalItems: localItems.length
-    });
-
-    const itemDetails = localItems.find(item => item.id === itemId);
-    console.log(`🔍 [${componentId}] [${functionId}] Target item details:`, {
-      found: !!itemDetails,
-      productName: itemDetails?.productName || 'Unknown',
-      quantity: itemDetails?.quantity || 'Unknown',
-      price: itemDetails?.price || 'Unknown'
-    });
-
-    const wasSelected = selectedItems.has(itemId);
-    console.log(`📊 [${componentId}] [${functionId}] Current selection state:`, {
-      wasSelected,
-      action: wasSelected ? 'DESELECT' : 'SELECT'
-    });
+    logger.debug(componentId, 'toggleItemSelection', 'Item selection toggled', { itemId });
 
     setSelectedItems(prev => {
       const newSet = new Set(prev);
-      console.log(`🔄 [${componentId}] [${functionId}] Previous selection set:`, {
-        size: prev.size,
-        items: Array.from(prev)
-      });
-
       if (newSet.has(itemId)) {
         newSet.delete(itemId);
-        console.log(`➖ [${componentId}] [${functionId}] Item removed from selection: ${itemId}`);
       } else {
         newSet.add(itemId);
-        console.log(`➕ [${componentId}] [${functionId}] Item added to selection: ${itemId}`);
       }
 
-      const duration = Math.round(performance.now() - startTime);
-      console.log(`✅ [${componentId}] [${functionId}] Selection toggle completed:`, {
-        newSize: newSet.size,
-        previousSize: prev.size,
-        sizeDelta: newSet.size - prev.size,
-        duration,
-        finalState: wasSelected ? 'DESELECTED' : 'SELECTED'
-      });
+      const duration = timer.end('Selection toggle completed');
+      conditionalLog.performance(componentId, 'toggleItemSelection', duration, 10);
 
       return newSet;
     });
@@ -414,50 +242,25 @@ const InstacartShoppingList = ({
 
   // Handle select all toggle
   const toggleSelectAll = () => {
-    const functionId = `toggleSelectAll_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-    const startTime = performance.now();
-
-    console.log(`☑️ [${componentId}] [${functionId}] Select all toggle initiated:`, {
-      timestamp: new Date().toISOString(),
-      currentSelectedCount: selectedItems.size,
-      totalItemsCount: localItems.length,
-      currentlyAllSelected: selectedItems.size === localItems.length
-    });
+    const timer = createTimer(componentId, 'toggleSelectAll');
+    timer.start();
 
     const allSelected = selectedItems.size === localItems.length;
-    const action = allSelected ? 'DESELECT_ALL' : 'SELECT_ALL';
-    console.log(`🎯 [${componentId}] [${functionId}] Action determined: ${action}`, {
-      selectedItems: Array.from(selectedItems),
-      availableItemIds: localItems.map(item => item.id)
+    logger.debug(componentId, 'toggleSelectAll', 'Select all toggled', {
+      action: allSelected ? 'DESELECT_ALL' : 'SELECT_ALL',
+      currentCount: selectedItems.size,
+      totalItems: localItems.length
     });
 
     if (allSelected) {
-      // If all items are selected, deselect all
-      console.log(`🚫 [${componentId}] [${functionId}] Deselecting all items...`);
       setSelectedItems(new Set());
-
-      const duration = Math.round(performance.now() - startTime);
-      console.log(`✅ [${componentId}] [${functionId}] All items deselected:`, {
-        previousCount: selectedItems.size,
-        newCount: 0,
-        duration
-      });
     } else {
-      // Select all items
-      console.log(`✅ [${componentId}] [${functionId}] Selecting all items...`);
       const allItemIds = localItems.map(item => item.id);
-      console.log(`📋 [${componentId}] [${functionId}] Item IDs to select:`, allItemIds);
-
       setSelectedItems(new Set(allItemIds));
-
-      const duration = Math.round(performance.now() - startTime);
-      console.log(`✅ [${componentId}] [${functionId}] All items selected:`, {
-        previousCount: selectedItems.size,
-        newCount: allItemIds.length,
-        duration,
-        itemsSelected: allItemIds
-      });
     }
+
+    const duration = timer.end('Select all completed');
+    conditionalLog.performance(componentId, 'toggleSelectAll', duration, 20);
   };
 
   // Handle delete selected items
