@@ -542,7 +542,10 @@
       "Bash(del \"C:\\Users\\scali\\OneDrive\\Documents\\GitHub\\CartSmash\\client\\src\\components\\ParsedResultsDisplay.js\")",
       "WebFetch(domain:reactjs.org)",
       "WebFetch(domain:legacy.reactjs.org)",
-      "Bash(where convert)"
+      "Bash(where convert)",
+      "Bash(set REACT_APP_API_URL=http://localhost:3100)",
+      "Bash(set PORT=3102)",
+      "Bash(start http://localhost:3102)"
     ],
     "deny": [],
     "ask": []

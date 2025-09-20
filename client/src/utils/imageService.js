@@ -385,10 +385,16 @@ class ImageService {
       return null;
     }
 
-    // Skip URLs that commonly cause 404s
-    if (url.includes('unsplash.com') || url.includes('picsum.photos')) {
+    // Allow Unsplash URLs temporarily for mock data (development)
+    // Skip URLs that commonly cause 404s - but allow Unsplash for now
+    if (url.includes('picsum.photos')) {
       console.log('🚫 Skipping unreliable image source:', url);
       return null;
+    }
+
+    // Allow Unsplash URLs as they're used in mock data
+    if (url.includes('unsplash.com')) {
+      console.log('✅ Allowing Unsplash URL for mock data:', url);
     }
 
     return url;
