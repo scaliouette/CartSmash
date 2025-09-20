@@ -1360,11 +1360,24 @@ function GroceryListForm({
 
   // Generate a complete meal plan using the dedicated AI meal plan service
   const generateCompleteMealPlan = async () => {
+    // 🚨 DEBUG: Track when this function is called
+    const callStack = new Error().stack;
+    const timestamp = new Date().toISOString();
+    console.log('🚨 MEAL PLAN DEBUG: generateCompleteMealPlan called at', timestamp);
+    console.log('🚨 CALL STACK:', callStack);
+    console.log('🚨 CURRENT STATE:', {
+      generatingMealPlan,
+      currentUser: currentUser?.uid || 'none',
+      componentMounted: true,
+      preferences: mealPlanPreferences
+    });
+
     if (generatingMealPlan) {
-      console.log('🚫 Meal plan generation already in progress');
+      console.log('🚫 Meal plan generation already in progress - BLOCKING');
       return;
     }
 
+    console.log('🚨 PROCEEDING with meal plan generation...');
     setGeneratingMealPlan(true);
     setError('');
     setIsLoading(true);
@@ -1429,8 +1442,11 @@ function GroceryListForm({
       }
     } catch (error) {
       console.error('❌ Error generating complete meal plan:', error);
+      console.log('🚨 MEAL PLAN DEBUG: Error occurred at', new Date().toISOString());
       setError(`Failed to generate meal plan: ${error.message}`);
     } finally {
+      console.log('🚨 MEAL PLAN DEBUG: Function completed at', new Date().toISOString());
+      console.log('🚨 MEAL PLAN DEBUG: Resetting state flags');
       setGeneratingMealPlan(false);
       setIsLoading(false);
       setShowProgress(false);
