@@ -193,7 +193,10 @@ class ImageService {
       hasImage: !!item.image,
       hasImageUrl: !!item.imageUrl,
       hasInstacartData: !!item.instacartData,
-      enriched: !!item.enriched
+      enriched: !!item.enriched,
+      actualImageUrl: item.imageUrl,
+      actualImage: item.image,
+      instacartImageUrl: item.instacartData?.image_url || item.instacartData?.imageUrl || item.instacartData?.image
     });
 
     // First priority: Use real product images from Instacart API if available
@@ -316,10 +319,12 @@ class ImageService {
         'cartsmash.com',            // Our domain
         'cartsmash.netlify.app',    // Our deployment
         'cartsmash.vercel.app',     // Our deployment
-        'via.placeholder.com'       // Reliable placeholder service
+        'via.placeholder.com',      // Reliable placeholder service
+        'images.unsplash.com'       // Temporarily allow for mock data (development)
       ];
 
-      // Note: Removed unreliable external services like Unsplash
+      // Note: Temporarily allowing Unsplash for mock data in development
+      // Original note: Removed unreliable external services like Unsplash
       // to reduce 404 errors in production
       return trustedDomains.some(domain => url.includes(domain));
     }
@@ -381,7 +386,10 @@ class ImageService {
    * Optimize image URLs to prevent 404s
    */
   optimizeImageUrl(url) {
+    console.log('🔍 optimizeImageUrl called with:', url);
+
     if (!url || !this.isValidImageUrl(url)) {
+      console.log('❌ URL failed validation:', url, 'isValid:', this.isValidImageUrl(url));
       return null;
     }
 
@@ -397,6 +405,7 @@ class ImageService {
       console.log('✅ Allowing Unsplash URL for mock data:', url);
     }
 
+    console.log('✅ URL passed optimization:', url);
     return url;
   }
 
