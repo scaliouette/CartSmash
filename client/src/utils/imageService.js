@@ -199,12 +199,6 @@ class ImageService {
       instacartImageUrl: item.instacartData?.image_url || item.instacartData?.imageUrl || item.instacartData?.image
     });
 
-    // TEMPORARY: Force return a test Unsplash URL to verify the pipeline works
-    if (item.imageUrl && item.imageUrl.includes('unsplash.com')) {
-      console.log('🧪 TESTING: Forcing return of Unsplash URL:', item.imageUrl);
-      return item.imageUrl;
-    }
-
     // First priority: Use real product images from Instacart API if available
     const optimizedImageUrl = this.optimizeImageUrl(item.imageUrl);
     if (optimizedImageUrl) {
