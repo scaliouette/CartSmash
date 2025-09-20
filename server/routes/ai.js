@@ -273,9 +273,14 @@ IMPORTANT STRUCTURE: Show meal plans and recipes FIRST, then consolidated shoppi
             {"name": "butter", "quantity": "2", "unit": "tablespoons"}
           ],
           "instructions": [
-            "Heat 2 tablespoons butter in a 10-inch non-stick pan over medium-low heat until melted and foaming, about 1-2 minutes",
-            "In a bowl, crack 6 large eggs, season with salt and pepper, then whisk until completely combined. Pour into the heated pan and let sit for 20 seconds before gently stirring with a rubber spatula, pushing eggs from edges to center. Continue cooking for 2-3 minutes, stirring every 30 seconds, until eggs are just set but still creamy",
-            "Meanwhile, toast 4 slices of bread in toaster until golden brown. Butter each slice while warm and serve immediately alongside the scrambled eggs"
+            "Remove eggs from refrigerator 15 minutes before cooking to bring to room temperature for more even cooking and creamier texture",
+            "Heat 2 tablespoons butter in a 10-inch non-stick pan over medium-low heat (275°F) until melted and foaming, about 1-2 minutes",
+            "In a bowl, crack 6 large eggs, season with 1/2 teaspoon kosher salt and 1/4 teaspoon freshly ground black pepper, then whisk vigorously for 30 seconds until completely combined and slightly frothy",
+            "Pour egg mixture into the heated pan and let sit undisturbed for 20 seconds before gently stirring with a rubber spatula, pushing eggs from edges to center in slow, deliberate motions",
+            "Continue cooking for 2-3 minutes, stirring every 30 seconds and scraping bottom of pan, until eggs are just set but still creamy and slightly wet (they will continue cooking from residual heat)",
+            "Meanwhile, toast 4 slices of bread in toaster until golden brown and crispy, about 2-3 minutes depending on your toaster setting",
+            "Remove eggs from heat immediately when still slightly underdone to prevent overcooking. Butter each slice of toast while warm",
+            "Taste and adjust seasoning with additional salt and pepper if needed. Serve immediately alongside the scrambled eggs for best texture and temperature"
           ]
         },
         "lunch": {
@@ -286,9 +291,13 @@ IMPORTANT STRUCTURE: Show meal plans and recipes FIRST, then consolidated shoppi
             {"name": "feta cheese", "quantity": "4", "unit": "oz"}
           ],
           "instructions": [
-            "Wash and thoroughly dry all vegetables. Dice tomatoes into 1/2-inch pieces, removing seeds. Peel and slice cucumber into 1/4-inch half-moons. Thinly slice red onion into rings",
-            "In a large serving bowl, combine diced tomatoes, sliced cucumber, and red onion rings. Crumble 4 oz feta cheese over the vegetables using your fingers to create irregular chunks",
-            "Drizzle with 3 tablespoons extra virgin olive oil and 1 tablespoon red wine vinegar. Season with 1/2 teaspoon dried oregano, salt, and freshly ground black pepper. Toss gently to combine and let stand 10 minutes before serving to allow flavors to meld"
+            "Wash and thoroughly dry all vegetables under cold running water. Pat lettuce leaves completely dry with paper towels to prevent diluting the dressing",
+            "Dice 2 large tomatoes into 1/2-inch pieces, removing seeds and excess moisture to prevent watery salad. Peel and slice cucumber into 1/4-inch half-moons",
+            "Thinly slice red onion into rings using a sharp knife or mandoline for even thickness. Soak onion rings in ice water for 10 minutes to reduce sharpness, then drain and pat dry",
+            "In a large serving bowl, combine diced tomatoes, sliced cucumber, and drained red onion rings. Crumble 4 oz feta cheese over the vegetables using your fingers to create irregular chunks",
+            "Drizzle with 3 tablespoons extra virgin olive oil and 1 tablespoon red wine vinegar. Season with 1/2 teaspoon dried oregano, 1/4 teaspoon kosher salt, and freshly ground black pepper",
+            "Toss gently to combine all ingredients without breaking up the feta too much. Let stand 10 minutes at room temperature before serving to allow flavors to meld",
+            "Taste and adjust seasoning with additional salt, pepper, or vinegar as needed. Serve immediately for best texture and flavor balance"
           ]
         },
         "dinner": {
@@ -299,9 +308,15 @@ IMPORTANT STRUCTURE: Show meal plans and recipes FIRST, then consolidated shoppi
             {"name": "zucchini", "quantity": "1", "unit": "medium"}
           ],
           "instructions": [
-            "Remove chicken from refrigerator 30 minutes before cooking to bring to room temperature. Pat chicken breasts dry with paper towels and season generously with 1 teaspoon kosher salt and 1/2 teaspoon black pepper on both sides",
-            "Preheat grill to medium-high heat (400-450°F). Oil the grates to prevent sticking. Place chicken on hottest part of grill and cook for 6-8 minutes without moving, until golden grill marks form and chicken releases easily from grates",
-            "Meanwhile, slice zucchini into 1/2-inch thick rounds and brush with olive oil. Flip chicken and continue grilling 6-8 more minutes until internal temperature reaches 165°F. Add zucchini to grill during last 8-10 minutes, turning once, until tender with light char marks. Let chicken rest 5 minutes before slicing"
+            "Remove chicken from refrigerator 30 minutes before cooking to bring to room temperature for more even cooking. Pat chicken breasts dry with paper towels to remove excess moisture",
+            "Season chicken breasts generously with 1 teaspoon kosher salt and 1/2 teaspoon freshly ground black pepper on both sides. Rub seasoning in well and let rest while preparing grill",
+            "Preheat grill to medium-high heat (400-450°F). Clean grates thoroughly and oil them well to prevent sticking. Test heat by holding hand 5 inches above grates - you should be able to hold for 3-4 seconds",
+            "Place chicken on hottest part of grill and cook for 6-8 minutes without moving, until golden grill marks form and chicken releases easily from grates (if it sticks, it's not ready to flip)",
+            "Meanwhile, slice bell peppers into 1-inch strips and zucchini into 1/2-inch thick rounds. Brush vegetables with 2 tablespoons olive oil and season with salt and pepper",
+            "Flip chicken carefully and continue grilling 6-8 more minutes until internal temperature reaches 165°F when tested with instant-read thermometer in thickest part",
+            "Add prepared vegetables to grill during last 8-10 minutes of chicken cooking, turning once, until tender with light char marks and peppers are slightly softened",
+            "Remove chicken from grill and let rest on cutting board for 5 minutes to allow juices to redistribute before slicing. This prevents dry chicken",
+            "Slice chicken against the grain into 1/2-inch thick pieces. Arrange on platter with grilled vegetables and serve immediately while hot"
           ]
         }
       }
@@ -1056,9 +1071,14 @@ IMPORTANT STRUCTURE: Show meal plans and recipes FIRST, then consolidated shoppi
             {"name": "butter", "quantity": "2", "unit": "tablespoons"}
           ],
           "instructions": [
-            "Heat 2 tablespoons butter in a 10-inch non-stick pan over medium-low heat until melted and foaming, about 1-2 minutes",
-            "In a bowl, crack 6 large eggs, season with salt and pepper, then whisk until completely combined. Pour into the heated pan and let sit for 20 seconds before gently stirring with a rubber spatula, pushing eggs from edges to center. Continue cooking for 2-3 minutes, stirring every 30 seconds, until eggs are just set but still creamy",
-            "Meanwhile, toast 4 slices of bread in toaster until golden brown. Butter each slice while warm and serve immediately alongside the scrambled eggs"
+            "Remove eggs from refrigerator 15 minutes before cooking to bring to room temperature for more even cooking and creamier texture",
+            "Heat 2 tablespoons butter in a 10-inch non-stick pan over medium-low heat (275°F) until melted and foaming, about 1-2 minutes",
+            "In a bowl, crack 6 large eggs, season with 1/2 teaspoon kosher salt and 1/4 teaspoon freshly ground black pepper, then whisk vigorously for 30 seconds until completely combined and slightly frothy",
+            "Pour egg mixture into the heated pan and let sit undisturbed for 20 seconds before gently stirring with a rubber spatula, pushing eggs from edges to center in slow, deliberate motions",
+            "Continue cooking for 2-3 minutes, stirring every 30 seconds and scraping bottom of pan, until eggs are just set but still creamy and slightly wet (they will continue cooking from residual heat)",
+            "Meanwhile, toast 4 slices of bread in toaster until golden brown and crispy, about 2-3 minutes depending on your toaster setting",
+            "Remove eggs from heat immediately when still slightly underdone to prevent overcooking. Butter each slice of toast while warm",
+            "Taste and adjust seasoning with additional salt and pepper if needed. Serve immediately alongside the scrambled eggs for best texture and temperature"
           ]
         },
         "lunch": {
@@ -1069,9 +1089,13 @@ IMPORTANT STRUCTURE: Show meal plans and recipes FIRST, then consolidated shoppi
             {"name": "feta cheese", "quantity": "4", "unit": "oz"}
           ],
           "instructions": [
-            "Wash and thoroughly dry all vegetables. Dice tomatoes into 1/2-inch pieces, removing seeds. Peel and slice cucumber into 1/4-inch half-moons. Thinly slice red onion into rings",
-            "In a large serving bowl, combine diced tomatoes, sliced cucumber, and red onion rings. Crumble 4 oz feta cheese over the vegetables using your fingers to create irregular chunks",
-            "Drizzle with 3 tablespoons extra virgin olive oil and 1 tablespoon red wine vinegar. Season with 1/2 teaspoon dried oregano, salt, and freshly ground black pepper. Toss gently to combine and let stand 10 minutes before serving to allow flavors to meld"
+            "Wash and thoroughly dry all vegetables under cold running water. Pat lettuce leaves completely dry with paper towels to prevent diluting the dressing",
+            "Dice 2 large tomatoes into 1/2-inch pieces, removing seeds and excess moisture to prevent watery salad. Peel and slice cucumber into 1/4-inch half-moons",
+            "Thinly slice red onion into rings using a sharp knife or mandoline for even thickness. Soak onion rings in ice water for 10 minutes to reduce sharpness, then drain and pat dry",
+            "In a large serving bowl, combine diced tomatoes, sliced cucumber, and drained red onion rings. Crumble 4 oz feta cheese over the vegetables using your fingers to create irregular chunks",
+            "Drizzle with 3 tablespoons extra virgin olive oil and 1 tablespoon red wine vinegar. Season with 1/2 teaspoon dried oregano, 1/4 teaspoon kosher salt, and freshly ground black pepper",
+            "Toss gently to combine all ingredients without breaking up the feta too much. Let stand 10 minutes at room temperature before serving to allow flavors to meld",
+            "Taste and adjust seasoning with additional salt, pepper, or vinegar as needed. Serve immediately for best texture and flavor balance"
           ]
         },
         "dinner": {
@@ -1082,9 +1106,15 @@ IMPORTANT STRUCTURE: Show meal plans and recipes FIRST, then consolidated shoppi
             {"name": "zucchini", "quantity": "1", "unit": "medium"}
           ],
           "instructions": [
-            "Remove chicken from refrigerator 30 minutes before cooking to bring to room temperature. Pat chicken breasts dry with paper towels and season generously with 1 teaspoon kosher salt and 1/2 teaspoon black pepper on both sides",
-            "Preheat grill to medium-high heat (400-450°F). Oil the grates to prevent sticking. Place chicken on hottest part of grill and cook for 6-8 minutes without moving, until golden grill marks form and chicken releases easily from grates",
-            "Meanwhile, slice zucchini into 1/2-inch thick rounds and brush with olive oil. Flip chicken and continue grilling 6-8 more minutes until internal temperature reaches 165°F. Add zucchini to grill during last 8-10 minutes, turning once, until tender with light char marks. Let chicken rest 5 minutes before slicing"
+            "Remove chicken from refrigerator 30 minutes before cooking to bring to room temperature for more even cooking. Pat chicken breasts dry with paper towels to remove excess moisture",
+            "Season chicken breasts generously with 1 teaspoon kosher salt and 1/2 teaspoon freshly ground black pepper on both sides. Rub seasoning in well and let rest while preparing grill",
+            "Preheat grill to medium-high heat (400-450°F). Clean grates thoroughly and oil them well to prevent sticking. Test heat by holding hand 5 inches above grates - you should be able to hold for 3-4 seconds",
+            "Place chicken on hottest part of grill and cook for 6-8 minutes without moving, until golden grill marks form and chicken releases easily from grates (if it sticks, it's not ready to flip)",
+            "Meanwhile, slice bell peppers into 1-inch strips and zucchini into 1/2-inch thick rounds. Brush vegetables with 2 tablespoons olive oil and season with salt and pepper",
+            "Flip chicken carefully and continue grilling 6-8 more minutes until internal temperature reaches 165°F when tested with instant-read thermometer in thickest part",
+            "Add prepared vegetables to grill during last 8-10 minutes of chicken cooking, turning once, until tender with light char marks and peppers are slightly softened",
+            "Remove chicken from grill and let rest on cutting board for 5 minutes to allow juices to redistribute before slicing. This prevents dry chicken",
+            "Slice chicken against the grain into 1/2-inch thick pieces. Arrange on platter with grilled vegetables and serve immediately while hot"
           ]
         }
       }
