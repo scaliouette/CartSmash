@@ -14,7 +14,6 @@ function AdminDashboard({ onClose, currentUser }) {
 
   // Sub-component states
   const [showAnalytics, setShowAnalytics] = useState(false);
-  const [showDemo, setShowDemo] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   // Define all callbacks before conditional returns
@@ -394,12 +393,6 @@ function AdminDashboard({ onClose, currentUser }) {
             ⚙️ System Settings
           </button>
 
-          <button
-            onClick={() => setShowDemo(true)}
-            style={{...styles.actionButton, backgroundColor: '#FF6B35'}}
-          >
-            🎯 Test Parsing Demo
-          </button>
 
           <button
             onClick={() => handleSystemAction('export_data')}
@@ -760,26 +753,6 @@ function AdminDashboard({ onClose, currentUser }) {
         </div>
       )}
 
-      {showDemo && (
-        <div style={styles.overlay}>
-          <div style={styles.modal}>
-            <div style={styles.header}>
-              <h2 style={styles.title}>🎯 Smart Parsing Demo</h2>
-              <button onClick={() => setShowDemo(false)} style={styles.closeButton}>×</button>
-            </div>
-            <div style={{padding: '20px', textAlign: 'center'}}>
-              <p>Smart parsing demo temporarily disabled to prevent circular dependencies.</p>
-              <p>This will be restored in a future update.</p>
-              <button 
-                onClick={() => setShowDemo(false)}
-                style={{...styles.actionButton, backgroundColor: '#FF6B35'}}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showSettings && (
         <div style={styles.overlay}>

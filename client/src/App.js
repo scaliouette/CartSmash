@@ -15,7 +15,6 @@ import Terms from './components/Terms';
 import Privacy from './components/privacy';
 import Footer from './components/Footer';
 import ErrorBoundary from './components/ErrorBoundary';
-import './utils/testUtils';
 
 console.log('📦 App.js module loading...');
 console.log('✅ Core imports loaded successfully');

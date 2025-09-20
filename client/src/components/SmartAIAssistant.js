@@ -967,7 +967,7 @@ IMPORTANT FOR RECIPES: Provide DETAILED, step-by-step cooking instructions with:
                                 borderRadius: '4px',
                                 fontSize: '10px'
                               }}>
-                                Demo Mode
+                                Fallback
                               </span>
                             )}
                             {message.error && (
