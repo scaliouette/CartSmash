@@ -6,6 +6,7 @@ import InstacartCheckout from './InstacartCheckout';
 import InstacartCheckoutEnhanced from './InstacartCheckoutEnhanced';
 import RecipeInstacartIntegration from './RecipeInstacartIntegration';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
+import { safeRender } from '../utils/safeRender';
 import './InstacartCheckoutDemo.css';
 
 const InstacartCheckoutDemo = ({ onClose }) => {
@@ -214,10 +215,7 @@ const InstacartCheckoutDemo = ({ onClose }) => {
           <div className="ingredients-grid">
             {recipe.ingredients.slice(0, 6).map((ingredient, index) => (
               <div key={index} className="ingredient-item">
-                {typeof ingredient === 'string'
-                  ? ingredient
-                  : ingredient.name || `${ingredient.quantity || ''} ${ingredient.unit || ''} ${ingredient.name || 'ingredient'}`.trim()
-                }
+                {safeRender(ingredient, 'Unknown ingredient')}
               </div>
             ))}
             {recipe.ingredients.length > 6 && (

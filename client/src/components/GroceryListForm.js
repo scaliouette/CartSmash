@@ -12,6 +12,8 @@ import RecipesFoundCard from './RecipesFoundCard';
 import RecipesFound from './RecipesFound';
 import { formatProductName } from '../utils/imageService';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
+import { safeExtractIngredientString } from '../utils/ingredientUtils';
+import { safeRender } from '../utils/safeRender';
 import { ButtonSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
 // eslint-disable-next-line no-unused-vars
@@ -3693,7 +3695,9 @@ Return as JSON with this structure:
                   }
 
                   return (
-                    <li key={idx} style={styles.ingredientItem}>{ingredient}</li>
+                    <li key={idx} style={styles.ingredientItem}>
+                      {safeRender(ingredient, 'Unknown ingredient')}
+                    </li>
                   );
                 })}
               </ul>

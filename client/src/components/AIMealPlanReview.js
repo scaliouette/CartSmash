@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { saveParsedMealPlan, regenerateMeal } from '../services/aiMealPlanService';
 import { assignRecipeToMeal } from '../services/mealPlanService';
 import UnifiedRecipeCard from './UnifiedRecipeCard';
+import { safeRender } from '../utils/safeRender';
 
 export default function AIMealPlanReview({ 
   mealPlan, 
@@ -241,10 +242,16 @@ export default function AIMealPlanReview({
                           </p>
                           <p className="text-xs text-gray-500 line-clamp-2">
                             {recipe.description ||
-                             (recipe.ingredients?.slice(0, 3).map(ing => {
-                               if (typeof ing === 'string') return ing;
-                               const safeString = ing.item || ing.original || ing.name || (ing.quantity && ing.unit && ing.name ? `${String(ing.quantity)} ${String(ing.unit)} ${String(ing.name)}` : '') || '';
-                               return typeof safeString === 'string' ? safeString : String(safeString || '');
+                             (recipe.ingredients?.slice(0, 3).map((ing, idx) => {
+                               console.log(`🔍 [AIMealPlanReview] Processing ingredient ${idx}:`, {
+                                 type: typeof ing,
+                                 value: ing,
+                                 isString: typeof ing === 'string'
+                               });
+
+                               const result = safeRender(ing, 'Unknown ingredient');
+                               console.log(`✅ [AIMealPlanReview] Safe render result for ${idx}: "${result}"`);
+                               return result;
                              }).filter(Boolean).join(', '))}
                           </p>
                         </div>
@@ -316,10 +323,16 @@ export default function AIMealPlanReview({
                           readOnly
                         />
                         <span className="text-sm text-gray-700">
-                          {typeof item === 'object' ? (
-                            item.item ||
-                            `${String(item.quantity || '')} ${String(item.unit || '')} ${String(item.ingredient || '')}`.trim()
-                          ) : String(item || '')}
+                          {(() => {
+                            console.log(`🔍 [AIMealPlanReview] Processing shopping list item ${index}:`, {
+                              type: typeof item,
+                              value: item,
+                              isObject: typeof item === 'object'
+                            });
+                            const result = safeRender(item, 'Unknown item');
+                            console.log(`✅ [AIMealPlanReview] Safe render result for item ${index}: "${result}"`);
+                            return result;
+                          })()}
                         </span>
                       </div>
                     ))}
