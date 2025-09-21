@@ -1065,7 +1065,23 @@ function GroceryListForm({
       
       setParsedRecipes(validParsedRecipes);
     }
-    
+
+    // Load AI-generated recipes WITH VALIDATION
+    const persistedAIRecipes = persistenceService.loadSessionData('ai_recipes', []);
+    if (persistedAIRecipes && persistedAIRecipes.length > 0) {
+      // Filter out corrupted recipes
+      const validAIRecipes = persistedAIRecipes.filter(recipe => isValidRecipe(recipe));
+      console.log(`📖 Loading AI recipes: ${validAIRecipes.length} valid out of ${persistedAIRecipes.length} total`);
+
+      if (validAIRecipes.length !== persistedAIRecipes.length) {
+        // Clean corrupted recipes from storage
+        console.log('🧹 Cleaning corrupted AI recipes from storage');
+        persistenceService.saveSessionData('ai_recipes', validAIRecipes, 2);
+      }
+
+      setRecipes(validAIRecipes);
+    }
+
     // Load last AI response text
     const persistedAIText = persistenceService.loadSessionData('ai_recipe_text', '');
     if (persistedAIText) {
@@ -1148,6 +1164,18 @@ function GroceryListForm({
       }
     }
   }, [parsedRecipes]);
+
+  // Auto-save AI recipes when they change - WITH VALIDATION
+  useEffect(() => {
+    if (recipes && recipes.length > 0) {
+      // Only save valid recipes
+      const validRecipes = recipes.filter(recipe => isValidRecipe(recipe));
+      if (validRecipes.length > 0) {
+        console.log(`💾 Auto-saving ${validRecipes.length} valid AI recipes`);
+        persistenceService.saveSessionData('ai_recipes', validRecipes, 2);
+      }
+    }
+  }, [recipes]);
 
   // Auto-save AI response text when it changes
   useEffect(() => {
@@ -3434,7 +3462,12 @@ Return as JSON with this structure:
     setParsedRecipes([]);
     setRecipes([]);
     setIndividualExpansionStates({});
-    console.log('✨ Cleared all recipes');
+
+    // Clear persisted recipes from storage
+    persistenceService.removeSessionData('parsed_recipes');
+    persistenceService.removeSessionData('ai_recipes');
+
+    console.log('✨ Cleared all recipes and persistent storage');
   };
 
   // Helper function to format ingredients with quantities
