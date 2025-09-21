@@ -564,6 +564,7 @@ function GroceryListForm({
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
+  const [currentRecipeContext, setCurrentRecipeContext] = useState(null);
   // Product Matcher moved to Admin page
   // Price History state
   const [showPriceHistory, setShowPriceHistory] = useState(false);
@@ -3839,6 +3840,17 @@ Return as JSON with this structure:
     );
   };
 
+  // Handle recipe checkout with full recipe context
+  const handleRecipeCheckout = (recipe) => {
+    console.log('🍽️ Opening recipe checkout with full context:', recipe.title || recipe.name || 'Unnamed Recipe');
+    // Format recipe data to match InstacartCheckoutUnified expectations
+    const formattedRecipeData = {
+      recipes: [recipe]
+    };
+    setCurrentRecipeContext(formattedRecipeData);
+    setShowInstacartCheckout(true);
+  };
+
   // Handle adding recipe ingredients to cart
   const handleAddRecipeToCart = async (recipe) => {
     if (!recipe.ingredients || recipe.ingredients.length === 0) {
@@ -4733,7 +4745,7 @@ Or paste any grocery list directly!"
           expanded={mealPlanExpanded}
           individualExpansionStates={individualExpansionStates}
           onToggleIndividualExpansion={toggleIndividualRecipeExpansion}
-          onAddToCart={handleAddRecipeToCart}
+          onAddToCart={handleRecipeCheckout}
           onAddToLibrary={handleAddToRecipeLibrary}
           onAddToMealPlan={handleAddToMealPlan}
           onRemove={handleRemoveRecipe}
@@ -4795,7 +4807,13 @@ Or paste any grocery list directly!"
       {showInstacartCheckout && (
         <InstacartCheckoutUnified
           items={currentCart}
-          onClose={() => setShowInstacartCheckout(false)}
+          onClose={() => {
+            setShowInstacartCheckout(false);
+            setCurrentRecipeContext(null);
+          }}
+          mode={currentRecipeContext ? 'recipe' : 'cart'}
+          title={currentRecipeContext?.recipes?.[0] ? (currentRecipeContext.recipes[0].title || currentRecipeContext.recipes[0].name) : null}
+          recipeData={currentRecipeContext}
         />
       )}
 
