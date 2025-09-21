@@ -1620,9 +1620,9 @@ function GroceryListForm({
 
 
   const submitGroceryList = useCallback(async (listText, useAI = true) => {
-    // Debounce: prevent submissions within 500ms
+    // Mobile-friendly debounce: prevent submissions within 250ms (reduced for mobile responsiveness)
     const now = Date.now();
-    if (now - lastSubmitTime < 500) {
+    if (now - lastSubmitTime < 250) {
       console.log('🚫 Submission debounced - too fast');
       return;
     }
@@ -1662,21 +1662,24 @@ function GroceryListForm({
         });
       }
 
-    // Safety: prevent overlays from blocking UI if a request hangs
+    // Safety: prevent overlays from blocking UI if a request hangs (extended for mobile networks)
     const overlaySafety = setTimeout(() => {
-      console.log(`⚠️ [${sessionId}] Safety timeout triggered at 15s`);
+      console.log(`⚠️ [${sessionId}] Safety timeout triggered at 30s`);
       setIsLoading(false);
       setShowProgress(false);
       setWaitingForAIResponse(false);
-    }, 15000);
+      setError('Request timed out. Please try again.');
+    }, 30000);
 
     let progressInterval;
     try {
       progressInterval = setInterval(() => {
         setParsingProgress(prev => Math.min(prev + 10, 90));
       }, 200);
-      
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3048';
+
+      // Improved API URL resolution for mobile compatibility
+      const API_URL = process.env.REACT_APP_API_URL ||
+        (window.location.hostname === 'localhost' ? 'http://localhost:3048' : 'https://cartsmash-api.onrender.com');
       
       // STEP 1: Generate with AI (first click)
       if (useAI && selectedAI && !waitingForAIResponse) {
@@ -1717,10 +1720,12 @@ function GroceryListForm({
               errorText: errorText.substring(0, 200),
               elapsedMs: Math.round(performance.now() - aiStepStart)
             });
-            throw new Error(`AI request failed: ${aiResponse.status}`);
-          }
-
-          const aiData = await aiResponse.json();
+            console.log(`🔄 [${sessionId}] AI failed, falling back to direct text processing`);
+            // Skip AI processing and go to direct parsing
+            setWaitingForAIResponse(false);
+            useAI = false;
+          } else {
+            const aiData = await aiResponse.json();
           const aiStepDuration = Math.round(performance.now() - aiStepStart);
           console.log(`✅ [${sessionId}] AI Response received:`, {
             responseSize: JSON.stringify(aiData).length,
@@ -2021,6 +2026,7 @@ function GroceryListForm({
           return;
         }
       }
+      } // End of AI processing else block
 
       // STEP 2: Parse text into cart items (second click or manual text)
       if (waitingForAIResponse || !useAI) {
@@ -3996,9 +4002,10 @@ Return as JSON with this structure:
         alert('❌ Could not extract ingredients from this recipe. Please check the recipe format.');
         return;
       }
-      
-      // Use the same API endpoint as regular grocery list parsing
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3048';
+
+      // Use the same API endpoint as regular grocery list parsing (mobile-compatible)
+      const API_URL = process.env.REACT_APP_API_URL ||
+        (window.location.hostname === 'localhost' ? 'http://localhost:3048' : 'https://cartsmash-api.onrender.com');
       const response = await fetch(`${API_URL}/api/cart/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
