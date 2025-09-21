@@ -12,22 +12,28 @@ const RecipesFound = ({
   onAddToMealPlan,
   onRemove
 }) => {
+  const [hasAutoExpanded, setHasAutoExpanded] = React.useState(false);
+
   // Auto-expand all recipes when main section is first expanded for better UX
   React.useEffect(() => {
-    if (expanded && onToggleIndividualExpansion && recipes && recipes.length > 0) {
-      // Check if any recipes are collapsed, if so expand them all
-      const hasCollapsedRecipes = recipes.some((_, index) => !individualExpansionStates?.[index]);
-      if (hasCollapsedRecipes) {
-        console.log('🎛️ Auto-expanding all recipe details for better UX');
-        // Expand all recipes when main section is expanded
+    if (expanded && onToggleIndividualExpansion && recipes && recipes.length > 0 && !hasAutoExpanded) {
+      // Only auto-expand if ALL recipes are currently collapsed (first time expanding)
+      // This prevents interference with manual collapse/expand actions
+      const allRecipesCollapsed = recipes.every((_, index) => !individualExpansionStates?.[index]);
+      if (allRecipesCollapsed) {
+        console.log('🎛️ Auto-expanding all recipe details for first-time expansion');
+        setHasAutoExpanded(true);
+        // Expand all recipes when main section is expanded for the first time
         recipes.forEach((_, index) => {
-          if (!individualExpansionStates?.[index]) {
-            setTimeout(() => onToggleIndividualExpansion(index), index * 50); // Stagger for visual effect
-          }
+          setTimeout(() => onToggleIndividualExpansion(index), index * 50); // Stagger for visual effect
         });
       }
     }
-  }, [expanded, individualExpansionStates, onToggleIndividualExpansion, recipes]);
+    // Reset flag when main section is collapsed
+    if (!expanded) {
+      setHasAutoExpanded(false);
+    }
+  }, [expanded, individualExpansionStates, onToggleIndividualExpansion, recipes, hasAutoExpanded]);
 
   if (!recipes || recipes.length === 0) {
     return null;
