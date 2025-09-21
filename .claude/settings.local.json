@@ -549,6 +549,7 @@
       "Bash(PORT=3100 node server.js)",
       "Bash(findstr:*)",
       "Bash(PORT=3103 node server.js)",
+<<<<<<< HEAD
       "Bash(NODE_ENV=development PORT=3107 npm start)",
       "Bash(REACT_APP_API_URL=http://localhost:3107 PORT=3108 npm start)",
       "Bash(git restore:*)",
@@ -558,6 +559,12 @@
       "Bash(time curl:*)",
       "Bash(for i in {1..3})",
       "Bash(done)"
+=======
+      "Bash(NODE_ENV=development PORT=3103 npm start)",
+      "Bash(NODE_ENV=development PORT=3104 npm start)",
+      "Bash(REACT_APP_API_URL=http://localhost:3103 PORT=3106 npm start)",
+      "Bash(start http://localhost:3106)"
+>>>>>>> ecceb52b5e762d81d5f0efcb5447541945d22282
     ],
     "deny": [],
     "ask": []

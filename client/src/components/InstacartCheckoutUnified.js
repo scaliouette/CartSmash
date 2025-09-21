@@ -783,29 +783,83 @@ const InstacartCheckoutUnified = ({
                         </span>
                       </div>
 
-                      <div style={{fontSize: '13px', color: '#666'}}>
+                      <div style={{fontSize: '13px', color: '#666', marginBottom: '6px'}}>
                         <span style={{marginRight: '8px'}}>📍 {store.distance}</span>
                         {store.address && <span style={{opacity: 0.8}}>{store.address}</span>}
                       </div>
+
+                      {/* Additional retailer details */}
+                      <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '11px'}}>
+                        {store.minimumOrder && (
+                          <span style={{
+                            backgroundColor: '#E3F2FD',
+                            color: '#1976D2',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontWeight: '500'
+                          }}>
+                            💳 ${store.minimumOrder} min
+                          </span>
+                        )}
+                        {store.deliveryTime && (
+                          <span style={{
+                            backgroundColor: '#F3E5F5',
+                            color: '#7B1FA2',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontWeight: '500'
+                          }}>
+                            ⏱️ {store.deliveryTime}
+                          </span>
+                        )}
+                        {store.available && (
+                          <span style={{
+                            backgroundColor: '#E8F5E8',
+                            color: '#2E7D32',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontWeight: '500'
+                          }}>
+                            ✅ Available
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <div style={{minWidth: '120px', textAlign: 'right'}}>
+                    <div style={{minWidth: '140px', textAlign: 'right'}}>
+                      {/* Store-specific badges */}
+                      <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '8px'}}>
+                        {store._raw?.membership_required && (
+                          <span style={{
+                            backgroundColor: '#FFF3CD',
+                            color: '#856404',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            fontWeight: '500'
+                          }}>
+                            👤 Membership
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Pricing breakdown */}
                       <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
-                        fontSize: '13px',
+                        fontSize: '12px',
                         color: '#666',
-                        marginBottom: '4px'
+                        marginBottom: '3px'
                       }}>
                         <span style={{marginRight: '12px'}}>Subtotal:</span>
-                        <span style={{fontWeight: '500'}}>${store.subtotal?.toFixed(2) || '91.93'}</span>
+                        <span style={{fontWeight: '500'}}>${store.estimatedPrice?.toFixed(2) || '91.93'}</span>
                       </div>
                       <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
-                        fontSize: '13px',
+                        fontSize: '12px',
                         color: '#666',
-                        marginBottom: '4px'
+                        marginBottom: '3px'
                       }}>
                         <span style={{marginRight: '12px'}}>Service:</span>
                         <span style={{fontWeight: '500'}}>${store.serviceFee?.toFixed(2) || '3.99'}</span>
@@ -813,25 +867,61 @@ const InstacartCheckoutUnified = ({
                       <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
-                        fontSize: '13px',
+                        fontSize: '12px',
                         color: '#666',
-                        marginBottom: '4px'
+                        marginBottom: '3px'
                       }}>
                         <span style={{marginRight: '12px'}}>Delivery:</span>
                         <span style={{fontWeight: '500'}}>${store.deliveryFee?.toFixed(2) || '5.99'}</span>
                       </div>
+
+                      {/* Additional fees if available */}
+                      {store._raw?.bag_fee && (
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: '12px',
+                          color: '#666',
+                          marginBottom: '3px'
+                        }}>
+                          <span style={{marginRight: '12px'}}>Bag fee:</span>
+                          <span style={{fontWeight: '500'}}>${store._raw.bag_fee?.toFixed(2)}</span>
+                        </div>
+                      )}
+
                       <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
-                        paddingTop: '8px',
+                        paddingTop: '6px',
                         borderTop: '1px solid #E0E0E0',
-                        fontSize: '16px',
+                        fontSize: '15px',
                         fontWeight: '700',
                         color: '#002244'
                       }}>
                         <span style={{marginRight: '12px'}}>Total:</span>
-                        <span style={{color: '#FB4F14'}}>${store.total?.toFixed(2) || '101.91'}</span>
+                        <span style={{color: '#FB4F14'}}>
+                          ${((store.estimatedPrice || 91.93) + (store.serviceFee || 3.99) + (store.deliveryFee || 5.99) + (store._raw?.bag_fee || 0)).toFixed(2)}
+                        </span>
                       </div>
+
+                      {/* Store rating if available */}
+                      {store._raw?.rating && (
+                        <div style={{
+                          fontSize: '11px',
+                          color: '#666',
+                          marginTop: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'flex-end',
+                          gap: '4px'
+                        }}>
+                          <span>⭐</span>
+                          <span>{store._raw.rating}/5</span>
+                          {store._raw?.review_count && (
+                            <span style={{opacity: 0.7}}>({store._raw.review_count})</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

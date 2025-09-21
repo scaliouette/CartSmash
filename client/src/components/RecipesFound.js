@@ -43,10 +43,10 @@ const RecipesFound = ({
     <div style={{
       backgroundColor: 'white',
       borderRadius: '12px',
-      border: '1px solid #e5e5e5',
+      border: '2px solid #FFD4C4',
       padding: '16px',
       marginBottom: '16px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+      boxShadow: '0 4px 12px rgba(251, 79, 20, 0.1)',
       position: 'relative'
     }}>
       {/* Header - Clickable */}
@@ -65,7 +65,7 @@ const RecipesFound = ({
             backgroundColor: '#f9fafb'
           }
         }}
-        onMouseEnter={(e) => e.target.style.backgroundColor = '#f9fafb'}
+        onMouseEnter={(e) => e.target.style.backgroundColor = '#FFF5F0'}
         onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
       >
         <div style={{
@@ -74,7 +74,7 @@ const RecipesFound = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#6b7280'
+          color: '#002244'
         }}>
           <svg
             width="16"
@@ -95,7 +95,7 @@ const RecipesFound = ({
         <div style={{
           width: '36px',
           height: '36px',
-          backgroundColor: '#2563eb',
+          backgroundColor: '#FB4F14',
           borderRadius: '8px',
           display: 'flex',
           alignItems: 'center',
@@ -114,7 +114,7 @@ const RecipesFound = ({
         <span style={{
           fontSize: '16px',
           fontWeight: '600',
-          color: '#111827'
+          color: '#002244'
         }}>
           Recipes Found
         </span>
@@ -127,7 +127,7 @@ const RecipesFound = ({
         {!expanded && (
           <span style={{
             fontSize: '12px',
-            color: '#059669',
+            color: '#FB4F14',
             fontWeight: '500',
             marginLeft: '8px'
           }}>
@@ -204,9 +204,9 @@ const RecipeCard = ({
 }) => {
   return (
     <div style={{
-      border: '2px solid #ff8c66',
+      border: '2px solid #FFD4C4',
       borderRadius: '12px',
-      backgroundColor: '#fff9f7',
+      backgroundColor: '#FFF5F0',
       overflow: 'hidden'
     }}>
       {/* Recipe Header */}
@@ -217,12 +217,12 @@ const RecipeCard = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: '#fff5f2',
+          backgroundColor: '#E6EBF2',
           cursor: 'pointer',
           transition: 'background-color 0.2s'
         }}
-        onMouseEnter={(e) => e.target.style.backgroundColor = '#fef2f2'}
-        onMouseLeave={(e) => e.target.style.backgroundColor = '#fff5f2'}
+        onMouseEnter={(e) => e.target.style.backgroundColor = '#FFF5F0'}
+        onMouseLeave={(e) => e.target.style.backgroundColor = '#E6EBF2'}
         title="Click to view recipe details"
       >
         <div style={{
@@ -260,7 +260,7 @@ const RecipeCard = ({
           <div style={{
             width: '32px',
             height: '32px',
-            backgroundColor: '#2563eb',
+            backgroundColor: '#FB4F14',
             borderRadius: '6px',
             display: 'flex',
             alignItems: 'center',
@@ -281,7 +281,7 @@ const RecipeCard = ({
           <h3 style={{
             fontSize: '15px',
             fontWeight: '600',
-            color: '#1f2937',
+            color: '#002244',
             margin: 0
           }}>
             {recipe.name || recipe.title || 'Untitled Recipe'}
@@ -393,14 +393,14 @@ const RecipeCard = ({
       {isExpanded && (
         <div style={{
           padding: '16px',
-          borderTop: '1px solid #fed7aa'
+          borderTop: '1px solid #FFD4C4'
         }}>
           {/* Ingredients */}
           <div style={{ marginBottom: '12px' }}>
             <h4 style={{
               fontSize: '13px',
               fontWeight: '600',
-              color: '#374151',
+              color: '#002244',
               marginBottom: '6px'
             }}>
               Ingredients:
@@ -431,7 +431,7 @@ const RecipeCard = ({
             <h4 style={{
               fontSize: '13px',
               fontWeight: '600',
-              color: '#374151',
+              color: '#002244',
               marginBottom: '6px'
             }}>
               Instructions:
