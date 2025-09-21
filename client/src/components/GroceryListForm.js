@@ -1,5 +1,5 @@
 // client/src/components/GroceryListForm.js - FIXED VERSION
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import InstacartShoppingList from './InstacartShoppingList';
 // eslint-disable-next-line no-unused-vars
@@ -595,7 +595,31 @@ function GroceryListForm({
   // eslint-disable-next-line no-unused-vars
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Validation wrapper functions for state setters
+  // Memoized expensive computations
+  const validParsedRecipes = useMemo(() => {
+    return Array.isArray(parsedRecipes) ? parsedRecipes.filter(isValidRecipe) : [];
+  }, [parsedRecipes]);
+
+  const validSavedRecipes = useMemo(() => {
+    return Array.isArray(savedRecipes) ? savedRecipes.filter(isValidRecipe) : [];
+  }, [savedRecipes]);
+
+  const cartStats = useMemo(() => {
+    if (!currentCart || !Array.isArray(currentCart)) return { total: 0, count: 0 };
+    return {
+      count: currentCart.length,
+      total: currentCart.reduce((sum, item) => sum + (item.price || 0), 0)
+    };
+  }, [currentCart]);
+
+  // Memoized button state to prevent unnecessary re-renders
+  const buttonState = useMemo(() => {
+    const isDisabled = !inputText.trim() || isLoading || waitingForAIResponse || isSubmitting;
+    const buttonClass = `smash-button ${isLoading ? 'smash-button-loading' : ''}`;
+    return { isDisabled, buttonClass };
+  }, [inputText, isLoading, waitingForAIResponse, isSubmitting]);
+
+  // Validation wrapper functions for state setters (optimized)
   const setValidParsedRecipes = useCallback((recipes) => {
     const valid = Array.isArray(recipes) ? recipes.filter(isValidRecipe) : [];
     setParsedRecipes(valid);
@@ -1561,36 +1585,51 @@ function GroceryListForm({
   };
 
 
-  const submitGroceryList = async (listText, useAI = true) => {
-    // DEBUG: Start workflow session tracking
-    const sessionId = `workflow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const startTime = performance.now();
-    console.log(`🚀 [${sessionId}] Starting workflow session:`, {
-      inputLength: listText?.length || 0,
-      useAI,
-      selectedAI,
-      timestamp: new Date().toISOString(),
-      sessionId
-    });
+  // Debounced submission to prevent rapid clicks
+  const [lastSubmitTime, setLastSubmitTime] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const submitGroceryList = useCallback(async (listText, useAI = true) => {
+    // Debounce: prevent submissions within 500ms
+    const now = Date.now();
+    if (now - lastSubmitTime < 500) {
+      console.log('🚫 Submission debounced - too fast');
+      return;
+    }
+    setLastSubmitTime(now);
+
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log('🚫 Submission blocked - already processing');
+      return;
+    }
+    setIsSubmitting(true);
+
+    // Quick validation and immediate UI feedback
     if (!listText.trim()) {
-      console.log(`❌ [${sessionId}] Workflow failed: Empty input`);
       setError('Please enter a grocery list');
+      setIsSubmitting(false);
       return;
     }
 
+    // Immediate UI state update (synchronous, fast)
     setIsLoading(true);
     setError('');
     setShowProgress(true);
     setParsingProgress(0);
 
-    // DEBUG: Track state changes
-    console.log(`📊 [${sessionId}] Initial state set:`, {
-      isLoading: true,
-      showProgress: true,
-      parsingProgress: 0,
-      elapsedMs: Math.round(performance.now() - startTime)
-    });
+    // Defer heavy operations to next event loop tick
+    setTimeout(async () => {
+      const sessionId = `workflow_${now}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Reduced logging - only essential info
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🚀 [${sessionId}] Starting workflow:`, {
+          inputLength: listText.length,
+          useAI,
+          selectedAI
+        });
+      }
 
     // Safety: prevent overlays from blocking UI if a request hangs
     const overlaySafety = setTimeout(() => {
@@ -1610,13 +1649,9 @@ function GroceryListForm({
       
       // STEP 1: Generate with AI (first click)
       if (useAI && selectedAI && !waitingForAIResponse) {
-        const aiStepStart = performance.now();
-        console.log(`🤖 [${sessionId}] STEP 1: AI Processing - Starting`, {
-          prompt: listText.substring(0, 100) + (listText.length > 100 ? '...' : ''),
-          ai: selectedAI,
-          ingredientStyle,
-          elapsedMs: Math.round(aiStepStart - startTime)
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🤖 [${sessionId}] AI Processing:`, { ai: selectedAI });
+        }
 
         try {
           const requestPayload = {
@@ -1631,11 +1666,10 @@ function GroceryListForm({
             }
           };
 
-          console.log(`📤 [${sessionId}] AI Request payload:`, {
-            payloadSize: JSON.stringify(requestPayload).length,
-            endpoint: `${API_URL}/api/ai/${selectedAI}`,
-            options: requestPayload.options
-          });
+          // Minimal logging
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📤 [${sessionId}] Making AI request`);
+          }
 
           const aiResponse = await fetch(`${API_URL}/api/ai/${selectedAI}`, {
             method: 'POST',
@@ -1688,27 +1722,20 @@ function GroceryListForm({
                 totalProducts: aiData.products.length
               });
 
-              // Filter out any "products" that are actually meal descriptions
+              // Optimized filtering - minimal logging, no regex in loop
+              const mealPrefixes = ['Breakfast:', 'Lunch:', 'Dinner:', 'Snack:'];
               const realGroceryItems = aiData.products.filter(product => {
                 const name = product.productName || product.name;
-                const isMealDescription = name.match(/^(Breakfast|Lunch|Dinner|Snack):/i);
-
-                if (isMealDescription) {
-                  console.log(`🍽️ [${sessionId}] Skipping meal plan item:`, name);
-                  return false;
-                }
-                return true;
+                return !mealPrefixes.some(prefix => name.startsWith(prefix));
               });
 
-              const filterDuration = Math.round(performance.now() - filterStart);
-              console.log(`✅ [${sessionId}] Product filtering complete:`, {
-                realGroceryItems: realGroceryItems.length,
-                filteredOut: aiData.products.length - realGroceryItems.length,
-                duration: filterDuration
-              });
+              // Reduced logging - only in development
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`✅ [${sessionId}] Filtered ${realGroceryItems.length}/${aiData.products.length} items`);
+              }
 
               if (realGroceryItems.length > 0) {
-                const mappingStart = performance.now();
+                // Optimized mapping - removed performance tracking
                 const groceryItems = realGroceryItems.map(product => {
                   const quantity = product.quantity || '1';
                   const unit = product.unit ? ` ${product.unit}` : '';
@@ -1716,19 +1743,7 @@ function GroceryListForm({
                   return `• ${quantity}${unit} ${name}`;
                 });
 
-                const mappingDuration = Math.round(performance.now() - mappingStart);
-                console.log(`🔄 [${sessionId}] Product mapping complete:`, {
-                  mappedItems: groceryItems.length,
-                  sampleItems: groceryItems.slice(0, 3),
-                  duration: mappingDuration
-                });
-                
                 const groceryListText = groceryItems.join('\n');
-                console.log(`📝 [${sessionId}] Setting grocery list text`, {
-                  textLength: groceryListText.length,
-                  lineCount: groceryItems.length
-                });
-
                 setInputText(groceryListText);
 
                 if (textareaRef.current) {
@@ -1741,11 +1756,10 @@ function GroceryListForm({
               }
             }
 
-            const structureProcessDuration = Math.round(performance.now() - structureProcessStart);
-            console.log(`⏱️ [${sessionId}] STEP 1.1-1.2 Complete: Structured data processing`, {
-              duration: structureProcessDuration,
-              success: groceryListProcessed
-            });
+            // Reduced logging
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`⏱️ [${sessionId}] Structured data processed:`, { success: groceryListProcessed });
+            }
           }
 
           // Fallback to text extraction if no structured data
@@ -2108,55 +2122,44 @@ function GroceryListForm({
       });
       setError('Unable to process. Please try again.');
 
-    } catch (err) {
-      const errorDuration = Math.round(performance.now() - startTime);
-      console.error(`💥 [${sessionId}] WORKFLOW FATAL ERROR:`, {
-        error: err.message,
-        stack: err.stack?.substring(0, 300),
-        totalDuration: errorDuration,
-        type: err.name || 'Unknown'
-      });
-      setError(`Failed to process: ${err.message}`);
-    } finally {
-      const finalCleanupStart = performance.now();
-      console.log(`🧹 [${sessionId}] FINAL CLEANUP - Clearing all states`, {
-        elapsedMs: Math.round(finalCleanupStart - startTime)
-      });
+      } catch (err) {
+        console.error(`❌ [${sessionId}] Error:`, err.message);
+        setError(`Failed to process: ${err.message}`);
+      } finally {
+        // Optimized cleanup - minimal operations
+        if (progressInterval) clearInterval(progressInterval);
+        clearTimeout(overlaySafety);
+        setIsLoading(false);
+        setShowProgress(false);
+        setParsingProgress(0);
+        setIsSubmitting(false);
 
-      if (progressInterval) clearInterval(progressInterval);
-      clearTimeout(overlaySafety);
-      setIsLoading(false);
-      setShowProgress(false);
-      setParsingProgress(0);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🏁 [${sessionId}] Complete`);
+        }
+      }
+    }, 0); // setTimeout end
+  }, [selectedAI, ingredientStyle, waitingForAIResponse]); // useCallback end
 
-      const finalCleanupDuration = Math.round(performance.now() - finalCleanupStart);
-      const totalSessionDuration = Math.round(performance.now() - startTime);
-      console.log(`🏁 [${sessionId}] SESSION COMPLETE:`, {
-        cleanupDuration: finalCleanupDuration,
-        totalSessionDuration,
-        timestamp: new Date().toISOString()
-      });
-    }
-  };
-
-  const handleSubmit = async (e) => {
+  // Optimized submit handler with minimal synchronous work
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
 
-    // Prevent double submission
-    if (waitingForAIResponse) {
-      console.log('🚫 Submit blocked - already processing');
+    // Fast validation checks first
+    if (waitingForAIResponse || isSubmitting) {
       return;
     }
 
-    // Force AI usage - NEVER use manual parsing fallback for recipes
-    // Only skip AI if no AI model is selected or no input text
     const shouldUseAI = selectedAI && inputText.trim().length > 0;
 
-    console.log('Submit clicked. Using AI:', shouldUseAI, '| Selected AI Model:', selectedAI, '| Waiting for AI Response:', waitingForAIResponse);
-    console.log('Input text preview:', inputText.substring(0, 100));
+    // Log only in development and minimal data
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Submit:', { useAI: shouldUseAI, model: selectedAI });
+    }
 
+    // Call optimized submit function
     await submitGroceryList(inputText, shouldUseAI);
-  };
+  }, [waitingForAIResponse, isSubmitting, selectedAI, inputText, submitGroceryList]);
 
   const handleNewList = () => {
     setInputText('');
@@ -4249,13 +4252,20 @@ Return as JSON with this structure:
   // Main component return (this should be inside the main GroceryListForm function)
   return (
     <div className="container" style={{ paddingTop: '20px' }}>
-      {(isLoading || showProgress) && (
-        <MixingBowlLoader text={
-          waitingForAIResponse ? "Organizing your list..." :
-          showProgress ? "Parsing grocery list..." :
-          "Processing your list..."
-        } />
-      )}
+      {/* Fixed container to prevent layout shift */}
+      <div style={{
+        minHeight: (isLoading || showProgress) ? '200px' : '0px',
+        transition: 'min-height 0.3s ease-in-out',
+        overflow: 'hidden'
+      }}>
+        {(isLoading || showProgress) && (
+          <MixingBowlLoader text={
+            waitingForAIResponse ? "Organizing your list..." :
+            showProgress ? "Parsing grocery list..." :
+            "Processing your list..."
+          } />
+        )}
+      </div>
 
 
       <div className="hero-section" style={styles.heroSectionMinimal}>
@@ -4640,13 +4650,12 @@ Or paste any grocery list directly!"
             <div style={styles.inputControls}>
               <button
                 type="submit"
-                disabled={!inputText.trim() || isLoading || waitingForAIResponse}
-                className={`smash-button ${isLoading ? 'smash-button-loading' : ''}`}
+                disabled={buttonState.isDisabled}
+                className={buttonState.buttonClass}
                 onClick={(e) => {
-                  // Additional click protection
-                  if (waitingForAIResponse) {
+                  // Fast click protection - minimal work
+                  if (waitingForAIResponse || isSubmitting) {
                     e.preventDefault();
-                    console.log('🚫 Button click blocked - already processing');
                     return;
                   }
                 }}
