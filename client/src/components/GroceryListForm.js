@@ -1621,6 +1621,7 @@ function GroceryListForm({
     // Defer heavy operations to next event loop tick
     setTimeout(async () => {
       const sessionId = `workflow_${now}_${Math.random().toString(36).substr(2, 9)}`;
+      const startTime = performance.now(); // Initialize timing for performance tracking
 
       // Reduced logging - only essential info
       if (process.env.NODE_ENV === 'development') {
@@ -1671,6 +1672,7 @@ function GroceryListForm({
             console.log(`📤 [${sessionId}] Making AI request`);
           }
 
+          const aiStepStart = performance.now(); // Track AI request timing
           const aiResponse = await fetch(`${API_URL}/api/ai/${selectedAI}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
