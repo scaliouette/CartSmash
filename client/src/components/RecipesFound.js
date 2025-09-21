@@ -12,13 +12,9 @@ const RecipesFound = ({
   onAddToMealPlan,
   onRemove
 }) => {
-  if (!recipes || recipes.length === 0) {
-    return null;
-  }
-
   // Auto-expand all recipes when main section is first expanded for better UX
   React.useEffect(() => {
-    if (expanded && onToggleIndividualExpansion) {
+    if (expanded && onToggleIndividualExpansion && recipes && recipes.length > 0) {
       // Check if any recipes are collapsed, if so expand them all
       const hasCollapsedRecipes = recipes.some((_, index) => !individualExpansionStates?.[index]);
       if (hasCollapsedRecipes) {
@@ -32,6 +28,10 @@ const RecipesFound = ({
       }
     }
   }, [expanded, individualExpansionStates, onToggleIndividualExpansion, recipes]);
+
+  if (!recipes || recipes.length === 0) {
+    return null;
+  }
 
   return (
     <div style={{
