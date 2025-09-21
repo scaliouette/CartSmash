@@ -16,6 +16,23 @@ const RecipesFound = ({
     return null;
   }
 
+  // Auto-expand all recipes when main section is first expanded for better UX
+  React.useEffect(() => {
+    if (expanded && onToggleIndividualExpansion) {
+      // Check if any recipes are collapsed, if so expand them all
+      const hasCollapsedRecipes = recipes.some((_, index) => !individualExpansionStates?.[index]);
+      if (hasCollapsedRecipes) {
+        console.log('🎛️ Auto-expanding all recipe details for better UX');
+        // Expand all recipes when main section is expanded
+        recipes.forEach((_, index) => {
+          if (!individualExpansionStates?.[index]) {
+            setTimeout(() => onToggleIndividualExpansion(index), index * 50); // Stagger for visual effect
+          }
+        });
+      }
+    }
+  }, [expanded, individualExpansionStates, onToggleIndividualExpansion, recipes]);
+
   return (
     <div style={{
       backgroundColor: 'white',
@@ -23,30 +40,36 @@ const RecipesFound = ({
       border: '1px solid #e5e5e5',
       padding: '16px',
       marginBottom: '16px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+      position: 'relative'
     }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        marginBottom: expanded ? '16px' : '0',
-        gap: '12px'
-      }}>
-        <button
-          onClick={onCollapseExpand}
-          style={{
-            width: '24px',
-            height: '24px',
-            border: 'none',
-            backgroundColor: 'transparent',
-            cursor: 'pointer',
-            color: '#6b7280',
-            padding: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
+      {/* Header - Clickable */}
+      <div
+        onClick={onCollapseExpand}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          marginBottom: expanded ? '16px' : '0',
+          gap: '12px',
+          cursor: 'pointer',
+          padding: '4px',
+          borderRadius: '6px',
+          transition: 'background-color 0.2s',
+          ':hover': {
+            backgroundColor: '#f9fafb'
+          }
+        }}
+        onMouseEnter={(e) => e.target.style.backgroundColor = '#f9fafb'}
+        onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+      >
+        <div style={{
+          width: '24px',
+          height: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#6b7280'
+        }}>
           <svg
             width="16"
             height="16"
@@ -61,7 +84,7 @@ const RecipesFound = ({
           >
             <path d="M9 6l6 6-6 6" />
           </svg>
-        </button>
+        </div>
 
         <div style={{
           width: '36px',
@@ -93,37 +116,55 @@ const RecipesFound = ({
           fontSize: '14px',
           color: '#6b7280'
         }}>
-          ({recipes.length} recipes)
+          ({recipes.length} {recipes.length === 1 ? 'recipe' : 'recipes'})
         </span>
-
-        <button
-          onClick={onClearAll}
-          style={{
-            marginLeft: 'auto',
-            width: '32px',
-            height: '32px',
-            border: '1px solid #e5e5e5',
-            borderRadius: '6px',
-            backgroundColor: 'white',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#6b7280'
-          }}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-          </svg>
-        </button>
+        {!expanded && (
+          <span style={{
+            fontSize: '12px',
+            color: '#059669',
+            fontWeight: '500',
+            marginLeft: '8px'
+          }}>
+            Click to view details →
+          </span>
+        )}
       </div>
+
+      {/* Clear button - outside clickable area */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onClearAll();
+        }}
+        style={{
+          position: 'absolute',
+          top: '16px',
+          right: '16px',
+          width: '32px',
+          height: '32px',
+          border: '1px solid #e5e5e5',
+          borderRadius: '6px',
+          backgroundColor: 'white',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#6b7280',
+          zIndex: 2
+        }}
+        title="Clear all recipes"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+        </svg>
+      </button>
 
       {/* Recipe Cards */}
       {expanded && (
@@ -163,35 +204,36 @@ const RecipeCard = ({
       overflow: 'hidden'
     }}>
       {/* Recipe Header */}
-      <div style={{
-        padding: '12px 16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: '#fff5f2'
-      }}>
+      <div
+        onClick={onToggleExpansion}
+        style={{
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: '#fff5f2',
+          cursor: 'pointer',
+          transition: 'background-color 0.2s'
+        }}
+        onMouseEnter={(e) => e.target.style.backgroundColor = '#fef2f2'}
+        onMouseLeave={(e) => e.target.style.backgroundColor = '#fff5f2'}
+        title="Click to view recipe details"
+      >
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
           flex: 1
         }}>
-          {/* Expand button */}
-          <button
-            onClick={onToggleExpansion}
-            style={{
-              width: '20px',
-              height: '20px',
-              border: 'none',
-              backgroundColor: 'transparent',
-              cursor: 'pointer',
-              color: '#6b7280',
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
+          {/* Expand indicator */}
+          <div style={{
+            width: '20px',
+            height: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#6b7280'
+          }}>
             <svg
               width="14"
               height="14"
@@ -206,7 +248,7 @@ const RecipeCard = ({
             >
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </button>
+          </div>
 
           {/* Play button */}
           <div style={{
@@ -247,7 +289,10 @@ const RecipeCard = ({
           gap: '6px'
         }}>
           <button
-            onClick={onAddToCart}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToCart();
+            }}
             style={{
               width: '30px',
               height: '30px',
@@ -267,7 +312,10 @@ const RecipeCard = ({
           </button>
 
           <button
-            onClick={onAddToLibrary}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToLibrary();
+            }}
             style={{
               width: '30px',
               height: '30px',
@@ -287,7 +335,10 @@ const RecipeCard = ({
           </button>
 
           <button
-            onClick={onAddToMealPlan}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToMealPlan();
+            }}
             style={{
               width: '30px',
               height: '30px',
@@ -308,7 +359,10 @@ const RecipeCard = ({
           </button>
 
           <button
-            onClick={onRemove}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
             style={{
               width: '30px',
               height: '30px',
