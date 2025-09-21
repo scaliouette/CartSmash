@@ -549,6 +549,10 @@ function GroceryListForm({
   const [error, setError] = useState('');
   const [mergeCart, setMergeCart] = useState(false);
   const [showResults, setShowResults] = useState(false);
+
+  // Performance optimization states
+  const [lastSubmitTime, setLastSubmitTime] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Recipe Manager Modal State
   const [showRecipeManager, setShowRecipeManager] = useState(false);
@@ -1584,10 +1588,6 @@ function GroceryListForm({
     return null;
   };
 
-
-  // Debounced submission to prevent rapid clicks
-  const [lastSubmitTime, setLastSubmitTime] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const submitGroceryList = useCallback(async (listText, useAI = true) => {
     // Debounce: prevent submissions within 500ms
