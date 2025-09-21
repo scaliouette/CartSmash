@@ -351,7 +351,18 @@ const RecipeCard = ({
               lineHeight: '1.5',
               margin: 0
             }}>
-              {recipe.ingredients || 'No ingredients available'}
+              {Array.isArray(recipe.ingredients)
+                ? recipe.ingredients.map((ingredient, idx) => {
+                    if (typeof ingredient === 'string') return ingredient;
+                    if (typeof ingredient === 'object' && ingredient !== null) {
+                      return `${ingredient.quantity || ''} ${ingredient.unit || ''} ${ingredient.name || ''}`.trim();
+                    }
+                    return '';
+                  }).join(', ')
+                : typeof recipe.ingredients === 'string'
+                  ? recipe.ingredients
+                  : 'No ingredients available'
+              }
             </p>
           </div>
 
@@ -371,7 +382,18 @@ const RecipeCard = ({
               lineHeight: '1.5',
               margin: 0
             }}>
-              {recipe.instructions || 'No instructions available'}
+              {Array.isArray(recipe.instructions)
+                ? recipe.instructions.map((instruction, idx) => {
+                    if (typeof instruction === 'string') return instruction;
+                    if (typeof instruction === 'object' && instruction !== null) {
+                      return instruction.text || instruction.step || String(instruction);
+                    }
+                    return '';
+                  }).join('. ')
+                : typeof recipe.instructions === 'string'
+                  ? recipe.instructions
+                  : 'No instructions available'
+              }
             </p>
           </div>
         </div>
