@@ -1863,22 +1863,13 @@ function GroceryListForm({
               expandTextarea();
             }, 50);
 
-            // Set flag and continue to parsing step without requiring second click
+            // Set flag to enable the unified parsing section below
             setWaitingForAIResponse(true);
-            console.log(`✅ [${sessionId}] AI processing complete, proceeding to cart parsing`, {
+            console.log(`✅ [${sessionId}] AI processing complete, continuing to unified parsing`, {
               elapsedMs: Math.round(performance.now() - startTime)
             });
 
-            // Continue to parsing step immediately using local control flag
-            const shouldParseToCarts = true;
-
-            // Jump directly to cart parsing section
-            if (shouldParseToCarts) {
-              const cartParseStart = performance.now();
-              console.log(`📦 [${sessionId}] STEP 2: Cart Parsing - Starting`);
-
-              // Use the processed grocery list text, not the original prompt
-              const currentListText = textareaRef.current?.value || inputText || listText;
+            // AI processing complete - will continue to unified parsing section below
               console.log(`📝 [${sessionId}] Text sources analysis:`, {
                 textareaLength: textareaRef.current?.value?.length || 0,
                 inputTextLength: inputText?.length || 0,
@@ -2028,7 +2019,7 @@ function GroceryListForm({
       }
       } // End of AI processing else block
 
-      // STEP 2: Parse text into cart items (second click or manual text)
+      // STEP 2: Parse text into cart items (automatic after AI or direct if no AI)
       if (waitingForAIResponse || !useAI) {
         const manualParseStart = performance.now();
         console.log(`📦 [${sessionId}] STEP 3: Manual Cart Parsing - Starting`, {
