@@ -548,7 +548,11 @@
       "Bash(start http://localhost:3102)",
       "Bash(PORT=3100 node server.js)",
       "Bash(findstr:*)",
-      "Bash(PORT=3103 node server.js)"
+      "Bash(PORT=3103 node server.js)",
+      "Bash(NODE_ENV=development PORT=3103 npm start)",
+      "Bash(NODE_ENV=development PORT=3104 npm start)",
+      "Bash(REACT_APP_API_URL=http://localhost:3103 PORT=3106 npm start)",
+      "Bash(start http://localhost:3106)"
     ],
     "deny": [],
     "ask": []

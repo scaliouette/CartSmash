@@ -565,6 +565,7 @@ function GroceryListForm({
   const [showValidator, setShowValidator] = useState(false);
   const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
   const [currentRecipeContext, setCurrentRecipeContext] = useState(null);
+  const [currentRecipeItems, setCurrentRecipeItems] = useState([]);
   // Product Matcher moved to Admin page
   // Price History state
   const [showPriceHistory, setShowPriceHistory] = useState(false);
@@ -3843,10 +3844,61 @@ Return as JSON with this structure:
   // Handle recipe checkout with full recipe context
   const handleRecipeCheckout = (recipe) => {
     console.log('🍽️ Opening recipe checkout with full context:', recipe.title || recipe.name || 'Unnamed Recipe');
+
+    // Extract and format recipe ingredients for InstacartCheckoutUnified
+    const recipeIngredients = recipe.ingredients?.map((ingredient, index) => {
+      // Handle both string and object formats
+      let ingredientData;
+      if (typeof ingredient === 'string') {
+        // Parse string format ingredients
+        const parts = ingredient.split(' ');
+        const quantity = parts[0] && !isNaN(parts[0]) ? parts[0] : '1';
+        const rest = parts.slice(1).join(' ');
+        const unitMatch = rest.match(/^(\w+)\s+(.+)$/);
+        const unit = unitMatch ? unitMatch[1] : '';
+        const name = unitMatch ? unitMatch[2] : rest || ingredient;
+
+        ingredientData = {
+          id: `recipe-ingredient-${index}`,
+          name: name,
+          productName: name,
+          quantity: parseFloat(quantity) || 1,
+          unit: unit,
+          price: 2.99, // Default price for estimation
+          category: 'Recipe Ingredient',
+          checked: true
+        };
+      } else {
+        // Handle object format ingredients
+        ingredientData = {
+          id: ingredient.id || `recipe-ingredient-${index}`,
+          name: ingredient.name || ingredient.productName || 'Unknown Ingredient',
+          productName: ingredient.name || ingredient.productName || 'Unknown Ingredient',
+          quantity: ingredient.quantity || 1,
+          unit: ingredient.unit || '',
+          price: ingredient.price || 2.99,
+          category: ingredient.category || 'Recipe Ingredient',
+          checked: true,
+          // Preserve additional ingredient properties
+          brandFilters: ingredient.brandFilters || [],
+          healthFilters: ingredient.healthFilters || [],
+          upcs: ingredient.upcs || [],
+          productIds: ingredient.productIds || []
+        };
+      }
+
+      console.log(`📦 Recipe ingredient ${index + 1}:`, ingredientData);
+      return ingredientData;
+    }) || [];
+
+    console.log(`🛒 Extracted ${recipeIngredients.length} ingredients from recipe for checkout`);
+
     // Format recipe data to match InstacartCheckoutUnified expectations
     const formattedRecipeData = {
       recipes: [recipe]
     };
+
+    setCurrentRecipeItems(recipeIngredients);
     setCurrentRecipeContext(formattedRecipeData);
     setShowInstacartCheckout(true);
   };
@@ -4806,10 +4858,11 @@ Or paste any grocery list directly!"
 
       {showInstacartCheckout && (
         <InstacartCheckoutUnified
-          items={currentCart}
+          items={currentRecipeContext ? currentRecipeItems : currentCart}
           onClose={() => {
             setShowInstacartCheckout(false);
             setCurrentRecipeContext(null);
+            setCurrentRecipeItems([]);
           }}
           mode={currentRecipeContext ? 'recipe' : 'cart'}
           title={currentRecipeContext?.recipes?.[0] ? (currentRecipeContext.recipes[0].title || currentRecipeContext.recipes[0].name) : null}
