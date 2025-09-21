@@ -157,28 +157,50 @@ class AIProductParser {
 
   // Use Anthropic/OpenAI to extract a structured grocery list
   async aiExtractProducts(text, options = {}) {
-    console.log('🔍 [DEBUG] aiExtractProducts() starting...');
-    
-    const sysPrompt = `You convert meal plans and shopping lists into a clean JSON array of grocery products.
-Rules:
-- Only output JSON. No prose. No markdown. No trailing commas.
-- One object per product with fields: productName (string), quantity (number), unit (string or null), containerSize (string or null), category (produce|meat|dairy|grains|frozen|canned|pantry|deli|snacks|other).
-- CRITICAL: Preserve exact quantities AND units from the input. Examples:
-  * "20 oz cheese" → quantity=20, unit="oz"
-  * "2 lbs chicken" → quantity=2, unit="lbs"
-  * "1 gallon milk" → quantity=1, unit="gallon"
-  * "8 eggs" → quantity=8, unit="each"
-  * "3 cans tomatoes" → quantity=3, unit="can"
-- UNIT PARSING: Always extract the unit if present. Common units: oz, lb, lbs, gallon, cup, cups, tbsp, tsp, can, cans, jar, bottle, box, bag, container, dozen, each, bunch, head, loaf, package, pkg
-- Remove bullets (*), asterisks, numbers, and list markers from the beginning of lines. Clean "• 1 2 lbs chicken breast" to extract quantity=2, unit="lbs", productName="chicken breast".
-- Remove headings, recipes, instructions. Ignore lines like Breakfast/Lunch/Dinner.
-- Parse grouped sections (Produce:, Proteins & Dairy:, Grains & Bakery:, Pantry:).
-- If quantity missing, set quantity=1 and unit='each'.
-- If unit is missing but quantity is present, set unit='each'.
-- Keep productName concise (e.g., "boneless skinless chicken breast").
-- DO NOT convert units automatically (e.g., don't convert 8 eggs to dozens unless explicitly stated as dozens in the source).`;
+    console.log('🔍 [DEBUG] aiExtractProducts() starting with COMPREHENSIVE Claude AI...');
 
-    const userPrompt = `Extract grocery products from this text and return JSON array only.\n\n${text}`;
+    // COMPREHENSIVE SYSTEM PROMPT from Claude AI route - generates detailed ingredient lists
+    const enhancedPrompt = `${text}
+
+COMPREHENSIVE GROCERY LIST EXTRACTION - Generate complete, restaurant-quality ingredient lists.
+
+Return a structured JSON response for grocery list extraction:
+
+{
+  "type": "grocery_list",
+  "items": [
+    {"name": "boneless skinless chicken breast", "quantity": "2", "unit": "lbs", "category": "meat"},
+    {"name": "extra virgin olive oil", "quantity": "1", "unit": "bottle", "category": "pantry"},
+    {"name": "yellow onion", "quantity": "1", "unit": "large", "category": "produce"},
+    {"name": "garlic cloves", "quantity": "4", "unit": "each", "category": "produce"},
+    {"name": "kosher salt", "quantity": "1", "unit": "container", "category": "pantry"},
+    {"name": "black pepper", "quantity": "1", "unit": "container", "category": "pantry"},
+    {"name": "bell peppers", "quantity": "3", "unit": "large", "category": "produce"},
+    {"name": "corn tortillas", "quantity": "12", "unit": "each", "category": "grains"},
+    {"name": "enchilada sauce", "quantity": "2", "unit": "can", "category": "canned"},
+    {"name": "sharp cheddar cheese", "quantity": "16", "unit": "oz", "category": "dairy"},
+    {"name": "white rice", "quantity": "2", "unit": "cups", "category": "grains"},
+    {"name": "black beans", "quantity": "2", "unit": "can", "category": "canned"},
+    {"name": "cumin", "quantity": "1", "unit": "container", "category": "pantry"},
+    {"name": "paprika", "quantity": "1", "unit": "container", "category": "pantry"},
+    {"name": "cilantro", "quantity": "1", "unit": "bunch", "category": "produce"},
+    {"name": "lime", "quantity": "2", "unit": "each", "category": "produce"},
+    {"name": "sour cream", "quantity": "1", "unit": "container", "category": "dairy"},
+    {"name": "avocado", "quantity": "2", "unit": "each", "category": "produce"},
+    {"name": "roma tomatoes", "quantity": "3", "unit": "large", "category": "produce"}
+  ]
+}
+
+CRITICAL RULES:
+- Generate COMPREHENSIVE ingredient lists including ALL necessary items: spices, aromatics, cooking oils, seasonings
+- For Mexican enchiladas, include: tortillas, sauce, cheese, meat, onions, garlic, cumin, paprika, cilantro, lime, oil, salt, pepper
+- For Italian dishes, include: olive oil, garlic, onions, herbs (basil, oregano), parmesan, tomatoes, etc.
+- For Asian dishes, include: soy sauce, ginger, garlic, sesame oil, rice vinegar, etc.
+- ALWAYS include cooking essentials: salt, pepper, cooking oil, onions, garlic
+- Extract specific brands, sizes, and preparation notes when mentioned
+- Use proper grocery categories: produce, meat, dairy, grains, frozen, canned, pantry, deli, snacks, other
+- Preserve exact quantities and units from source text
+- Return ONLY the JSON object, no additional text or formatting.`;
 
     // Resolve AI clients dynamically at call time (not construction time)
     const anthropic = global.anthropic || this.ai.anthropic;
@@ -197,14 +219,13 @@ Rules:
     
     if (anthropic) {
       try {
-        console.log('🔍 [DEBUG] Attempting Anthropic API call...');
+        console.log('🔍 [DEBUG] Attempting Anthropic API call with COMPREHENSIVE prompting...');
         const resp = await anthropic.messages.create({
           model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 1200,
-          temperature: 0,
-          system: sysPrompt,
+          max_tokens: 2000,
+          temperature: 0.7,
           messages: [
-            { role: 'user', content: userPrompt }
+            { role: 'user', content: enhancedPrompt }
           ]
         });
         raw = resp.content?.[0]?.text || '';
@@ -216,14 +237,13 @@ Rules:
         // Try OpenAI fallback
         if (openai) {
           try {
-            console.log('🔍 [DEBUG] Falling back to OpenAI API...');
+            console.log('🔍 [DEBUG] Falling back to OpenAI API with COMPREHENSIVE prompting...');
             const resp = await openai.chat.completions.create({
               model: 'gpt-4o-mini',
-              temperature: 0,
-              max_tokens: 1200,
+              temperature: 0.7,
+              max_tokens: 2000,
               messages: [
-                { role: 'system', content: sysPrompt },
-                { role: 'user', content: userPrompt }
+                { role: 'user', content: enhancedPrompt }
               ]
             });
             raw = resp.choices?.[0]?.message?.content || '';
@@ -236,14 +256,13 @@ Rules:
       }
     } else if (openai) {
       try {
-        console.log('🔍 [DEBUG] Attempting OpenAI API call (Anthropic not available)...');
+        console.log('🔍 [DEBUG] Attempting OpenAI API call with COMPREHENSIVE prompting (Anthropic not available)...');
         const resp = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
-          temperature: 0,
-          max_tokens: 1200,
+          temperature: 0.7,
+          max_tokens: 2000,
           messages: [
-            { role: 'system', content: sysPrompt },
-            { role: 'user', content: userPrompt }
+            { role: 'user', content: enhancedPrompt }
           ]
         });
         raw = resp.choices?.[0]?.message?.content || '';
@@ -264,39 +283,139 @@ Rules:
       }
     }
 
-    console.log('🔍 [DEBUG] Processing AI response...');
-    const json = this.extractJsonArray(raw);
+    console.log('🔍 [DEBUG] Processing COMPREHENSIVE AI response...');
+    console.log('🔍 [DEBUG] Raw response length:', raw.length);
+    console.log('🔍 [DEBUG] Raw response preview:', raw.substring(0, 200) + '...');
+
+    const json = this.extractStructuredJson(raw);
     if (!json) {
-      console.log('🔍 [DEBUG] Failed to extract JSON from response');
+      console.log('⚠️ JSON parsing failed: Response is not valid JSON format, attempting recovery...');
+
+      // Attempt basic repair for common issues
+      let repairedRaw = raw;
+
+      // Fix common trailing comma issues
+      repairedRaw = repairedRaw.replace(/,(\s*[}\]])/g, '$1');
+
+      // Try one more time with repaired JSON
+      const repairedJson = this.extractStructuredJson(repairedRaw);
+      if (!repairedJson) {
+        console.log('⚠️ JSON recovery failed: Could not repair response format');
+        return [];
+      }
+
+      console.log('✅ JSON recovery successful');
+      return this.processJsonResponse(repairedJson);
+    }
+
+    return this.processJsonResponse(json);
+  }
+
+  processJsonResponse(json) {
+    // Handle the new structured format from comprehensive AI
+    let itemsArray = [];
+    if (json.type === 'grocery_list' && json.items) {
+      itemsArray = json.items;
+      console.log('🔍 [DEBUG] Extracted', itemsArray.length, 'items from structured grocery_list response');
+    } else if (Array.isArray(json)) {
+      // Fallback for simple array format
+      itemsArray = json;
+      console.log('🔍 [DEBUG] Using fallback array format with', itemsArray.length, 'items');
+    } else {
+      console.log('🔍 [DEBUG] Unexpected JSON structure:', Object.keys(json));
       return [];
     }
-    
-    const processed = json
+
+    const processed = itemsArray
       .map(obj => this.normalizeAIProduct(obj))
       .filter(Boolean)
       .map(p => ({ ...p, confidence: Math.min(0.95, (p.confidence || 0.8)) }));
-      
-    console.log('🔍 [DEBUG] Successfully processed', processed.length, 'products from AI');
+
+    console.log('🔍 [DEBUG] Successfully processed', processed.length, 'products from COMPREHENSIVE AI');
     return processed;
   }
 
-  extractJsonArray(text) {
+  extractStructuredJson(text) {
     // Strip code fences and markdown artifacts
     let cleanText = text.replace(/```json\s*\n?/gi, '')
                         .replace(/```\s*\n?/gi, '')
                         .replace(/^\s*json\s*\n?/gi, '')
                         .trim();
-    
+
+    // Try to parse as direct JSON object
+    try {
+      const direct = JSON.parse(cleanText);
+      if (direct && typeof direct === 'object') return direct;
+    } catch (_) {}
+
+    // Attempt to find structured JSON object with better regex
+    const objectMatch = cleanText.match(/\{\s*"type"\s*:\s*"[^"]*"[\s\S]*\}/);
+    if (objectMatch) {
+      try {
+        console.log('🔍 [DEBUG] Attempting to parse structured JSON object...');
+        return JSON.parse(objectMatch[0]);
+      } catch (e) {
+        console.log('⚠️ JSON parsing failed: Structured object parse error -', e.message);
+      }
+    }
+
+    // Fallback: try to find any JSON object with balanced braces
+    let braceCount = 0;
+    let startIndex = -1;
+    let endIndex = -1;
+
+    for (let i = 0; i < cleanText.length; i++) {
+      if (cleanText[i] === '{') {
+        if (braceCount === 0) startIndex = i;
+        braceCount++;
+      } else if (cleanText[i] === '}') {
+        braceCount--;
+        if (braceCount === 0 && startIndex !== -1) {
+          endIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (startIndex !== -1 && endIndex !== -1) {
+      try {
+        const jsonCandidate = cleanText.substring(startIndex, endIndex + 1);
+        console.log('🔍 [DEBUG] Attempting to parse balanced JSON object...');
+        return JSON.parse(jsonCandidate);
+      } catch (e) {
+        console.log('⚠️ JSON parsing failed: Balanced object parse error -', e.message);
+      }
+    }
+
+    // Last resort: try to find JSON array for backward compatibility
+    const arrayMatch = cleanText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    if (arrayMatch) {
+      try {
+        return JSON.parse(arrayMatch[0]);
+      } catch (_) {}
+    }
+
+    return null;
+  }
+
+  extractJsonArray(text) {
+    // Deprecated - keeping for backward compatibility
+    // Strip code fences and markdown artifacts
+    let cleanText = text.replace(/```json\s*\n?/gi, '')
+                        .replace(/```\s*\n?/gi, '')
+                        .replace(/^\s*json\s*\n?/gi, '')
+                        .trim();
+
     // If content is pure JSON
     try {
       const direct = JSON.parse(cleanText);
       if (Array.isArray(direct)) return direct;
     } catch (_) {}
-    
+
     // Attempt to find first top-level JSON array
     const match = cleanText.match(/\[\s*\{[\s\S]*\}\s*\]/);
     if (!match) return null;
-    
+
     try {
       return JSON.parse(match[0]);
     } catch (_) { return null; }
@@ -304,7 +423,10 @@ Rules:
 
   normalizeAIProduct(obj) {
     if (!obj || typeof obj !== 'object') return null;
-    let { productName, quantity, unit, containerSize, category } = obj;
+    let { productName, name, quantity, unit, containerSize, category } = obj;
+
+    // Handle both 'name' (new format) and 'productName' (legacy format)
+    productName = productName || name;
     if (!productName || typeof productName !== 'string') return null;
     productName = productName.replace(/\s+/g, ' ').trim();
     quantity = (typeof quantity === 'number' && !Number.isNaN(quantity)) ? quantity : 1;

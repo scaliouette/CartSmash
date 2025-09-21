@@ -1620,9 +1620,9 @@ function GroceryListForm({
 
 
   const submitGroceryList = useCallback(async (listText, useAI = true) => {
-    // Mobile-friendly debounce: prevent submissions within 250ms (reduced for mobile responsiveness)
+    // Debounce: prevent submissions within 500ms
     const now = Date.now();
-    if (now - lastSubmitTime < 250) {
+    if (now - lastSubmitTime < 500) {
       console.log('🚫 Submission debounced - too fast');
       return;
     }
@@ -1662,24 +1662,21 @@ function GroceryListForm({
         });
       }
 
-    // Safety: prevent overlays from blocking UI if a request hangs (extended for mobile networks)
+    // Safety: prevent overlays from blocking UI if a request hangs
     const overlaySafety = setTimeout(() => {
-      console.log(`⚠️ [${sessionId}] Safety timeout triggered at 30s`);
+      console.log(`⚠️ [${sessionId}] Safety timeout triggered at 15s`);
       setIsLoading(false);
       setShowProgress(false);
       setWaitingForAIResponse(false);
-      setError('Request timed out. Please try again.');
-    }, 30000);
+    }, 15000);
 
     let progressInterval;
     try {
       progressInterval = setInterval(() => {
         setParsingProgress(prev => Math.min(prev + 10, 90));
       }, 200);
-
-      // Improved API URL resolution for mobile compatibility
-      const API_URL = process.env.REACT_APP_API_URL ||
-        (window.location.hostname === 'localhost' ? 'http://localhost:3048' : 'https://cartsmash-api.onrender.com');
+      
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3048';
       
       // STEP 1: Generate with AI (first click)
       if (useAI && selectedAI && !waitingForAIResponse) {
@@ -1720,12 +1717,10 @@ function GroceryListForm({
               errorText: errorText.substring(0, 200),
               elapsedMs: Math.round(performance.now() - aiStepStart)
             });
-            console.log(`🔄 [${sessionId}] AI failed, falling back to direct text processing`);
-            // Skip AI processing and go to direct parsing
-            setWaitingForAIResponse(false);
-            useAI = false;
-          } else {
-            const aiData = await aiResponse.json();
+            throw new Error(`AI request failed: ${aiResponse.status}`);
+          }
+
+          const aiData = await aiResponse.json();
           const aiStepDuration = Math.round(performance.now() - aiStepStart);
           console.log(`✅ [${sessionId}] AI Response received:`, {
             responseSize: JSON.stringify(aiData).length,
@@ -1863,13 +1858,22 @@ function GroceryListForm({
               expandTextarea();
             }, 50);
 
-            // Set flag to enable the unified parsing section below
+            // Set flag and continue to parsing step without requiring second click
             setWaitingForAIResponse(true);
-            console.log(`✅ [${sessionId}] AI processing complete, continuing to unified parsing`, {
+            console.log(`✅ [${sessionId}] AI processing complete, proceeding to cart parsing`, {
               elapsedMs: Math.round(performance.now() - startTime)
             });
 
-            // AI processing complete - will continue to unified parsing section below
+            // Continue to parsing step immediately using local control flag
+            const shouldParseToCarts = true;
+
+            // Jump directly to cart parsing section
+            if (shouldParseToCarts) {
+              const cartParseStart = performance.now();
+              console.log(`📦 [${sessionId}] STEP 2: Cart Parsing - Starting`);
+
+              // Use the processed grocery list text, not the original prompt
+              const currentListText = textareaRef.current?.value || inputText || listText;
               console.log(`📝 [${sessionId}] Text sources analysis:`, {
                 textareaLength: textareaRef.current?.value?.length || 0,
                 inputTextLength: inputText?.length || 0,
@@ -2017,9 +2021,8 @@ function GroceryListForm({
           return;
         }
       }
-      } // End of AI processing else block
 
-      // STEP 2: Parse text into cart items (automatic after AI or direct if no AI)
+      // STEP 2: Parse text into cart items (second click or manual text)
       if (waitingForAIResponse || !useAI) {
         const manualParseStart = performance.now();
         console.log(`📦 [${sessionId}] STEP 3: Manual Cart Parsing - Starting`, {
@@ -3993,10 +3996,9 @@ Return as JSON with this structure:
         alert('❌ Could not extract ingredients from this recipe. Please check the recipe format.');
         return;
       }
-
-      // Use the same API endpoint as regular grocery list parsing (mobile-compatible)
-      const API_URL = process.env.REACT_APP_API_URL ||
-        (window.location.hostname === 'localhost' ? 'http://localhost:3048' : 'https://cartsmash-api.onrender.com');
+      
+      // Use the same API endpoint as regular grocery list parsing
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3048';
       const response = await fetch(`${API_URL}/api/cart/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
