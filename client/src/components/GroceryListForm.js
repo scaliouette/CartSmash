@@ -2432,12 +2432,18 @@ Return as JSON with this structure:
       }
 
       const ingredients = Array.isArray(parsedData.ingredients) ? parsedData.ingredients : [];
-      const instructions = Array.isArray(parsedData.instructions) ? parsedData.instructions : [];
+      const rawInstructions = Array.isArray(parsedData.instructions) ? parsedData.instructions : [];
+
+      // Format instructions into numbered steps with descriptive labels
+      const instructionsText = rawInstructions.join(' ');
+      const formattedInstructions = formatInstructionsToNumberedSteps(instructionsText);
+      const finalInstructions = formattedInstructions ? formattedInstructions.split('\n\n').filter(step => step.trim()) : rawInstructions;
 
       console.log('📊 Parsed recipe data:', {
         ingredientCount: ingredients.length,
-        instructionCount: instructions.length,
-        firstInstructionLength: instructions[0]?.split(' ').length || 0
+        instructionCount: finalInstructions.length,
+        formatted: !!formattedInstructions,
+        firstInstructionLength: finalInstructions[0]?.split(' ').length || 0
       });
 
       // Accept all valid recipes without artificial restrictions
@@ -2445,11 +2451,11 @@ Return as JSON with this structure:
 
       console.log(`✅ AI successfully generated detailed recipe for "${recipeName}"`);
       console.log(`   - ${ingredients.length} ingredients`);
-      console.log(`   - ${instructions.length} detailed instructions`);
-      
+      console.log(`   - ${finalInstructions.length} detailed formatted instructions`);
+
       return {
         ingredients: ingredients,
-        instructions: instructions,
+        instructions: finalInstructions,
         success: true,
         source: 'ai_generated'
       };
