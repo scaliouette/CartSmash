@@ -581,6 +581,11 @@ function GroceryListForm({
   // eslint-disable-next-line no-unused-vars
   const [parsingProgress, setParsingProgress] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
+
+  // Enrichment status tracking
+  const [enrichmentProgress, setEnrichmentProgress] = useState(0);
+  const [enrichmentTotal, setEnrichmentTotal] = useState(0);
+  const [showEnrichmentStatus, setShowEnrichmentStatus] = useState(false);
   const [ingredientStyle, setIngredientStyle] = useState('basic');
   const [selectedAI] = useState('claude');
   const [mealPlanExpanded, setMealPlanExpanded] = useState(false);
@@ -742,6 +747,11 @@ function GroceryListForm({
         })),
         fullFirstItem: cartItems[0]
       });
+
+      // Initialize enrichment progress tracking
+      setEnrichmentTotal(cartItems.length);
+      setEnrichmentProgress(0);
+      setShowEnrichmentStatus(true);
 
       // Import the instacart service
       const { default: instacartService } = await import('../services/instacartService');
@@ -921,6 +931,23 @@ function GroceryListForm({
 
         enrichedItems.push(...batchResults);
 
+        // Update progress after each batch
+        const completedItems = i + batchSize;
+        const currentProgress = Math.min(completedItems, cartItems.length);
+        setEnrichmentProgress(currentProgress);
+
+        // Update cart with enriched items progressively
+        setCurrentCart(prevCart => {
+          const updatedCart = [...prevCart];
+          batchResults.forEach(enrichedItem => {
+            const index = updatedCart.findIndex(item => item.id === enrichedItem.id);
+            if (index !== -1) {
+              updatedCart[index] = enrichedItem;
+            }
+          });
+          return updatedCart;
+        });
+
         // Process next batch immediately for faster performance
         if (i + batchSize < cartItems.length) {
           console.log(`⚡ Processing next batch immediately...`);
@@ -955,6 +982,13 @@ function GroceryListForm({
 
       setCurrentCart(enrichedItems);
 
+      // Hide enrichment status after completion
+      setTimeout(() => {
+        setShowEnrichmentStatus(false);
+        setEnrichmentProgress(0);
+        setEnrichmentTotal(0);
+      }, 2000); // Show completion for 2 seconds
+
       console.log(`✅ setCurrentCart called successfully`);
       console.log(`🔍 ===== ENRICHMENT PIPELINE DEBUG COMPLETE =====`);
 
@@ -970,6 +1004,12 @@ function GroceryListForm({
         currentTime: new Date().toISOString()
       });
       console.error('🔍 ===== ENRICHMENT PIPELINE ERROR COMPLETE =====');
+
+      // Hide enrichment status on error
+      setShowEnrichmentStatus(false);
+      setEnrichmentProgress(0);
+      setEnrichmentTotal(0);
+
       // Don't throw - just continue with basic cart items
     }
   }, [currentUser, setCurrentCart]);
@@ -1945,13 +1985,6 @@ function GroceryListForm({
                 // Update the cart with properly structured items
                 setCurrentCart(fixedCart);
 
-                // CRITICAL: Enrich cart items with real Instacart product data
-                const enrichmentStart = performance.now();
-                console.log(`🔍 [${sessionId}] STEP 2.2: Enriching cart with Instacart data`);
-
-                // Note: enrichCartWithInstacartData is async but not awaited - runs in background
-                enrichCartWithInstacartData(fixedCart);
-
                 // Update parsing stats
                 if (data.stats) {
                   console.log(`📊 [${sessionId}] Setting parsing stats:`, {
@@ -1962,9 +1995,9 @@ function GroceryListForm({
                   setParsingStats(data.stats);
                 }
 
-                // Clear the waiting flag and UI state
+                // Clear the waiting flag and UI state IMMEDIATELY
                 const cleanupStart = performance.now();
-                console.log(`🧹 [${sessionId}] STEP 2.3: Cleaning up UI state`);
+                console.log(`🧹 [${sessionId}] STEP 2.2: Cleaning up UI state`);
 
                 setWaitingForAIResponse(false);
 
@@ -1993,6 +2026,16 @@ function GroceryListForm({
                 setIsLoading(false);
                 setShowProgress(false);
                 setParsingProgress(0);
+
+                // START ENRICHMENT IN BACKGROUND AFTER UI IS DISPLAYED
+                setTimeout(() => {
+                  const enrichmentStart = performance.now();
+                  console.log(`🔍 [${sessionId}] STEP 2.3: Starting background enrichment`);
+
+                  // Run enrichment completely in background without blocking UI
+                  enrichCartWithInstacartData(fixedCart);
+                }, 50); // Small delay to ensure UI renders first
+
                 return; // Success exit
 
               } else {
@@ -4816,6 +4859,58 @@ Or paste any grocery list directly!"
 
       {showResults && currentCart.length > 0 && (
         <>
+          {/* Enrichment Progress Indicator */}
+          {showEnrichmentStatus && (
+            <div style={{
+              margin: '10px 0',
+              padding: '15px',
+              backgroundColor: '#f8f9fa',
+              border: '1px solid #e9ecef',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                marginBottom: '8px'
+              }}>
+                <span style={{ fontSize: '18px' }}>🔍</span>
+                <span style={{
+                  fontWeight: '500',
+                  color: '#495057'
+                }}>
+                  Enriching with Instacart data...
+                </span>
+              </div>
+              <div style={{
+                width: '100%',
+                height: '8px',
+                backgroundColor: '#e9ecef',
+                borderRadius: '4px',
+                overflow: 'hidden',
+                marginBottom: '5px'
+              }}>
+                <div
+                  style={{
+                    width: `${enrichmentTotal > 0 ? (enrichmentProgress / enrichmentTotal) * 100 : 0}%`,
+                    height: '100%',
+                    backgroundColor: '#28a745',
+                    borderRadius: '4px',
+                    transition: 'width 0.3s ease'
+                  }}
+                />
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: '#6c757d'
+              }}>
+                {enrichmentProgress} of {enrichmentTotal} items processed
+              </div>
+            </div>
+          )}
+
           <InstacartShoppingList
             items={currentCart}
             onItemsChange={handleItemsChange}
