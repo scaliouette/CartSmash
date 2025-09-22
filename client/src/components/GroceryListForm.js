@@ -920,10 +920,9 @@ function GroceryListForm({
 
         enrichedItems.push(...batchResults);
 
-        // Small delay between batches to be respectful to the API
+        // Process next batch immediately for faster performance
         if (i + batchSize < cartItems.length) {
-          console.log(`⏸️ Pausing 500ms before next batch...`);
-          await new Promise(resolve => setTimeout(resolve, 500));
+          console.log(`⚡ Processing next batch immediately...`);
         }
       }
 

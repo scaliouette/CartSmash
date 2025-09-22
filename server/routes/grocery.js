@@ -3,8 +3,7 @@ const router = express.Router();
 
 // Mock AI parsing service
 async function parseGroceryListWithAI(text) {
-  // Simulate AI processing delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  // Process immediately for faster performance
   
   const lines = text.split('\n').filter(line => line.trim());
   const items = [];

@@ -570,9 +570,9 @@ router.post('/fetch-prices', async (req, res) => {
           console.log(`❌ No product found for ${itemName}`);
         }
         
-        // Rate limiting - small delay between requests
+        // Process requests immediately for faster performance
         if (items.length > 5) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // No delay needed - process immediately
         }
         
       } catch (productError) {

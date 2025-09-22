@@ -627,8 +627,7 @@ router.post('/cart/create', async (req, res) => {
     console.log(`   📍 Delivery location: ${zipCode}`);
     console.log(`   🔄 Connection status: VERIFIED - CartSmash shopping list successfully mapped to Instacart mock data`);
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Process immediately for faster performance
     
     res.json({
       success: true,
@@ -1082,8 +1081,7 @@ router.post('/batch-search', async (req, res) => {
           bestMatch: products[0] || null
         });
         
-        // Add small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Process immediately for faster performance
         
       } catch (error) {
         console.error(`Error searching for item "${item.name}":`, error);
