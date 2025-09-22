@@ -1993,11 +1993,9 @@ function GroceryListForm({
                   setParsingStats(data.stats);
                 }
 
-                // Clear the waiting flag and UI state IMMEDIATELY
+                // DO NOT clear waiting flag yet - wait for enrichment to complete
                 const cleanupStart = performance.now();
-                console.log(`🧹 [${sessionId}] STEP 2.2: Cleaning up UI state`);
-
-                setWaitingForAIResponse(false);
+                console.log(`🧹 [${sessionId}] STEP 2.2: Preparing for enrichment - keeping parsing active`);
 
                 // Clear the input for next use
                 setInputText('');
@@ -2023,14 +2021,15 @@ function GroceryListForm({
 
                 // Start enrichment immediately and wait for completion
                 enrichCartWithInstacartData(fixedCart).then(() => {
-                  // Clear loading states only after enrichment is complete
+                  // Clear ALL loading states only after enrichment is complete
                   clearInterval(progressInterval);
                   clearTimeout(overlaySafety);
                   setIsLoading(false);
                   setShowProgress(false);
                   setParsingProgress(0);
+                  setWaitingForAIResponse(false); // NOW clear the parsing indicator
 
-                  console.log(`✅ [${sessionId}] Complete workflow finished - UI ready`);
+                  console.log(`✅ [${sessionId}] Complete workflow finished - UI ready with full content`);
                 }).catch(() => {
                   // Clear loading states on error too
                   clearInterval(progressInterval);
@@ -2038,6 +2037,7 @@ function GroceryListForm({
                   setIsLoading(false);
                   setShowProgress(false);
                   setParsingProgress(0);
+                  setWaitingForAIResponse(false); // Clear on error too
                 });
 
                 return; // Success exit
