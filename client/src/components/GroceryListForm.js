@@ -3864,11 +3864,7 @@ Return as JSON with this structure:
           productName: name,
           quantity: parseFloat(quantity) || 1,
           unit: unit,
-<<<<<<< HEAD
-          price: 2.99,
-=======
           price: 2.99, // Default price for estimation
->>>>>>> ecceb52b5e762d81d5f0efcb5447541945d22282
           category: 'Recipe Ingredient',
           checked: true
         };
@@ -3883,10 +3879,7 @@ Return as JSON with this structure:
           price: ingredient.price || 2.99,
           category: ingredient.category || 'Recipe Ingredient',
           checked: true,
-<<<<<<< HEAD
-=======
           // Preserve additional ingredient properties
->>>>>>> ecceb52b5e762d81d5f0efcb5447541945d22282
           brandFilters: ingredient.brandFilters || [],
           healthFilters: ingredient.healthFilters || [],
           upcs: ingredient.upcs || [],
@@ -3894,10 +3887,7 @@ Return as JSON with this structure:
         };
       }
 
-<<<<<<< HEAD
-=======
       console.log(`📦 Recipe ingredient ${index + 1}:`, ingredientData);
->>>>>>> ecceb52b5e762d81d5f0efcb5447541945d22282
       return ingredientData;
     }) || [];
 
