@@ -267,6 +267,10 @@ class PersistenceService {
     return this.load(`session_${key}`, defaultValue);
   }
 
+  removeSessionData(key) {
+    this.remove(`session_${key}`);
+  }
+
   // Backup and restore
   exportData() {
     const keys = Object.keys(localStorage).filter(key => 
