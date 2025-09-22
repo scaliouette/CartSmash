@@ -1663,11 +1663,11 @@ function GroceryListForm({
 
     // Safety: prevent overlays from blocking UI if a request hangs
     const overlaySafety = setTimeout(() => {
-      console.log(`⚠️ [${sessionId}] Safety timeout triggered at 60s`);
+      console.log(`⚠️ [${sessionId}] Safety timeout triggered at 5s`);
       setIsLoading(false);
       setShowProgress(false);
       setWaitingForAIResponse(false);
-    }, 60000);
+    }, 5000);
 
     let progressInterval;
     try {
