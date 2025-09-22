@@ -982,12 +982,10 @@ function GroceryListForm({
 
       setCurrentCart(enrichedItems);
 
-      // Hide enrichment status after completion
-      setTimeout(() => {
-        setShowEnrichmentStatus(false);
-        setEnrichmentProgress(0);
-        setEnrichmentTotal(0);
-      }, 2000); // Show completion for 2 seconds
+      // Hide enrichment status after completion (no delay - main loading will handle timing)
+      setShowEnrichmentStatus(false);
+      setEnrichmentProgress(0);
+      setEnrichmentTotal(0);
 
       console.log(`✅ setCurrentCart called successfully`);
       console.log(`🔍 ===== ENRICHMENT PIPELINE DEBUG COMPLETE =====`);
@@ -2020,21 +2018,27 @@ function GroceryListForm({
                   avgTimePerItem: Math.round(totalWorkflowDuration / (fixedCart.length || 1))
                 });
 
-                // Clear loading states and return success
-                clearInterval(progressInterval);
-                clearTimeout(overlaySafety);
-                setIsLoading(false);
-                setShowProgress(false);
-                setParsingProgress(0);
+                // KEEP LOADING STATE ACTIVE - will be cleared after enrichment completes
+                console.log(`🔍 [${sessionId}] STEP 2.3: Starting enrichment - keeping loading state active`);
 
-                // START ENRICHMENT IN BACKGROUND AFTER UI IS DISPLAYED
-                setTimeout(() => {
-                  const enrichmentStart = performance.now();
-                  console.log(`🔍 [${sessionId}] STEP 2.3: Starting background enrichment`);
+                // Start enrichment immediately and wait for completion
+                enrichCartWithInstacartData(fixedCart).then(() => {
+                  // Clear loading states only after enrichment is complete
+                  clearInterval(progressInterval);
+                  clearTimeout(overlaySafety);
+                  setIsLoading(false);
+                  setShowProgress(false);
+                  setParsingProgress(0);
 
-                  // Run enrichment completely in background without blocking UI
-                  enrichCartWithInstacartData(fixedCart);
-                }, 50); // Small delay to ensure UI renders first
+                  console.log(`✅ [${sessionId}] Complete workflow finished - UI ready`);
+                }).catch(() => {
+                  // Clear loading states on error too
+                  clearInterval(progressInterval);
+                  clearTimeout(overlaySafety);
+                  setIsLoading(false);
+                  setShowProgress(false);
+                  setParsingProgress(0);
+                });
 
                 return; // Success exit
 
@@ -4413,7 +4417,7 @@ Return as JSON with this structure:
         {(isLoading || showProgress) && (
           <MixingBowlLoader text={
             waitingForAIResponse ? "Organizing your list..." :
-            showProgress ? "Parsing grocery list..." :
+            showProgress ? "Creating your complete shopping list with recipes and prices..." :
             "Processing your list..."
           } />
         )}
