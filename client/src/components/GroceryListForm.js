@@ -21,6 +21,7 @@ import { useGroceryListAutoSave } from '../hooks/useAutoSave';
 import { unified as unifiedRecipeService } from '../services/unifiedRecipeService';
 import persistenceService from '../services/persistenceService';
 import { generateAIMealPlan } from '../services/aiMealPlanService';
+import { formatInstructionsToNumberedSteps } from '../utils/recipeFormatter';
 
 // MixingBowlLoader Component
 const MixingBowlLoader = ({ text = "CARTSMASH AI is preparing your meal plan..." }) => {
@@ -3631,11 +3632,15 @@ Return as JSON with this structure:
 
     console.log(`✨ [RECIPE DEBUG] Final displayIngredients (${displayIngredients.length} items):`, displayIngredients);
     
-    // Handle both string arrays and object arrays for instructions  
-    const displayInstructions = instructions.map(inst => {
+    // Handle both string arrays and object arrays for instructions
+    const rawInstructions = instructions.map(inst => {
       const instruction = typeof inst === 'string' ? inst : inst.instruction || inst.step || inst;
       return cleanMarkdown(instruction);
     });
+
+    // Format instructions into numbered steps with descriptive labels
+    const formattedInstructionsText = formatInstructionsToNumberedSteps(rawInstructions.join(' '));
+    const displayInstructions = formattedInstructionsText.split('\n\n').filter(step => step.trim());
     
     // No artificial limitations on recipe instructions - display them as provided
     
