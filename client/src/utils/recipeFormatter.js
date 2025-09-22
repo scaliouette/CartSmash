@@ -45,14 +45,21 @@ function isAlreadyNumbered(instructions) {
  * @returns {Array<string>}
  */
 function parseInstructionSteps(instructions) {
+  // First, clean up double periods and normalize spacing
+  let cleanInstructions = instructions
+    .replace(/\.{2,}/g, '.') // Replace multiple periods with single period
+    .replace(/\s+/g, ' ')     // Normalize multiple spaces to single space
+    .trim();
+
   // Split by sentence-ending patterns that indicate step boundaries
   const stepSeparators = [
     /\.\s+(?=[A-Z])/g,  // Period followed by space and capital letter
     /\.\s*\n/g,         // Period followed by newline
     /\n\s*(?=[A-Z])/g,  // Newline followed by capital letter
+    /\.\s+(?=Add|Mix|Stir|Cook|Heat|Place|Serve|Season|Chop|Dice|Slice|Combine|Pour|Bring|Remove|Cover|Uncover|Bake|Preheat|While)/g, // Period before cooking verbs
   ];
 
-  let steps = [instructions];
+  let steps = [cleanInstructions];
 
   // Apply each separator pattern
   for (const separator of stepSeparators) {
