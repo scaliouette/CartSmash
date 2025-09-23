@@ -69,6 +69,133 @@ function cacheRecipeUrl(cacheKey, result) {
   return cacheEntry;
 }
 
+// Parse real products from Instacart recipe page
+async function parseRealProductsFromRecipe(recipeUrl, query, originalItem, retailerId) {
+  console.log(`🔍 Attempting to parse products from recipe URL: ${recipeUrl}`);
+
+  try {
+    // Fetch the recipe page HTML
+    const axios = require('axios');
+    const response = await axios.get(recipeUrl, {
+      headers: {
+        'User-Agent': 'CartSmash/1.0 (https://cartsmash.com)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      },
+      timeout: 10000
+    });
+
+    console.log(`📄 Recipe page fetched, size: ${response.data.length} chars`);
+
+    // Parse HTML to extract product data
+    const cheerio = require('cheerio');
+    const $ = cheerio.load(response.data);
+
+    // Look for product data in various formats
+    const products = [];
+
+    // Method 1: Look for JSON-LD structured data
+    $('script[type="application/ld+json"]').each((i, el) => {
+      try {
+        const jsonData = JSON.parse($(el).html());
+        if (jsonData && jsonData.recipeIngredient) {
+          jsonData.recipeIngredient.forEach(ingredient => {
+            if (typeof ingredient === 'object' && ingredient.name) {
+              products.push({
+                id: `recipe_${Date.now()}_${i}`,
+                name: ingredient.name,
+                price: ingredient.price || 0,
+                brand: ingredient.brand || 'Instacart',
+                size: ingredient.size || originalItem?.quantity || '1 unit',
+                image_url: ingredient.image || null,
+                availability: 'in_stock',
+                confidence: calculateMatchConfidence(query, ingredient.name),
+                retailer_id: retailerId,
+                description: `Real Instacart product: ${ingredient.name}`,
+                _metadata: {
+                  isRealApiResponse: true,
+                  dataSource: 'instacart_recipe_page',
+                  recipeUrl: recipeUrl,
+                  generated_at: new Date().toISOString()
+                }
+              });
+            }
+          });
+        }
+      } catch (e) {
+        console.log('⚠️ Error parsing JSON-LD:', e.message);
+      }
+    });
+
+    // Method 2: Look for product elements in the page
+    $('.product-item, .ingredient-item, [data-product-id]').each((i, el) => {
+      const $el = $(el);
+      const name = $el.find('.product-name, .name, h3, h4').text().trim() ||
+                   $el.attr('data-product-name') ||
+                   $el.text().trim();
+
+      if (name && name.length > 2) {
+        const price = parseFloat($el.find('.price, .cost').text().replace(/[^0-9.]/g, '')) || 0;
+        const brand = $el.find('.brand').text().trim() || 'Instacart';
+        const image = $el.find('img').attr('src') || null;
+
+        products.push({
+          id: `recipe_parsed_${Date.now()}_${i}`,
+          name: name,
+          price: price,
+          brand: brand,
+          size: originalItem?.quantity || '1 unit',
+          image_url: image,
+          availability: 'in_stock',
+          confidence: calculateMatchConfidence(query, name),
+          retailer_id: retailerId,
+          description: `Real Instacart product: ${name}`,
+          _metadata: {
+            isRealApiResponse: true,
+            dataSource: 'instacart_recipe_page_parsed',
+            recipeUrl: recipeUrl,
+            generated_at: new Date().toISOString()
+          }
+        });
+      }
+    });
+
+    // Filter and score products based on relevance to search query
+    const relevantProducts = products
+      .filter(product => product.confidence > 0.3)
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 1); // Return only the best match
+
+    console.log(`✅ Parsed ${products.length} total products, ${relevantProducts.length} relevant matches`);
+
+    if (relevantProducts.length > 0) {
+      return relevantProducts;
+    } else {
+      throw new Error('No relevant products found in recipe page');
+    }
+
+  } catch (error) {
+    console.error('❌ Error parsing recipe page:', error.message);
+    throw error;
+  }
+}
+
+// Calculate match confidence between search query and product name
+function calculateMatchConfidence(query, productName) {
+  if (!query || !productName) return 0;
+
+  const queryWords = query.toLowerCase().split(/\s+/);
+  const productWords = productName.toLowerCase().split(/\s+/);
+
+  let matches = 0;
+  queryWords.forEach(qWord => {
+    if (productWords.some(pWord => pWord.includes(qWord) || qWord.includes(pWord))) {
+      matches++;
+    }
+  });
+
+  return Math.min(0.95, (matches / queryWords.length) * 0.8 + 0.2);
+}
+
 // Helper function to make authenticated Instacart API calls with updated 2025 format
 const instacartApiCall = async (endpoint, method = 'GET', data = null, apiKey = null) => {
   try {
@@ -374,13 +501,9 @@ router.post('/search', async (req, res) => {
           console.log('✅ Preview recipe created, extracting product data...');
           console.log('🔗 Recipe URL:', recipeResponse.products_link_url);
 
-          // For now, we'll create realistic products based on the successful API call
-          // In a future enhancement, we could parse the recipe page to extract real product data
-          console.log('🏭 Generating enhanced products based on recipe API success...');
-          const realProducts = generateEnhancedProducts(query, originalItem, retailerId, {
-            isRealApiResponse: true,
-            recipeUrl: recipeResponse.products_link_url
-          });
+          // Parse real product data from the recipe page
+          console.log('🏭 Parsing real product data from recipe page...');
+          const realProducts = await parseRealProductsFromRecipe(recipeResponse.products_link_url, query, originalItem, retailerId);
 
           console.log(`📦 GENERATED PRODUCTS:`, {
             count: realProducts.length,
@@ -452,7 +575,7 @@ router.post('/search', async (req, res) => {
             brand: product.brand || product.brand_name,
             image_url: product.image_url || product.images?.[0]?.url,
             availability: product.availability || 'available',
-            confidence: calculateConfidence(originalItem, product),
+            confidence: calculateMatchConfidence(query, product.name || product.display_name),
             retailer_id: retailerId,
             unit_price: product.unit_price,
             description: product.description
@@ -475,12 +598,15 @@ router.post('/search', async (req, res) => {
       }
     }
     
-    // Enhanced mock search results for development
-    const mockProducts = generateEnhancedProducts(query, originalItem, retailerId, { isRealApiResponse: false });
-    res.json({ 
-      success: true, 
-      products: mockProducts,
-      source: 'enhanced_mock'
+    // No real products found - return error instead of mock data
+    console.log('❌ All API methods failed - no real products available');
+    res.status(404).json({
+      success: false,
+      error: 'No products found',
+      message: `No real products found for "${query}". Please try a different search term.`,
+      query: query,
+      retailer: retailerId,
+      source: 'api_exhausted'
     });
   } catch (error) {
     console.error('Error searching products:', error);
@@ -805,22 +931,19 @@ function calculateConfidence(originalItem, instacartProduct) {
 // Helper function to generate mock products for development
 // Enhanced product generator that can create products based on real API responses or improved mock data
 function generateEnhancedProducts(query, originalItem, retailerId, options = {}) {
-  const { isRealApiResponse = false, recipeUrl = null } = options;
-  
-  if (isRealApiResponse && recipeUrl) {
-    console.log(`🔗 Generating products based on real Instacart recipe: ${recipeUrl}`);
-  }
-  
-  return generateMockProducts(query, originalItem, retailerId, { 
-    isEnhanced: true, 
-    recipeUrl,
-    isRealApiResponse 
-  });
+  console.log(`🚫 DISABLED: Mock data generation is no longer allowed for: "${query}"`);
+  console.log(`🚫 This function should not be called. Use real API data only.`);
+
+  // Return empty array instead of mock data
+  return [];
 }
 
 function generateMockProducts(query, originalItem, retailerId, options = {}) {
-  const queryLower = query.toLowerCase();
-  const { isEnhanced = false, recipeUrl = null, isRealApiResponse = false } = options;
+  console.log(`🚫 DISABLED: Mock products generation blocked for: "${query}"`);
+  console.log(`🚫 All mock data functions are disabled. Use real API responses only.`);
+
+  // Return empty array to prevent mock data generation
+  return [];
   
   // Common product mappings with realistic product images
   const productTemplates = {
@@ -1069,14 +1192,15 @@ router.post('/batch-search', async (req, res) => {
               sku: product.sku || product.retailer_sku,
               name: product.name || product.display_name,
               price: product.price || product.pricing?.price || 0,
-              confidence: calculateConfidence(item, product)
+              confidence: calculateMatchConfidence(item.name || item.query, product.name || product.display_name)
             }));
           } catch (apiError) {
-            console.log(`⚠️ API search failed for "${item.name}", using mock data`);
-            products = generateMockProducts(item.name, item, retailerId).slice(0, 3);
+            console.log(`❌ API search failed for "${item.name}", no real products available`);
+            products = []; // Return empty array instead of mock data
           }
         } else {
-          products = generateMockProducts(item.name, item, retailerId).slice(0, 3);
+          console.log(`❌ API keys not available for "${item.name}", no products available`);
+          products = []; // Return empty array instead of mock data
         }
         
         results.push({
