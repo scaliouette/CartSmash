@@ -2464,30 +2464,39 @@ router.post('/direct-product-search', async (req, res) => {
           console.log(`Catalog search failed for "${searchQuery}":`, catalogError.message);
         }
 
-        // Method 2: Try store items search as backup
+        // BACKUP METHOD REMOVED: /stores/{retailer}/items endpoint doesn't exist
+        // Instead, if no products found, use the main search endpoint's proven working approach
         if (products.length === 0) {
+          console.log(`⚠️ No products found for "${searchQuery}" via recipe method, trying main search approach...`);
           try {
-            const storeEndpoint = `/stores/${retailer_key}/items?q=${encodeURIComponent(searchQuery)}&postal_code=${postal_code}`;
-            const storeResponse = await instacartApiCall(storeEndpoint);
+            // Use the same approach as the working /search endpoint
+            const searchItem = {
+              name: searchQuery,
+              quantity: 1,
+              unit: 'each'
+            };
 
-            if (storeResponse?.items) {
-              products = storeResponse.items.map(item => ({
-                id: item.id,
-                name: item.name,
-                brand: item.brand?.name,
-                price: parseFloat(item.price?.amount || 0),
-                image_url: item.image_url,
-                package_size: item.size || item.package_size,
-                unit: item.unit || extractUnit(item.size),
-                quantity: extractQuantity(item.quantity) || 1,
-                availability: item.availability || 'in_stock',
-                upc: item.upc,
-                confidence: calculateMatchConfidence(searchQuery, item.name),
-                source: 'store_api'
-              }));
+            // Create recipe and parse for products (proven working approach)
+            const quickRecipe = await createRecipeFromCartItems([searchItem], retailer_key);
+
+            if (quickRecipe.success && quickRecipe.instacartUrl) {
+              const parsedProducts = await parseRecipePageWithDynamicContent(
+                quickRecipe.instacartUrl,
+                searchQuery,
+                searchItem
+              );
+
+              if (parsedProducts.length > 0) {
+                products = parsedProducts.map(product => ({
+                  ...product,
+                  confidence: calculateMatchConfidence(searchQuery, product.name),
+                  source: 'main_search_fallback'
+                }));
+                console.log(`✅ Found ${products.length} products using main search fallback`);
+              }
             }
-          } catch (storeError) {
-            console.log(`Store search failed for "${searchQuery}":`, storeError.message);
+          } catch (fallbackError) {
+            console.log(`Main search fallback failed for "${searchQuery}":`, fallbackError.message);
           }
         }
 

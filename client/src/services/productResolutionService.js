@@ -508,7 +508,7 @@ class ProductResolutionService {
 
   // AI-Enhanced Product Matching
   async getAIEnhancedMatch(itemDetails, candidates) {
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3048';
+    const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
     
     try {
       console.log('🤖 Requesting AI product matching for:', itemDetails.cleanName);

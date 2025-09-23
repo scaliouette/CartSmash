@@ -2,8 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import InstacartShoppingList from './InstacartShoppingList';
-// eslint-disable-next-line no-unused-vars
-import SmartAIAssistant from './SmartAIAssistant';
+// AI Assistant functionality now handled by EnhancedAIHelper
 import ProductValidator from './ProductValidator';
 import InstacartCheckoutUnified from './InstacartCheckoutUnified';
 import InstacartProductMatcher from './InstacartProductMatcher';
@@ -2159,7 +2158,7 @@ Return as JSON with this structure:
         setParsingProgress(prev => Math.min(prev + 10, 90));
       }, 200);
       
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3048';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       
       // STEP 1: Generate with AI (first click)
       if (useAI && selectedAI && !waitingForAIResponse) {
@@ -3916,7 +3915,7 @@ Return as JSON with this structure:
       }
       
       // Use the same API endpoint as regular grocery list parsing
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3048';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${API_URL}/api/cart/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

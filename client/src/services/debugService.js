@@ -249,7 +249,7 @@ class DebugService {
 
   async sendToServer(type, entry) {
     try {
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3074';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       await fetch(`${API_URL}/api/debug/${type}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

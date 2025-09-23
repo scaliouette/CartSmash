@@ -59,7 +59,7 @@ class InstacartService {
     
     try {
       // Always try backend API first (regardless of client API key configuration)
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3059';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       console.log('📡 Calling backend retailer API:', `${API_URL}/api/instacart/retailers?postalCode=${zipCode}`);
       
       const response = await fetch(`${API_URL}/api/instacart/retailers?postalCode=${zipCode}&countryCode=US`, {
@@ -176,18 +176,18 @@ class InstacartService {
   // Search for products in Instacart catalog (keeping existing method)
   async searchProducts(query, retailerId = null) {
     console.log('🔍 InstacartService: Searching for products:', query);
-    
+
     try {
-      // Always try backend API first (regardless of client API key configuration)
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3059';
+      // Always try backend API first (backend handles all Instacart API complexities)
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       console.log('📡 Calling backend search API:', `${API_URL}/api/instacart/search`);
-      
+
       const requestBody = {
         query: query,
         retailerId: retailerId,
         originalItem: { productName: query } // Add context for better matching
       };
-      
+
       const response = await fetch(`${API_URL}/api/instacart/search`, {
         method: 'POST',
         headers: {
@@ -198,25 +198,45 @@ class InstacartService {
       });
 
       if (!response.ok) {
+        console.error(`❌ Backend API error: ${response.status} ${response.statusText}`);
         throw new Error(`Backend API error: ${response.status}`);
       }
 
       const data = await response.json();
       console.log('✅ Backend search API response:', data);
-      
-      if (data.success && data.products) {
+
+      if (data.success && data.products && data.products.length > 0) {
         console.log(`🔍 Found ${data.products.length} products with real Instacart data`);
-        // Transform to expected format with enhanced image support
-        const products = data.products.map(product => ({
-          ...product,
-          image_url: product.image || product.image_url, // Support both field names
-          success: true
-        }));
-        
+
+        // Transform to expected format with enhanced validation
+        const products = data.products.map(product => {
+          const transformedProduct = {
+            ...product,
+            // Ensure image field consistency
+            image_url: product.image || product.image_url || product.imageUrl,
+            imageUrl: product.image || product.image_url || product.imageUrl,
+            image: product.image || product.image_url || product.imageUrl,
+            // Ensure price is numeric
+            price: parseFloat(product.price) || 0,
+            // Mark as successfully enriched
+            enriched: true,
+            source: 'instacart_api'
+          };
+
+          console.log(`✅ Transformed product: ${product.name || product.productName}`, {
+            price: transformedProduct.price,
+            hasImage: !!transformedProduct.image,
+            enriched: transformedProduct.enriched
+          });
+
+          return transformedProduct;
+        });
+
         return {
           success: true,
           products: products,
-          results: products // Legacy compatibility
+          results: products, // Legacy compatibility
+          source: 'backend_api'
         };
       } else {
         throw new Error('Invalid response format from backend');
@@ -314,7 +334,7 @@ class InstacartService {
     })));
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3086';
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
 
       // Add timeout controller for API calls
       const controller = new AbortController();
@@ -414,10 +434,10 @@ class InstacartService {
       price: item.price,
       hasRequiredFields: !!(item.product_id && item.retailer_sku && item.quantity && item.name)
     })));
-    console.log(`🔧 API URL: ${process.env.REACT_APP_API_URL || 'http://localhost:3048'}`);
+    console.log(`🔧 API URL: ${process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com'}`);
     
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3048';
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       
       // Add timeout controller for API calls
       const controller = new AbortController();

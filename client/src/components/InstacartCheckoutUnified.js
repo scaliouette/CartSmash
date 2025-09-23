@@ -6,7 +6,7 @@ import { ChevronRight, Check, Store, CheckCircle, X, ArrowLeft } from 'lucide-re
 import instacartCheckoutService from '../services/instacartCheckoutService';
 import instacartShoppingListService from '../services/instacartShoppingListService';
 import { logger, createTimer, conditionalLog } from '../utils/debugLogger';
-import './InstacartCheckoutEnhanced.css';
+// CSS styles now integrated with main application styles
 
 const InstacartCheckoutUnified = ({
   items = [],
