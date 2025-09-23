@@ -338,7 +338,7 @@ class InstacartShoppingListService {
 
       console.log(`🔍 Enhanced product search: "${query}" at ${retailerId}`);
 
-      const response = await fetch(`${this.baseUrl}/api/instacart/search/enhanced`, {
+      const response = await fetch(`${this.baseUrl}/api/instacart/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -385,13 +385,10 @@ class InstacartShoppingListService {
    */
   async getUserPreferences(userId) {
     try {
-      const response = await fetch(`${this.baseUrl}/api/user/${userId}/shopping-preferences`);
+      // TODO: Implement user preferences endpoint or integrate with existing user service
+      console.log('ℹ️ User preferences endpoint not yet implemented, using defaults');
 
-      if (response.ok) {
-        return await response.json();
-      }
-
-      // Return default preferences if user preferences not found
+      // Return default preferences for now
       return this.getDefaultPreferences();
 
     } catch (error) {

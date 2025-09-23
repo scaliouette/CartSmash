@@ -543,7 +543,8 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       });
       
       // Use enhanced server-side shopping list API with recipe API fallback
-      const { createInstacartShoppingList, createInstacartRecipePage } = await import('../services/aiMealPlanService');
+      const instacartShoppingListService = await import('../services/instacartShoppingListService');
+      const { createInstacartRecipePage } = await import('../services/aiMealPlanService');
       
       const currentDate = new Date().toLocaleDateString('en-US', {
         year: 'numeric',
@@ -612,7 +613,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       let result;
       try {
         console.log('🛒 Attempting shopping list API first...');
-        result = await createInstacartShoppingList(shoppingListData);
+        result = await instacartShoppingListService.default.createEnhancedShoppingList(shoppingListData);
         console.log('✅ Shopping list API succeeded:', result);
       } catch (shoppingListError) {
         console.log('⚠️ Shopping list API failed, trying recipe API fallback...', shoppingListError.message);

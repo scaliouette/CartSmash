@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import imageService, { formatProductName } from '../utils/imageService';
 import instacartService from '../services/instacartService';
+import instacartShoppingListService from '../services/instacartShoppingListService';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import ShoppingListItem from './ShoppingListItem';
 import { logger, conditionalLog, createTimer } from '../utils/debugLogger';
@@ -51,6 +52,7 @@ const InstacartShoppingList = ({
   const [selectedRetailerId, setSelectedRetailerId] = useState(selectedRetailer);
   const [loadingRetailers, setLoadingRetailers] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [creatingShoppingList, setCreatingShoppingList] = useState(false);
 
   // State initialization (debug logging only when needed)
   logger.trace(componentId, 'stateInit', 'Initial state set', {
@@ -546,6 +548,59 @@ const InstacartShoppingList = ({
     return result;
   }, [total, retailers.length, selectedRetailerId]);
 
+  // Handle shopping list creation
+  const handleCreateShoppingList = useCallback(async () => {
+    if (localItems.length === 0) {
+      alert('Please add items to your cart before creating a shopping list.');
+      return;
+    }
+
+    setCreatingShoppingList(true);
+
+    try {
+      console.log('🛒 Creating enhanced shopping list with items:', localItems.length);
+
+      const listData = {
+        title: 'My CartSmash Shopping List',
+        items: localItems.map(item => ({
+          name: item.productName || item.name,
+          productName: item.productName || item.name,
+          quantity: item.quantity || 1,
+          unit: item.unit || 'each',
+          category: item.category || 'General',
+          brand: item.brand || null,
+          upc: item.upc || null,
+          healthFilters: item.healthFilters || [],
+          brandFilters: item.brandFilters || []
+        })),
+        instructions: ['Shopping list created with CartSmash'],
+        imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&h=500&fit=crop',
+        preferences: {
+          preferredBrands: [],
+          dietaryRestrictions: [],
+          measurementPreferences: 'imperial'
+        }
+      };
+
+      const result = await instacartShoppingListService.createEnhancedShoppingList(listData, {
+        partnerUrl: 'https://cartsmash.com',
+        expiresIn: 365
+      });
+
+      if (result.success && result.instacartUrl) {
+        console.log('✅ Shopping list created successfully:', result.instacartUrl);
+        alert(`✅ Shopping list created! Opening Instacart...`);
+        window.open(result.instacartUrl, '_blank');
+      } else {
+        throw new Error(result.error || 'Failed to create shopping list');
+      }
+    } catch (error) {
+      console.error('❌ Error creating shopping list:', error);
+      alert(`❌ Failed to create shopping list: ${error.message}`);
+    } finally {
+      setCreatingShoppingList(false);
+    }
+  }, [localItems]);
 
   // Handle direct quantity input
   const setQuantity = (itemId, value) => {
@@ -1140,6 +1195,22 @@ const InstacartShoppingList = ({
                   🗑️
                 </button>
               )}
+
+              <button
+                onClick={handleCreateShoppingList}
+                disabled={creatingShoppingList || localItems.length === 0}
+                style={{
+                  ...filterBarStyles.iconBtn,
+                  backgroundColor: creatingShoppingList ? '#d1d5db' : '#00B894',
+                  color: 'white',
+                  border: 'none',
+                  opacity: localItems.length === 0 ? 0.5 : 1,
+                  cursor: localItems.length === 0 ? 'not-allowed' : 'pointer'
+                }}
+                title={creatingShoppingList ? "Creating shopping list..." : "Create Shopping List on Instacart"}
+              >
+                {creatingShoppingList ? '⏳' : '🛒'}
+              </button>
 
               <button
                 onClick={() => onValidateItems && onValidateItems(filteredItems)}
