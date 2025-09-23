@@ -730,7 +730,7 @@ function GroceryListForm({
   // Enrich cart items with real Instacart product data (prices, images, etc.)
   const enrichCartWithInstacartData = useCallback(async (cartItems) => {
     try {
-      console.log(`🔍 ===== STARTING ENRICHMENT PIPELINE DEBUG =====`);
+      // Starting enrichment pipeline
       console.log(`📊 ENRICHMENT INPUT - Cart Items to Process:`, {
         itemCount: cartItems.length,
         sampleItems: cartItems.slice(0, 3).map((item, index) => ({
@@ -775,7 +775,7 @@ function GroceryListForm({
         const batchNumber = Math.floor(i/batchSize) + 1;
         const totalBatches = Math.ceil(cartItems.length/batchSize);
 
-        console.log(`🔍 ===== PROCESSING BATCH ${batchNumber}/${totalBatches} =====`);
+        // Processing batch
         console.log(`📦 Batch items:`, batch.map(item => ({
           id: item.id,
           productName: item.productName || item.name,
@@ -787,7 +787,7 @@ function GroceryListForm({
           const globalIndex = i + batchIndex;
           const searchQuery = item.productName || item.name;
 
-          console.log(`🔍 ===== ITEM ${globalIndex + 1}/${cartItems.length}: "${searchQuery}" =====`);
+          // Processing item
           console.log(`📊 Item Debug Info:`, {
             originalItem: {
               id: item.id,
@@ -1151,7 +1151,7 @@ function GroceryListForm({
 
   // 🔍 DEBUG: Monitor all currentCart state changes
   useEffect(() => {
-    console.log(`🔍 ===== CURRENTCART STATE CHANGE DEBUG =====`);
+    // Current cart state change
     console.log(`📊 CURRENTCART UPDATE DETECTED:`, {
       cartExists: !!currentCart,
       itemCount: currentCart?.length || 0,
@@ -1187,7 +1187,7 @@ function GroceryListForm({
       console.log(`⚠️ EMPTY OR NULL CART - InstacartShoppingList will receive empty array`);
     }
 
-    console.log(`🔍 ===== CURRENTCART DEBUG COMPLETE =====`);
+    // Current cart debug complete
   }, [currentCart]);
 
   // Auto-save recipes when they change - WITH VALIDATION

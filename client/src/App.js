@@ -34,14 +34,14 @@ console.groupEnd();
 
 // Main App Component
 function App() {
-  console.log('🚀 App component initializing...');
+  // App component initializing
   
   const [currentView, setCurrentView] = useState('home');
 
   // Make setCurrentView globally available for testing
   useEffect(() => {
     window.setCurrentView = setCurrentView;
-    console.log('🔧 Test utilities loaded - use setCurrentView("enhanced-checkout") to test enhanced checkout');
+    // Test utilities loaded
   }, [setCurrentView]);
   
   // CENTRALIZED STATE MANAGEMENT
@@ -93,7 +93,7 @@ function AppContent({
   isLoading, setIsLoading,
   syncStatus, setSyncStatus
 }) {
-  console.log('🔧 AppContent component rendering, currentView:', currentView);
+  // AppContent component rendering
   
   const { currentUser } = useAuth();
   console.log('👤 Current user state:', currentUser ? 'authenticated' : 'not authenticated');
