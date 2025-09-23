@@ -22,8 +22,8 @@ function ParsingAnalyticsDashboard({ onClose }) {
     } catch (error) {
       console.error('Failed to load analytics:', error);
       setError(error.message);
-      // Always provide mock data as fallback
-      setAnalytics(generateMockAnalytics());
+      // NO MOCK DATA FALLBACK - display error instead
+      setAnalytics(null);
     } finally {
       setLoading(false);
     }
@@ -33,66 +33,11 @@ function ParsingAnalyticsDashboard({ onClose }) {
     loadAnalytics();
   }, [timeRange, loadAnalytics]);
 
-  const generateMockAnalytics = () => ({
-    overview: {
-      totalLists: 1247,
-      totalItems: 8934,
-      accuracyRate: 89.4,
-      avgConfidence: 0.847,
-      topCategory: 'produce',
-      improvementTrend: '+12.3%'
-    },
-    parsing: {
-      intelligentParsing: {
-        used: 1156,
-        accuracy: 91.2,
-        avgProcessingTime: 1.8,
-        filteringEfficiency: '87.3%'
-      },
-      fallbackParsing: {
-        used: 91,
-        accuracy: 67.8,
-        avgProcessingTime: 0.3,
-        filteringEfficiency: '43.2%'
-      }
-    },
-    confidence: {
-      high: { count: 6723, percentage: 75.3 },
-      medium: { count: 1587, percentage: 17.8 },
-      low: { count: 624, percentage: 6.9 }
-    },
-    categories: {
-      produce: { count: 2145, accuracy: 94.2 },
-      dairy: { count: 1567, accuracy: 92.8 },
-      meat: { count: 1234, accuracy: 88.9 },
-      pantry: { count: 2089, accuracy: 87.3 },
-      beverages: { count: 892, accuracy: 85.1 },
-      other: { count: 1007, accuracy: 79.4 }
-    },
-    userFeedback: {
-      accepted: 7834,
-      edited: 645,
-      rejected: 455,
-      satisfactionScore: 4.6
-    },
-    performance: {
-      avgResponseTime: 2.1,
-      apiUptime: 99.7,
-      errorRate: 0.8,
-      cachehitRate: 67.3
-    },
-    trends: {
-      daily: [
-        { date: '2024-01-15', accuracy: 87.2, items: 234 },
-        { date: '2024-01-16', accuracy: 88.1, items: 267 },
-        { date: '2024-01-17', accuracy: 89.4, items: 289 },
-        { date: '2024-01-18', accuracy: 90.1, items: 245 },
-        { date: '2024-01-19', accuracy: 91.3, items: 298 },
-        { date: '2024-01-20', accuracy: 89.7, items: 312 },
-        { date: '2024-01-21', accuracy: 92.1, items: 334 }
-      ]
-    }
-  });
+  // Mock analytics generation disabled - no fallback data allowed
+  const generateMockAnalytics = () => {
+    console.log('🚫 DISABLED: Mock analytics generation eliminated');
+    return null;
+  };
 
   const getMetricColor = (value, type = 'accuracy') => {
     if (type === 'accuracy') {

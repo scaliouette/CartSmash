@@ -31,61 +31,25 @@ let analyticsData = {
 
 // Get parsing analytics with time range
 router.get('/parsing', (req, res) => {
-  const { range = '24h' } = req.query;
-  console.log(`📊 Analytics request for range: ${range}`);
-  
-  try {
-    // Generate analytics based on real data only
-    const analytics = generateRealAnalyticsData(range);
-    
-    res.json({
-      success: true,
-      range: range,
-      ...analytics,
-      timestamp: new Date().toISOString()
-    });
-    
-  } catch (error) {
-    console.error('❌ Analytics generation failed:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate analytics',
-      message: error.message
-    });
-  }
+  console.log('🚫 Analytics service disabled - no mock data generation allowed');
+
+  return res.status(503).json({
+    success: false,
+    error: 'Analytics service disabled',
+    message: 'Mock analytics data generation has been eliminated',
+    source: 'mock_data_elimination'
+  });
 });
 
 // Get real-time metrics
 router.get('/realtime', (req, res) => {
-  console.log('⚡ Real-time metrics request');
-  
-  const currentHour = new Date().getHours();
-  const realtime = {
-    currentHour: {
-      lists: Math.floor(Math.random() * 50) + 10,
-      items: Math.floor(Math.random() * 300) + 50,
-      avgProcessingTime: (Math.random() * 3 + 1).toFixed(1),
-      errors: Math.floor(Math.random() * 5)
-    },
-    system: {
-      memoryUsage: process.memoryUsage ? process.memoryUsage() : {
-        heapUsed: 45 * 1024 * 1024,
-        heapTotal: 67 * 1024 * 1024,
-        external: 12 * 1024 * 1024
-      },
-      cpuUsage: Math.random() * 30 + 10
-    },
-    performance: {
-      uptime: Math.floor((Date.now() - analyticsData.performance.uptime) / 1000),
-      activeConnections: Math.floor(Math.random() * 10) + 1,
-      requestsPerMinute: Math.floor(Math.random() * 100) + 20
-    }
-  };
-  
-  res.json({
-    success: true,
-    realtime: realtime,
-    timestamp: new Date().toISOString()
+  console.log('🚫 Real-time analytics service disabled - no mock data generation allowed');
+
+  return res.status(503).json({
+    success: false,
+    error: 'Real-time analytics service disabled',
+    message: 'Mock analytics data generation has been eliminated',
+    source: 'mock_data_elimination'
   });
 });
 
@@ -269,24 +233,8 @@ function getMultiplierForRange(range) {
 }
 
 function generateDailyTrends(range) {
-  const days = range === '7d' ? 7 : range === '30d' ? 30 : 7;
-  const trends = [];
-  
-  const today = new Date();
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    
-    trends.push({
-      date: date.toISOString().split('T')[0],
-      accuracy: 85 + Math.random() * 10,
-      items: Math.floor(200 + Math.random() * 200),
-      lists: Math.floor(20 + Math.random() * 30),
-      processingTime: 1.5 + Math.random() * 1
-    });
-  }
-  
-  return trends;
+  console.log(`🚫 DISABLED: Daily trends generation eliminated for range: ${range}`);
+  return [];
 }
 
 function recordListParsed(data) {
