@@ -18,7 +18,7 @@ function FirebaseDebug() {
     });
     
     // Check Firebase module
-    import('../firebase').then(module => {
+    import('../firebase/config').then(module => {
       console.log('📦 Firebase module loaded:', {
         hasAuth: !!module.auth,
         hasApp: !!module.default

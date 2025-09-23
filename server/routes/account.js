@@ -1224,11 +1224,12 @@ router.post('/logout', authenticateUser, async (req, res) => {
     console.log(`🚪 Processing logout for user: ${userId}`);
     
     // Import services (lazy loading to avoid circular dependencies)
-    const KrogerAuthService = require('../services/KrogerAuthService');
-    const authService = new KrogerAuthService();
+    // const KrogerAuthService = require('../services/KrogerAuthService'); // ARCHIVED - Kroger integration disabled
+    // const authService = new KrogerAuthService(); // ARCHIVED - Kroger integration disabled
     
     // Clean up Kroger OAuth tokens and states
-    const result = await authService.logoutUser(userId);
+    // const result = await authService.logoutUser(userId); // ARCHIVED - Kroger integration disabled
+    const result = { success: true, message: 'Kroger integration disabled' };
     
     // Also clean up any cart data in Firestore
     await db.collection('carts').doc(userId).delete().catch(err => {

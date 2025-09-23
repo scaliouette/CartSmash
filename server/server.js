@@ -1182,8 +1182,8 @@ const routes = [
   { path: '/api/cart', module: './routes/cart' },
   { path: '/api/ai', module: './routes/ai' },
   { path: '/api/ai-simple', module: './routes/aiSimplified' },  // Simplified AI system
-  { path: '/api/kroger', module: './routes/kroger' },  // Add this
-  { path: '/api/kroger-orders', module: './routes/kroger-orders' },
+  // { path: '/api/kroger', module: './routes/kroger' },  // ARCHIVED - Kroger integration disabled
+  // { path: '/api/kroger-orders', module: './routes/kroger-orders' },  // ARCHIVED - Kroger integration disabled
   { path: '/api/instacart', module: './routes/instacartRoutes' },  // Instacart integration
   { path: '/api/product-validation', module: './routes/productValidationRoutes' },  // Enhanced product validation
   { path: '/api/smash-cart', module: './routes/smash-cart' },  // New comprehensive cart service
