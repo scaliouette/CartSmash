@@ -13,6 +13,9 @@ try {
   console.log('⚠️ Puppeteer not available - using HTML-only parsing');
 }
 
+// Import cheerio for HTML parsing
+const cheerio = require('cheerio');
+
 // Instacart API configuration - UPDATED 2025
 const INSTACART_API_KEY = process.env.INSTACART_API_KEY;
 const INSTACART_CONNECT_API_KEY = process.env.INSTACART_CONNECT_API_KEY || INSTACART_API_KEY;
@@ -2575,8 +2578,121 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
   try {
     let products = [];
 
-    // First try standard HTML parsing (existing method already implemented below)
-    // Skip redundant call since this function already implements the parsing
+    // First try standard HTML parsing
+    console.log('🌐 Fetching recipe page HTML:', recipeUrl);
+    const response = await axios.get(recipeUrl, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+      }
+    });
+
+    if (response.data && response.data.length > 1000) {
+      console.log('📄 Recipe page loaded successfully, parsing content...');
+      const $ = cheerio.load(response.data);
+
+      // Extract Apollo GraphQL state data (modern approach)
+      $('script').each((i, elem) => {
+        const scriptContent = $(elem).html();
+        if (scriptContent && scriptContent.includes('window.__APOLLO_STATE__')) {
+          console.log('🎯 Found Apollo GraphQL state data');
+          try {
+            const apolloMatch = scriptContent.match(/window\.__APOLLO_STATE__\s*=\s*({.*?});/s);
+            if (apolloMatch) {
+              const apolloState = JSON.parse(apolloMatch[1]);
+
+              // Extract product data from Apollo state
+              Object.keys(apolloState).forEach(key => {
+                const obj = apolloState[key];
+                if (obj && typeof obj === 'object' && (obj.name || obj.displayName)) {
+                  const productName = obj.name || obj.displayName || obj.title;
+                  const price = obj.price || obj.currentPrice || obj.regularPrice || 0;
+                  const imageUrl = obj.imageUrl || obj.image || obj.thumbnail;
+                  const size = obj.size || obj.packageSize || obj.volume;
+
+                  if (productName && typeof productName === 'string' && productName.length > 2) {
+                    const confidence = calculateMatchConfidence(query, productName);
+                    if (confidence > 0.4) {
+                      products.push({
+                        id: `apollo_${products.length}`,
+                        name: productName,
+                        price: typeof price === 'number' ? price : parseFloat(String(price).replace(/[^0-9.]/g, '')) || 0,
+                        image_url: imageUrl,
+                        package_size: size,
+                        brand: obj.brand || 'Instacart',
+                        availability: obj.availability === false ? 'out_of_stock' : 'in_stock',
+                        confidence: confidence
+                      });
+                    }
+                  }
+                }
+              });
+            }
+          } catch (parseError) {
+            console.log('⚠️ Apollo state parsing failed:', parseError.message);
+          }
+        }
+      });
+
+      // Fallback: Traditional CSS selector approach
+      if (products.length === 0) {
+        console.log('🔍 Trying CSS selector approach...');
+        const productSelectors = [
+          '[data-testid*="product"]',
+          '.product-item',
+          '[class*="product"]',
+          '[data-testid*="ingredient"]',
+          'article',
+          '.item'
+        ];
+
+        productSelectors.forEach(selector => {
+          $(selector).each((i, elem) => {
+            const $elem = $(elem);
+            const nameEl = $elem.find('[class*="name"], h3, h4, .title, [data-testid*="name"]').first();
+            const priceEl = $elem.find('[class*="price"], .price, [data-testid*="price"]').first();
+            const imageEl = $elem.find('img').first();
+            const sizeEl = $elem.find('[class*="size"], .size, [class*="quantity"]').first();
+
+            const name = nameEl.text()?.trim() || $elem.text()?.trim();
+            const priceText = priceEl.text() || $elem.find(':contains("$")').first().text();
+            const price = priceText ? parseFloat(priceText.replace(/[^0-9.]/g, '')) || 0 : 0;
+            const imageUrl = imageEl.attr('src') || imageEl.attr('data-src');
+            const size = sizeEl.text()?.trim();
+
+            if (name && name.length > 2 && !name.includes('Loading') && !name.includes('undefined')) {
+              const confidence = calculateMatchConfidence(query, name);
+              if (confidence > 0.4) {
+                products.push({
+                  id: `css_${products.length}`,
+                  name,
+                  price,
+                  image_url: imageUrl,
+                  package_size: size,
+                  brand: 'Instacart',
+                  availability: 'in_stock',
+                  confidence: confidence
+                });
+              }
+            }
+          });
+        });
+      }
+
+      // Sort by confidence and limit results
+      products = products
+        .sort((a, b) => b.confidence - a.confidence)
+        .slice(0, 3);
+
+      console.log(`✅ HTML parsing found ${products.length} products with confidence > 0.4`);
+    } else {
+      console.log('⚠️ Recipe page content too small or empty');
+    }
 
     // If no products found and puppeteer is available, try dynamic loading
     if (products.length === 0 && typeof puppeteer !== 'undefined') {
