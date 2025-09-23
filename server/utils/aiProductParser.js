@@ -159,10 +159,19 @@ class AIProductParser {
   async aiExtractProducts(text, options = {}) {
     console.log('🔍 [DEBUG] aiExtractProducts() starting with COMPREHENSIVE Claude AI...');
 
-    // COMPREHENSIVE SYSTEM PROMPT from Claude AI route - generates detailed ingredient lists
-    const enhancedPrompt = `${text}
+    // INTELLIGENT RECIPE-TO-GROCERY CONVERTER - Handles both grocery lists and cooking instructions
+    const enhancedPrompt = `ANALYZE THE INPUT BELOW AND EXTRACT GROCERY SHOPPING ITEMS:
 
-COMPREHENSIVE GROCERY LIST EXTRACTION - Generate complete, restaurant-quality ingredient lists.
+${text}
+
+SMART CONTENT DETECTION:
+- If this is a grocery list → extract items directly
+- If this is a recipe/cooking instructions → extract ONLY the ingredients mentioned, not the cooking steps
+- If this contains cooking verbs (boil, cook, add, stir, heat, etc.) → focus on extracting food items, ignore actions
+
+IGNORE COOKING ACTIONS:
+- Skip: "bring to boil", "cook pasta", "stir", "heat", "add to pot", "reserve water", "drain"
+- Extract: "pasta", "frozen vegetables", "marinara sauce", "salt"
 
 Return a structured JSON response for grocery list extraction:
 
@@ -170,36 +179,47 @@ Return a structured JSON response for grocery list extraction:
   "type": "grocery_list",
   "items": [
     {"name": "boneless skinless chicken breast", "quantity": "2", "unit": "lbs", "category": "meat"},
-    {"name": "extra virgin olive oil", "quantity": "1", "unit": "bottle", "category": "pantry"},
-    {"name": "yellow onion", "quantity": "1", "unit": "large", "category": "produce"},
-    {"name": "garlic cloves", "quantity": "4", "unit": "each", "category": "produce"},
-    {"name": "kosher salt", "quantity": "1", "unit": "container", "category": "pantry"},
-    {"name": "black pepper", "quantity": "1", "unit": "container", "category": "pantry"},
-    {"name": "bell peppers", "quantity": "3", "unit": "large", "category": "produce"},
-    {"name": "corn tortillas", "quantity": "12", "unit": "each", "category": "grains"},
-    {"name": "enchilada sauce", "quantity": "2", "unit": "can", "category": "canned"},
-    {"name": "sharp cheddar cheese", "quantity": "16", "unit": "oz", "category": "dairy"},
-    {"name": "white rice", "quantity": "2", "unit": "cups", "category": "grains"},
-    {"name": "black beans", "quantity": "2", "unit": "can", "category": "canned"},
-    {"name": "cumin", "quantity": "1", "unit": "container", "category": "pantry"},
-    {"name": "paprika", "quantity": "1", "unit": "container", "category": "pantry"},
-    {"name": "cilantro", "quantity": "1", "unit": "bunch", "category": "produce"},
+    {"name": "basmati rice", "quantity": "1", "unit": "bag", "category": "grains"},
+    {"name": "corn tortillas", "quantity": "1", "unit": "package", "category": "grains"},
+    {"name": "ground beef", "quantity": "1", "unit": "lb", "category": "meat"},
+    {"name": "taco seasoning", "quantity": "1", "unit": "packet", "category": "pantry"},
+    {"name": "shredded cheddar cheese", "quantity": "1", "unit": "bag", "category": "dairy"},
+    {"name": "soy sauce", "quantity": "1", "unit": "bottle", "category": "pantry"},
+    {"name": "fresh ginger", "quantity": "1", "unit": "piece", "category": "produce"},
+    {"name": "coconut milk", "quantity": "1", "unit": "can", "category": "canned"},
+    {"name": "red curry paste", "quantity": "1", "unit": "jar", "category": "pantry"},
+    {"name": "olive oil", "quantity": "1", "unit": "bottle", "category": "pantry"},
+    {"name": "garlic", "quantity": "1", "unit": "bulb", "category": "produce"},
+    {"name": "yellow onion", "quantity": "2", "unit": "each", "category": "produce"},
+    {"name": "tomatoes", "quantity": "4", "unit": "each", "category": "produce"},
+    {"name": "bell peppers", "quantity": "3", "unit": "each", "category": "produce"},
+    {"name": "pasta", "quantity": "1", "unit": "box", "category": "grains"},
+    {"name": "frozen vegetables", "quantity": "1", "unit": "bag", "category": "frozen"},
+    {"name": "marinara sauce", "quantity": "1", "unit": "jar", "category": "canned"},
+    {"name": "black beans", "quantity": "1", "unit": "can", "category": "canned"},
     {"name": "lime", "quantity": "2", "unit": "each", "category": "produce"},
-    {"name": "sour cream", "quantity": "1", "unit": "container", "category": "dairy"},
-    {"name": "avocado", "quantity": "2", "unit": "each", "category": "produce"},
-    {"name": "roma tomatoes", "quantity": "3", "unit": "large", "category": "produce"}
+    {"name": "cilantro", "quantity": "1", "unit": "bunch", "category": "produce"},
+    {"name": "salt", "quantity": "1", "unit": "container", "category": "pantry"},
+    {"name": "black pepper", "quantity": "1", "unit": "container", "category": "pantry"}
   ]
 }
 
-CRITICAL RULES:
-- Generate COMPREHENSIVE ingredient lists including ALL necessary items: spices, aromatics, cooking oils, seasonings
-- For Mexican enchiladas, include: tortillas, sauce, cheese, meat, onions, garlic, cumin, paprika, cilantro, lime, oil, salt, pepper
-- For Italian dishes, include: olive oil, garlic, onions, herbs (basil, oregano), parmesan, tomatoes, etc.
-- For Asian dishes, include: soy sauce, ginger, garlic, sesame oil, rice vinegar, etc.
-- ALWAYS include cooking essentials: salt, pepper, cooking oil, onions, garlic
-- Extract specific brands, sizes, and preparation notes when mentioned
+DIVERSE CUISINE EXAMPLES:
+- ITALIAN: pasta, marinara sauce, parmesan cheese, olive oil, garlic, basil
+- MEXICAN: corn tortillas, ground beef, taco seasoning, cheddar cheese, lime, cilantro, black beans
+- ASIAN: soy sauce, fresh ginger, garlic, rice, sesame oil, green onions
+- THAI: coconut milk, red curry paste, rice noodles, fish sauce, lime, cilantro
+- INDIAN: basmati rice, curry powder, coconut milk, chickpeas, naan bread, turmeric
+- AMERICAN: ground beef, hamburger buns, lettuce, tomatoes, pickles, ketchup
+
+ENHANCED RULES:
+- EXTRACT INGREDIENTS ONLY: Focus on food items, not cooking actions or equipment
+- SMART QUANTITY DETECTION: Convert recipe amounts to shopping quantities (e.g., "1 tablespoon salt" → "1 container salt")
+- RECIPE INSTRUCTIONS HANDLING: If input contains cooking steps, extract only the food items mentioned
+- COOKING VERBS TO IGNORE: boil, cook, stir, heat, add, bring, reserve, drain, mix, combine, serve
+- INCLUDE ESSENTIALS: When recipes are detected, add typical missing items (salt, pepper, oil)
+- NORMALIZE SHOPPING UNITS: Convert cooking measurements to store-friendly units
 - Use proper grocery categories: produce, meat, dairy, grains, frozen, canned, pantry, deli, snacks, other
-- Preserve exact quantities and units from source text
 - Return ONLY the JSON object, no additional text or formatting.`;
 
     // Resolve AI clients dynamically at call time (not construction time)
