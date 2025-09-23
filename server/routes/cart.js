@@ -462,11 +462,11 @@ router.post('/validate-all', async (req, res) => {
   }
 });
 
-// POST /api/cart/fetch-prices - Fetch real prices from Kroger
+// POST /api/cart/fetch-prices - Fetch real prices from Kroger (ARCHIVED - Kroger integration disabled)
 router.post('/fetch-prices', async (req, res) => {
   try {
-    const { items, userId, storeId = '01400943' } = req.body;
-    
+    const { items } = req.body;
+
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
@@ -474,11 +474,16 @@ router.post('/fetch-prices', async (req, res) => {
       });
     }
 
-    console.log(`💰 Fetching prices for ${items.length} items from Kroger...`);
-    
-    // Import Kroger service
-    const KrogerAPIService = require('../services/KrogerAPIService');
-    const krogerService = new KrogerAPIService();
+    console.log(`🚫 Kroger price fetching disabled - returning empty results for ${items.length} items`);
+
+    // Return empty prices since Kroger integration is archived
+    return res.json({
+      success: true,
+      prices: {},
+      found: 0,
+      notFound: items.length,
+      message: 'Kroger integration has been disabled'
+    });
     
     const prices = {};
     let found = 0;
