@@ -449,7 +449,31 @@ ENHANCED RULES:
     productName = productName || name;
     if (!productName || typeof productName !== 'string') return null;
     productName = productName.replace(/\s+/g, ' ').trim();
-    quantity = (typeof quantity === 'number' && !Number.isNaN(quantity)) ? quantity : 1;
+    // Parse quantity from string or number, default to 1 if invalid
+    if (typeof quantity === 'string') {
+      // Handle fractions like "1/2"
+      if (quantity.includes('/')) {
+        const parts = quantity.split('/');
+        if (parts.length === 2) {
+          const numerator = parseFloat(parts[0]);
+          const denominator = parseFloat(parts[1]);
+          if (!Number.isNaN(numerator) && !Number.isNaN(denominator) && denominator !== 0) {
+            quantity = numerator / denominator;
+          } else {
+            quantity = 1;
+          }
+        } else {
+          quantity = 1;
+        }
+      } else {
+        const parsed = parseFloat(quantity);
+        quantity = !Number.isNaN(parsed) && parsed > 0 ? parsed : 1;
+      }
+    } else if (typeof quantity === 'number' && !Number.isNaN(quantity) && quantity > 0) {
+      quantity = quantity;
+    } else {
+      quantity = 1;
+    }
     unit = unit && typeof unit === 'string' ? unit.toLowerCase().trim() : 'each';
     containerSize = containerSize && String(containerSize).trim() || null;
     const allowedCats = new Set(['produce','meat','dairy','grains','frozen','canned','pantry','deli','snacks','other']);
