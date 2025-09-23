@@ -59,7 +59,7 @@ class InstacartService {
     
     try {
       // Always try backend API first (regardless of client API key configuration)
-      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3059';
       console.log('📡 Calling backend retailer API:', `${API_URL}/api/instacart/retailers?postalCode=${zipCode}`);
       
       const response = await fetch(`${API_URL}/api/instacart/retailers?postalCode=${zipCode}&countryCode=US`, {
@@ -179,7 +179,7 @@ class InstacartService {
     
     try {
       // Always try backend API first (regardless of client API key configuration)
-      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3059';
       console.log('📡 Calling backend search API:', `${API_URL}/api/instacart/search`);
       
       const requestBody = {

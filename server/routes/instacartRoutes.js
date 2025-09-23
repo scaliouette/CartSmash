@@ -747,7 +747,17 @@ router.post('/search', async (req, res) => {
           if (zipCode) searchParams.zip_code = zipCode;
           if (category) searchParams.category = category;
 
-          const searchResults = await instacartApiCall('/catalog/search', 'POST', searchParams);
+          // FIXED: Use recipe-based search instead of non-existent catalog/search endpoint
+          const recipePayload = {
+            title: `Search results for ${query}`,
+            ingredients: [{
+              name: query,
+              quantity: quantity || 1,
+              unit: 'each'
+            }]
+          };
+
+          const searchResults = await instacartApiCall('/products/recipe', 'POST', recipePayload);
 
           const products = (searchResults.items || searchResults.data || []).map(product => ({
             id: product.id || product.product_id,
@@ -1339,10 +1349,19 @@ router.post('/batch-search', async (req, res) => {
               }
             }
 
-            // APPROACH 3: Original catalog search as final fallback
+            // APPROACH 3: Recipe-based search as final fallback (catalog/search removed - endpoint doesn't exist)
             if (products.length === 0) {
               try {
-                const searchResults = await instacartApiCall('/catalog/search', 'POST', searchParams);
+                // FIXED: Use working recipe endpoint instead of non-existent catalog/search
+                const recipePayload = {
+                  title: `Fallback search for ${searchTerm}`,
+                  ingredients: [{
+                    name: searchTerm,
+                    quantity: 1,
+                    unit: 'each'
+                  }]
+                };
+                const searchResults = await instacartApiCall('/products/recipe', 'POST', recipePayload);
                 products = (searchResults.items || searchResults.data || []).slice(0, 3).map(product => ({
                   id: product.id || product.product_id,
                   sku: product.sku || product.retailer_sku,
@@ -2403,10 +2422,18 @@ router.post('/direct-product-search', async (req, res) => {
         // Try multiple search endpoints for redundancy
         let products = [];
 
-        // Method 1: Try catalog search
+        // Method 1: Try recipe-based search (catalog/search endpoint doesn't exist)
         try {
-          const catalogEndpoint = `/catalog/search?q=${encodeURIComponent(searchQuery)}&retailer_key=${retailer_key}&postal_code=${postal_code}`;
-          const catalogResponse = await instacartApiCall(catalogEndpoint);
+          // FIXED: Use working recipe endpoint instead of non-existent catalog/search
+          const recipePayload = {
+            title: `Product search for ${searchQuery}`,
+            ingredients: [{
+              name: searchQuery,
+              quantity: 1,
+              unit: 'each'
+            }]
+          };
+          const catalogResponse = await instacartApiCall('/products/recipe', 'POST', recipePayload);
 
           if (catalogResponse?.products) {
             products = catalogResponse.products.map(product => ({

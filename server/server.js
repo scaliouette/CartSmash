@@ -252,6 +252,7 @@ const corsOptions = {
       'http://localhost:3060',
       'http://localhost:3062',
       'http://localhost:3064',
+      'http://localhost:3075',  // Production build testing
       'http://localhost:3085',
       'http://localhost:3087',
       'http://127.0.0.1:3000',

@@ -281,6 +281,71 @@ const BASE_URL = NODE_ENV === 'production' ? API_ENDPOINTS.PRODUCTION : API_ENDP
 #### Server Restart Required
 When modifying routes in `instacartRoutes.js`, restart the server to reload the endpoints properly.
 
+#### CRITICAL API Issues (2025-09-23)
+
+**🚨 PRODUCTION RUNTIME FAILURES - IMMEDIATE ACTION REQUIRED**
+
+**Problem**: Frontend application experiencing consistent 503 errors and CORS blocking when searching products.
+
+**Root Cause Analysis**:
+
+1. **API Endpoint Mismatch** 🚨
+   - **Issue**: Backend calls `/catalog/search` endpoint (returns 404 Not Found)
+   - **Instacart API**: Endpoint does not exist in current API specification
+   - **Evidence**: Server logs show `❌ Error making Instacart API call to /catalog/search: status: 404`
+   - **Impact**: 100% search request failures
+
+2. **Production vs Local Environment Mismatch** 🚨
+   - **Issue**: Client hardcoded to call production API (`cartsmash-api.onrender.com`)
+   - **Production Status**: Rate limited (429 Too Many Requests, not 503)
+   - **Local Backend**: Running on port 3058 but client not configured to use it
+   - **Evidence**: `instacartService.js:182` uses production URL as fallback
+
+3. **CORS Configuration Issues** 🚨
+   - **Issue**: Production client (localhost:3075) not in CORS whitelist
+   - **Current CORS**: Allows production domains but missing localhost:3075
+   - **Evidence**: Browser blocks requests with CORS policy errors
+
+**Immediate Solutions Required**:
+
+1. **Fix API Endpoint (Priority 1)**:
+   ```javascript
+   // WRONG: instacartRoutes.js:750, 1345, 2408
+   const searchResults = await instacartApiCall('/catalog/search', 'POST', searchParams);
+
+   // CORRECT: Should use recipe-based search or valid catalog endpoint
+   const searchResults = await instacartApiCall('/idp/v1/products/recipe', 'POST', recipeParams);
+   ```
+
+2. **Fix Client API Configuration (Priority 2)**:
+   ```javascript
+   // client/src/services/instacartService.js:182
+   // CURRENT: const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+   // SHOULD: const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3058';
+   ```
+
+3. **Update CORS Configuration (Priority 3)**:
+   ```javascript
+   // server/server.js - Add to CORS origins:
+   'http://localhost:3075',  // Production build testing
+   'http://127.0.0.1:3075'   // Alternative localhost
+   ```
+
+**Testing Commands**:
+```bash
+# Test local search endpoint
+curl -X POST http://localhost:3058/api/instacart/search \
+  -H "Content-Type: application/json" \
+  -d '{"query":"butter","retailerId":"safeway"}'
+
+# Check production API status
+curl -I https://cartsmash-api.onrender.com/api/instacart/search
+```
+
+**Status**: 🔴 **BLOCKING PRODUCTION - Search functionality completely broken**
+
+**Last Updated**: 2025-09-23 - Deep analysis completed, solutions identified
+
 ### File Locations
 
 #### Key Files  
