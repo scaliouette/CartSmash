@@ -1152,126 +1152,9 @@ function generateEnhancedProducts(query, originalItem, retailerId, options = {})
 }
 
 function generateMockProducts(query, originalItem, retailerId, options = {}) {
-  console.log(`🚫 DISABLED: Mock products generation blocked for: "${query}"`);
+  console.log(`🚫 DISABLED: Mock products generation completely eliminated for: "${query}"`);
   console.log(`🚫 All mock data functions are disabled. Use real API responses only.`);
-
-  // Return empty array to prevent mock data generation
   return [];
-  
-  // Common product mappings with realistic product images
-  const productTemplates = {
-    'chicken': [
-      { name: 'Fresh Chicken Breast', basePrice: 6.99, confidence: 0.95, image: 'https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=400&h=400&fit=crop' },
-      { name: 'Organic Chicken Breast', basePrice: 9.99, confidence: 0.75, image: 'https://images.unsplash.com/photo-1615485500704-8e990f9900f7?w=400&h=400&fit=crop' },
-      { name: 'Chicken Thighs', basePrice: 4.99, confidence: 0.60, image: 'https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=400&h=400&fit=crop' }
-    ],
-    'milk': [
-      { name: 'Whole Milk, 1 Gallon', basePrice: 3.99, confidence: 0.90, image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&h=400&fit=crop' },
-      { name: 'Organic Milk, 1 Gallon', basePrice: 6.99, confidence: 0.85, image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&h=400&fit=crop' },
-      { name: '2% Milk, 1 Gallon', basePrice: 3.79, confidence: 0.70, image: 'https://images.unsplash.com/photo-1596618036688-bf31007ee99a?w=400&h=400&fit=crop' }
-    ],
-    'banana': [
-      { name: 'Bananas, per lb', basePrice: 0.68, confidence: 0.95, image: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop' },
-      { name: 'Organic Bananas, per lb', basePrice: 0.99, confidence: 0.80, image: 'https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=400&h=400&fit=crop' },
-      { name: 'Baby Bananas, 2 lb bag', basePrice: 2.99, confidence: 0.60, image: 'https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=400&h=400&fit=crop' }
-    ],
-    'bread': [
-      { name: 'Whole Wheat Bread', basePrice: 2.99, confidence: 0.90, image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&h=400&fit=crop' },
-      { name: 'White Bread', basePrice: 2.49, confidence: 0.75, image: 'https://images.unsplash.com/photo-1549931319-a545dcf3bc73?w=400&h=400&fit=crop' },
-      { name: 'Sourdough Bread', basePrice: 3.99, confidence: 0.65, image: 'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=400&h=400&fit=crop' }
-    ],
-    'egg': [
-      { name: 'Large Eggs, 12 count', basePrice: 2.99, confidence: 0.95, image: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&h=400&fit=crop' },
-      { name: 'Organic Eggs, 12 count', basePrice: 4.99, confidence: 0.85, image: 'https://images.unsplash.com/photo-1574849147620-6a99ee72a302?w=400&h=400&fit=crop' },
-      { name: 'Free Range Eggs, 12 count', basePrice: 5.99, confidence: 0.80, image: 'https://images.unsplash.com/photo-1599811632456-5ad3b9306e1e?w=400&h=400&fit=crop' }
-    ],
-    'apple': [
-      { name: 'Gala Apples, 3 lb bag', basePrice: 3.99, confidence: 0.90, image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=400&fit=crop' },
-      { name: 'Organic Red Delicious', basePrice: 5.99, confidence: 0.85, image: 'https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=400&h=400&fit=crop' },
-      { name: 'Granny Smith Apples', basePrice: 4.49, confidence: 0.80, image: 'https://images.unsplash.com/photo-1579613832111-ac4df7ced2a6?w=400&h=400&fit=crop' }
-    ],
-    'tomato': [
-      { name: 'Roma Tomatoes, per lb', basePrice: 2.99, confidence: 0.90, image: 'https://images.unsplash.com/photo-1546470427-227986a4feec?w=400&h=400&fit=crop' },
-      { name: 'Organic Cherry Tomatoes', basePrice: 4.99, confidence: 0.85, image: 'https://images.unsplash.com/photo-1582779002835-0ac9b2d13c9d?w=400&h=400&fit=crop' },
-      { name: 'Beefsteak Tomatoes', basePrice: 3.99, confidence: 0.75, image: 'https://images.unsplash.com/photo-1607305387299-a3d9611cd469?w=400&h=400&fit=crop' }
-    ],
-    'cheese': [
-      { name: 'Sharp Cheddar Cheese', basePrice: 4.99, confidence: 0.90, image: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=400&h=400&fit=crop' },
-      { name: 'Organic Mozzarella', basePrice: 6.99, confidence: 0.85, image: 'https://images.unsplash.com/photo-1624978463583-2534075b1ac4?w=400&h=400&fit=crop' },
-      { name: 'Swiss Cheese Slices', basePrice: 5.49, confidence: 0.80, image: 'https://images.unsplash.com/photo-1610106738809-ab093abeb8c7?w=400&h=400&fit=crop' }
-    ]
-  };
-  
-  // Find matching template
-  let templates = [];
-  for (const [key, values] of Object.entries(productTemplates)) {
-    if (queryLower.includes(key)) {
-      templates = values;
-      break;
-    }
-  }
-  
-  // Generate generic products if no specific template found
-  if (templates.length === 0) {
-    const genericImages = [
-      'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&h=400&fit=crop',
-      'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&h=400&fit=crop',
-      'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=400&h=400&fit=crop'
-    ];
-    templates = [
-      { name: `${query} - Store Brand`, basePrice: 3.99, confidence: 0.70, image: genericImages[0] },
-      { name: `${query} - Premium`, basePrice: 6.99, confidence: 0.65, image: genericImages[1] },
-      { name: `${query} - Value Pack`, basePrice: 8.99, confidence: 0.60, image: genericImages[2] }
-    ];
-  }
-  
-  // Generate products with retailer-specific pricing
-  const retailerPriceMultiplier = {
-    'safeway': 1.0,
-    'whole_foods': 1.3,
-    'costco': 0.9,
-    'kroger': 0.95,
-    'target': 1.05
-  };
-  
-  const multiplier = retailerPriceMultiplier[retailerId] || 1.0;
-  
-  return templates.map((template, index) => {
-    const baseProduct = {
-      id: `sku_${retailerId}_${Date.now()}_${index}`,
-      sku: `${(retailerId || 'DEFAULT').toUpperCase()}_${Math.random().toString(36).substr(2, 8)}`,
-      name: template.name,
-      price: Math.round(template.basePrice * multiplier * 100) / 100,
-      size: '1 unit', // Don't use originalItem data to avoid overriding recipe quantities
-      brand: index === 0 ? 'Store Brand' : (index === 1 ? 'Premium Brand' : 'Value Brand'),
-      image: template.image || `https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&h=400&fit=crop&t=${Date.now()}`,
-      image_url: template.image || `https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&h=400&fit=crop&t=${Date.now()}`, // Support both field names
-      availability: 'in_stock',
-      confidence: template.confidence,
-      category: originalItem?.category || 'other',
-      description: `High-quality ${template.name.toLowerCase()} available at ${retailerId}`,
-      unit_price: Math.round(template.basePrice * multiplier * 100) / 100,
-      retailer_id: retailerId
-    };
-    
-    // Add metadata for enhanced products
-    if (isEnhanced) {
-      baseProduct._metadata = {
-        isRealApiResponse,
-        recipeUrl,
-        dataSource: isRealApiResponse ? 'instacart_recipe_api' : 'enhanced_mock',
-        generated_at: new Date().toISOString()
-      };
-      
-      // If based on real API response, adjust confidence and descriptions
-      if (isRealApiResponse) {
-        baseProduct.confidence = Math.min(0.95, template.confidence + 0.15); // Higher confidence for real API
-        baseProduct.description = `Real Instacart product match for ${template.name.toLowerCase()} at ${retailerId}`;
-      }
-    }
-    
-    return baseProduct;
-  });
 }
 
 // GET /api/instacart/cart/:cartId/status - Get cart status (for webhook/polling)
@@ -1304,17 +1187,12 @@ router.get('/cart/:cartId/status', authenticateUser, async (req, res) => {
       }
     }
     
-    // Mock response (both when no API keys or when API fails)
-    res.json({
-      success: true,
-      cart: {
-        id: cartId,
-        status: 'created',
-        total_items: 5,
-        subtotal: 45.67,
-        total: 52.34,
-        created_at: new Date().toISOString()
-      }
+    // No mock data - return error for unavailable API
+    res.status(503).json({
+      success: false,
+      error: 'Cart status service unavailable',
+      message: 'Mock cart data eliminated - real API integration required',
+      source: 'mock_data_elimination'
     });
   } catch (error) {
     console.error('Error getting cart status:', error);

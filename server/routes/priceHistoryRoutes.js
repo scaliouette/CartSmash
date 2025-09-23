@@ -85,8 +85,13 @@ const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 // GET /api/price-history - Get price history for a product across vendors
 router.get('/', async (req, res) => {
-  try {
-    const { product, timeRange = '30d', productId, zipCode = '95670' } = req.query;
+  console.log('🚫 Price history service disabled - no mock data generation allowed');
+  return res.status(503).json({
+    success: false,
+    error: 'Price history service disabled',
+    message: 'Mock price data generation has been eliminated. Use real vendor API integrations.',
+    source: 'mock_data_elimination'
+  });
 
     if (!product) {
       return res.status(400).json({

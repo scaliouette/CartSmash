@@ -488,15 +488,14 @@ async function getProductPricing(productId, stores = [], zipCode = null) {
 
   for (const store of availableStores) {
     if (STORE_DATA[store]) {
-      // Simulate price variations between stores
-      const priceVariation = (Math.random() - 0.5) * 0.4; // ±20% variation
-      const storePrice = baseProduct.avgPrice * (1 + priceVariation);
-      
+      // No mock price generation - return error instead
+      console.log('🚫 Mock pricing generation disabled for store:', store);
       pricing[store] = {
         ...STORE_DATA[store],
-        price: parseFloat(storePrice.toFixed(2)),
-        inStock: Math.random() > 0.1, // 90% in stock
-        deliveryAvailable: true,
+        price: null,
+        inStock: false,
+        deliveryAvailable: false,
+        error: 'Mock pricing eliminated - use real store API integration',
         lastUpdated: new Date().toISOString()
       };
     }
