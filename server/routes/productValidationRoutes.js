@@ -438,21 +438,8 @@ async function mockInstacartProductSearch(searchTerm, category, brand) {
 
 // Get retailer pricing
 async function getRetailerPricing(productName, retailer, zipCode, category) {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, Math.random() * 200 + 100));
-
-  // Generate realistic pricing based on retailer multiplier
-  const basePrice = Math.random() * 8 + 2;
-  const price = basePrice * retailer.multiplier;
-
-  return {
-    price: Math.round(price * 100) / 100,
-    availability: Math.random() > 0.1 ? 'in_stock' : 'low_stock',
-    thumbnail: generateProductThumbnail(productName, category),
-    deliveryFee: retailer.id === 'costco' ? 0 : 5.99,
-    serviceFee: retailer.id === 'costco' ? 0 : 3.99,
-    estimatedDelivery: retailer.id === 'costco' ? '1-2 days' : '2-3 hours'
-  };
+  console.log('🚫 DISABLED: getRetailerPricing blocked - no mock pricing data');
+  throw new Error('Mock retailer pricing generation eliminated');
 }
 
 // Validate single cart item

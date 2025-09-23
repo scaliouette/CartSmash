@@ -213,8 +213,8 @@ router.post('/track', async (req, res) => {
 
 // Helper function to generate realistic vendor price data
 async function generateVendorPriceData(productName, timeRange, zipCode, productId) {
-  const vendors = Object.keys(VENDOR_CONFIGS);
-  const basePrice = calculateBasePrice(productName);
+  console.log('🚫 DISABLED: generateVendorPriceData blocked - no mock price data');
+  throw new Error('Mock price data generation eliminated');
   const priceHistory = [];
 
   for (const vendorKey of vendors) {
@@ -254,11 +254,8 @@ async function generateVendorPriceData(productName, timeRange, zipCode, productI
 
 // Calculate base price based on product characteristics
 function calculateBasePrice(productName) {
-  const name = productName.toLowerCase();
-
-  // Price categories based on product type
-  if (name.includes('organic') || name.includes('premium')) {
-    return 8.99 + (Math.random() * 6); // $8.99-$14.99
+  console.log('🚫 DISABLED: calculateBasePrice blocked - no mock price calculation');
+  throw new Error('Mock base price calculation eliminated');
   } else if (name.includes('meat') || name.includes('beef') || name.includes('chicken') || name.includes('salmon')) {
     return 12.99 + (Math.random() * 8); // $12.99-$20.99
   } else if (name.includes('produce') || name.includes('fruit') || name.includes('vegetable')) {
@@ -294,7 +291,8 @@ function getVendorPriceMultiplier(vendorKey, productName) {
 
 // Generate historical price data for a vendor
 function generateHistoricalPrices(currentPrice, timeRange) {
-  const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
+  console.log('🚫 DISABLED: generateHistoricalPrices blocked - no mock price history');
+  throw new Error('Mock historical price generation eliminated');
   const history = [];
 
   for (let i = days; i >= 0; i--) {
