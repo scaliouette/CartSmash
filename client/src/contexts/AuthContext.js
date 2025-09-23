@@ -10,7 +10,7 @@ import {
   updateProfile,
   signInWithPopup
 } from 'firebase/auth';
-import { auth, googleProvider, db } from '../firebase';
+import { auth, googleProvider, db } from '../firebase/config';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 

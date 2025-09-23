@@ -11,7 +11,7 @@ import {
   orderBy, 
   limit 
 } from 'firebase/firestore';
-import { auth } from '../firebase';
+import { auth } from '../firebase/config';
 
 class UserDataService {
   constructor() {

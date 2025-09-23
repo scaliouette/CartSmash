@@ -1,8 +1,7 @@
 // client/src/components/ShoppingOrchestrator.js
 import React, { useState, useEffect } from 'react';
 import instacartService from '../services/instacartService';
-import InstacartCheckout from './InstacartCheckout';
-import InstacartCheckoutMobile from './InstacartCheckoutMobile';
+import InstacartCheckoutUnified from './InstacartCheckoutUnified';
 import { InstacartCheckoutProvider } from '../contexts/InstacartCheckoutContext';
 import { useCart } from '../contexts/CartContext';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
@@ -511,35 +510,19 @@ function ShoppingOrchestrator({ items, recipe }) {
       {/* New Enhanced Instacart Checkout */}
       {showNewInstacartCheckout && (
         <InstacartCheckoutProvider>
-          {isMobile || screenSize === 'mobile-xs' || screenSize === 'mobile-sm' || screenSize === 'mobile-md' ? (
-            <InstacartCheckoutMobile
-              items={effectiveItems}
-              mode="cart"
-              initialRetailer={selectedRetailer}
-              onClose={() => setShowNewInstacartCheckout(false)}
-              onSuccess={(result) => {
-                console.log('✅ Mobile Enhanced Instacart checkout successful:', result);
-                setShowNewInstacartCheckout(false);
-              }}
-              onError={(error) => {
-                console.error('❌ Mobile Enhanced checkout failed:', error);
-              }}
-            />
-          ) : (
-            <InstacartCheckout
-              items={effectiveItems}
-              mode="cart"
-              initialRetailer={selectedRetailer}
-              onClose={() => setShowNewInstacartCheckout(false)}
-              onSuccess={(result) => {
-                console.log('✅ Desktop Enhanced Instacart checkout successful:', result);
-                setShowNewInstacartCheckout(false);
-              }}
-              onError={(error) => {
-                console.error('❌ Desktop Enhanced checkout failed:', error);
-              }}
-            />
-          )}
+          <InstacartCheckoutUnified
+            items={effectiveItems}
+            mode="cart"
+            initialRetailer={selectedRetailer}
+            onClose={() => setShowNewInstacartCheckout(false)}
+            onSuccess={(result) => {
+              console.log('✅ Unified Instacart checkout successful:', result);
+              setShowNewInstacartCheckout(false);
+            }}
+            onError={(error) => {
+              console.error('❌ Unified checkout failed:', error);
+            }}
+          />
         </InstacartCheckoutProvider>
       )}
     </div>

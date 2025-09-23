@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSmashCart } from '../contexts/SmashCartContext';
 import { getActiveStores, getPlannedStores, STORE_STATUS } from '../config/storeConfig';
-import KrogerAuth from './KrogerAuth';
+// import KrogerAuth from './KrogerAuth'; // Archived - Kroger integration disabled
 import NearbyStores from './NearbyStores';
 import instacartService from '../services/instacartService';
 
@@ -432,7 +432,10 @@ const StoresPage = ({ onStoreSelect, onBackToHome }) => {
                   <h3>Connect to Kroger</h3>
                   <p>Authenticate with your Kroger account</p>
                 </div>
-                <KrogerAuth onAuthSuccess={handleKrogerAuthSuccess} />
+                <div style={{padding: '20px', background: '#f5f5f5', borderRadius: '8px', textAlign: 'center'}}>
+                  <h4>Kroger Integration Temporarily Disabled</h4>
+                  <p>Kroger authentication has been temporarily disabled while we update our integration.</p>
+                </div>
               </div>
             ) : !selectedStore ? (
               // Step 2: Store Selection

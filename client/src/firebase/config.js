@@ -1,7 +1,7 @@
 // Firebase configuration
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 const firebaseConfig = {
   // These values should be set via environment variables in production
@@ -19,5 +19,8 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 // Initialize Firebase services
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+
+// Initialize Google Auth Provider
+export const googleProvider = new GoogleAuthProvider();
 
 export default app;

@@ -85,57 +85,14 @@ const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 // GET /api/price-history - Get price history for a product across vendors
 router.get('/', async (req, res) => {
-  console.log('🚫 Price history service disabled - no mock data generation allowed');
-  return res.status(503).json({
-    success: false,
-    error: 'Price history service disabled',
-    message: 'Mock price data generation has been eliminated. Use real vendor API integrations.',
-    source: 'mock_data_elimination'
-  });
-
-    if (!product) {
-      return res.status(400).json({
-        error: 'Product name is required',
-        message: 'Please provide a product name to search for price history'
-      });
-    }
-
-    console.log(`📈 Price history request: ${product} (${timeRange})`);
-
-    // Check cache first
-    const cacheKey = `price_history_${product}_${timeRange}_${zipCode}`;
-    const cachedData = priceCache.get(cacheKey);
-
-    if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
-      console.log('📦 Returning cached price data');
-      return res.json({
-        success: true,
-        product,
-        timeRange,
-        priceHistory: cachedData.data,
-        cached: true,
-        lastUpdated: new Date(cachedData.timestamp).toISOString()
-      });
-    }
-
-    // Generate comprehensive price data for all vendors
-    const priceHistory = await generateVendorPriceData(product, timeRange, zipCode, productId);
-
-    // Cache the results
-    priceCache.set(cacheKey, {
-      data: priceHistory,
-      timestamp: Date.now()
+  try {
+    console.log('🚫 Price history service disabled - no mock data generation allowed');
+    return res.status(503).json({
+      success: false,
+      error: 'Price history service disabled',
+      message: 'Mock price data generation has been eliminated. Use real vendor API integrations.',
+      source: 'mock_data_elimination'
     });
-
-    res.json({
-      success: true,
-      product,
-      timeRange,
-      priceHistory,
-      cached: false,
-      lastUpdated: new Date().toISOString()
-    });
-
   } catch (error) {
     console.error('Price history error:', error);
     res.status(500).json({
@@ -215,58 +172,12 @@ router.post('/track', async (req, res) => {
 async function generateVendorPriceData(productName, timeRange, zipCode, productId) {
   console.log('🚫 DISABLED: generateVendorPriceData blocked - no mock price data');
   throw new Error('Mock price data generation eliminated');
-  const priceHistory = [];
-
-  for (const vendorKey of vendors) {
-    const vendor = VENDOR_CONFIGS[vendorKey];
-
-    // Simulate different pricing strategies per vendor
-    const vendorMultiplier = getVendorPriceMultiplier(vendorKey, productName);
-    const vendorPrice = basePrice * vendorMultiplier;
-
-    // Check availability (some vendors might not carry certain products)
-    const availability = Math.random() > 0.15 ? 'in-stock' : 'out-of-stock';
-
-    // Generate historical price data
-    const historicalPrices = generateHistoricalPrices(vendorPrice, timeRange);
-
-    priceHistory.push({
-      vendor: vendor.name,
-      vendorLogo: vendor.logo,
-      vendorColor: vendor.color,
-      price: parseFloat(vendorPrice.toFixed(2)),
-      currency: 'USD',
-      lastUpdated: new Date().toISOString(),
-      availability,
-      deliveryTime: vendor.avgDeliveryTime,
-      serviceFee: vendor.serviceFee,
-      deliveryFee: vendor.deliveryFee,
-      membershipRequired: vendor.membershipRequired || false,
-      priceHistory: historicalPrices,
-      productId: productId || generateProductId(productName, vendorKey),
-      storeLocation: generateStoreLocation(zipCode),
-      isCurrentVendor: vendorKey === 'instacart' // Default current vendor
-    });
-  }
-
-  return priceHistory;
 }
 
 // Calculate base price based on product characteristics
 function calculateBasePrice(productName) {
   console.log('🚫 DISABLED: calculateBasePrice blocked - no mock price calculation');
   throw new Error('Mock base price calculation eliminated');
-  } else if (name.includes('meat') || name.includes('beef') || name.includes('chicken') || name.includes('salmon')) {
-    return 12.99 + (Math.random() * 8); // $12.99-$20.99
-  } else if (name.includes('produce') || name.includes('fruit') || name.includes('vegetable')) {
-    return 3.99 + (Math.random() * 4); // $3.99-$7.99
-  } else if (name.includes('dairy') || name.includes('milk') || name.includes('cheese')) {
-    return 4.99 + (Math.random() * 3); // $4.99-$7.99
-  } else if (name.includes('pantry') || name.includes('bread') || name.includes('pasta')) {
-    return 2.99 + (Math.random() * 3); // $2.99-$5.99
-  } else {
-    return 5.99 + (Math.random() * 4); // Default: $5.99-$9.99
-  }
 }
 
 // Get vendor-specific price multipliers
@@ -293,26 +204,6 @@ function getVendorPriceMultiplier(vendorKey, productName) {
 function generateHistoricalPrices(currentPrice, timeRange) {
   console.log('🚫 DISABLED: generateHistoricalPrices blocked - no mock price history');
   throw new Error('Mock historical price generation eliminated');
-  const history = [];
-
-  for (let i = days; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-
-    // Generate realistic price fluctuations
-    const dayVariation = (Math.random() - 0.5) * 0.8; // ±$0.40 daily variation
-    const trendFactor = Math.sin((i / days) * Math.PI) * 0.5; // Seasonal trend
-
-    const price = Math.max(0.99, currentPrice + dayVariation + trendFactor);
-
-    history.push({
-      date: date.toISOString().split('T')[0],
-      price: parseFloat(price.toFixed(2)),
-      availability: Math.random() > 0.05 ? 'in-stock' : 'out-of-stock'
-    });
-  }
-
-  return history;
 }
 
 // Generate mock product ID

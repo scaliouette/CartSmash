@@ -446,9 +446,7 @@ app.get('/health', async (req, res) => {
   res.status(isHealthy ? 200 : 503).json(healthStatus);
 });
 
-// Import Azure B2C service at the top of your file (add this import)
-const KrogerAzureB2CService = require('./services/KrogerAzureB2CService');
-const azureB2CService = new KrogerAzureB2CService();
+// Kroger Azure B2C service archived - no longer active
 
 // Add Kroger auth status check endpoint
 app.get('/api/auth/kroger/status', async (req, res) => {

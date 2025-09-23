@@ -562,6 +562,112 @@ Step 9: Circuit Breaker Success Recording
 
 **Testing Status**: All services verified operational with smooth transitions throughout the complete parsing flow.
 
+## Import Cleanup Procedures (2025-09-23)
+
+### Overview
+Following archive file cleanup, several import references needed updating to prevent build failures. This section documents the systematic approach for resolving archived file import issues.
+
+### Common Import Issues After File Archiving
+
+#### 1. Firebase Import References
+**Problem**: References to archived `./firebase` file instead of `./firebase/config`
+
+**Files Fixed**:
+- `client/src/App.js:6` - Fixed firebase import
+- `client/src/contexts/AuthContext.js:13` - Fixed firebase import
+- `client/src/services/userDataService.js:14` - Fixed firebase import
+
+**Solution**:
+```javascript
+// Before (broken)
+import { db } from './firebase';
+import { auth, googleProvider, db } from '../firebase';
+
+// After (fixed)
+import { db } from './firebase/config';
+import { auth, googleProvider, db } from '../firebase/config';
+```
+
+#### 2. Missing Firebase Exports
+**Problem**: `googleProvider` not exported from firebase config
+
+**Solution**: Added missing exports to `client/src/firebase/config.js`:
+```javascript
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+export const googleProvider = new GoogleAuthProvider();
+```
+
+#### 3. Archived Component References
+**Problem**: Components referencing archived files listed in `archive_files.txt`
+
+**Files Fixed**:
+- `client/src/index.js:5` - ErrorBoundary import path corrected
+- `client/src/components/ShoppingOrchestrator.js` - InstacartCheckout imports removed
+- `client/src/components/StoresPage.js:6` - KrogerAuth import disabled with fallback UI
+
+**Solution Pattern**:
+```javascript
+// For archived components - disable with graceful fallback
+// import KrogerAuth from './KrogerAuth'; // Archived
+<div style={{padding: '20px', background: '#f5f5f5'}}>
+  <h4>Component Temporarily Disabled</h4>
+  <p>This feature has been temporarily disabled during system updates.</p>
+</div>
+```
+
+### Systematic Cleanup Process
+
+#### Step 1: Identify Build Failures
+```bash
+cd client && npm run build
+```
+Look for "Module not found" errors referencing archived files.
+
+#### Step 2: Search for Import References
+```bash
+# Find all references to archived file
+grep -r "from './ArchiveFileName'" client/src/
+```
+
+#### Step 3: Update Import Paths
+- For firebase: Update to `./firebase/config`
+- For archived components: Comment out and add fallback UI
+- For moved files: Update to correct path
+
+#### Step 4: Verify Build Success
+```bash
+cd client && npm run build
+```
+Should complete with only ESLint warnings, no compilation errors.
+
+### Pre-Modification Checklist for Future File Archiving
+
+Before archiving files, run these checks:
+
+1. **Search for imports**: `grep -r "from './FileName'" client/src/`
+2. **Check component usage**: `grep -r "ComponentName" client/src/`
+3. **Verify export completeness**: Ensure all required exports exist in target files
+4. **Test build**: Run `npm run build` before and after changes
+
+### Emergency Rollback Procedures
+
+If build breaks after archiving:
+
+1. **Identify broken imports**: Read build error output carefully
+2. **Restore critical files temporarily**: Move back from archive until imports fixed
+3. **Apply systematic fixes**: Follow cleanup process above
+4. **Re-archive after fixes**: Move files back to archive once imports updated
+
+### Integration Status ✅
+
+**Build Status**: ✅ **SUCCESSFUL**
+- All archived file import references resolved
+- Firebase configuration exports complete
+- Component fallbacks implemented for archived integrations
+- Build completes with only minor ESLint warnings (no compilation errors)
+
+**Last Build Test**: 2025-09-23 - 276.84 kB main bundle, all imports resolved
+
 # JavaScript File Workflows and Processes
 
 This section documents the detailed workflows and processes for each JavaScript file in the CartSmash application, organized by functional areas.

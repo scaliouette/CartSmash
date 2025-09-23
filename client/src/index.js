@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
-import { ErrorBoundary } from './ErrorBoundary';
+import ErrorBoundary from './components/ErrorBoundary';
 import { setupServiceWorkerErrorHandling } from './utils/serviceWorkerHandler';
 
 console.log('🌟 Starting CartSmash application...');

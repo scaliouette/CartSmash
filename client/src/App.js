@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SmashCartProvider } from './contexts/SmashCartContext';
 import userDataService from './services/userDataService';
-import { db } from './firebase';
+import { db } from './firebase/config';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import './styles/cartsmash.css';
 import Header from './components/Header';
