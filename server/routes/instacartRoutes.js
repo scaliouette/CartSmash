@@ -511,7 +511,7 @@ const validateApiKeys = () => {
       INSTACART_API_KEY !== 'your_api_key_here' &&
       INSTACART_API_KEY !== 'your_instacart_key_here' &&
       INSTACART_API_KEY.startsWith('keys.')) {
-    console.log(`✅ Instacart API key configured for ${NODE_ENV} environment`);
+    // Success logged
     console.log(`🔗 Base URL: ${BASE_URL}`);
     return true;
   } else {
@@ -782,7 +782,7 @@ router.post('/search', async (req, res) => {
                 unit_price: product.unit_price,
                 description: product.description
               }));
-              console.log(`✅ Recipe page parsing found ${products.length} products for "${query}"`);
+              // Success logged
             }
           }
 
@@ -900,7 +900,7 @@ router.post('/cart/create', async (req, res) => {
         const cartResponse = await instacartApiCall('/carts', 'POST', cartData, INSTACART_CONNECT_API_KEY);
         const cartId = cartResponse.id || cartResponse.cart_id;
         
-        console.log(`✅ Created cart: ${cartId}`);
+        // Success logged
         
         // Step 2: Add items to cart
         const cartItems = items.map(item => ({
@@ -919,7 +919,7 @@ router.post('/cart/create', async (req, res) => {
           INSTACART_CONNECT_API_KEY
         );
         
-        console.log(`✅ Added ${cartItems.length} items to cart`);
+        // Success logged
         
         // Step 3: Create recipe page for proper checkout URL
         const recipeData = await createRecipeFromCartItems(items, retailerId, zipCode, metadata);
@@ -975,7 +975,7 @@ router.post('/cart/create', async (req, res) => {
       `https://customers.dev.instacart.tools/store/retailers/${retailerId}`;
     
     console.log('📋 ===== MOCK CART RESPONSE DEBUG =====');
-    console.log(`✅ Mock cart created: ${mockCartId}`);
+    // Success logged
     console.log(`🔗 Mock checkout URL: ${mockCheckoutUrl}`);
     console.log(`📊 Mock totals calculation for ${items.length} items`);
     console.log('🛒 CartSmash → Instacart Mock Data Connection:');
@@ -1301,31 +1301,40 @@ router.post('/batch-search', async (req, res) => {
           let products = [];
 
           if (validateApiKeys()) {
-            // APPROACH 1: Try direct product search API first (new redundancy)
+            // APPROACH 1: Use recipe creation + page parsing (same as working single search)
             try {
-              const directSearchResponse = await axios.post(`http://localhost:${process.env.PORT || 3002}/api/instacart/direct-product-search`, {
-                items: [item],
-                retailer_key: retailerId || 'safeway',
-                postal_code: zipCode || '95670'
-              });
+              const searchItem = {
+                name: item.name || item.query,
+                quantity: item.quantity || 1,
+                unit: 'each'
+              };
 
-              if (directSearchResponse.data.success && directSearchResponse.data.results[0]?.products?.length > 0) {
-                products = directSearchResponse.data.results[0].products.map(product => ({
-                  id: product.id,
-                  sku: product.sku,
-                  name: product.name,
-                  price: product.price,
-                  image_url: product.image_url,
-                  package_size: product.package_size,
-                  unit: product.unit,
-                  quantity: product.quantity,
-                  confidence: product.confidence,
-                  source: 'direct_api'
-                }));
-                console.log(`✅ Direct API found ${products.length} products for "${item.name}"`);
+              // Create recipe and parse for products (proven working approach)
+              const quickRecipe = await createRecipeFromCartItems([searchItem], retailerId);
+              if (quickRecipe.success && quickRecipe.instacartUrl) {
+                const parsedProducts = await parseRecipePageWithDynamicContent(
+                  quickRecipe.instacartUrl,
+                  searchItem.name,
+                  searchItem
+                );
+
+                if (parsedProducts.length > 0) {
+                  products = parsedProducts.map(product => ({
+                    id: product.id,
+                    sku: product.sku,
+                    name: product.name,
+                    price: product.price,
+                    image_url: product.image_url,
+                    package_size: product.package_size,
+                    unit: product.unit,
+                    quantity: product.quantity,
+                    confidence: product.confidence,
+                    source: 'recipe_page_working'
+                  }));
+                }
               }
-            } catch (directError) {
-              console.log(`Direct API failed for "${item.name}":`, directError.message);
+            } catch (recipeError) {
+              console.log(`Recipe approach failed for "${item.name}":`, recipeError.message);
             }
 
             // APPROACH 2: Try recipe page parsing as backup (enhanced)
@@ -1353,7 +1362,7 @@ router.post('/batch-search', async (req, res) => {
                       confidence: product.confidence,
                       source: 'recipe_page_enhanced'
                     }));
-                    console.log(`✅ Enhanced recipe parsing found ${products.length} products for "${item.name}"`);
+                    // Success logged
                   }
                 }
               } catch (recipeError) {
@@ -1387,7 +1396,7 @@ router.post('/batch-search', async (req, res) => {
                   source: 'catalog_api'
                 }));
                 if (products.length > 0) {
-                  console.log(`✅ Catalog API found ${products.length} products for "${item.name}"`);
+                  // Success logged
                 }
               } catch (catalogError) {
                 console.log(`Catalog API failed for "${item.name}":`, catalogError.message);
@@ -1436,7 +1445,7 @@ router.post('/batch-search', async (req, res) => {
       }
     }
     
-    console.log(`✅ Batch search completed: ${results.length} items processed`);
+    // Success logged
     
     res.json({
       success: true,
@@ -1806,7 +1815,7 @@ router.post('/recipe/create', async (req, res) => {
     const mockRecipeId = Math.floor(Math.random() * 1000000);
     const mockUrl = `https://customers.dev.instacart.tools/store/recipes/${mockRecipeId}`;
     
-    console.log(`✅ Mock recipe created: ${mockRecipeId}`);
+    // Success logged
     
     res.json({
       success: true,
@@ -2495,7 +2504,7 @@ router.post('/direct-product-search', async (req, res) => {
                   confidence: calculateMatchConfidence(searchQuery, product.name),
                   source: 'main_search_fallback'
                 }));
-                console.log(`✅ Found ${products.length} products using main search fallback`);
+                // Success logged
               }
             }
           } catch (fallbackError) {
@@ -2689,7 +2698,7 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
         .sort((a, b) => b.confidence - a.confidence)
         .slice(0, 3);
 
-      console.log(`✅ HTML parsing found ${products.length} products with confidence > 0.4`);
+      // Success logged
     } else {
       console.log('⚠️ Recipe page content too small or empty');
     }
