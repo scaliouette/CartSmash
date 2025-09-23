@@ -235,6 +235,8 @@ const corsOptions = {
     console.log('- Time:', new Date().toISOString());
 
     const allowedOrigins = [
+      'https://www.cartsmash.com',
+      'https://cartsmash.com',
       'https://cart-smash.vercel.app',
       'https://cartsmash.vercel.app',
       'http://localhost:3000',
@@ -319,6 +321,8 @@ app.use((req, res, next) => {
 
   // Ensure CORS headers are always present for allowed origins
   const allowedOrigins = [
+    'https://www.cartsmash.com',
+    'https://cartsmash.com',
     'https://cart-smash.vercel.app',
     'https://cartsmash.vercel.app',
     'http://localhost:3000',
