@@ -434,42 +434,6 @@ function generateProductThumbnail(productName, category) {
 async function mockInstacartProductSearch(searchTerm, category, brand) {
   console.log('🚫 Mock Instacart product search is disabled - no fake data generation');
   throw new Error('Mock data generation has been eliminated. Use real Instacart API integration.');
-    {
-      id: 'product_1',
-      name: searchTerm,
-      brand: brand || 'Generic Brand',
-      category: category || 'general',
-      price: Math.random() * 10 + 2,
-      availability: 'in_stock',
-      size: '1 lb',
-      image_url: generateProductThumbnail(searchTerm, category)
-    },
-    {
-      id: 'product_2',
-      name: `Organic ${searchTerm}`,
-      brand: 'Organic Valley',
-      category: category || 'general',
-      price: Math.random() * 15 + 3,
-      availability: 'in_stock',
-      size: '1 lb',
-      image_url: generateProductThumbnail(searchTerm, category)
-    },
-    {
-      id: 'product_3',
-      name: `Premium ${searchTerm}`,
-      brand: 'Premium Brand',
-      category: category || 'general',
-      price: Math.random() * 20 + 5,
-      availability: 'low_stock',
-      size: '2 lb',
-      image_url: generateProductThumbnail(searchTerm, category)
-    }
-  ];
-
-  return {
-    products: mockProducts,
-    count: mockProducts.length
-  };
 }
 
 // Get retailer pricing
