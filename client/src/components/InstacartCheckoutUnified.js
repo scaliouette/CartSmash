@@ -981,11 +981,26 @@ const InstacartCheckoutUnified = ({
           </div>
 
           <div className="checkout-actions">
-            <button onClick={handleProceedToCheckout} className="proceed-button">
+            <button
+              onClick={handleProceedToCheckout}
+              className="proceed-button instacart-primary-button"
+              style={{
+                backgroundColor: '#003D29',
+                color: 'white',
+                height: '46px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '0 24px',
+                width: '100%',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.target.style.backgroundColor = '#002D1F'}
+              onMouseOut={(e) => e.target.style.backgroundColor = '#003D29'}
+            >
               {checkoutUrl ? '🛒 Shop on Instacart' : '🔄 Processing...'}
-            </button>
-            <button onClick={handleContinueShopping} className="continue-button">
-              Continue Shopping on CartSmash
             </button>
           </div>
         </div>
@@ -1081,7 +1096,7 @@ const InstacartCheckoutUnified = ({
               disabled={currentStep === 2 && !selectedStore}
               className="footer-button-primary"
             >
-              {currentStep === 2 ? 'Create List' : 'Continue'}
+              {currentStep === 2 ? 'Shop on Instacart' : 'Continue'}
               <ChevronRight className="button-icon" />
             </button>
           </div>

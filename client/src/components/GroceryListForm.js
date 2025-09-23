@@ -847,6 +847,7 @@ function GroceryListForm({
               });
 
               // Enrich the original item with Instacart data
+              // PRESERVE ORIGINAL RECIPE QUANTITIES - only enrich pricing and product info
               const enrichedItem = {
                 ...item,
                 price: parseFloat(instacartProduct.price) || 0,
@@ -854,7 +855,11 @@ function GroceryListForm({
                 imageUrl: instacartProduct.image_url || instacartProduct.imageUrl || instacartProduct.image,
                 instacartId: instacartProduct.id,
                 instacartData: instacartProduct,
-                enriched: true
+                enriched: true,
+                // Preserve original recipe quantities and units - don't let Instacart data override them
+                quantity: item.quantity, // Force preserve original quantity
+                unit: item.unit,         // Force preserve original unit
+                size: item.size          // Force preserve original size if it exists
               };
 
               console.log(`✅ ENRICHED ITEM CREATED for "${searchQuery}":`, {
@@ -3698,7 +3703,7 @@ Return as JSON with this structure:
     });
 
     // Format instructions into numbered steps with descriptive labels
-    const formattedInstructionsText = formatInstructionsToNumberedSteps(rawInstructions.join(' '));
+    const formattedInstructionsText = formatInstructionsToNumberedSteps(rawInstructions.join('\n'));
     const displayInstructions = formattedInstructionsText.split('\n\n').filter(step => step.trim());
     
     // No artificial limitations on recipe instructions - display them as provided

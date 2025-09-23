@@ -733,13 +733,15 @@ const InstacartShoppingList = ({
     };
 
     const quantity = extractPrimitive(item.unitCount) || extractPrimitive(item.quantity) || 1;
-    const unit = extractPrimitive(item.unit) || extractPrimitive(item.size) || extractPrimitive(item.package_size) || 'each';
+    // PRESERVE ORIGINAL RECIPE UNITS - prioritize item.unit over Instacart product size data
+    const unit = extractPrimitive(item.unit) || 'each';
 
     console.log(`📊 [${componentId}] [${functionId}] Resolved values:`, {
       finalQuantity: quantity,
       finalUnit: unit,
       quantitySource: item.unitCount ? 'unitCount' : (item.quantity ? 'quantity' : 'default'),
-      unitSource: item.unit ? 'unit' : (item.size ? 'size' : (item.package_size ? 'package_size' : 'default'))
+      unitSource: item.unit ? 'unit' : 'default (each)',
+      preservedOriginalUnit: !!item.unit
     });
 
     // If unit is "each", don't display it

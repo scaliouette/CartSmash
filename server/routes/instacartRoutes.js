@@ -906,7 +906,7 @@ function generateMockProducts(query, originalItem, retailerId, options = {}) {
       sku: `${(retailerId || 'DEFAULT').toUpperCase()}_${Math.random().toString(36).substr(2, 8)}`,
       name: template.name,
       price: Math.round(template.basePrice * multiplier * 100) / 100,
-      size: originalItem?.amount || '1 unit',
+      size: '1 unit', // Don't use originalItem data to avoid overriding recipe quantities
       brand: index === 0 ? 'Store Brand' : (index === 1 ? 'Premium Brand' : 'Value Brand'),
       image: template.image || `https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&h=400&fit=crop&t=${Date.now()}`,
       image_url: template.image || `https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&h=400&fit=crop&t=${Date.now()}`, // Support both field names
