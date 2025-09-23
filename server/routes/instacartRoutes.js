@@ -667,27 +667,31 @@ async function createRecipeFromCartItems(items, retailerId, zipCode, metadata) {
 
     console.log(`   📝 Generated recipe title: "${title}"`);
 
-    // Convert cart items to line_items (official Instacart shopping list format)
-    const line_items = items.map(item => ({
+    // Convert cart items to ingredients format (same as working recipe API)
+    const ingredients = items.map(item => ({
       name: item.name || item.productName || 'Unknown Item',
       display_text: `${item.quantity || 1} ${item.unit || 'each'} ${item.name || item.productName}`,
-      line_item_measurements: [{
+      measurements: [{
         quantity: parseFloat(item.quantity) || 1,
         unit: item.unit || 'each'
       }]
     }));
 
-    console.log(`   🥕 Converted to Instacart line_items format:`, line_items.map(item => ({
+    console.log(`   🥕 Converted to Instacart ingredients format:`, ingredients.map(item => ({
       name: item.name,
       display_text: item.display_text,
-      measurements: item.line_item_measurements
+      measurements: item.measurements
     })));
 
-    // Create shopping list payload (official Instacart format)
-    const shoppingListPayload = {
+    // Create recipe payload using working /products/recipe format
+    const recipePayload = {
       title,
-      description: `Shopping list created from CartSmash with ${items.length} items`,
-      line_items,
+      instructions: [
+        'Add these items to your cart',
+        'Review your order and select delivery time',
+        'Proceed to checkout when ready'
+      ],
+      ingredients,
       external_reference_id: `cartsmash_checkout_${Date.now()}`,
       expires_in: 30,
       landing_page_configuration: {
@@ -696,17 +700,17 @@ async function createRecipeFromCartItems(items, retailerId, zipCode, metadata) {
       }
     };
 
-    // Call the shopping list creation API (official Instacart format)
+    // Use the working /products/recipe endpoint
     if (validateApiKeys()) {
-      console.log(`   🔗 Calling Instacart shopping list API with official format`);
-      const response = await instacartApiCall('/products/shopping-list-page', 'POST', shoppingListPayload);
+      console.log(`   🔗 Calling Instacart recipe API with working format`);
+      const response = await instacartApiCall('/products/recipe', 'POST', recipePayload);
 
       const result = {
         success: true,
-        shoppingListId: response.products_link_url?.match(/shopping-lists\/(\d+)/)?.[1] || response.id,
+        recipeId: response.products_link_url?.match(/recipes\/(\d+)/)?.[1],
         instacartUrl: response.products_link_url,
         title,
-        itemsCount: line_items.length
+        itemsCount: ingredients.length
       };
 
       // Add retailer key to URL if provided
@@ -715,22 +719,22 @@ async function createRecipeFromCartItems(items, retailerId, zipCode, metadata) {
         result.instacartUrl += `${separator}retailer_key=${retailerId}`;
       }
 
-      console.log(`   ✅ Shopping list created: ${result.instacartUrl}`);
+      console.log(`   ✅ Recipe created: ${result.instacartUrl}`);
       console.log(`   📊 CartSmash → Instacart connection: SUCCESSFUL`);
       return result;
     } else {
-      // Mock shopping list URL for development (official format)
-      const mockListId = Math.floor(Math.random() * 9000000) + 1000000;
-      const mockUrl = `https://customers.dev.instacart.tools/store/shopping-lists/${mockListId}?retailer_key=${retailerId}`;
+      // Mock recipe URL for development using working format
+      const mockRecipeId = Math.floor(Math.random() * 9000000) + 1000000;
+      const mockUrl = `https://customers.dev.instacart.tools/store/recipes/${mockRecipeId}?retailer_key=${retailerId}`;
 
-      console.log(`   🧪 Mock shopping list URL created: ${mockUrl}`);
+      console.log(`   🧪 Mock recipe URL created: ${mockUrl}`);
       console.log(`   📊 CartSmash → Instacart mock connection: VERIFIED`);
       return {
         success: true,
-        shoppingListId: mockListId.toString(),
+        recipeId: mockRecipeId.toString(),
         instacartUrl: mockUrl,
         title,
-        itemsCount: line_items.length,
+        itemsCount: ingredients.length,
         mockMode: true
       };
     }
