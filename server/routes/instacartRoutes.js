@@ -4,6 +4,14 @@ const router = express.Router();
 const axios = require('axios');
 const { authenticateUser } = require('../middleware/auth');
 
+// Try to import puppeteer for dynamic content loading (optional)
+let puppeteer;
+try {
+  puppeteer = require('puppeteer');
+} catch (e) {
+  console.log('⚠️ Puppeteer not available - using HTML-only parsing');
+}
+
 // Instacart API configuration - UPDATED 2025
 const INSTACART_API_KEY = process.env.INSTACART_API_KEY;
 const INSTACART_CONNECT_API_KEY = process.env.INSTACART_CONNECT_API_KEY || INSTACART_API_KEY;
@@ -200,7 +208,7 @@ async function parseRealProductsFromRecipe(recipeUrl, query, originalItem, retai
     });
     let products = [];
 
-    // Method 1: Extract Apollo GraphQL state data - STREAMLINED
+    // Method 1: Extract Apollo GraphQL state data - ENHANCED WITH MULTIPLE DATA PATHS
     try {
       const apolloScript = $('#node-apollo-state').html();
       if (apolloScript) {
@@ -208,26 +216,101 @@ async function parseRealProductsFromRecipe(recipeUrl, query, originalItem, retai
         const apolloData = JSON.parse(decodedData);
 
         if (apolloData?.data) {
-          // Direct product extraction without batching overhead for typical small datasets
+          // Enhanced extraction with multiple data paths and unit/quantity separation
           for (const [key, value] of Object.entries(apolloData.data)) {
+            // Product entities
             if (value?.__typename === 'Product' && value.name) {
+              const packageSize = value.size || value.packageSize || value.package_size;
+              const unit = extractUnit(packageSize);
+              const baseQuantity = extractQuantity(originalItem?.quantity);
+
               products.push({
                 id: value.id || key,
                 name: value.name || value.displayName,
                 brand: value.brand?.name || value.brandName,
-                price: value.pricing?.price || value.price,
-                image_url: value.images?.[0]?.url,
-                package_size: value.size || value.packageSize,
+                price: parseFloat(value.pricing?.price || value.price || 0),
+                image_url: value.images?.[0]?.url || value.image?.url,
+                package_size: packageSize,
+                unit: unit,
+                quantity: baseQuantity,
                 availability: value.availability || 'in_stock',
                 upc: value.upc,
-                category: value.category?.name
+                category: value.category?.name,
+                confidence: calculateMatchConfidence(query, value.name || value.displayName),
+                source: 'apollo_product'
+              });
+            }
+            // Recipe ingredients with product references
+            else if (value?.__typename === 'RecipeIngredient' && value.product) {
+              const product = value.product;
+              const packageSize = value.quantity || product.size || product.packageSize;
+              const unit = extractUnit(packageSize);
+              const baseQuantity = extractQuantity(originalItem?.quantity);
+
+              products.push({
+                id: product.id || key,
+                name: product.name || product.displayName,
+                brand: product.brand?.name || product.brandName,
+                price: parseFloat(product.pricing?.price || product.price || 0),
+                image_url: product.images?.[0]?.url || product.image?.url,
+                package_size: packageSize,
+                unit: unit,
+                quantity: baseQuantity,
+                availability: product.availability || 'in_stock',
+                upc: product.upc,
+                category: product.category?.name,
+                confidence: calculateMatchConfidence(query, product.name || product.displayName),
+                source: 'apollo_ingredient'
+              });
+            }
+            // Store items
+            else if (value?.__typename === 'StoreItem' && value.name) {
+              const packageSize = value.size || value.packageSize;
+              const unit = extractUnit(packageSize);
+              const baseQuantity = extractQuantity(originalItem?.quantity);
+
+              products.push({
+                id: value.id || key,
+                name: value.name,
+                brand: value.brand?.name,
+                price: parseFloat(value.price || 0),
+                image_url: value.imageUrl || value.image?.url,
+                package_size: packageSize,
+                unit: unit,
+                quantity: baseQuantity,
+                availability: value.availability || 'in_stock',
+                upc: value.upc,
+                confidence: calculateMatchConfidence(query, value.name),
+                source: 'apollo_store'
+              });
+            }
+            // Shopping list items
+            else if (value?.__typename === 'ShoppingListItem' && value.item) {
+              const item = value.item;
+              const packageSize = item.size || item.packageSize;
+              const unit = extractUnit(packageSize);
+              const baseQuantity = extractQuantity(originalItem?.quantity);
+
+              products.push({
+                id: item.id || key,
+                name: item.name,
+                brand: item.brand?.name,
+                price: parseFloat(item.price || 0),
+                image_url: item.imageUrl || item.image?.url,
+                package_size: packageSize,
+                unit: unit,
+                quantity: baseQuantity,
+                availability: item.availability || 'in_stock',
+                upc: item.upc,
+                confidence: calculateMatchConfidence(query, item.name),
+                source: 'apollo_shopping_list'
               });
             }
           }
         }
       }
     } catch (apolloError) {
-      // Silent fallback to CSS parsing
+      console.log('Enhanced Apollo parsing failed:', apolloError.message);
     }
 
     // Method 2: Enhanced CSS selector parsing
@@ -246,14 +329,35 @@ async function parseRealProductsFromRecipe(recipeUrl, query, originalItem, retai
           if (name && name.length > 2 && !name.includes('Loading')) {
             const confidence = calculateMatchConfidence(query, name);
             if (confidence > 0.4) {
+              // Extract price from element or siblings
+              const priceText = $el.find('[class*="price"], .price').text() ||
+                              $el.siblings().find('[class*="price"], .price').text() ||
+                              $el.parent().find('[class*="price"], .price').text();
+              const price = parseFloat(priceText.replace(/[^0-9.]/g, '')) || 0;
+
+              // Extract image from element
+              const imageEl = $el.find('img').first();
+              const imageUrl = imageEl.attr('src') || imageEl.attr('data-src') || null;
+
+              // Extract package size
+              const sizeText = $el.find('[class*="size"], .size').text() ||
+                             $el.siblings().find('[class*="size"], .size').text() || '';
+              const packageSize = sizeText || originalItem?.quantity || '1 unit';
+              const unit = extractUnit(packageSize);
+              const quantity = extractQuantity(originalItem?.quantity);
+
               products.push({
                 id: `css_${i}`,
                 name,
-                price: 0,
+                price,
                 brand: 'Instacart',
-                package_size: originalItem?.quantity || '1 unit',
+                package_size: packageSize,
+                unit: unit,
+                quantity: quantity,
+                image_url: imageUrl,
                 availability: 'in_stock',
-                confidence
+                confidence,
+                source: 'css_parsing'
               });
             }
           }
@@ -263,18 +367,26 @@ async function parseRealProductsFromRecipe(recipeUrl, query, originalItem, retai
       }
     }
 
-    // Method 3: Text content fallback
+    // Method 3: Text content fallback with unit/quantity separation
     if (products.length === 0) {
       const ingredientText = $('body').text();
       if (ingredientText.toLowerCase().includes(query.toLowerCase())) {
+        const packageSize = originalItem?.quantity || '1 unit';
+        const unit = extractUnit(packageSize);
+        const quantity = extractQuantity(originalItem?.quantity);
+
         products.push({
           id: `text_${Date.now()}`,
           name: query,
           price: 0,
           brand: 'Instacart',
-          package_size: originalItem?.quantity || '1 unit',
+          package_size: packageSize,
+          unit: unit,
+          quantity: quantity,
+          image_url: null,
           availability: 'in_stock',
-          confidence: 0.6
+          confidence: 0.6,
+          source: 'text_fallback'
         });
       }
     }
@@ -1288,20 +1400,89 @@ router.post('/batch-search', async (req, res) => {
           let products = [];
 
           if (validateApiKeys()) {
+            // APPROACH 1: Try direct product search API first (new redundancy)
             try {
-              const searchResults = await instacartApiCall('/catalog/search', 'POST', searchParams);
-              products = (searchResults.items || searchResults.data || []).slice(0, 3).map(product => ({
-                id: product.id || product.product_id,
-                sku: product.sku || product.retailer_sku,
-                name: product.name || product.display_name,
-                price: product.price || product.pricing?.price || 0,
-                confidence: calculateMatchConfidence(item.name || item.query, product.name || product.display_name)
-              }));
-            } catch (apiError) {
-              products = []; // Return empty array instead of mock data
+              const directSearchResponse = await axios.post(`http://localhost:${process.env.PORT || 3002}/api/instacart/direct-product-search`, {
+                items: [item],
+                retailer_key: retailerId || 'safeway',
+                postal_code: zipCode || '95670'
+              });
+
+              if (directSearchResponse.data.success && directSearchResponse.data.results[0]?.products?.length > 0) {
+                products = directSearchResponse.data.results[0].products.map(product => ({
+                  id: product.id,
+                  sku: product.sku,
+                  name: product.name,
+                  price: product.price,
+                  image_url: product.image_url,
+                  package_size: product.package_size,
+                  unit: product.unit,
+                  quantity: product.quantity,
+                  confidence: product.confidence,
+                  source: 'direct_api'
+                }));
+                console.log(`✅ Direct API found ${products.length} products for "${item.name}"`);
+              }
+            } catch (directError) {
+              console.log(`Direct API failed for "${item.name}":`, directError.message);
             }
-          } else {
-            products = []; // Return empty array instead of mock data
+
+            // APPROACH 2: Try recipe page parsing as backup (enhanced)
+            if (products.length === 0) {
+              try {
+                // Create a quick recipe to get product parsing
+                const quickRecipe = await createRecipeFromCartItems([item], retailerId);
+                if (quickRecipe.success && quickRecipe.instacartUrl) {
+                  const parsedProducts = await parseRecipePage(
+                    quickRecipe.instacartUrl,
+                    item.name || item.query,
+                    item
+                  );
+
+                  if (parsedProducts.length > 0) {
+                    products = parsedProducts.map(product => ({
+                      id: product.id,
+                      sku: product.sku,
+                      name: product.name,
+                      price: product.price,
+                      image_url: product.image_url,
+                      package_size: product.package_size,
+                      unit: product.unit,
+                      quantity: product.quantity,
+                      confidence: product.confidence,
+                      source: 'recipe_page_enhanced'
+                    }));
+                    console.log(`✅ Enhanced recipe parsing found ${products.length} products for "${item.name}"`);
+                  }
+                }
+              } catch (recipeError) {
+                console.log(`Enhanced recipe parsing failed for "${item.name}":`, recipeError.message);
+              }
+            }
+
+            // APPROACH 3: Original catalog search as final fallback
+            if (products.length === 0) {
+              try {
+                const searchResults = await instacartApiCall('/catalog/search', 'POST', searchParams);
+                products = (searchResults.items || searchResults.data || []).slice(0, 3).map(product => ({
+                  id: product.id || product.product_id,
+                  sku: product.sku || product.retailer_sku,
+                  name: product.name || product.display_name,
+                  price: parseFloat(product.price || product.pricing?.price || 0),
+                  image_url: product.image_url || product.images?.[0]?.url,
+                  package_size: product.size || product.package_size,
+                  unit: extractUnit(product.size || product.package_size),
+                  quantity: extractQuantity(item.quantity) || 1,
+                  confidence: calculateMatchConfidence(item.name || item.query, product.name || product.display_name),
+                  source: 'catalog_api'
+                }));
+                if (products.length > 0) {
+                  console.log(`✅ Catalog API found ${products.length} products for "${item.name}"`);
+                }
+              } catch (catalogError) {
+                console.log(`Catalog API failed for "${item.name}":`, catalogError.message);
+              }
+            }
           }
 
           return {
@@ -2318,6 +2499,254 @@ router.use((error, req, res, next) => {
     message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
   });
 });
+
+// APPROACH 1: Direct Product Search API (NEW - For Redundancy)
+// This bypasses recipe pages entirely and searches Instacart's product catalog directly
+router.post('/direct-product-search', async (req, res) => {
+  try {
+    console.log('🔍 Direct product search requested');
+    const { items = [], retailer_key = 'safeway', postal_code = '95670' } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        error: 'Items array is required',
+        success: false
+      });
+    }
+
+    const results = [];
+
+    // Search each item directly via Instacart's product API
+    for (const item of items) {
+      try {
+        const searchQuery = typeof item === 'string' ? item : item.name;
+
+        // Try multiple search endpoints for redundancy
+        let products = [];
+
+        // Method 1: Try catalog search
+        try {
+          const catalogEndpoint = `/catalog/search?q=${encodeURIComponent(searchQuery)}&retailer_key=${retailer_key}&postal_code=${postal_code}`;
+          const catalogResponse = await instacartApiCall(catalogEndpoint);
+
+          if (catalogResponse?.products) {
+            products = catalogResponse.products.map(product => ({
+              id: product.id,
+              name: product.name || product.display_name,
+              brand: product.brand?.name || product.brand_name,
+              price: parseFloat(product.price?.amount || product.pricing?.price || 0),
+              image_url: product.images?.[0]?.url || product.image_url,
+              package_size: product.size || product.package_size || product.quantity,
+              unit: product.unit || extractUnit(product.size),
+              quantity: extractQuantity(item.quantity) || 1,
+              availability: product.availability || 'in_stock',
+              upc: product.upc,
+              confidence: calculateMatchConfidence(searchQuery, product.name || product.display_name),
+              source: 'catalog_api'
+            }));
+          }
+        } catch (catalogError) {
+          console.log(`Catalog search failed for "${searchQuery}":`, catalogError.message);
+        }
+
+        // Method 2: Try store items search as backup
+        if (products.length === 0) {
+          try {
+            const storeEndpoint = `/stores/${retailer_key}/items?q=${encodeURIComponent(searchQuery)}&postal_code=${postal_code}`;
+            const storeResponse = await instacartApiCall(storeEndpoint);
+
+            if (storeResponse?.items) {
+              products = storeResponse.items.map(item => ({
+                id: item.id,
+                name: item.name,
+                brand: item.brand?.name,
+                price: parseFloat(item.price?.amount || 0),
+                image_url: item.image_url,
+                package_size: item.size || item.package_size,
+                unit: item.unit || extractUnit(item.size),
+                quantity: extractQuantity(item.quantity) || 1,
+                availability: item.availability || 'in_stock',
+                upc: item.upc,
+                confidence: calculateMatchConfidence(searchQuery, item.name),
+                source: 'store_api'
+              }));
+            }
+          } catch (storeError) {
+            console.log(`Store search failed for "${searchQuery}":`, storeError.message);
+          }
+        }
+
+        // Filter and sort by confidence
+        const relevantProducts = products
+          .filter(p => p.confidence > 0.4)
+          .sort((a, b) => b.confidence - a.confidence)
+          .slice(0, 3);
+
+        results.push({
+          query: searchQuery,
+          products: relevantProducts,
+          found: relevantProducts.length > 0,
+          source: relevantProducts[0]?.source || 'none'
+        });
+
+      } catch (itemError) {
+        console.error(`Error searching for item:`, itemError.message);
+        results.push({
+          query: typeof item === 'string' ? item : item.name,
+          products: [],
+          found: false,
+          error: itemError.message
+        });
+      }
+    }
+
+    const totalFound = results.reduce((sum, result) => sum + result.products.length, 0);
+
+    res.json({
+      success: true,
+      method: 'direct_product_search',
+      results,
+      totalItems: items.length,
+      totalFound,
+      foundPercentage: items.length > 0 ? Math.round((totalFound / items.length) * 100) : 0
+    });
+
+  } catch (error) {
+    console.error('❌ Direct product search error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Direct product search failed',
+      message: error.message
+    });
+  }
+});
+
+// Helper functions for unit/quantity separation
+function extractUnit(sizeString) {
+  if (!sizeString) return null;
+  const unitMatch = sizeString.match(/\b(oz|lb|lbs|g|kg|ml|l|fl oz|cups?|tbsp|tsp|each|ct|count)\b/i);
+  return unitMatch ? unitMatch[1].toLowerCase() : null;
+}
+
+function extractQuantity(quantityInput) {
+  if (typeof quantityInput === 'number') return quantityInput;
+  if (typeof quantityInput === 'string') {
+    const numMatch = quantityInput.match(/(\d+(?:\.\d+)?)/);
+    return numMatch ? parseFloat(numMatch[1]) : 1;
+  }
+  return 1;
+}
+
+// APPROACH 2: Enhanced Dynamic Recipe Page Parser (Enhanced Existing)
+// This improves the existing recipe page parsing with better JavaScript handling
+async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem = null) {
+  const cacheKey = `parse_enhanced_${recipeUrl}_${query}`;
+  if (parseCache.has(cacheKey)) {
+    const cached = parseCache.get(cacheKey);
+    if (Date.now() - cached.timestamp < PERFORMANCE_CONFIG.HTML_CACHE_TTL) {
+      return cached.products;
+    }
+  }
+
+  try {
+    let products = [];
+
+    // First try standard HTML parsing (existing method)
+    products = await parseRecipePage(recipeUrl, query, originalItem);
+
+    // If no products found and puppeteer is available, try dynamic loading
+    if (products.length === 0 && typeof puppeteer !== 'undefined') {
+      try {
+        console.log('🎭 Trying dynamic content loading with Puppeteer');
+
+        const browser = await puppeteer.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        const page = await browser.newPage();
+
+        // Set user agent to avoid bot detection
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+        // Navigate and wait for content to load
+        await page.goto(recipeUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+
+        // Wait for products to load (multiple selectors)
+        await page.waitForSelector('[data-testid*="product"], .product-item, [class*="product"]', { timeout: 10000 }).catch(() => {});
+
+        // Extract dynamic content
+        const dynamicProducts = await page.evaluate((searchQuery) => {
+          const products = [];
+
+          // Look for product elements with multiple selectors
+          const productSelectors = [
+            '[data-testid*="product"]',
+            '.product-item',
+            '[class*="product"]',
+            '[data-testid*="ingredient"]'
+          ];
+
+          productSelectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach((element) => {
+              const nameEl = element.querySelector('[class*="name"], h3, h4, .title') || element;
+              const priceEl = element.querySelector('[class*="price"], .price, [data-testid*="price"]');
+              const imageEl = element.querySelector('img');
+              const sizeEl = element.querySelector('[class*="size"], .size, [class*="quantity"]');
+
+              const name = nameEl?.textContent?.trim();
+              const price = priceEl?.textContent?.replace(/[^0-9.]/g, '') || '0';
+              const imageUrl = imageEl?.src || imageEl?.getAttribute('data-src');
+              const size = sizeEl?.textContent?.trim();
+
+              if (name && name.length > 2 && !name.includes('Loading')) {
+                products.push({
+                  id: `dynamic_${products.length}`,
+                  name,
+                  price: parseFloat(price),
+                  image_url: imageUrl,
+                  package_size: size,
+                  brand: 'Instacart',
+                  availability: 'in_stock'
+                });
+              }
+            });
+          });
+
+          return products;
+        }, query);
+
+        await browser.close();
+
+        // Calculate confidence and filter
+        products = dynamicProducts
+          .map(product => ({
+            ...product,
+            confidence: calculateMatchConfidence(query, product.name)
+          }))
+          .filter(product => product.confidence > 0.4)
+          .sort((a, b) => b.confidence - a.confidence)
+          .slice(0, 3);
+
+        console.log(`🎭 Dynamic loading found ${products.length} products`);
+
+      } catch (puppeteerError) {
+        console.log('🎭 Puppeteer parsing failed:', puppeteerError.message);
+      }
+    }
+
+    // Cache the enhanced results
+    parseCache.set(cacheKey, {
+      products,
+      timestamp: Date.now()
+    });
+
+    return products;
+
+  } catch (error) {
+    console.error('Enhanced parsing error:', error.message);
+    return [];
+  }
+}
 
 // Initialize API on module load
 console.log('🚀 Initializing Instacart API routes...');
