@@ -3,10 +3,10 @@
 
 const express = require('express');
 const router = express.Router();
-const KrogerSmashCartService = require('../services/KrogerSmashCartService');
+// const KrogerSmashCartService = require('../services/KrogerSmashCartService'); // ARCHIVED - Kroger integration disabled
 
 // Initialize cart service
-const cartService = new KrogerSmashCartService();
+// const cartService = new KrogerSmashCartService(); // ARCHIVED - Kroger integration disabled
 
 /**
  * GET /api/smash-cart/:userId
@@ -27,10 +27,11 @@ router.get('/:userId', async (req, res) => {
       includeProductDetails: includeProductDetails === 'true'
     };
     
-    const result = await cartService.getCart(userId, options);
-    
-    res.status(result.success ? 200 : 500).json({
-      ...result,
+    // Kroger service disabled - return appropriate response
+    res.status(503).json({
+      success: false,
+      error: 'Service unavailable',
+      message: 'Kroger cart service has been disabled',
       timestamp: new Date().toISOString(),
       userId: userId
     });
@@ -76,10 +77,11 @@ router.post('/:userId', async (req, res) => {
       clearExisting
     };
     
-    const result = await cartService.postCart(userId, items, options);
-    
-    res.status(result.success ? 200 : 500).json({
-      ...result,
+    // Kroger service disabled - return appropriate response
+    res.status(503).json({
+      success: false,
+      error: 'Service unavailable',
+      message: 'Kroger cart service has been disabled',
       timestamp: new Date().toISOString(),
       userId: userId
     });
@@ -114,10 +116,11 @@ router.put('/:userId', async (req, res) => {
       });
     }
     
-    const result = await cartService.putCart(userId, updates);
-    
-    res.status(result.success ? 200 : 500).json({
-      ...result,
+    // Kroger service disabled - return appropriate response
+    res.status(503).json({
+      success: false,
+      error: 'Service unavailable',
+      message: 'Kroger cart service has been disabled',
       timestamp: new Date().toISOString(),
       userId: userId
     });
@@ -148,10 +151,11 @@ router.delete('/:userId', async (req, res) => {
       removeCompletely: removeCompletely === 'true'
     };
     
-    const result = await cartService.deleteCart(userId, options);
-    
-    res.status(result.success ? 200 : 500).json({
-      ...result,
+    // Kroger service disabled - return appropriate response
+    res.status(503).json({
+      success: false,
+      error: 'Service unavailable',
+      message: 'Kroger cart service has been disabled',
       timestamp: new Date().toISOString(),
       userId: userId
     });
@@ -176,11 +180,11 @@ router.get('/:userId/store/:storeId', async (req, res) => {
     
     console.log(`🏪 [STORE INFO API] Request for store: ${storeId}`);
     
-    const storeInfo = await cartService.getStoreInfo(storeId);
-    
-    res.json({
-      success: true,
-      store: storeInfo,
+    // Kroger service disabled - return appropriate response
+    res.status(503).json({
+      success: false,
+      error: 'Service unavailable',
+      message: 'Kroger store service has been disabled',
       timestamp: new Date().toISOString()
     });
     
@@ -200,11 +204,12 @@ router.get('/:userId/store/:storeId', async (req, res) => {
  */
 router.get('/health', (req, res) => {
   try {
-    const health = cartService.getServiceHealth();
-    
+    // Kroger service disabled - return appropriate health status
     res.json({
-      ...health,
-      status: 'operational'
+      service: 'kroger_smash_cart',
+      status: 'disabled',
+      message: 'Kroger integration has been archived',
+      timestamp: new Date().toISOString()
     });
     
   } catch (error) {
@@ -236,22 +241,12 @@ router.post('/:userId/search', async (req, res) => {
       });
     }
     
-    // Get user authentication for product search
-    const tokenInfo = await cartService.validateUserAuth(userId);
-    
-    // Search for products
-    const products = await cartService.searchProduct(
-      tokenInfo, 
-      searchTerm, 
-      storeId || cartService.defaultStore
-    );
-    
-    res.json({
-      success: true,
+    // Kroger service disabled - return appropriate response
+    res.status(503).json({
+      success: false,
+      error: 'Service unavailable',
+      message: 'Kroger product search has been disabled',
       searchTerm,
-      storeId: storeId || cartService.defaultStore,
-      products: products.slice(0, limit),
-      count: products.length,
       timestamp: new Date().toISOString()
     });
     
@@ -290,10 +285,11 @@ router.post('/:userId/quick-add', async (req, res) => {
       quantity: 1
     }));
     
-    const result = await cartService.postCart(userId, items, { storeId });
-    
-    res.json({
-      ...result,
+    // Kroger service disabled - return appropriate response
+    res.status(503).json({
+      success: false,
+      error: 'Service unavailable',
+      message: 'Kroger quick-add service has been disabled',
       method: 'quick-add',
       timestamp: new Date().toISOString()
     });
@@ -318,55 +314,12 @@ router.get('/:userId/summary', async (req, res) => {
     
     console.log(`📊 [CART SUMMARY API] Request for user: ${userId}`);
     
-    const cartResult = await cartService.getCart(userId, { 
-      includeStoreInfo: true, 
-      includeProductDetails: true 
-    });
-    
-    if (!cartResult.success) {
-      return res.status(500).json(cartResult);
-    }
-    
-    const cart = cartResult.cart;
-    
-    // Generate analytics
-    const analytics = {
-      itemCount: cart.itemCount,
-      estimatedTotal: cart.summary.estimatedTotal,
-      categories: {},
-      topItems: [],
-      storeInfo: cart.store ? {
-        name: cart.store.name,
-        address: cart.store.address,
-        services: cart.store.services
-      } : null
-    };
-    
-    // Analyze cart items
-    if (cart.items && cart.items.length > 0) {
-      cart.items.forEach(item => {
-        // Category analysis
-        const category = item.productDetails?.categories?.[0] || 'Other';
-        analytics.categories[category] = (analytics.categories[category] || 0) + 1;
-        
-        // Top items by quantity
-        analytics.topItems.push({
-          name: item.productDetails?.description || item.description || 'Unknown',
-          quantity: item.quantity,
-          price: item.price?.regular || 0
-        });
-      });
-      
-      // Sort top items by quantity
-      analytics.topItems.sort((a, b) => b.quantity - a.quantity);
-      analytics.topItems = analytics.topItems.slice(0, 5);
-    }
-    
-    res.json({
-      success: true,
+    // Kroger service disabled - return appropriate response
+    res.status(503).json({
+      success: false,
+      error: 'Service unavailable',
+      message: 'Kroger cart summary service has been disabled',
       userId: userId,
-      summary: cart.summary,
-      analytics: analytics,
       timestamp: new Date().toISOString()
     });
     

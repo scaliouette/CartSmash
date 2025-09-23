@@ -2,9 +2,9 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateUser } = require('../middleware/auth');
-const KrogerOrderService = require('../services/KrogerOrderService');
+// const KrogerOrderService = require('../services/KrogerOrderService'); // ARCHIVED - Kroger integration disabled
 
-const krogerService = new KrogerOrderService();
+// const krogerService = new KrogerOrderService(); // ARCHIVED - Kroger integration disabled
 
 // GET /api/stores - Get nearby Kroger stores
 router.get('/', authenticateUser, async (req, res) => {
@@ -60,33 +60,13 @@ router.get('/', authenticateUser, async (req, res) => {
       });
     }
 
-    // Check if user is authenticated with Kroger
-    const authCheck = await krogerService.checkUserAuth(userId);
-    if (!authCheck.authenticated) {
-      return res.status(401).json({
-        success: false,
-        error: 'Kroger authentication required',
-        message: 'Please connect your Kroger account first',
-        authUrl: krogerService.getAuthURL(userId).authURL
-      });
-    }
+    // Kroger service disabled - return appropriate response
+    console.log(`🚫 Kroger store search disabled for user ${userId}`);
 
-    // Search for stores
-    const stores = await krogerService.findNearbyStores({
-      userId,
-      lat: lat ? parseFloat(lat) : null,
-      lng: lng ? parseFloat(lng) : null,
-      zipCode,
-      radius: Math.min(parseInt(radius), 50), // Max 50 mile radius
-      limit: Math.min(parseInt(limit), 50)    // Max 50 stores
-    });
-
-    console.log(`✅ Found ${stores.length} stores for user ${userId}`);
-
-    res.json({
-      success: true,
-      stores: stores,
-      count: stores.length,
+    res.status(503).json({
+      success: false,
+      error: 'Service unavailable',
+      message: 'Kroger store search has been disabled',
       searchCriteria: {
         lat: lat ? parseFloat(lat) : null,
         lng: lng ? parseFloat(lng) : null,
@@ -99,24 +79,7 @@ router.get('/', authenticateUser, async (req, res) => {
   } catch (error) {
     console.error('❌ Store search error:', error);
 
-    // Handle specific error types
-    if (error.message.includes('INSUFFICIENT_SCOPE')) {
-      return res.status(403).json({
-        success: false,
-        error: 'Insufficient permissions',
-        message: 'Please reconnect your Kroger account',
-        authUrl: krogerService.getAuthURL(req.user.uid).authURL
-      });
-    }
-
-    if (error.message.includes('TOKEN_EXPIRED')) {
-      return res.status(401).json({
-        success: false,
-        error: 'Authentication expired',
-        message: 'Please reconnect your Kroger account',
-        authUrl: krogerService.getAuthURL(req.user.uid).authURL
-      });
-    }
+    // Kroger service disabled - no specific error handling needed
 
     res.status(500).json({
       success: false,
@@ -143,32 +106,14 @@ router.get('/:storeId', authenticateUser, async (req, res) => {
       });
     }
 
-    // Check authentication
-    const authCheck = await krogerService.checkUserAuth(userId);
-    if (!authCheck.authenticated) {
-      return res.status(401).json({
-        success: false,
-        error: 'Kroger authentication required',
-        message: 'Please connect your Kroger account first'
-      });
-    }
+    // Kroger service disabled - return appropriate response
+    console.log(`🚫 Kroger store details disabled for user ${userId}, store ${storeId}`);
 
-    // Get store details
-    const store = await krogerService.getStoreDetails(userId, storeId);
-
-    if (!store) {
-      return res.status(404).json({
-        success: false,
-        error: 'Store not found',
-        message: `Store ${storeId} not found or not accessible`
-      });
-    }
-
-    console.log(`✅ Store details retrieved for ${storeId}`);
-
-    res.json({
-      success: true,
-      store: store
+    res.status(503).json({
+      success: false,
+      error: 'Service unavailable',
+      message: 'Kroger store details service has been disabled',
+      storeId: storeId
     });
 
   } catch (error) {
@@ -199,25 +144,13 @@ router.get('/:storeId/departments', authenticateUser, async (req, res) => {
       });
     }
 
-    // Check authentication
-    const authCheck = await krogerService.checkUserAuth(userId);
-    if (!authCheck.authenticated) {
-      return res.status(401).json({
-        success: false,
-        error: 'Kroger authentication required',
-        message: 'Please connect your Kroger account first'
-      });
-    }
+    // Kroger service disabled - return appropriate response
+    console.log(`🚫 Kroger store departments disabled for user ${userId}, store ${storeId}`);
 
-    // Get store departments
-    const departments = await krogerService.getStoreDepartments(userId, storeId);
-
-    console.log(`✅ Found ${departments.length} departments for store ${storeId}`);
-
-    res.json({
-      success: true,
-      departments: departments,
-      count: departments.length,
+    res.status(503).json({
+      success: false,
+      error: 'Service unavailable',
+      message: 'Kroger store departments service has been disabled',
       storeId: storeId
     });
 

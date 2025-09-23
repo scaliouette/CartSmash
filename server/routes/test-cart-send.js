@@ -1,14 +1,18 @@
 // server/test-cart-send.js
 require('dotenv').config();
-const KrogerOrderService = require('./services/KrogerOrderService');
-const KrogerAPIService = require('./services/KrogerAPIService');
+// const KrogerOrderService = require('./services/KrogerOrderService'); // ARCHIVED - Kroger integration disabled
+// const KrogerAPIService = require('./services/KrogerAPIService'); // ARCHIVED - Kroger integration disabled
 
-const orderService = new KrogerOrderService();
-const apiService = new KrogerAPIService();
+// const orderService = new KrogerOrderService(); // ARCHIVED - Kroger integration disabled
+// const apiService = new KrogerAPIService(); // ARCHIVED - Kroger integration disabled
 
 async function testCartPrep() {
-  console.log('🧪 Testing Kroger Cart Integration');
+  console.log('🚫 Kroger Cart Integration Test - DISABLED');
   console.log('=====================================\n');
+  console.log('❌ Kroger integration has been archived and disabled.');
+  console.log('   This test cannot run as the services are no longer available.');
+  console.log('=====================================');
+  return;
   
   // Test items from your cart
   const testItems = [
