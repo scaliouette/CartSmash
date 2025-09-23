@@ -1712,7 +1712,7 @@ function GroceryListForm({
       setIsLoading(false);
       setShowProgress(false);
       setWaitingForAIResponse(false);
-    }, 5000);
+    }, 15000);
 
     let progressInterval;
     try {
