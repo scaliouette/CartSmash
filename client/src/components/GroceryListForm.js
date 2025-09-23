@@ -1708,7 +1708,7 @@ function GroceryListForm({
 
     // Safety: prevent overlays from blocking UI if a request hangs
     const overlaySafety = setTimeout(() => {
-      console.log(`⚠️ [${sessionId}] Safety timeout triggered at 5s`);
+      console.log(`⚠️ [${sessionId}] Safety timeout triggered at 15s`);
       setIsLoading(false);
       setShowProgress(false);
       setWaitingForAIResponse(false);
