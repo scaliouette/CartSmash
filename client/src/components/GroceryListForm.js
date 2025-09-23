@@ -1708,11 +1708,11 @@ function GroceryListForm({
 
     // Safety: prevent overlays from blocking UI if a request hangs
     const overlaySafety = setTimeout(() => {
-      console.log(`⚠️ [${sessionId}] Safety timeout triggered at 15s`);
+      console.log(`⚠️ [${sessionId}] Safety timeout triggered at 17s`);
       setIsLoading(false);
       setShowProgress(false);
       setWaitingForAIResponse(false);
-    }, 15000);
+    }, 17000);
 
     let progressInterval;
     try {
@@ -2488,7 +2488,7 @@ Return as JSON with this structure:
       const rawInstructions = Array.isArray(parsedData.instructions) ? parsedData.instructions : [];
 
       // Format instructions into numbered steps with descriptive labels
-      const instructionsText = rawInstructions.join(' ');
+      const instructionsText = rawInstructions.join('\n');
       const formattedInstructions = formatInstructionsToNumberedSteps(instructionsText);
       const finalInstructions = formattedInstructions ? formattedInstructions.split('\n\n').filter(step => step.trim()) : rawInstructions;
 
