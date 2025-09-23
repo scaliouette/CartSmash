@@ -17,44 +17,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const config = require('./config');
 
-// Enhanced logging for Render debugging
-console.log('🚀 [RENDER DEBUG] Server starting with environment configuration:');
-console.log(`   NODE_ENV: ${process.env.NODE_ENV || 'NOT_SET'}`);
-console.log(`   PORT: ${PORT}`);
-console.log(`   Platform: ${process.platform}`);
-console.log(`   Node Version: ${process.version}`);
-console.log(`   Current Time: ${new Date().toISOString()}`);
-console.log(`   Working Directory: ${process.cwd()}`);
-console.log(`   Memory Usage: ${JSON.stringify(process.memoryUsage(), null, 2)}`);
+console.log(`⚙️ Configuration loaded for environment: ${process.env.NODE_ENV || 'development'}`);
 
-// Environment variable status check
-const envStatus = {
-  MONGODB_URI: !!process.env.MONGODB_URI,
-  FIREBASE_PROJECT_ID: !!process.env.FIREBASE_PROJECT_ID,
-  FIREBASE_PRIVATE_KEY: !!process.env.FIREBASE_PRIVATE_KEY,
-  FIREBASE_CLIENT_EMAIL: !!process.env.FIREBASE_CLIENT_EMAIL,
-  JWT_SECRET: !!process.env.JWT_SECRET,
-  KROGER_CLIENT_ID: !!process.env.KROGER_CLIENT_ID,
-  KROGER_CLIENT_SECRET: !!process.env.KROGER_CLIENT_SECRET,
-  KROGER_REDIRECT_URI: !!process.env.KROGER_REDIRECT_URI,
-  KROGER_BASE_URL: !!process.env.KROGER_BASE_URL,
-  KROGER_OAUTH_SCOPES: !!process.env.KROGER_OAUTH_SCOPES,
-  OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
-  ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY
-};
-
-console.log('📊 [RENDER DEBUG] Environment Variables Status:');
-Object.entries(envStatus).forEach(([key, value]) => {
-  console.log(`   ${key}: ${value ? '✅ SET' : '❌ MISSING'}`);
-});
-
-// Show actual values for non-sensitive config
-console.log('🔧 [RENDER DEBUG] Configuration Values:');
-console.log(`   KROGER_BASE_URL: ${process.env.KROGER_BASE_URL || 'NOT_SET'}`);
-console.log(`   KROGER_REDIRECT_URI: ${process.env.KROGER_REDIRECT_URI || 'NOT_SET'}`);
-console.log(`   KROGER_OAUTH_SCOPES: ${process.env.KROGER_OAUTH_SCOPES || 'NOT_SET'}`);
-console.log(`   CORS_ORIGIN: ${process.env.CORS_ORIGIN || 'NOT_SET'}`);
-console.log(`   CLIENT_URL: ${process.env.CLIENT_URL || 'NOT_SET'}`);
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -224,16 +188,9 @@ app.use('/api/', createRateLimiter(15 * 60 * 1000, 100, 'Too many requests'));
 app.use('/api/auth/', createRateLimiter(15 * 60 * 1000, 10, 'Too many authentication attempts'));
 app.use('/api/ai/', createRateLimiter(60 * 1000, 10, 'Too many AI requests'));
 
-// Enhanced CORS Configuration with Debug Logging
+// CORS Configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    // Enhanced logging for CORS debugging
-    console.log('\n🔍 CORS DEBUG - Processing request:');
-    console.log('- Origin:', origin);
-    console.log('- NODE_ENV:', process.env.NODE_ENV);
-    console.log('- CLIENT_URL:', process.env.CLIENT_URL);
-    console.log('- Time:', new Date().toISOString());
-
     const allowedOrigins = [
       'https://www.cartsmash.com',
       'https://cartsmash.com',
@@ -260,35 +217,21 @@ const corsOptions = {
       process.env.CLIENT_URL
     ].filter(Boolean);
 
-    console.log('- Allowed Origins:', allowedOrigins);
-
     // Allow requests with no origin (mobile apps, postman, server-to-server)
     if (!origin) {
-      console.log('✅ CORS: No origin header - allowing request');
       return callback(null, true);
     }
 
     // Check Vercel pattern first
     const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
-    console.log('- Testing Vercel pattern:', vercelPattern.toString());
-    console.log('- Vercel pattern test result:', vercelPattern.test(origin));
-
     if (vercelPattern.test(origin)) {
-      console.log('✅ CORS: Origin matches Vercel pattern - allowing request');
       return callback(null, true);
     }
 
     // Check explicit allowlist
-    const isInAllowlist = allowedOrigins.includes(origin);
-    console.log('- In explicit allowlist:', isInAllowlist);
-
-    if (isInAllowlist) {
-      console.log('✅ CORS: Origin in allowlist - allowing request');
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log('❌ CORS: Origin not allowed - blocking request');
-      console.log('- Blocked origin:', origin);
-      console.log('- Available origins:', allowedOrigins);
       logger.warn(`CORS blocked request from: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
@@ -315,12 +258,6 @@ app.use(cors(corsOptions));
 // Additional CORS header enforcement for production deployment
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  console.log('\n🔧 CORS Header Enforcement:');
-  console.log('- Origin:', origin);
-  console.log('- Method:', req.method);
-  console.log('- URL:', req.url);
-
-  // Ensure CORS headers are always present for allowed origins
   const allowedOrigins = [
     'https://www.cartsmash.com',
     'https://cartsmash.com',
@@ -334,47 +271,19 @@ app.use((req, res, next) => {
   const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
 
   if (!origin || allowedOrigins.includes(origin) || vercelPattern.test(origin)) {
-    // Set CORS headers explicitly for allowed origins
     res.header('Access-Control-Allow-Origin', origin || '*');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
     res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization,X-API-Key,User-ID,user-id');
     res.header('Access-Control-Max-Age', '86400');
-    console.log('✅ CORS: Headers enforced for origin:', origin);
   }
 
   next();
 });
 
-// Enhanced request logging for CORS debugging
-app.use((req, res, next) => {
-  console.log('\n📥 INCOMING REQUEST DEBUG:');
-  console.log('- Method:', req.method);
-  console.log('- URL:', req.url);
-  console.log('- Origin header:', req.headers.origin);
-  console.log('- Host header:', req.headers.host);
-  console.log('- User-Agent:', req.headers['user-agent']);
-  console.log('- All headers:', JSON.stringify(req.headers, null, 2));
-
-  // Log response headers after they're set
-  const originalSend = res.send;
-  res.send = function(data) {
-    console.log('📤 RESPONSE HEADERS:');
-    console.log('- Access-Control-Allow-Origin:', res.getHeader('Access-Control-Allow-Origin'));
-    console.log('- Access-Control-Allow-Credentials:', res.getHeader('Access-Control-Allow-Credentials'));
-    console.log('- All response headers:', JSON.stringify(res.getHeaders(), null, 2));
-    originalSend.call(this, data);
-  };
-
-  next();
-});
 
 // Explicit OPTIONS handler for preflight requests (using same CORS logic)
 app.options('*', (req, res) => {
-  console.log('\n🔄 OPTIONS PREFLIGHT REQUEST:');
-  console.log('- Origin:', req.headers.origin);
-  console.log('- Access-Control-Request-Method:', req.headers['access-control-request-method']);
-  console.log('- Access-Control-Request-Headers:', req.headers['access-control-request-headers']);
 
   const origin = req.headers.origin;
   const allowedOrigins = [

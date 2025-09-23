@@ -510,7 +510,6 @@ const validateApiKeys = () => {
       INSTACART_API_KEY.startsWith('keys.')) {
     console.log(`✅ Instacart API key configured for ${NODE_ENV} environment`);
     console.log(`🔗 Base URL: ${BASE_URL}`);
-    console.log(`🔑 API Key format: ${INSTACART_API_KEY.substring(0, 10)}...`);
     return true;
   } else {
     console.log(`⚠️ Instacart API key missing or invalid`);
@@ -747,32 +746,42 @@ router.post('/search', async (req, res) => {
           if (zipCode) searchParams.zip_code = zipCode;
           if (category) searchParams.category = category;
 
-          // FIXED: Use recipe-based search instead of non-existent catalog/search endpoint
-          const recipePayload = {
-            title: `Search results for ${query}`,
-            ingredients: [{
-              name: query,
-              quantity: quantity || 1,
-              unit: 'each'
-            }]
+          // FIXED: Use recipe creation + page parsing approach (same as working batch-search)
+          const searchItem = {
+            name: query,
+            quantity: quantity || 1,
+            unit: 'each'
           };
 
-          const searchResults = await instacartApiCall('/products/recipe', 'POST', recipePayload);
+          // Create recipe and parse for products (proven working approach)
+          const quickRecipe = await createRecipeFromCartItems([searchItem], retailerId);
+          let products = [];
 
-          const products = (searchResults.items || searchResults.data || []).map(product => ({
-            id: product.id || product.product_id,
-            sku: product.sku || product.retailer_sku,
-            name: product.name || product.display_name,
-            price: product.price || product.pricing?.price || 0,
-            size: product.size || product.package_size,
-            brand: product.brand || product.brand_name,
-            image_url: product.image_url || product.images?.[0]?.url,
-            availability: product.availability || 'available',
-            confidence: calculateMatchConfidence(query, product.name || product.display_name),
-            retailer_id: retailerId,
-            unit_price: product.unit_price,
-            description: product.description
-          }));
+          if (quickRecipe.success && quickRecipe.instacartUrl) {
+            const parsedProducts = await parseRecipePageWithDynamicContent(
+              quickRecipe.instacartUrl,
+              query,
+              searchItem
+            );
+
+            if (parsedProducts.length > 0) {
+              products = parsedProducts.map(product => ({
+                id: product.id,
+                sku: product.sku,
+                name: product.name,
+                price: product.price || 0,
+                size: product.package_size,
+                brand: product.brand,
+                image_url: product.image_url,
+                availability: 'available',
+                confidence: product.confidence || calculateMatchConfidence(query, product.name),
+                retailer_id: retailerId,
+                unit_price: product.unit_price,
+                description: product.description
+              }));
+              console.log(`✅ Recipe page parsing found ${products.length} products for "${query}"`);
+            }
+          }
 
           circuitBreaker.recordSuccess('catalog');
           res.json({
@@ -1322,7 +1331,7 @@ router.post('/batch-search', async (req, res) => {
                 // Create a quick recipe to get product parsing
                 const quickRecipe = await createRecipeFromCartItems([item], retailerId);
                 if (quickRecipe.success && quickRecipe.instacartUrl) {
-                  const parsedProducts = await parseRecipePage(
+                  const parsedProducts = await parseRecipePageWithDynamicContent(
                     quickRecipe.instacartUrl,
                     item.name || item.query,
                     item
@@ -2557,8 +2566,8 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
   try {
     let products = [];
 
-    // First try standard HTML parsing (existing method)
-    products = await parseRecipePage(recipeUrl, query, originalItem);
+    // First try standard HTML parsing (existing method already implemented below)
+    // Skip redundant call since this function already implements the parsing
 
     // If no products found and puppeteer is available, try dynamic loading
     if (products.length === 0 && typeof puppeteer !== 'undefined') {
@@ -2575,10 +2584,10 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
         // Navigate and wait for content to load
-        await page.goto(recipeUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+        await page.goto(recipeUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
         // Wait for products to load (multiple selectors)
-        await page.waitForSelector('[data-testid*="product"], .product-item, [class*="product"]', { timeout: 10000 }).catch(() => {});
+        await page.waitForSelector('[data-testid*="product"], .product-item, [class*="product"]', { timeout: 20000 }).catch(() => {});
 
         // Extract dynamic content
         const dynamicProducts = await page.evaluate((searchQuery) => {

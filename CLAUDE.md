@@ -32,9 +32,12 @@ INSTACART_API_KEY=keys.T6Kz2vkdBirIEnR-FzOCCtlfyDc-C19u0jEN2J42DzQ
 
 **Functionality**: Creates recipe pages using the Instacart Developer Platform API
 
-**Example Request**:
+**Testing Requirements**:
+🚨 **CRITICAL**: Always test on actual deployment environments, not just localhost!
+
+**Local Development Testing**:
 ```bash
-curl -X POST http://localhost:3074/api/instacart/recipe/create \
+curl -X POST http://localhost:3060/api/instacart/recipe/create \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Test Recipe",
@@ -45,6 +48,28 @@ curl -X POST http://localhost:3074/api/instacart/recipe/create \
       "unit": "cups"
     }]
   }'
+```
+
+**Production API Testing** (Required for verification):
+```bash
+# Test on Render deployment
+curl -X POST https://cartsmash-api.onrender.com/api/instacart/recipe/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Production Test Recipe",
+    "instructions": ["Mix ingredients"],
+    "ingredients": [{
+      "name": "flour",
+      "quantity": "2",
+      "unit": "cups"
+    }]
+  }'
+
+# Test frontend integration on Vercel
+curl -X POST https://www.cartsmash.com/api/test-instacart \
+  -H "Content-Type: application/json" \
+  -H "Origin: https://www.cartsmash.com" \
+  -d '{"testType": "recipe_creation"}'
 ```
 
 **Example Response**:
@@ -70,9 +95,22 @@ curl -X POST http://localhost:3074/api/instacart/recipe/create \
 - `postalCode` (or legacy `zipCode`): US postal code
 - `countryCode`: 'US' or 'CA' (defaults to 'US')
 
-**Example Request**:
+**Testing Requirements**:
+🚨 **CRITICAL**: Test on production deployments to verify real-world functionality!
+
+**Local Development Testing**:
 ```bash
-curl "http://localhost:3074/api/instacart/retailers?postalCode=95670&countryCode=US"
+curl "http://localhost:3060/api/instacart/retailers?postalCode=95670&countryCode=US"
+```
+
+**Production Testing** (Required):
+```bash
+# Test on Render API deployment
+curl "https://cartsmash-api.onrender.com/api/instacart/retailers?postalCode=95670&countryCode=US"
+
+# Test via frontend proxy (tests CORS and routing)
+curl "https://www.cartsmash.com/api/proxy/retailers?postalCode=95670&countryCode=US" \
+  -H "Origin: https://www.cartsmash.com"
 ```
 
 ### API Features
@@ -201,6 +239,85 @@ curl "http://localhost:3074/api/instacart/retailers?postalCode=95670&countryCode
 - **Keyword Search**: Instacart provides matching based on multiple factors
 - **Product Variations**: System handles variations (cherry tomatoes vs. large tomatoes)
 - **Internal Mapping**: Partners limited to sending product name; Instacart handles matching
+
+## 🚨 **MANDATORY TESTING PROTOCOLS** 🚨
+
+### **Critical Testing Requirements**
+
+**⚠️ LOCALHOST TESTING IS INSUFFICIENT ⚠️**
+
+All features must be tested on actual deployment environments to ensure production readiness.
+
+#### **Required Testing Environments**
+
+1. **Development Environment**:
+   - **Purpose**: Initial development and debugging
+   - **URL**: `http://localhost:3060` (or current port)
+   - **Use**: Basic functionality verification only
+
+2. **Production API Server**:
+   - **Platform**: Render
+   - **URL**: `https://cartsmash-api.onrender.com`
+   - **Requirements**: Must test all API endpoints here
+   - **Critical**: Environment variables, CORS, rate limiting
+
+3. **Production Frontend**:
+   - **Platform**: Vercel
+   - **URL**: `https://www.cartsmash.com`
+   - **Requirements**: Full user flow testing
+   - **Critical**: Frontend → backend integration
+
+#### **Testing Protocol Steps**
+
+**Step 1: Local Development Testing** ✅
+```bash
+# Basic functionality verification
+curl -X POST http://localhost:3060/api/instacart/recipe/create [...]
+```
+
+**Step 2: Production API Testing** 🚨 **MANDATORY**
+```bash
+# Test actual deployed API
+curl -X POST https://cartsmash-api.onrender.com/api/instacart/recipe/create [...]
+curl "https://cartsmash-api.onrender.com/api/instacart/retailers?postalCode=95670&countryCode=US"
+```
+
+**Step 3: Frontend Integration Testing** 🚨 **MANDATORY**
+```bash
+# Test complete user flow
+curl -X POST https://www.cartsmash.com/api/test \
+  -H "Origin: https://www.cartsmash.com" [...]
+```
+
+**Step 4: Cross-Environment Verification** 🚨 **MANDATORY**
+- ✅ CORS headers working correctly
+- ✅ Environment variables configured in production
+- ✅ Rate limiting functioning
+- ✅ Error handling working
+- ✅ API keys valid in production environment
+
+#### **Deployment Verification Checklist**
+
+Before marking any feature as "working":
+
+- [ ] **Local testing passed** (localhost)
+- [ ] **Render API testing passed** (cartsmash-api.onrender.com)
+- [ ] **Vercel frontend testing passed** (www.cartsmash.com)
+- [ ] **CORS working** (cross-origin requests successful)
+- [ ] **Environment variables** (production keys configured)
+- [ ] **Error handling** (graceful failures on production)
+- [ ] **Performance** (acceptable response times)
+- [ ] **Security** (no API keys exposed in logs)
+
+#### **Common Production-Only Issues**
+
+Issues that only appear in production environments:
+- **CORS blocking** (works locally, fails on production)
+- **Environment variable mismatches** (different keys/configs)
+- **Rate limiting** (not enforced locally)
+- **HTTPS requirements** (mixed content issues)
+- **CDN caching** (stale responses)
+- **Network timeouts** (different from localhost)
 
 ### Troubleshooting
 
@@ -493,13 +610,68 @@ curl -I https://cartsmash-api.onrender.com/api/instacart/search
 
 ### Test Results & Verification
 
-**Latest Enhanced Recipe Test**:
-- **Recipe ID**: 8083953 (Pan-Seared Filet Mignon with Truffle Risotto)
-- **URL**: `https://customers.dev.instacart.tools/store/recipes/8083953`
-- **Status**: ✅ Successfully created with full feature set
-- **Ingredients**: 9 ingredients with proper measurements
-- **Instructions**: 11 detailed cooking steps
-- **Features**: Caching, dietary filters, cooking time extraction all functional
+🚨 **CRITICAL TESTING REQUIREMENTS** 🚨
+
+**ALL TESTING MUST BE DONE ON PRODUCTION ENVIRONMENTS, NOT JUST LOCALHOST!**
+
+#### **Production Environment Testing Checklist**
+
+**✅ Required Testing Environments**:
+1. **Render API Server**: `https://cartsmash-api.onrender.com`
+2. **Vercel Frontend**: `https://www.cartsmash.com`
+3. **Integration Testing**: Frontend → Backend API calls
+4. **CORS Verification**: Cross-origin requests working
+5. **Environment Variables**: Production keys configured correctly
+
+**❌ Insufficient Testing**:
+- ❌ Localhost-only testing (`http://localhost:3060`)
+- ❌ Development environment only
+- ❌ Skipping frontend integration
+- ❌ Not testing actual deployment URLs
+
+#### **Production API Testing Commands**
+
+**Recipe Creation (Production)**:
+```bash
+# Test on actual Render deployment
+curl -X POST https://cartsmash-api.onrender.com/api/instacart/recipe/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Production Test Recipe",
+    "instructions": ["Test production deployment"],
+    "ingredients": [{"name": "test ingredient", "quantity": "1", "unit": "each"}]
+  }'
+```
+
+**Retailers API (Production)**:
+```bash
+# Test on actual Render deployment
+curl "https://cartsmash-api.onrender.com/api/instacart/retailers?postalCode=95670&countryCode=US"
+```
+
+**Frontend Integration (Production)**:
+```bash
+# Test complete frontend → backend flow
+curl -X POST https://www.cartsmash.com/api/test-integration \
+  -H "Content-Type: application/json" \
+  -H "Origin: https://www.cartsmash.com" \
+  -d '{"testType": "full_integration"}'
+```
+
+#### **Latest Test Results**
+
+**⚠️ LOCALHOST TEST ONLY (Insufficient)**:
+- **Recipe ID**: 8089307 (Test Recipe)
+- **URL**: `https://customers.dev.instacart.tools/store/recipes/8089307`
+- **Environment**: Development localhost:3060 only
+- **Status**: ✅ Local testing successful, ❌ Production testing required
+
+**🚨 PRODUCTION TESTING NEEDED**:
+- ❌ Render deployment API testing
+- ❌ Vercel frontend integration testing
+- ❌ CORS verification on production
+- ❌ Production environment variable verification
+- ❌ End-to-end user flow testing
 
 ## AI Meal Plan Recipe Generation
 
@@ -2870,7 +3042,8 @@ Product Matching → productResolutionService.js → productValidationService.js
 *Documentation Status: Complete - All 73+ Active JavaScript Files Documented*
 *Workflow Coverage: 100% of Production Codebase*
 *Service Analysis: Complete - All Systems Operational*
-*Integration Status: Production Ready (Mock Data Eliminated)*
+*Integration Status: ⚠️ LOCAL TESTING ONLY - PRODUCTION VERIFICATION REQUIRED*
 *File Archiving: Complete - 25 Files Successfully Archived*
 *Pre-Modification Framework: Complete - Breaking Change Prevention Active*
 *Backup Strategy: Complete - Ready for Archive Execution*
+*Testing Status: 🚨 MANDATORY PRODUCTION TESTING PROTOCOLS ADDED*
