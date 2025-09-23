@@ -413,6 +413,46 @@ class InstacartShoppingListService {
   }
 
   /**
+   * Create shopping list with pre-processed data (direct API passthrough)
+   * Use this for already-enhanced lineItems from InstacartCheckoutFlow
+   * @param {Object} shoppingListData - Pre-processed shopping list data
+   * @returns {Promise<Object>} API response
+   */
+  async createShoppingList(shoppingListData) {
+    try {
+      console.log('🛒 Creating shopping list (direct passthrough):', shoppingListData.title);
+
+      const response = await fetch(`${this.baseUrl}/api/instacart/shopping-list/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(shoppingListData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Shopping list creation failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log('✅ Shopping list created successfully');
+        return result;
+      } else {
+        throw new Error(result.error || 'Shopping list creation failed');
+      }
+
+    } catch (error) {
+      console.error('❌ Error creating shopping list:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Clear search cache
    */
   clearCache() {

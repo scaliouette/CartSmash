@@ -613,7 +613,7 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
       let result;
       try {
         console.log('🛒 Attempting shopping list API first...');
-        result = await instacartShoppingListService.default.createEnhancedShoppingList(shoppingListData);
+        result = await instacartShoppingListService.default.createShoppingList(shoppingListData);
         console.log('✅ Shopping list API succeeded:', result);
       } catch (shoppingListError) {
         console.log('⚠️ Shopping list API failed, trying recipe API fallback...', shoppingListError.message);

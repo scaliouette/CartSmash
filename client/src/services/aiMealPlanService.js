@@ -436,33 +436,6 @@ export async function createInstacartRecipePage(recipe, preferences = {}) {
   }
 }
 
-/**
- * Create Instacart shopping list page using Products Link API
- */
-export async function createInstacartShoppingList(shoppingListData) {
-  try {
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-    
-    console.log('🛒 Creating Instacart shopping list:', shoppingListData.title);
-    
-    const response = await fetch(`${API_URL}/api/instacart/shopping-list/create`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(shoppingListData)
-    });
-    
-    const data = await response.json();
-    if (!data.success) {
-      throw new Error(data.error || 'Failed to create Instacart shopping list');
-    }
-    
-    console.log('✅ Instacart shopping list created:', data.instacartUrl);
-    return data;
-  } catch (error) {
-    console.error('Error creating Instacart shopping list:', error);
-    throw error;
-  }
-}
 
 /**
  * Bulk create Instacart recipe pages for meal plan recipes
