@@ -586,6 +586,7 @@ function GroceryListForm({
   const [enrichmentProgress, setEnrichmentProgress] = useState(0);
   const [enrichmentTotal, setEnrichmentTotal] = useState(0);
   const [showEnrichmentStatus, setShowEnrichmentStatus] = useState(false);
+  const [cartPopulated, setCartPopulated] = useState(false);
   const [ingredientStyle, setIngredientStyle] = useState('basic');
   const [selectedAI] = useState('claude');
   const [mealPlanExpanded, setMealPlanExpanded] = useState(false);
@@ -981,6 +982,9 @@ function GroceryListForm({
       });
 
       setCurrentCart(enrichedItems);
+
+      // Mark cart as populated and visible to user
+      setCartPopulated(true);
 
       // Hide enrichment status after completion (no delay - main loading will handle timing)
       setShowEnrichmentStatus(false);
@@ -1478,6 +1482,7 @@ function GroceryListForm({
     setError('');
     setIsLoading(true);
     setShowProgress(true);
+    setCartPopulated(false);
     setParsingProgress(0);
 
     try {
@@ -1685,6 +1690,7 @@ function GroceryListForm({
     setError('');
     setShowProgress(true);
     setParsingProgress(0);
+    setCartPopulated(false);
 
     // Defer heavy operations to next event loop tick
     setTimeout(async () => {
@@ -4410,13 +4416,13 @@ Return as JSON with this structure:
     <div className="container" style={{ paddingTop: '20px' }}>
       {/* Fixed container to prevent layout shift */}
       <div style={{
-        minHeight: (isLoading || showProgress) ? '200px' : '0px',
+        minHeight: (isLoading || showProgress || (waitingForAIResponse && !cartPopulated)) ? '200px' : '0px',
         transition: 'min-height 0.3s ease-in-out',
         overflow: 'hidden'
       }}>
-        {(isLoading || showProgress) && (
+        {(isLoading || showProgress || (waitingForAIResponse && !cartPopulated)) && (
           <MixingBowlLoader text={
-            waitingForAIResponse ? "Organizing your list..." :
+            waitingForAIResponse && !cartPopulated ? "Organizing your list and adding to cart..." :
             showProgress ? "Creating your complete shopping list with recipes and prices..." :
             "Processing your list..."
           } />
