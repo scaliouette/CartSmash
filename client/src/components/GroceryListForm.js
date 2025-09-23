@@ -1646,6 +1646,176 @@ function GroceryListForm({
     return null;
   };
 
+  // AI recipe generation function - MOVED BEFORE extractMealPlanRecipes to fix temporal dead zone
+  const generateDetailedRecipeWithAI = useCallback(async (recipeName, retryCount = 0) => {
+    const MAX_RETRIES = 2;
+
+    console.log('🤖 AI-ONLY generation for:', recipeName);
+    console.log('📊 Attempt:', retryCount + 1, 'of', MAX_RETRIES);
+
+    if (retryCount >= MAX_RETRIES) {
+      console.error(`❌ AI failed after ${MAX_RETRIES} attempts for: ${recipeName}`);
+      throw new Error(`AI generation failed for "${recipeName}" after ${MAX_RETRIES} attempts. Please try again with a different recipe name.`);
+    }
+
+    try {
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+
+      // Simple, natural recipe prompt without artificial restrictions
+      const prompt = `Create a detailed recipe for "${recipeName}".
+
+Please provide:
+- Complete ingredient list with measurements
+- Clear step-by-step cooking instructions
+- Include cooking times and temperatures where helpful
+- Any useful tips or notes
+
+Return as JSON with this structure:
+{
+  "ingredients": ["ingredient with measurement", ...],
+  "instructions": ["step 1", "step 2", ...]
+}`;
+
+      console.log('📝 Sending prompt attempt', retryCount + 1);
+
+      const response = await fetch(`${API_URL}/api/ai/${selectedAI || 'anthropic'}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: prompt,
+          context: 'detailed_recipe_generation',
+          options: {
+            temperature: 0.7,
+            maxTokens: 8192
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Debug what we received
+      console.log('🔍 AI Response Structure:', {
+        hasResponse: !!data.response,
+        hasStructuredData: !!data.structuredData,
+        hasInstructions: !!data.instructions,
+        responseType: typeof data.response
+      });
+
+      let parsedData;
+
+      // Try multiple parsing strategies
+      if (data.structuredData && data.structuredData.instructions) {
+        parsedData = data.structuredData;
+      } else if (data.instructions && Array.isArray(data.instructions)) {
+        parsedData = {
+          ingredients: data.ingredients || [],
+          instructions: data.instructions
+        };
+      } else if (data.response) {
+        try {
+          // Clean and parse JSON response
+          let jsonStr = data.response;
+          if (typeof jsonStr === 'string') {
+            // Remove markdown code blocks if present
+            jsonStr = jsonStr.replace(/```json\n?/gi, '').replace(/```\n?/gi, '');
+            // Remove any text before the first {
+            const jsonStart = jsonStr.indexOf('{');
+            if (jsonStart > 0) {
+              jsonStr = jsonStr.substring(jsonStart);
+            }
+            // Remove any text after the last }
+            const jsonEnd = jsonStr.lastIndexOf('}');
+            if (jsonEnd > 0) {
+              jsonStr = jsonStr.substring(0, jsonEnd + 1);
+            }
+            parsedData = JSON.parse(jsonStr);
+          } else if (typeof jsonStr === 'object') {
+            parsedData = jsonStr;
+          }
+        } catch (e) {
+          console.error('JSON parse error:', e);
+          console.log('Raw response length:', data.response?.length);
+          console.log('Raw response preview:', data.response?.substring(0, 500));
+
+          // Check if response appears truncated
+          if (data.response && data.response.length > 6000 && !data.response.trim().endsWith('}')) {
+            console.warn('⚠️ Response appears to be truncated - trying to repair JSON');
+            // Try to repair truncated JSON by closing incomplete structures
+            let repairedJson = data.response;
+
+            // Count open braces vs closed braces to detect incomplete objects
+            const openBraces = (repairedJson.match(/{/g) || []).length;
+            const closeBraces = (repairedJson.match(/}/g) || []).length;
+            const missingBraces = openBraces - closeBraces;
+
+            if (missingBraces > 0) {
+              // Add missing closing braces
+              repairedJson += '}'.repeat(missingBraces);
+              try {
+                parsedData = JSON.parse(repairedJson);
+                console.log('✅ Successfully repaired truncated JSON');
+              } catch (repairError) {
+                console.error('❌ Failed to repair JSON:', repairError);
+                throw new Error(`Response appears truncated (${data.response.length} chars). Try reducing meal plan size or increasing token limit.`);
+              }
+            } else {
+              throw new Error(`Failed to process AI response as JSON: ${e.message}`);
+            }
+          } else {
+            throw new Error(`Failed to parse AI response as JSON: ${e.message}`);
+          }
+        }
+      } else {
+        throw new Error('No valid response structure from AI');
+      }
+
+      const ingredients = Array.isArray(parsedData.ingredients) ? parsedData.ingredients : [];
+      const rawInstructions = Array.isArray(parsedData.instructions) ? parsedData.instructions : [];
+
+      // Format instructions into numbered steps with descriptive labels
+      const instructionsText = rawInstructions.join('\n');
+      const formattedInstructions = formatInstructionsToNumberedSteps(instructionsText);
+      const finalInstructions = formattedInstructions ? formattedInstructions.split('\n\n').filter(step => step.trim()) : rawInstructions;
+
+      console.log('📊 Parsed recipe data:', {
+        ingredientCount: ingredients.length,
+        instructionCount: finalInstructions.length,
+        formatted: !!formattedInstructions,
+        firstInstructionLength: finalInstructions[0]?.split(' ').length || 0
+      });
+
+      // Accept all valid recipes without artificial restrictions
+      console.log(`✅ Recipe validation passed - accepting AI-generated content as provided`);
+
+      console.log(`✅ AI successfully generated detailed recipe for "${recipeName}"`);
+      console.log(`   - ${ingredients.length} ingredients`);
+      console.log(`   - ${finalInstructions.length} detailed formatted instructions`);
+
+      return {
+        ingredients: ingredients,
+        instructions: finalInstructions,
+        success: true,
+        source: 'ai_generated'
+      };
+
+    } catch (error) {
+      console.error(`❌ AI attempt ${retryCount + 1} failed:`, error.message);
+
+      // Retry with different prompt
+      if (retryCount < MAX_RETRIES - 1) {
+        console.log(`🔄 Retrying with more explicit prompt...`);
+        return await generateDetailedRecipeWithAI(recipeName, retryCount + 1);
+      }
+
+      // Final failure - throw error instead of manual fallback
+      throw new Error(`AI generation failed for "${recipeName}": ${error.message}`);
+    }
+  }, [selectedAI]);
+
   // Enhanced meal plan recipe extraction function - MOVED BEFORE submitGroceryList to fix production error
   const extractMealPlanRecipes = useCallback(async (text) => {
     const recipes = [];
@@ -1810,7 +1980,6 @@ function GroceryListForm({
             id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
           };
 
-          currentSection = '';
           foundRecipe = true;
           console.log(`📝 Found ${mealType} recipe: "${recipeName}"`);
           break;
@@ -1869,7 +2038,6 @@ function GroceryListForm({
         };
 
         captureNextAsRecipeName = false;
-        currentSection = '';
         console.log('📝 Captured recipe name:', line);
         continue;
       }
@@ -2630,175 +2798,6 @@ function GroceryListForm({
   };
 
   // Pure AI-only generation with better prompting and validation - NO MANUAL FALLBACKS
-  const generateDetailedRecipeWithAI = useCallback(async (recipeName, retryCount = 0) => {
-    const MAX_RETRIES = 2;
-    
-    console.log('🤖 AI-ONLY generation for:', recipeName);
-    console.log('📊 Attempt:', retryCount + 1, 'of', MAX_RETRIES);
-    
-    if (retryCount >= MAX_RETRIES) {
-      console.error(`❌ AI failed after ${MAX_RETRIES} attempts for: ${recipeName}`);
-      throw new Error(`AI generation failed for "${recipeName}" after ${MAX_RETRIES} attempts. Please try again with a different recipe name.`);
-    }
-
-    try {
-      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-      
-      // Simple, natural recipe prompt without artificial restrictions
-      const prompt = `Create a detailed recipe for "${recipeName}".
-
-Please provide:
-- Complete ingredient list with measurements
-- Clear step-by-step cooking instructions
-- Include cooking times and temperatures where helpful
-- Any useful tips or notes
-
-Return as JSON with this structure:
-{
-  "ingredients": ["ingredient with measurement", ...],
-  "instructions": ["step 1", "step 2", ...]
-}`;
-
-      console.log('📝 Sending prompt attempt', retryCount + 1);
-      
-      const response = await fetch(`${API_URL}/api/ai/${selectedAI || 'anthropic'}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: prompt,
-          context: 'detailed_recipe_generation',
-          options: {
-            temperature: 0.7,
-            maxTokens: 8192
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`AI request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      // Debug what we received
-      console.log('🔍 AI Response Structure:', {
-        hasResponse: !!data.response,
-        hasStructuredData: !!data.structuredData,
-        hasInstructions: !!data.instructions,
-        responseType: typeof data.response
-      });
-
-      let parsedData;
-      
-      // Try multiple parsing strategies
-      if (data.structuredData && data.structuredData.instructions) {
-        parsedData = data.structuredData;
-      } else if (data.instructions && Array.isArray(data.instructions)) {
-        parsedData = {
-          ingredients: data.ingredients || [],
-          instructions: data.instructions
-        };
-      } else if (data.response) {
-        try {
-          // Clean and parse JSON response
-          let jsonStr = data.response;
-          if (typeof jsonStr === 'string') {
-            // Remove markdown code blocks if present
-            jsonStr = jsonStr.replace(/```json\n?/gi, '').replace(/```\n?/gi, '');
-            // Remove any text before the first {
-            const jsonStart = jsonStr.indexOf('{');
-            if (jsonStart > 0) {
-              jsonStr = jsonStr.substring(jsonStart);
-            }
-            // Remove any text after the last }
-            const jsonEnd = jsonStr.lastIndexOf('}');
-            if (jsonEnd > 0) {
-              jsonStr = jsonStr.substring(0, jsonEnd + 1);
-            }
-            parsedData = JSON.parse(jsonStr);
-          } else if (typeof jsonStr === 'object') {
-            parsedData = jsonStr;
-          }
-        } catch (e) {
-          console.error('JSON parse error:', e);
-          console.log('Raw response length:', data.response?.length);
-          console.log('Raw response preview:', data.response?.substring(0, 500));
-          
-          // Check if response appears truncated
-          if (data.response && data.response.length > 6000 && !data.response.trim().endsWith('}')) {
-            console.warn('⚠️ Response appears to be truncated - trying to repair JSON');
-            // Try to repair truncated JSON by closing incomplete structures
-            let repairedJson = data.response;
-            
-            // Count open braces vs closed braces to detect incomplete objects
-            const openBraces = (repairedJson.match(/{/g) || []).length;
-            const closeBraces = (repairedJson.match(/}/g) || []).length;
-            const missingBraces = openBraces - closeBraces;
-            
-            if (missingBraces > 0) {
-              // Add missing closing braces
-              repairedJson += '}'.repeat(missingBraces);
-              try {
-                parsedData = JSON.parse(repairedJson);
-                console.log('✅ Successfully repaired truncated JSON');
-              } catch (repairError) {
-                console.error('❌ Failed to repair JSON:', repairError);
-                throw new Error(`Response appears truncated (${data.response.length} chars). Try reducing meal plan size or increasing token limit.`);
-              }
-            } else {
-              throw new Error(`Failed to process AI response as JSON: ${e.message}`);
-            }
-          } else {
-            throw new Error(`Failed to parse AI response as JSON: ${e.message}`);
-          }
-        }
-      } else {
-        throw new Error('No valid response structure from AI');
-      }
-
-      const ingredients = Array.isArray(parsedData.ingredients) ? parsedData.ingredients : [];
-      const rawInstructions = Array.isArray(parsedData.instructions) ? parsedData.instructions : [];
-
-      // Format instructions into numbered steps with descriptive labels
-      const instructionsText = rawInstructions.join('\n');
-      const formattedInstructions = formatInstructionsToNumberedSteps(instructionsText);
-      const finalInstructions = formattedInstructions ? formattedInstructions.split('\n\n').filter(step => step.trim()) : rawInstructions;
-
-      console.log('📊 Parsed recipe data:', {
-        ingredientCount: ingredients.length,
-        instructionCount: finalInstructions.length,
-        formatted: !!formattedInstructions,
-        firstInstructionLength: finalInstructions[0]?.split(' ').length || 0
-      });
-
-      // Accept all valid recipes without artificial restrictions
-      console.log(`✅ Recipe validation passed - accepting AI-generated content as provided`);
-
-      console.log(`✅ AI successfully generated detailed recipe for "${recipeName}"`);
-      console.log(`   - ${ingredients.length} ingredients`);
-      console.log(`   - ${finalInstructions.length} detailed formatted instructions`);
-
-      return {
-        ingredients: ingredients,
-        instructions: finalInstructions,
-        success: true,
-        source: 'ai_generated'
-      };
-
-    } catch (error) {
-      console.error(`❌ AI attempt ${retryCount + 1} failed:`, error.message);
-      
-      // Retry with different prompt
-      if (retryCount < MAX_RETRIES - 1) {
-        console.log(`🔄 Retrying with more explicit prompt...`);
-        return await generateDetailedRecipeWithAI(recipeName, retryCount + 1);
-      }
-      
-      // Final failure - throw error instead of manual fallback
-      throw new Error(`AI generation failed for "${recipeName}": ${error.message}`);
-    }
-  }, [selectedAI]);
-
   // REMOVED: All manual parsing functions - AI-ONLY mode enforced
 
   // Handle adding recipe to recipe library

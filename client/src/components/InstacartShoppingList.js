@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import imageService, { formatProductName } from '../utils/imageService';
 import instacartService from '../services/instacartService';
 import instacartShoppingListService from '../services/instacartShoppingListService';
@@ -7,15 +7,16 @@ import ShoppingListItem from './ShoppingListItem';
 import { logger, conditionalLog, createTimer } from '../utils/debugLogger';
 
 // Optimized debug functions using configurable logging
-const debugItemData = (componentId, item, context = '') => {
-  logger.debug(componentId, 'debugItemData', `Item analysis: ${context}`, {
-    id: item.id,
-    productName: item.productName || item.name,
-    hasPrice: !!item.price && item.price !== 0,
-    hasRealImage: !!item.image && !item.image.includes('data:image/svg'),
-    enriched: !!item.enriched
-  });
-};
+// debugItemData function commented out as it's not currently used
+// const debugItemData = (componentId, item, context = '') => {
+//   logger.debug(componentId, 'debugItemData', `Item analysis: ${context}`, {
+//     id: item.id,
+//     productName: item.productName || item.name,
+//     hasPrice: !!item.price && item.price !== 0,
+//     hasRealImage: !!item.image && !item.image.includes('data:image/svg'),
+//     enriched: !!item.enriched
+//   });
+// };
 
 const debugShoppingListState = (componentId, items, context = '') => {
   logger.debug(componentId, 'debugShoppingListState', `Shopping list state: ${context}`, {

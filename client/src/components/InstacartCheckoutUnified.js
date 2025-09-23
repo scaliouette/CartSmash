@@ -558,9 +558,6 @@ const InstacartCheckoutUnified = ({
     onClose?.();
   };
 
-  const handleContinueShopping = () => {
-    onClose?.();
-  };
 
   // ============ RENDER HELPER FUNCTIONS ============
 
