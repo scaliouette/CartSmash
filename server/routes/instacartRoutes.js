@@ -375,9 +375,6 @@ const instacartApiCall = async (endpoint, method = 'GET', data = null, apiKey = 
       config.data = data;
     }
     
-    console.log(`📡 Making ${method} request to: ${config.url}`);
-    console.log(`🔑 Using API key: ${keyToUse ? keyToUse.substring(0, 20) + '...' : 'MISSING'}`);
-    
     const response = await axios(config);
     return response.data;
   } catch (error) {
@@ -428,7 +425,7 @@ router.get('/retailers', async (req, res) => {
         const endpoint = `/retailers?postal_code=${postal}&country_code=${countryCode}`;
         const retailers = await instacartApiCall(endpoint, 'GET', null, INSTACART_API_KEY);
         
-        console.log('🔍 Raw Instacart API response sample:', JSON.stringify(retailers.retailers?.slice(0, 2), null, 2));
+        // Raw API response processed
         
         // Transform response to match official Instacart API format with robust field mapping
         const formattedRetailers = (retailers.retailers || []).map((retailer, index) => {
