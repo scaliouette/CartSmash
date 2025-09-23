@@ -1,0 +1,38 @@
+# Legacy Components to Archive
+client/src/components/InstacartCheckout.js
+client/src/components/InstacartCheckoutEnhanced.js
+client/src/components/InstacartCheckoutMobile.js
+client/src/components/InstacartCheckoutSimple.js
+
+# Broken Components to Archive
+client/src/components/RecipeQuickShop.js
+client/src/components/SmartSubstitutions.js
+
+# Duplicates to Archive
+client/src/DebugInfo.js
+client/src/ErrorBoundary.js
+client/src/firebase.js
+
+# Legacy Scripts to Archive
+complete-fix.js
+complete-fix-with-components.js
+fix-project.js
+
+# Migration Scripts to Archive
+rebrand-to-cartsmash.js
+
+# Setup Scripts to Archive
+setup.js
+setup-cart-merge-replace.js
+
+# Kroger Integration to Archive
+client/src/components/KrogerAuth.js
+client/src/components/KrogerOrderFlow.js
+server/services/KrogerAPIService.js
+server/services/KrogerAuthService.js
+server/services/KrogerAzureB2CService.js
+server/services/KrogerModernAuthService.js
+server/services/KrogerOrderService.js
+server/services/KrogerSmashCartService.js
+server/routes/kroger.js
+server/routes/kroger-orders.js

@@ -5,7 +5,7 @@
  * Generates recipe suggestions dynamically using AI based on cart items
  */
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
 
 /**
  * Fetch AI-generated recipe suggestions based on parsed grocery items

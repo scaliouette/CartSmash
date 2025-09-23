@@ -3,7 +3,7 @@
 
 class InstacartShoppingListService {
   constructor() {
-    this.baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    this.baseUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
     this.cache = new Map();
     this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
   }

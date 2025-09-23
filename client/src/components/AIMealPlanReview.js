@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { saveParsedMealPlan, regenerateMeal } from '../services/aiMealPlanService';
+// eslint-disable-next-line no-unused-vars
 import { assignRecipeToMeal } from '../services/mealPlanService';
 import UnifiedRecipeCard from './UnifiedRecipeCard';
 import { safeReactRender } from '../utils/reactSafeRender';
@@ -16,6 +17,7 @@ export default function AIMealPlanReview({
 }) {
   const { currentUser } = useAuth();
   const [isAccepting, setIsAccepting] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [modifications, setModifications] = useState({});
   const [regeneratingMeals, setRegeneratingMeals] = useState(new Set());
   const [selectedRecipes, setSelectedRecipes] = useState(new Set());
@@ -89,6 +91,7 @@ export default function AIMealPlanReview({
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleRecipeSelection = (recipeId, isSelected) => {
     const newSelection = new Set(selectedRecipes);
     if (isSelected) {
@@ -329,7 +332,7 @@ export default function AIMealPlanReview({
                               value: item,
                               isObject: typeof item === 'object'
                             });
-                            const result = safeRender(item, 'Unknown item');
+                            const result = safeReactRender(item, 'Unknown item');
                             console.log(`✅ [AIMealPlanReview] Safe render result for item ${index}: "${result}"`);
                             return result;
                           })()}

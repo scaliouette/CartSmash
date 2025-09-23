@@ -72,6 +72,7 @@ const InstacartCheckoutEnhanced = ({ items = [], onClose, mode = 'recipe', initi
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line no-use-before-define
   }, [initialLocation, getTotalPrice]);
 
   // Load retailers on component mount

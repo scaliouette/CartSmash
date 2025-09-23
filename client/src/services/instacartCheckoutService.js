@@ -3,7 +3,7 @@
 
 class InstacartCheckoutService {
   constructor() {
-    this.apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    this.apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
     this.isDevelopment = process.env.NODE_ENV === 'development';
 
     // Cache for retailers and pricing data

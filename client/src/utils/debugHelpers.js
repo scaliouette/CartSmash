@@ -3,7 +3,7 @@ export const debugAI = {
   // Test if AI endpoints are reachable
   async testEndpoints() {
     console.log('🧪 Testing AI endpoints...');
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
     console.log('🌐 Using API URL:', API_URL);
 
     try {

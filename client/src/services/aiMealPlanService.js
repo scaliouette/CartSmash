@@ -18,7 +18,7 @@ import {
  */
 export async function generateAIMealPlan(preferences, currentUser = null) {
   try {
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
     
     // Get auth token if user is provided
     const headers = { 'Content-Type': 'application/json' };
@@ -54,7 +54,7 @@ export async function generateAIMealPlan(preferences, currentUser = null) {
  */
 export async function parseAIMealPlan(aiResponse, userId) {
   try {
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
     
     const response = await fetch(`${API_URL}/api/meal-plans/parse-meal-plan`, {
       method: 'POST',
@@ -354,7 +354,7 @@ function convertShoppingListToCSV(shoppingList) {
  */
 export async function regenerateMeal(uid, mealPlanId, day, mealType, preferences, currentUser = null) {
   try {
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
     
     // Get auth token if user is provided
     const headers = { 'Content-Type': 'application/json' };
@@ -395,7 +395,7 @@ export async function regenerateMeal(uid, mealPlanId, day, mealType, preferences
  */
 export async function createInstacartRecipePage(recipe, preferences = {}) {
   try {
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
     
     // Map recipe data to enhanced Instacart format
     const recipePayload = {

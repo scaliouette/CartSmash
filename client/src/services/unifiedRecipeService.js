@@ -1,7 +1,7 @@
 // client/src/services/unifiedRecipeService.js
 // Unified Recipe System Client Service - single interface for all recipe imports
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
 
 /**
  * Unified Recipe Service

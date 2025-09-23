@@ -412,7 +412,7 @@ Provide recipes with instructions and list each grocery item on a separate line.
 
     // ✅ FIX: Declare variables outside try block for error handling scope
     const selectedModelData = aiModels[selectedModel];
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
     const fullEndpoint = `${API_URL}${selectedModelData.endpoint}`;
 
     try {

@@ -8,12 +8,9 @@ import ProductValidator from './ProductValidator';
 import InstacartCheckoutUnified from './InstacartCheckoutUnified';
 import InstacartProductMatcher from './InstacartProductMatcher';
 import PriceHistory from './PriceHistory';
-import RecipesFoundCard from './RecipesFoundCard';
 import RecipesFound from './RecipesFound';
 import { formatProductName } from '../utils/imageService';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
-import { safeExtractIngredientString } from '../utils/ingredientUtils';
-import { safeRender } from '../utils/safeRender';
 import { ButtonSpinner } from './LoadingSpinner';
 import { useGroceryListAutoSave } from '../hooks/useAutoSave';
 // eslint-disable-next-line no-unused-vars
@@ -608,22 +605,7 @@ function GroceryListForm({
   // eslint-disable-next-line no-unused-vars
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Memoized expensive computations
-  const validParsedRecipes = useMemo(() => {
-    return Array.isArray(parsedRecipes) ? parsedRecipes.filter(isValidRecipe) : [];
-  }, [parsedRecipes]);
-
-  const validSavedRecipes = useMemo(() => {
-    return Array.isArray(savedRecipes) ? savedRecipes.filter(isValidRecipe) : [];
-  }, [savedRecipes]);
-
-  const cartStats = useMemo(() => {
-    if (!currentCart || !Array.isArray(currentCart)) return { total: 0, count: 0 };
-    return {
-      count: currentCart.length,
-      total: currentCart.reduce((sum, item) => sum + (item.price || 0), 0)
-    };
-  }, [currentCart]);
+  // Memoized expensive computations - keeping for potential future use
 
   // Memoized button state to prevent unnecessary re-renders
   const buttonState = useMemo(() => {
@@ -659,7 +641,7 @@ function GroceryListForm({
     includeSnacks: true,
     daysCount: 7
   });
-  const { currentUser, isAdmin, updateUserProfile } = useAuth();
+  const { currentUser } = useAuth();
   
   // Hydration-safe ID generator with stable sequence
   const idCounterRef = useRef(0);
@@ -763,7 +745,7 @@ function GroceryListForm({
         retailerId,
         currentUserExists: !!currentUser,
         preferredRetailer: currentUser?.preferredRetailer,
-        apiBaseUrl: process.env.REACT_APP_API_URL || 'http://localhost:3001'
+        apiBaseUrl: process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com'
       });
 
       // Process items in batches to avoid overwhelming the API
@@ -773,7 +755,6 @@ function GroceryListForm({
       for (let i = 0; i < cartItems.length; i += batchSize) {
         const batch = cartItems.slice(i, i + batchSize);
         const batchNumber = Math.floor(i/batchSize) + 1;
-        const totalBatches = Math.ceil(cartItems.length/batchSize);
 
         // Processing batch
         console.log(`📦 Batch items:`, batch.map(item => ({
@@ -784,7 +765,6 @@ function GroceryListForm({
         })));
 
         const batchPromises = batch.map(async (item, batchIndex) => {
-          const globalIndex = i + batchIndex;
           const searchQuery = item.productName || item.name;
 
           // Processing item
@@ -1019,7 +999,7 @@ function GroceryListForm({
 
       // Don't throw - just continue with basic cart items
     }
-  }, [currentUser, setCurrentCart]);
+  }, [currentUser, setCurrentCart, currentCart?.length]);
 
   // Function to trigger textarea auto-expansion (dynamic based on text content)
   const expandTextarea = () => {
@@ -1289,7 +1269,7 @@ function GroceryListForm({
   };
 
   // Fix cart item structure to ensure productName is always a string
-  const fixCartItemStructure = (cartData) => {
+  const fixCartItemStructure = useCallback((cartData) => {
     // If cart items have nested structure, flatten them
     if (Array.isArray(cartData)) {
       return cartData.map(item => {
@@ -1382,7 +1362,7 @@ function GroceryListForm({
     }
     
     return cartData;
-  };
+  }, [generateStableId]);
 
   // Safe function to get product display name for rendering
   // eslint-disable-next-line no-unused-vars
@@ -1798,7 +1778,6 @@ function GroceryListForm({
 
             // Use structured products - filter out meal descriptions
             if (aiData.products && aiData.products.length > 0) {
-              const filterStart = performance.now();
               console.log(`🔍 [${sessionId}] STEP 1.2: Filtering products`, {
                 totalProducts: aiData.products.length
               });
@@ -1899,7 +1878,6 @@ function GroceryListForm({
           }
           
           if (groceryListProcessed) {
-            const postProcessStart = performance.now();
             console.log(`🎯 [${sessionId}] STEP 1.5: Post-processing AI results`);
 
             // Expand textarea
@@ -2229,7 +2207,8 @@ function GroceryListForm({
         }
       }
     }, 0); // setTimeout end
-  }, [selectedAI, ingredientStyle, waitingForAIResponse]); // useCallback end
+  // eslint-disable-next-line no-use-before-define
+  }, [selectedAI, ingredientStyle, waitingForAIResponse, clearDraft, currentUser?.uid, enrichCartWithInstacartData, extractMealPlanRecipes, fixCartItemStructure, inputText, isSubmitting, lastSubmitTime, mergeCart, setCurrentCart, setValidParsedRecipes]); // useCallback end
 
   // Optimized submit handler with minimal synchronous work
   const handleSubmit = useCallback(async (e) => {
@@ -2251,6 +2230,8 @@ function GroceryListForm({
     await submitGroceryList(inputText, shouldUseAI);
   }, [waitingForAIResponse, isSubmitting, selectedAI, inputText, submitGroceryList]);
 
+  // Function kept for potential future use
+  // eslint-disable-next-line no-unused-vars
   const handleNewList = () => {
     setInputText('');
     setError('');
@@ -2363,7 +2344,7 @@ function GroceryListForm({
   };
 
   // Pure AI-only generation with better prompting and validation - NO MANUAL FALLBACKS
-  const generateDetailedRecipeWithAI = async (recipeName, retryCount = 0) => {
+  const generateDetailedRecipeWithAI = useCallback(async (recipeName, retryCount = 0) => {
     const MAX_RETRIES = 2;
     
     console.log('🤖 AI-ONLY generation for:', recipeName);
@@ -2530,7 +2511,7 @@ Return as JSON with this structure:
       // Final failure - throw error instead of manual fallback
       throw new Error(`AI generation failed for "${recipeName}": ${error.message}`);
     }
-  };
+  }, [selectedAI]);
 
   // REMOVED: All manual parsing functions - AI-ONLY mode enforced
 
@@ -2546,7 +2527,7 @@ Return as JSON with this structure:
 
 
   // Extract multiple recipes from a meal plan
-  const extractMealPlanRecipes = async (text) => {
+  const extractMealPlanRecipes = useCallback(async (text) => {
     const recipes = [];
     const lines = text.split('\n');
     let currentRecipe = null;
@@ -2966,7 +2947,7 @@ Return as JSON with this structure:
       recipes: uniqueRecipes,
       totalRecipes: uniqueRecipes.length
     };
-  };
+  }, [generateDetailedRecipeWithAI]);
 
   // DUPLICATE FUNCTION REMOVED - parseAIRecipes already exists at line 1084
 
@@ -3626,6 +3607,7 @@ Return as JSON with this structure:
   };
 
   // Enhanced Recipe Card Component - supports both old and unified formats
+  // eslint-disable-next-line no-unused-vars
   const RecipeCard = ({ recipe, index, onAddToCart, onAddToLibrary, onAddToMealPlan, onRemove, onEdit, externalExpanded, onToggleExpanded }) => {
     // Use external expanded state directly - no internal state needed
     const expanded = externalExpanded ?? false; // Default to false if undefined
@@ -3972,6 +3954,7 @@ Return as JSON with this structure:
   };
 
   // Handle adding recipe ingredients to cart
+  // eslint-disable-next-line no-unused-vars
   const handleAddRecipeToCart = async (recipe) => {
     if (!recipe.ingredients || recipe.ingredients.length === 0) {
       alert('❌ This recipe has no ingredients to add to cart');

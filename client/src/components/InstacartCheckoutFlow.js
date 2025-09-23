@@ -16,18 +16,23 @@ const InstacartCheckoutFlow = ({ currentCart, onClose }) => {
   const [searchingStores, setSearchingStores] = useState(false);
   const [resolutionResult, setResolutionResult] = useState(null);
   const [isResolvingProducts, setIsResolvingProducts] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [showDebug, setShowDebug] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [locationPermission, setLocationPermission] = useState('unknown');
   const [connectionInfo, setConnectionInfo] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // eslint-disable-next-line no-unused-vars
   const [validationResult, setValidationResult] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [validatedCart, setValidatedCart] = useState(null);
   const [showAllResolved, setShowAllResolved] = useState(false);
   const [showAllUnresolved, setShowAllUnresolved] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [cartTotals, setCartTotals] = useState(null);
   const [productQuantities, setProductQuantities] = useState({});
   const [selectedDeliverySlot, setSelectedDeliverySlot] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [storeHours, setStoreHours] = useState(null);
   const [itemApprovals, setItemApprovals] = useState({});
   const [showingAlternatives, setShowingAlternatives] = useState({});

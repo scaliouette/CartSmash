@@ -20,7 +20,7 @@ function AdminDashboard({ onClose, currentUser }) {
   const loadSystemHealth = useCallback(async () => {
     try {
       console.log('🩺 Loading system health...');
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${apiUrl}/api/settings/health/check`);
       if (response.ok) {
         const data = await response.json();
@@ -49,7 +49,7 @@ function AdminDashboard({ onClose, currentUser }) {
   const loadUserActivity = useCallback(async () => {
     try {
       console.log('🔄 Loading user activity...');
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${apiUrl}/api/analytics/users/activity?limit=10&hours=24`, {
         method: 'GET',
         headers: {
@@ -75,7 +75,7 @@ function AdminDashboard({ onClose, currentUser }) {
   const loadUserAccounts = useCallback(async () => {
     try {
       console.log('🔄 Loading Firebase user accounts...');
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${apiUrl}/api/analytics/users/accounts?limit=20`, {
         method: 'GET',
         headers: {
@@ -100,7 +100,7 @@ function AdminDashboard({ onClose, currentUser }) {
 
   const loadRealtimeMetrics = useCallback(async () => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${apiUrl}/api/analytics/realtime`);
       if (response.ok) {
         const data = await response.json();
@@ -207,7 +207,7 @@ function AdminDashboard({ onClose, currentUser }) {
 
   const handleSystemAction = async (action) => {
     setIsLoading(true);
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
     try {
       switch (action) {
         case 'restart_ai':

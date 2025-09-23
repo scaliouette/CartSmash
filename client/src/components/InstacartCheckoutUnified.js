@@ -593,7 +593,7 @@ const InstacartCheckoutUnified = ({
     setLoading(true);
     try {
       // Use existing Instacart retailers API endpoint
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${API_URL}/api/instacart/retailers?postalCode=${location}&countryCode=US`);
 
       if (!response.ok) throw new Error('Failed to fetch stores');

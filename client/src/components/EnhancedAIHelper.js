@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 
 function EnhancedAIHelper() {
   const [activeTab, setActiveTab] = useState('prompts');
+  // eslint-disable-next-line no-unused-vars
   const [selectedAI, setSelectedAI] = useState('both');
 
   const aiAssistants = {

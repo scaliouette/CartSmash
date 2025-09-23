@@ -3,7 +3,7 @@
 
 class ProductValidationService {
   constructor() {
-    this.API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    this.API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
     this.confidenceThresholds = {
       excellent: 0.8,
       good: 0.6,
