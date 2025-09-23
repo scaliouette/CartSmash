@@ -413,22 +413,13 @@ class InstacartCheckoutService {
           brand: product.brand,
           size: product.size,
           image_url: product.image_url,
-          confidence: product.confidence || 0.8
+          confidence: product.confidence || 0
         };
       }
 
-      // Fallback to mock product data
-      return {
-        product_id: item.id || `mock_product_${Date.now()}_${index}`,
-        retailer_sku: item.sku || `mock_sku_${Date.now()}_${index}`,
-        quantity: parseFloat(item.quantity) || 1,
-        name: item.productName || item.name || 'Unknown Item',
-        price: parseFloat(item.price) || 3.99,
-        brand: item.brand || 'Generic',
-        size: item.size || '1 unit',
-        image_url: '/placeholder-product.jpg',
-        confidence: 0.5
-      };
+      // NO MOCK DATA FALLBACK - return error instead
+      console.log(`🚫 DISABLED: Mock product fallback eliminated for item: ${item.productName || item.name}`);
+      return null;
     });
   }
 

@@ -64,7 +64,7 @@ export const InstacartCheckoutProvider = ({ children }) => {
       unit: item.unit || 'each',
       category: item.category || 'other',
       price: parseFloat(item.price) || 0,
-      confidence: item.confidence || 0.5,
+      confidence: item.confidence || 0,
       original: item.original || item.productName || item.name,
       ...item
     }));

@@ -18,7 +18,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
       quantity: item.quantity || 1,
       unit: item.unit || 'each',
       category: item.category || 'other',
-      confidence: item.confidence !== undefined ? item.confidence : 0.5,
+      confidence: item.confidence !== undefined ? item.confidence : 0,
       needsReview: item.needsReview !== undefined ? item.needsReview : (item.confidence || 0) < 0.8,
       original: item.original || ''
     }));
@@ -130,7 +130,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
         ? { 
             ...item, 
             needsReview: false,
-            confidence: Math.max(item.confidence || 0, 0.95),
+            confidence: item.confidence || 0,
             validatedAt: new Date().toISOString(),
             userApproved: true
           } 
@@ -156,7 +156,7 @@ function ProductValidator({ items, onItemsUpdated, onClose }) {
         ? { 
             ...item, 
             needsReview: false,
-            confidence: Math.max(item.confidence || 0, 0.95),
+            confidence: item.confidence || 0,
             validatedAt: new Date().toISOString(),
             userApproved: true
           } 

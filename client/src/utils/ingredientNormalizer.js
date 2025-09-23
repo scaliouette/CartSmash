@@ -117,7 +117,7 @@ const normalizeIngredientObject = (obj, options) => {
     source,
     metadata: {
       enriched: obj.enriched || existingMetadata.enriched || false,
-      confidence: obj.confidence || existingMetadata.confidence || 0.5,
+      confidence: obj.confidence || existingMetadata.confidence || 0,
       ...existingMetadata
     }
   });
@@ -371,7 +371,7 @@ const createStandardIngredient = ({
     notes,
     metadata: {
       source,
-      confidence: 0.8,
+      confidence: 0,
       enriched: false,
       lastUpdated: new Date().toISOString(),
       ...metadata
