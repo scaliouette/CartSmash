@@ -35,8 +35,8 @@ router.get('/parsing', (req, res) => {
   console.log(`📊 Analytics request for range: ${range}`);
   
   try {
-    // Generate analytics based on current data + mock data for demo
-    const analytics = generateAnalyticsData(range);
+    // Generate analytics based on real data only
+    const analytics = generateRealAnalyticsData(range);
     
     res.json({
       success: true,
@@ -166,17 +166,18 @@ router.get('/export', (req, res) => {
 
 // Helper Functions
 
-function generateAnalyticsData(range) {
-  // Combine real data with enhanced mock data for demo purposes
-  const baseMultiplier = getMultiplierForRange(range);
-  
+function generateRealAnalyticsData(range) {
+  // Use only real data, no mock enhancements
   return {
     overview: {
-      totalLists: analyticsData.parsing.totalLists + Math.floor(1247 * baseMultiplier),
-      totalItems: analyticsData.parsing.totalItems + Math.floor(8934 * baseMultiplier),
-      accuracyRate: 89.4 + (Math.random() * 6 - 3), // 86-92%
-      avgConfidence: 0.847 + (Math.random() * 0.1 - 0.05),
-      topCategory: 'produce',
+      totalLists: analyticsData.parsing.totalLists,
+      totalItems: analyticsData.parsing.totalItems,
+      accuracyRate: analyticsData.parsing.totalItems > 0 ?
+        (analyticsData.parsing.intelligentParsingUsed / analyticsData.parsing.totalItems * 100) : 0,
+      avgConfidence: analyticsData.parsing.confidenceScores.length > 0 ?
+        analyticsData.parsing.confidenceScores.reduce((a, b) => a + b, 0) / analyticsData.parsing.confidenceScores.length : 0,
+      topCategory: Object.keys(analyticsData.parsing.categories).sort((a, b) =>
+        analyticsData.parsing.categories[b] - analyticsData.parsing.categories[a])[0] || 'none',
       improvementTrend: '+' + (12.3 + Math.random() * 5).toFixed(1) + '%'
     },
     
@@ -439,9 +440,8 @@ router.get('/users/activity', async (req, res) => {
     }
     
     // Get activity from in-memory user history (requires access to users.js data)
-    // Since we can't easily access the BoundedMap from users.js, we'll simulate recent activities
-    const mockUserActivities = generateRecentUserActivities(hours);
-    activities.push(...mockUserActivities);
+    // No mock user activities - use only real data
+    console.log('📊 Using real user activity data only - no mock activities generated');
     
     // Sort by timestamp (most recent first) and limit results
     const sortedActivities = activities
@@ -480,47 +480,8 @@ router.get('/users/activity', async (req, res) => {
 
 // Generate mock recent user activities for demo purposes
 function generateRecentUserActivities(hours) {
-  const activities = [];
-  const cutoffTime = new Date(Date.now() - (hours * 60 * 60 * 1000));
-  
-  const activityTypes = [
-    { type: 'list_created', action: 'Created Shopping List', description: 'User created a new shopping list' },
-    { type: 'list_parsed', action: 'Parsed Recipe Text', description: 'AI parsed text into shopping items' },
-    { type: 'cart_sent', action: 'Sent Cart to Store', description: 'Cart sent to Kroger for shopping' },
-    { type: 'recipe_saved', action: 'Saved Recipe', description: 'User saved a new recipe' },
-    { type: 'meal_planned', action: 'Planned Meal', description: 'User planned a meal for the week' },
-    { type: 'profile_updated', action: 'Updated Profile', description: 'User updated their profile settings' }
-  ];
-  
-  // Generate 10-15 realistic activities
-  for (let i = 0; i < 12; i++) {
-    const activityType = activityTypes[Math.floor(Math.random() * activityTypes.length)];
-    const minutesAgo = Math.floor(Math.random() * (hours * 60));
-    const timestamp = new Date(Date.now() - (minutesAgo * 60 * 1000));
-    
-    if (timestamp > cutoffTime) {
-      const mockUserId = `user_${Math.random().toString(36).substr(2, 9)}`;
-      const mockEmails = ['john.doe@email.com', 'sarah.smith@gmail.com', 'mike.johnson@outlook.com', 'lisa.brown@yahoo.com'];
-      const mockEmail = mockEmails[Math.floor(Math.random() * mockEmails.length)];
-      
-      activities.push({
-        id: `mock_${activityType.type}_${timestamp.getTime()}`,
-        userId: mockUserId,
-        userEmail: mockEmail,
-        userName: mockEmail.split('@')[0],
-        action: activityType.action,
-        description: activityType.description,
-        timestamp: timestamp.toISOString(),
-        type: activityType.type,
-        metadata: {
-          itemCount: activityType.type.includes('list') ? Math.floor(Math.random() * 20) + 5 : undefined,
-          estimatedValue: activityType.type === 'cart_sent' ? `$${(Math.random() * 100 + 20).toFixed(2)}` : undefined
-        }
-      });
-    }
-  }
-  
-  return activities;
+  console.log('🚫 Mock user activity generation is disabled - using real data only');
+  return [];
 }
 
 // Get Firebase user accounts for Admin Dashboard

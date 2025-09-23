@@ -466,18 +466,13 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
     
     // Fallback only if API is truly unavailable (no client or API error)
     if (!responseText) {
-      if (!anthropic) {
-        console.log('🔄 Claude API unavailable - using fallback...');
-        responseText = "⚠️ **AI SERVICE TEMPORARILY UNAVAILABLE - SHOWING FALLBACK CONTENT**\n\n" + generateEnhancedClaudeResponse(prompt);
-        usage = { input_tokens: 150, output_tokens: 300 };
-        model = 'claude-3-sonnet (fallback)';
-      } else {
-        // TEMPORARY: Use fallback for API errors (credits/rate limits) during testing
-        console.log('🔄 Claude API failed (credits/rate limit) - using fallback for testing...');
-        responseText = generateEnhancedClaudeResponse(prompt);
-        usage = { input_tokens: 120, output_tokens: 250 };
-        model = 'claude-3-sonnet (fallback-testing)';
-      }
+      console.log('❌ Claude API unavailable - no fallback data allowed');
+      return res.status(503).json({
+        success: false,
+        error: 'AI service temporarily unavailable',
+        message: 'Claude API is currently unavailable. Please try again later.',
+        source: 'ai_service_unavailable'
+      });
     }
     
     // 🚀 STRUCTURED JSON PARSING - AI generates complete structured data
@@ -1186,15 +1181,13 @@ Focus on specific, measurable grocery items that can be easily found in a store.
     
     // Fallback only if API is truly unavailable (no client or API error)
     if (!responseText) {
-      if (!openai) {
-        console.log('🔄 OpenAI API unavailable - using fallback...');
-        responseText = "⚠️ **AI SERVICE TEMPORARILY UNAVAILABLE - SHOWING FALLBACK CONTENT**\n\n" + generateEnhancedChatGPTResponse(prompt);
-        usage = { prompt_tokens: 120, completion_tokens: 250 };
-        model = 'gpt-4o-mini (fallback)';
-      } else {
-        // API client exists but request failed - return error instead of fallback
-        throw new Error('OpenAI API request failed but client is available');
-      }
+      console.log('❌ OpenAI API unavailable - no fallback data allowed');
+      return res.status(503).json({
+        success: false,
+        error: 'AI service temporarily unavailable',
+        message: 'OpenAI API is currently unavailable. Please try again later.',
+        source: 'ai_service_unavailable'
+      });
     }
     
     // 🚀 INTELLIGENT PARSING with caching and token limits
@@ -1449,8 +1442,8 @@ router.post('/test-enhanced', async (req, res) => {
       });
       response = chatgptResponse.choices[0].message.content;
     } else {
-      // Use fallback
-      response = generateEnhancedClaudeResponse(testPrompt);
+      // No fallback - throw error
+      throw new Error('AI services required - no fallback data available');
     }
     
     // Test the intelligent parsing

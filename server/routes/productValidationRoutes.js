@@ -11,8 +11,13 @@ router.post('/search', async (req, res) => {
 
     console.log(`🔍 Enhanced product search for: "${searchTerm}"`);
 
-    // Simulate calling Instacart API for product search
-    const instacartData = await mockInstacartProductSearch(searchTerm, category, brand);
+    // Use real Instacart API only - no mock data generation
+    return res.status(503).json({
+      success: false,
+      error: 'Product validation service disabled',
+      message: 'Mock data generation has been eliminated. Use real Instacart integration instead.',
+      source: 'mock_data_elimination'
+    });
 
     // Enhance products with AI confidence scoring
     const enhancedProducts = await enhanceProductsWithAI(instacartData.products, originalItem, options);
@@ -427,8 +432,8 @@ function generateProductThumbnail(productName, category) {
 
 // Mock Instacart product search
 async function mockInstacartProductSearch(searchTerm, category, brand) {
-  // In production, this would call the actual Instacart API
-  const mockProducts = [
+  console.log('🚫 Mock Instacart product search is disabled - no fake data generation');
+  throw new Error('Mock data generation has been eliminated. Use real Instacart API integration.');
     {
       id: 'product_1',
       name: searchTerm,
