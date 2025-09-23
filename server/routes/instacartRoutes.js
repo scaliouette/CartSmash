@@ -1,4 +1,5 @@
 // server/routes/instacartRoutes.js
+// Updated 2025-09-23: Mock data elimination verified and deployed
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
