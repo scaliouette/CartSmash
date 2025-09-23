@@ -88,7 +88,7 @@ if (!cacheCleanupInterval) {
         parseCache.delete(key);
       }
     }
-    console.log(`🧹 Cache cleanup: HTML=${htmlCache.size}, Parse=${parseCache.size}`);
+    // Silent cache cleanup for production efficiency
   }, PERFORMANCE_CONFIG.HTML_CACHE_TTL);
 }
 
@@ -124,7 +124,7 @@ function getCachedRecipeUrl(cacheKey) {
   
   if (cached) {
     recipeCache.delete(cacheKey); // Remove expired cache
-    console.log(`🗑️ Removed expired cache for key: ${cacheKey}`);
+    // Expired cache entry removed
   }
   
   return null;
@@ -138,25 +138,19 @@ function cacheRecipeUrl(cacheKey, result) {
     cacheKey
   };
   recipeCache.set(cacheKey, cacheEntry);
-  console.log(`💾 Cached recipe URL for key: ${cacheKey}`);
+  // Recipe cached successfully
   return cacheEntry;
 }
 
 // Enhanced real product parsing from Instacart recipe page
 async function parseRealProductsFromRecipe(recipeUrl, query, originalItem, retailerId) {
-  console.log(`🔍 Starting enhanced HTML parsing for recipe URL: ${recipeUrl}`);
-
-  if (!recipeUrl) {
-    console.log('❌ No recipe URL provided for parsing');
-    return [];
-  }
+  if (!recipeUrl) return [];
 
   // Check parse cache first
   const cacheKey = `parse_${recipeUrl}_${query}`;
   if (parseCache.has(cacheKey)) {
     const cached = parseCache.get(cacheKey);
     if (Date.now() - cached.timestamp < PERFORMANCE_CONFIG.HTML_CACHE_TTL) {
-      console.log('💾 Using cached parse results');
       return cached.products;
     }
   }
@@ -170,45 +164,26 @@ async function parseRealProductsFromRecipe(recipeUrl, query, originalItem, retai
     if (htmlCache.has(htmlCacheKey)) {
       const cached = htmlCache.get(htmlCacheKey);
       if (Date.now() - cached.timestamp < PERFORMANCE_CONFIG.HTML_CACHE_TTL) {
-        console.log('💾 Using cached HTML content');
         htmlContent = cached.html;
       }
     }
 
     if (!htmlContent) {
-      // Fetch the recipe page HTML with optimized settings
-      console.log('📡 Fetching recipe page HTML with performance optimizations...');
-      let response;
-
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          response = await axios.get(recipeUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-              'Accept-Language': 'en-US,en;q=0.5',
-              'Accept-Encoding': 'gzip, deflate, br',
-              'Connection': 'keep-alive',
-              'Upgrade-Insecure-Requests': '1'
-            },
-            timeout: PERFORMANCE_CONFIG.PARSING_TIMEOUT,
-            maxContentLength: PERFORMANCE_CONFIG.MAX_HTML_SIZE,
-            maxBodyLength: PERFORMANCE_CONFIG.MAX_HTML_SIZE,
-            maxRedirects: 3
-          });
-          break;
-        } catch (error) {
-          if (attempt === 2) throw error;
-          console.log(`⚠️ Attempt ${attempt} failed, retrying...`);
-          await new Promise(resolve => setTimeout(resolve, PERFORMANCE_CONFIG.REQUEST_RETRY_DELAY));
-        }
-      }
+      // Fetch HTML with streamlined approach
+      const response = await axios.get(recipeUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        },
+        timeout: 10000,
+        maxContentLength: PERFORMANCE_CONFIG.MAX_HTML_SIZE,
+        maxRedirects: 2
+      });
 
       htmlContent = response.data;
 
-      // Cache the HTML content
+      // Efficient cache management
       if (htmlCache.size >= PERFORMANCE_CONFIG.HTML_CACHE_SIZE) {
-        // Remove oldest entry
         const oldestKey = htmlCache.keys().next().value;
         htmlCache.delete(oldestKey);
       }
@@ -216,190 +191,111 @@ async function parseRealProductsFromRecipe(recipeUrl, query, originalItem, retai
         html: htmlContent,
         timestamp: Date.now()
       });
-      console.log(`💾 Cached HTML content (cache size: ${htmlCache.size})`);
     }
 
     const $ = cheerio.load(htmlContent, {
-      // Optimize Cheerio for performance
       xmlMode: false,
       decodeEntities: false,
       lowerCaseAttributeNames: false
     });
     let products = [];
 
-    console.log(`⚡ HTML parsing started (${(Date.now() - startTime)}ms elapsed)`);
-
-    // Method 1: Extract Apollo GraphQL state data (most reliable) - OPTIMIZED
-    console.log('🚀 Method 1: Checking for Apollo GraphQL state data...');
+    // Method 1: Extract Apollo GraphQL state data - STREAMLINED
     try {
       const apolloScript = $('#node-apollo-state').html();
-      if (apolloScript && apolloScript.length > 0) {
-        console.log('📊 Found Apollo state data, parsing...');
+      if (apolloScript) {
+        const decodedData = decodeURIComponent(apolloScript);
+        const apolloData = JSON.parse(decodedData);
 
-        // Use streaming JSON parse for large data
-        let apolloData;
-        try {
-          const decodedData = decodeURIComponent(apolloScript);
-          apolloData = JSON.parse(decodedData);
-        } catch (parseError) {
-          console.log('⚠️ Apollo JSON parse failed, trying alternative parsing...');
-          // Try to extract JSON from script content more carefully
-          const jsonMatch = apolloScript.match(/\{.*\}/);
-          if (jsonMatch) {
-            apolloData = JSON.parse(decodeURIComponent(jsonMatch[0]));
-          }
-        }
-
-        // Parse Apollo cache for product data with performance optimization
-        if (apolloData && apolloData.data) {
-          const cacheData = apolloData.data;
-          const productKeys = Object.keys(cacheData).filter(key =>
-            cacheData[key] &&
-            typeof cacheData[key] === 'object' &&
-            cacheData[key].__typename === 'Product'
-          );
-
-          console.log(`🔍 Found ${productKeys.length} potential products in Apollo cache`);
-
-          // Process products in batches for better performance
-          const batchSize = 10;
-          for (let i = 0; i < productKeys.length; i += batchSize) {
-            const batch = productKeys.slice(i, i + batchSize);
-
-            for (const key of batch) {
-              const value = cacheData[key];
-              const product = {
+        if (apolloData?.data) {
+          // Direct product extraction without batching overhead for typical small datasets
+          for (const [key, value] of Object.entries(apolloData.data)) {
+            if (value?.__typename === 'Product' && value.name) {
+              products.push({
                 id: value.id || key,
                 name: value.name || value.displayName,
                 brand: value.brand?.name || value.brandName,
                 price: value.pricing?.price || value.price,
-                image_url: value.images?.[0]?.url || value.imageUrl,
+                image_url: value.images?.[0]?.url,
                 package_size: value.size || value.packageSize,
                 availability: value.availability || 'in_stock',
                 upc: value.upc,
                 category: value.category?.name
-              };
-
-              if (product.name && product.name.length > 0) {
-                products.push(product);
-              }
+              });
             }
-
-            // Yield control between batches
-            if (batch.length === batchSize) {
-              await new Promise(resolve => setImmediate(resolve));
-            }
-          }
-
-          if (products.length > 0) {
-            console.log(`✅ Apollo method found ${products.length} products`);
           }
         }
       }
     } catch (apolloError) {
-      console.log('⚠️ Apollo parsing failed:', apolloError.message);
+      // Silent fallback to CSS parsing
     }
 
-    // Method 2: Look for modern CSS selectors and data attributes
-    const modernSelectors = [
-      '[data-testid*="product"], [data-testid*="item"], [data-testid*="ingredient"]',
-      '.e-d3v9zr, .e-1tpx6fl, .e-bal5k7', // Instacart's CSS classes
-      'li[class*="e-"] h3, li[class*="e-"] h4, li[class*="e-"] [class*="name"]',
-      '.ingredient, .recipe-ingredient, .shopping-list-item'
-    ];
+    // Method 2: Enhanced CSS selector parsing
+    if (products.length === 0) {
+      const selectors = [
+        '[data-testid*="ingredient"], [data-testid*="product"]',
+        '.ingredient-list li, .recipe-ingredients li',
+        'h3, h4, [class*="name"]'
+      ];
 
-    modernSelectors.forEach(selector => {
-      $(selector).each((i, el) => {
-        const $el = $(el);
-        const name = $el.text().trim() || $el.attr('aria-label') || $el.attr('title');
+      for (const selector of selectors) {
+        $(selector).each((i, el) => {
+          const $el = $(el);
+          const name = $el.text().trim();
 
-        if (name && name.length > 2 && !name.includes('loading') && !name.includes('Loading')) {
-          const confidence = calculateMatchConfidence(query, name);
-
-          if (confidence > 0.2) {
-            products.push({
-              id: `modern_${Date.now()}_${i}`,
-              name: name,
-              price: 0, // Price extraction would need more sophisticated parsing
-              brand: 'Instacart',
-              size: originalItem?.quantity || '1 unit',
-              image_url: $el.find('img').attr('src') || null,
-              availability: 'in_stock',
-              confidence: confidence,
-              retailer_id: retailerId,
-              description: `Real Instacart product: ${name}`,
-              _metadata: {
-                isRealApiResponse: true,
-                dataSource: 'instacart_modern_css',
-                recipeUrl: recipeUrl,
-                generated_at: new Date().toISOString()
-              }
-            });
+          if (name && name.length > 2 && !name.includes('Loading')) {
+            const confidence = calculateMatchConfidence(query, name);
+            if (confidence > 0.4) {
+              products.push({
+                id: `css_${i}`,
+                name,
+                price: 0,
+                brand: 'Instacart',
+                package_size: originalItem?.quantity || '1 unit',
+                availability: 'in_stock',
+                confidence
+              });
+            }
           }
-        }
-      });
-    });
+        });
 
-    // Method 3: Look for ingredient list in text content
-    const ingredientText = $('.e-1jmotzo, .ingredient-list, ul li').text();
-    if (ingredientText && ingredientText.toLowerCase().includes(query.toLowerCase())) {
-      console.log('📝 Found ingredient in text content');
-
-      products.push({
-        id: `text_match_${Date.now()}`,
-        name: query, // Use the original query as product name
-        price: 0,
-        brand: 'Instacart',
-        size: originalItem?.quantity || '1 unit',
-        image_url: null,
-        availability: 'in_stock',
-        confidence: 0.85, // High confidence for direct text match
-        retailer_id: retailerId,
-        description: `Real Instacart ingredient: ${query}`,
-        _metadata: {
-          isRealApiResponse: true,
-          dataSource: 'instacart_text_content',
-          recipeUrl: recipeUrl,
-          generated_at: new Date().toISOString()
-        }
-      });
+        if (products.length > 0) break; // Stop after finding products
+      }
     }
 
-    // Filter, deduplicate, and score products
-    const uniqueProducts = products.filter((product, index, self) =>
-      index === self.findIndex(p => p.name.toLowerCase() === product.name.toLowerCase())
-    );
+    // Method 3: Text content fallback
+    if (products.length === 0) {
+      const ingredientText = $('body').text();
+      if (ingredientText.toLowerCase().includes(query.toLowerCase())) {
+        products.push({
+          id: `text_${Date.now()}`,
+          name: query,
+          price: 0,
+          brand: 'Instacart',
+          package_size: originalItem?.quantity || '1 unit',
+          availability: 'in_stock',
+          confidence: 0.6
+        });
+      }
+    }
 
-    const relevantProducts = uniqueProducts
-      .filter(product => product.confidence > 0.3)
+    // Streamlined result processing
+    const relevantProducts = products
+      .filter((product, index, self) =>
+        index === self.findIndex(p => p.name === product.name) && product.confidence > 0.3
+      )
       .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, 1); // Return only the best match
+      .slice(0, 3);
 
-    // Cache the parsed results
-    const finalProducts = relevantProducts.slice(0, 20); // Limit results for performance
+    // Cache and return results
     parseCache.set(cacheKey, {
-      products: finalProducts,
+      products: relevantProducts,
       timestamp: Date.now()
     });
 
-    const totalTime = Date.now() - startTime;
-    console.log(`🎯 Final result: Found ${finalProducts.length} products from recipe parsing (${totalTime}ms)`);
-
-    if (finalProducts.length > 0) {
-      console.log('📋 Sample parsed products:', finalProducts.slice(0, 2).map(p => ({
-        name: p.name,
-        brand: p.brand,
-        price: p.price,
-        hasImage: !!p.image_url
-      })));
-    }
-
-    return finalProducts;
+    return relevantProducts;
 
   } catch (error) {
-    const totalTime = Date.now() - startTime;
-    console.error(`❌ Error parsing recipe page after ${totalTime}ms:`, error.message);
-
     // Cache empty result to avoid repeated failures
     parseCache.set(cacheKey, {
       products: [],
@@ -664,54 +560,19 @@ router.post('/search', async (req, res) => {
   try {
     const { query, retailerId, zipCode, quantity, category, originalItem } = req.body;
 
-    console.log(`🔍 ===== INSTACART SEARCH API DEBUG =====`);
-    console.log(`📊 SEARCH REQUEST DETAILS:`, {
-      timestamp: new Date().toISOString(),
-      query,
-      retailerId,
-      zipCode,
-      quantity,
-      category,
-      originalItem,
-      requestBody: req.body,
-      requestHeaders: {
-        'user-agent': req.headers['user-agent'],
-        'content-type': req.headers['content-type'],
-        'origin': req.headers.origin
-      }
-    });
-
-    console.log(`🔧 API CONFIGURATION:`, {
-      NODE_ENV,
-      BASE_URL,
-      INSTACART_API_KEY: INSTACART_API_KEY ? 'SET (key: ' + INSTACART_API_KEY.substring(0, 10) + '...)' : 'NOT SET',
-      validateApiKeys: validateApiKeys(),
-      endpointPaths: {
-        recipe: '/products/recipe',
-        catalogSearch: '/catalog/search'
-      }
-    });
-
     if (!query) {
-      console.log(`❌ SEARCH ERROR - No query provided`);
       return res.status(400).json({
         success: false,
         error: 'Query is required'
       });
     }
-    
+
     // Check if we have valid API keys
     if (validateApiKeys()) {
-      console.log(`✅ API KEYS VALIDATED - Proceeding with real Instacart API calls`);
-
-      // Enhanced fallback strategy with circuit breaker pattern
-      console.log('🛡️ ===== ENHANCED FALLBACK STRATEGY =====');
 
       // Step 1: Try Recipe API (if circuit is not open)
       if (!circuitBreaker.isCircuitOpen('recipe')) {
         try {
-          console.log('🧪 Trying Recipe API approach...');
-
           // Create a temporary recipe with just this ingredient to see what Instacart matches
           const previewRecipePayload = {
           title: `Preview Recipe - ${query}`,
@@ -736,106 +597,48 @@ router.post('/search', async (req, res) => {
           enable_pantry_items: false
         };
 
-        console.log('📤 RECIPE PAYLOAD CREATED:');
-        console.log('   - Title:', previewRecipePayload.title);
-        console.log('   - Ingredients:', previewRecipePayload.ingredients);
-        console.log('   - Full payload:', JSON.stringify(previewRecipePayload, null, 2));
-
-        console.log(`🌐 Making Instacart Recipe API call to: ${BASE_URL}/products/recipe`);
-        const startTime = Date.now();
-
         const recipeResponse = await instacartApiCall('/products/recipe', 'POST', previewRecipePayload);
-        const apiCallDuration = Date.now() - startTime;
-
-        console.log(`📡 RECIPE API RESPONSE RECEIVED:`, {
-          duration: `${apiCallDuration}ms`,
-          responseExists: !!recipeResponse,
-          responseKeys: recipeResponse ? Object.keys(recipeResponse) : null,
-          products_link_url: recipeResponse?.products_link_url,
-          recipeId: recipeResponse?.id,
-          title: recipeResponse?.title,
-          fullResponse: recipeResponse
-        });
 
         if (recipeResponse && recipeResponse.products_link_url) {
-          console.log('✅ ===== RECIPE API SUCCESS =====');
-          console.log('✅ Preview recipe created, extracting product data...');
-          console.log('🔗 Recipe URL:', recipeResponse.products_link_url);
-
           // Parse real product data from the recipe page
-          console.log('🏭 Parsing real product data from recipe page...');
           const realProducts = await parseRealProductsFromRecipe(recipeResponse.products_link_url, query, originalItem, retailerId);
 
-          console.log(`📦 GENERATED PRODUCTS:`, {
-            count: realProducts.length,
-            sampleProducts: realProducts.slice(0, 2).map(p => ({
-              id: p.id,
-              name: p.name,
-              price: p.price,
-              priceType: typeof p.price,
-              image_url: p.image_url,
-              hasImage: !!p.image_url
-            }))
-          });
-
-          const successResponse = {
-            success: true,
-            products: realProducts,
-            query: query,
-            retailer: retailerId,
-            count: realProducts.length,
-            preview_recipe_url: recipeResponse.products_link_url,
-            source: 'recipe_api_preview'
-          };
-
-          console.log(`✅ SENDING SUCCESS RESPONSE:`, {
-            success: successResponse.success,
-            productCount: successResponse.products.length,
-            source: successResponse.source,
-            hasRecipeUrl: !!successResponse.preview_recipe_url
-          });
-
-          circuitBreaker.recordSuccess('recipe');
-          res.json(successResponse);
-          return;
+          if (realProducts.length > 0) {
+            circuitBreaker.recordSuccess('recipe');
+            res.json({
+              success: true,
+              products: realProducts,
+              query: query,
+              retailer: retailerId,
+              count: realProducts.length,
+              preview_recipe_url: recipeResponse.products_link_url,
+              source: 'recipe_api_preview'
+            });
+            return;
+          }
+          throw new Error('No products found in recipe page');
         } else {
-          console.log('❌ RECIPE API FAILED - No products link in response');
-          console.log('📊 Response structure:', {
-            responseExists: !!recipeResponse,
-            hasProductsLink: !!(recipeResponse && recipeResponse.products_link_url),
-            responseKeys: recipeResponse ? Object.keys(recipeResponse) : null
-          });
           throw new Error('Recipe API did not return products link');
         }
         } catch (error) {
-          console.log('⚠️ Recipe API failed:', error.message);
           circuitBreaker.recordFailure('recipe');
         }
-      } else {
-        console.log('⚡ Recipe API circuit is OPEN, skipping to catalog API');
       }
 
       // Step 2: Try Catalog API (if circuit is not open)
       if (!circuitBreaker.isCircuitOpen('catalog')) {
         try {
-          console.log('🔍 Trying Catalog API approach...');
-
           const searchParams = {
             q: query,
             limit: 10
           };
-          
-          if (retailerId) {
-            searchParams.retailer_id = retailerId;
-          }
-          
+
+          if (retailerId) searchParams.retailer_id = retailerId;
           if (zipCode) searchParams.zip_code = zipCode;
           if (category) searchParams.category = category;
-          
-          console.log('🔍 Searching with catalog API params:', searchParams);
-          
+
           const searchResults = await instacartApiCall('/catalog/search', 'POST', searchParams);
-          
+
           const products = (searchResults.items || searchResults.data || []).map(product => ({
             id: product.id || product.product_id,
             sku: product.sku || product.retailer_sku,
@@ -850,8 +653,6 @@ router.post('/search', async (req, res) => {
             unit_price: product.unit_price,
             description: product.description
           }));
-          
-          console.log(`✅ Found ${products.length} products via catalog API`);
 
           circuitBreaker.recordSuccess('catalog');
           res.json({
@@ -864,15 +665,11 @@ router.post('/search', async (req, res) => {
           });
           return;
         } catch (catalogError) {
-          console.log('⚠️ Catalog API failed:', catalogError.message);
           circuitBreaker.recordFailure('catalog');
         }
-      } else {
-        console.log('⚡ Catalog API circuit is OPEN, skipping to final fallback');
       }
 
       // Step 3: Enhanced error response with circuit breaker status
-      console.log('🛡️ All primary APIs exhausted, providing detailed error response');
       const circuitStatus = {
         recipe: {
           isOpen: circuitBreaker.isCircuitOpen('recipe'),
@@ -1467,24 +1264,19 @@ router.post('/batch-search', async (req, res) => {
   try {
     const { items, retailerId, zipCode } = req.body;
     
-    console.log(`🔍 Batch searching ${items?.length || 0} items at ${retailerId}`);
-    
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'Items array is required'
       });
     }
-    
+
     // Process items in parallel batches for better performance
     const batchSize = PERFORMANCE_CONFIG.MAX_PARALLEL_REQUESTS;
     const results = [];
 
-    console.log(`⚡ Processing ${items.length} items in parallel batches of ${batchSize}`);
-
     for (let i = 0; i < items.length; i += batchSize) {
       const batch = items.slice(i, i + batchSize);
-      console.log(`📦 Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(items.length/batchSize)} (${batch.length} items)`);
 
       const batchPromises = batch.map(async (item, index) => {
         try {
@@ -1509,11 +1301,9 @@ router.post('/batch-search', async (req, res) => {
                 confidence: calculateMatchConfidence(item.name || item.query, product.name || product.display_name)
               }));
             } catch (apiError) {
-              console.log(`❌ API search failed for "${item.name}", no real products available`);
               products = []; // Return empty array instead of mock data
             }
           } else {
-            console.log(`❌ API keys not available for "${item.name}", no products available`);
             products = []; // Return empty array instead of mock data
           }
 
