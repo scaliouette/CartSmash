@@ -86,13 +86,58 @@ const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 // GET /api/price-history - Get price history for a product across vendors
 router.get('/', async (req, res) => {
   try {
-    console.log('🚫 Price history service disabled - no mock data generation allowed');
-    return res.status(503).json({
-      success: false,
-      error: 'Price history service disabled',
-      message: 'Mock price data generation has been eliminated. Use real vendor API integrations.',
-      source: 'mock_data_elimination'
+    const { product, timeRange, productId, zipCode = '95670' } = req.query;
+
+    if (!product) {
+      return res.status(400).json({
+        success: false,
+        error: 'Product name is required',
+        message: 'Please provide a product name to search for prices'
+      });
+    }
+
+    console.log(`🔍 Looking up real prices for "${product}" across vendors...`);
+
+    // Start with real vendor data where available
+    const priceResults = [];
+
+    // Try Instacart integration first
+    try {
+      const instacartResults = await fetchInstacartPrices(product, zipCode);
+      if (instacartResults && instacartResults.length > 0) {
+        priceResults.push(...instacartResults);
+      }
+    } catch (instacartError) {
+      console.log('Instacart price lookup failed:', instacartError.message);
+    }
+
+    // Add other vendor integrations here as they become available
+    // For now, show what vendors are supported for future integration
+    const supportedVendors = Object.keys(VENDOR_CONFIGS);
+
+    if (priceResults.length === 0) {
+      // No real price data available yet
+      return res.json({
+        success: true,
+        priceHistory: [],
+        message: 'Price comparison across vendors is coming soon! Currently integrating with retail partners.',
+        supportedVendors: supportedVendors,
+        currentIntegrations: ['instacart'],
+        comingSoon: ['kroger', 'safeway', 'target', 'walmart']
+      });
+    }
+
+    // Sort by price (lowest first)
+    priceResults.sort((a, b) => a.price - b.price);
+
+    res.json({
+      success: true,
+      priceHistory: priceResults,
+      count: priceResults.length,
+      supportedVendors: supportedVendors,
+      searchTerm: product
     });
+
   } catch (error) {
     console.error('Price history error:', error);
     res.status(500).json({
@@ -101,6 +146,108 @@ router.get('/', async (req, res) => {
     });
   }
 });
+
+// Helper function to fetch real Instacart prices from multiple stores
+async function fetchInstacartPrices(productName, zipCode) {
+  try {
+    console.log(`🥕 Searching Instacart stores for "${productName}" near ${zipCode}`);
+
+    // Step 1: Get all available retailers in the area
+    const axios = require('axios');
+    const retailersUrl = `${process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com'}/api/instacart/retailers?postalCode=${zipCode}`;
+
+    let retailersResponse;
+    try {
+      retailersResponse = await axios.get(retailersUrl);
+    } catch (error) {
+      console.log('Could not fetch retailers, using internal API call');
+      // If external call fails, we can't get price comparison data
+      return [];
+    }
+
+    const retailers = retailersResponse.data.retailers || [];
+    console.log(`Found ${retailers.length} retailers near ${zipCode}`);
+
+    if (retailers.length === 0) {
+      return [];
+    }
+
+    // Step 2: Search for the product in top 5 stores to get price comparison
+    const priceResults = [];
+    const maxStores = Math.min(5, retailers.length); // Limit to prevent too many API calls
+
+    for (let i = 0; i < maxStores; i++) {
+      const retailer = retailers[i];
+
+      try {
+        // Search for product in this specific retailer
+        const searchUrl = `${process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com'}/api/instacart/search`;
+        const searchResponse = await axios.post(searchUrl, {
+          query: productName,
+          retailerId: retailer.id,
+          zipCode: zipCode,
+          quantity: 1,
+          category: 'each'
+        });
+
+        if (searchResponse.data.success && searchResponse.data.products && searchResponse.data.products.length > 0) {
+          // Get the best match (first result)
+          const product = searchResponse.data.products[0];
+
+          priceResults.push({
+            vendor: retailer.name || `Store ${i + 1}`,
+            vendorLogo: getVendorLogo(retailer.name),
+            price: parseFloat(product.price) || 0,
+            productName: product.name || productName,
+            productId: product.id || null,
+            upc: product.upc || null,
+            image: product.image || null,
+            inStock: product.availability !== 'out_of_stock',
+            lastUpdated: new Date().toISOString(),
+            retailerId: retailer.id,
+            storeLocation: retailer.location || 'Location not specified',
+            deliveryFee: retailer.delivery_fee || 0,
+            serviceFee: retailer.service_fee || 0
+          });
+        }
+      } catch (searchError) {
+        console.log(`Failed to search ${retailer.name}: ${searchError.message}`);
+        // Continue to next retailer
+      }
+    }
+
+    console.log(`Found prices in ${priceResults.length} stores for "${productName}"`);
+    return priceResults;
+
+  } catch (error) {
+    console.error('Instacart price fetch error:', error);
+    return [];
+  }
+}
+
+// Helper function to get vendor logo
+function getVendorLogo(vendorName) {
+  const logoMap = {
+    'safeway': '🛒',
+    'costco': '🏪',
+    'whole foods': '🥬',
+    'target': '🎯',
+    'walmart': '🛍️',
+    'kroger': '🏬',
+    'instacart': '🥕',
+    'ralphs': '🛒',
+    'vons': '🛒',
+    'pavilions': '🛒'
+  };
+
+  const vendorLower = vendorName.toLowerCase();
+  for (const [key, logo] of Object.entries(logoMap)) {
+    if (vendorLower.includes(key)) {
+      return logo;
+    }
+  }
+  return '🏪'; // Default store icon
+}
 
 // GET /api/price-history/vendors - Get list of supported vendors
 router.get('/vendors', (req, res) => {

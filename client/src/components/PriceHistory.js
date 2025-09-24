@@ -10,7 +10,8 @@ const PriceHistory = ({
   currentVendor = 'Instacart',
   isOpen = false,
   onClose,
-  productId = null
+  productId = null,
+  userZipCode = '95670'
 }) => {
   const [priceData, setPriceData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,22 +25,35 @@ const PriceHistory = ({
 
     try {
       const baseUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-      const response = await fetch(`${baseUrl}/api/price-history?product=${encodeURIComponent(productName)}&timeRange=${selectedTimeRange}&productId=${productId || ''}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to load price history');
-      }
+      const response = await fetch(`${baseUrl}/api/price-history?product=${encodeURIComponent(productName)}&timeRange=${selectedTimeRange}&productId=${productId || ''}&zipCode=${userZipCode}`);
 
       const data = await response.json();
+
+      if (!response.ok) {
+        if (data.source === 'mock_data_elimination' || response.status === 503) {
+          throw new Error('Price history service is currently disabled');
+        }
+        throw new Error(data.message || 'Failed to load price history');
+      }
+
       setPriceData(data.priceHistory || []);
+
+      // Handle "coming soon" message from API
+      if (data.message && data.priceHistory && data.priceHistory.length === 0) {
+        setError(data.message);
+      }
     } catch (err) {
       console.error('Price history loading error:', err);
-      setError(err.message);
+      if (err.message.includes('service disabled') || err.message.includes('503')) {
+        setError('Price comparison feature is temporarily unavailable');
+      } else {
+        setError('Unable to load price comparison at this time');
+      }
       setPriceData([]);
     } finally {
       setIsLoading(false);
     }
-  }, [productName, selectedTimeRange, productId]);
+  }, [productName, selectedTimeRange, productId, userZipCode]);
 
   // Load price data automatically when component opens
   useEffect(() => {

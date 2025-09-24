@@ -4843,6 +4843,7 @@ Or paste any grocery list directly!"
           currentPrice={selectedProductForPrice.price}
           currentVendor="Instacart"
           productId={selectedProductForPrice.id}
+          userZipCode={currentUser?.zipCode || currentUser?.postalCode || '95670'}
           isOpen={showPriceHistory}
           onClose={() => {
             setShowPriceHistory(false);
