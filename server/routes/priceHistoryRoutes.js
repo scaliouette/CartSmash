@@ -150,65 +150,9 @@ async function fetchInstacartPrices(productName, zipCode) {
   try {
     // Step 1: Get all available retailers in the area
     const axios = require('axios');
-    const retailersUrl = `${process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com'}/api/instacart/retailers?postalCode=${zipCode}`;
-
-    let retailersResponse;
-    try {
-      retailersResponse = await axios.get(retailersUrl);
-    } catch (error) {
-      return [];
-    }
-
-    const retailers = retailersResponse.data.retailers || [];
-
-    if (retailers.length === 0) {
-      return [];
-    }
-
-    // Step 2: Search for the product in top 5 stores to get price comparison
-    const priceResults = [];
-    const maxStores = Math.min(5, retailers.length); // Limit to prevent too many API calls
-
-    for (let i = 0; i < maxStores; i++) {
-      const retailer = retailers[i];
-
-      try {
-        // Search for product in this specific retailer
-        const searchUrl = `${process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com'}/api/instacart/search`;
-        const searchResponse = await axios.post(searchUrl, {
-          query: productName,
-          retailerId: retailer.id,
-          zipCode: zipCode,
-          quantity: 1,
-          category: 'each'
-        });
-
-        if (searchResponse.data.success && searchResponse.data.products && searchResponse.data.products.length > 0) {
-          // Get the best match (first result)
-          const product = searchResponse.data.products[0];
-
-          priceResults.push({
-            vendor: retailer.name || `Store ${i + 1}`,
-            vendorLogo: getVendorLogo(retailer.name),
-            price: parseFloat(product.price) || 0,
-            productName: product.name || productName,
-            productId: product.id || null,
-            upc: product.upc || null,
-            image: product.image || null,
-            inStock: product.availability !== 'out_of_stock',
-            lastUpdated: new Date().toISOString(),
-            retailerId: retailer.id,
-            storeLocation: retailer.location || 'Location not specified',
-            deliveryFee: retailer.delivery_fee || 0,
-            serviceFee: retailer.service_fee || 0
-          });
-        }
-      } catch (searchError) {
-        // Continue to next retailer
-      }
-    }
-
-    return priceResults;
+    // Price comparison across vendors temporarily disabled to prevent circular API calls
+    // This feature needs to be refactored to use internal service calls instead of HTTP requests
+    return [];
 
   } catch (error) {
     console.error('Instacart price fetch error:', error);

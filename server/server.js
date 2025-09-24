@@ -1180,6 +1180,8 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 if (require.main === module) {
   const server = app.listen(PORT, () => {
     const allowedOrigins = [
+      'https://www.cartsmash.com',
+      'https://cartsmash.com',
       'https://cart-smash.vercel.app',
       'https://cartsmash.vercel.app',
       'http://localhost:3000',
