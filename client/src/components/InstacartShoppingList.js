@@ -5,27 +5,6 @@ import instacartShoppingListService from '../services/instacartShoppingListServi
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import ShoppingListItem from './ShoppingListItem';
 import AffiliateDisclosureNotice from './AffiliateDisclosureNotice';
-import { logger, conditionalLog, createTimer } from '../utils/debugLogger';
-
-// Optimized debug functions using configurable logging
-// debugItemData function commented out as it's not currently used
-// const debugItemData = (componentId, item, context = '') => {
-//   logger.debug(componentId, 'debugItemData', `Item analysis: ${context}`, {
-//     id: item.id,
-//     productName: item.productName || item.name,
-//     hasPrice: !!item.price && item.price !== 0,
-//     hasRealImage: !!item.image && !item.image.includes('data:image/svg'),
-//     enriched: !!item.enriched
-//   });
-// };
-
-const debugShoppingListState = (componentId, items, context = '') => {
-  logger.debug(componentId, 'debugShoppingListState', `Shopping list state: ${context}`, {
-    totalItems: items.length,
-    itemsWithPrices: items.filter(item => item.price && item.price !== 0).length,
-    itemsEnriched: items.filter(item => item.enriched || item.instacartData).length
-  });
-};
 
 const InstacartShoppingList = ({
   items = [],
@@ -38,13 +17,6 @@ const InstacartShoppingList = ({
   userZipCode = '95670',
   selectedRetailer = 'kroger'
 }) => {
-  // Component initialization with optimized logging
-  const componentId = `InstacartShoppingList_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  conditionalLog.componentLifecycle(componentId, 'mounted', {
-    itemsCount: items?.length || 0,
-    userZipCode,
-    selectedRetailer
-  });
 
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [sortBy, setSortBy] = useState('confidence');
@@ -56,60 +28,28 @@ const InstacartShoppingList = ({
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [creatingShoppingList, setCreatingShoppingList] = useState(false);
 
-  // State initialization (debug logging only when needed)
-  logger.trace(componentId, 'stateInit', 'Initial state set', {
-    localItemsCount: localItems?.length || 0,
-    selectedRetailerId
-  });
-
-
   // Mobile device detection
   const deviceInfo = useDeviceDetection();
   const isMobile = deviceInfo.isMobile || window.innerWidth <= 768;
 
-  // Device detection logging
-  logger.debug(componentId, 'deviceDetection', 'Device detected', { isMobile });
-
   // Sync local items with parent
   useEffect(() => {
-    const timer = createTimer(componentId, 'itemsSync');
-    timer.start();
-
-    conditionalLog.stateChange(componentId, 'items', localItems?.length, items?.length);
-    debugShoppingListState(componentId, items, 'Items sync');
-
     setLocalItems(items);
-    timer.end('Items synchronized');
-  }, [items, componentId]);
+  }, [items]);
 
   // Load retailers based on user zip code
   const loadRetailers = useCallback(async () => {
-    const timer = createTimer(componentId, 'loadRetailers');
-    timer.start();
-
-    logger.info(componentId, 'loadRetailers', 'Loading retailers', { userZipCode });
-
     if (!userZipCode) {
-      logger.warn(componentId, 'loadRetailers', 'No zip code provided');
       return;
     }
 
     setLoadingRetailers(true);
 
     try {
-      conditionalLog.apiCall(componentId, 'getNearbyRetailers', 'GET', { userZipCode });
-      timer.mark('API call started');
 
       const result = await instacartService.getNearbyRetailers(userZipCode);
-      timer.mark('API call completed');
-
-      logger.debug(componentId, 'loadRetailers', 'API response received', {
-        success: result?.success,
-        retailersCount: result?.retailers?.length || 0
-      });
 
       if (result.success && result.retailers) {
-        timer.mark('Sorting retailers');
 
         // Sort retailers by estimated pricing (lowest prices first)
         const sortedRetailers = [...result.retailers].sort((a, b) => {
@@ -147,35 +87,22 @@ const InstacartShoppingList = ({
           return (a.name || '').localeCompare(b.name || '');
         });
 
-        timer.mark('Sorting completed');
-
         setRetailers(sortedRetailers);
-        logger.debug(componentId, 'loadRetailers', 'Retailers updated', {
-          count: sortedRetailers.length
-        });
 
         // Auto-select the first retailer (lowest-priced) if none is selected
         if (!selectedRetailerId && sortedRetailers.length > 0) {
           const defaultRetailer = sortedRetailers[0];
           const defaultRetailerId = defaultRetailer.id || defaultRetailer.retailer_key;
           setSelectedRetailerId(defaultRetailerId);
-          logger.info(componentId, 'loadRetailers', 'Default retailer selected', {
-            name: defaultRetailer.name,
-            id: defaultRetailerId
-          });
         }
       } else {
-        logger.warn(componentId, 'loadRetailers', 'No retailers found', {
-          success: result?.success
-        });
         setRetailers([]);
       }
     } catch (error) {
-      logger.error(componentId, 'loadRetailers', 'Error loading retailers', { error: error.message });
+      console.error('Error loading retailers:', error.message);
       setRetailers([]);
     } finally {
       setLoadingRetailers(false);
-      timer.end('Load retailers completed');
     }
   }, [userZipCode, selectedRetailerId]);
 

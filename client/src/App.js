@@ -17,32 +17,14 @@ import AffiliateDisclosure from './components/AffiliateDisclosure';
 import Footer from './components/Footer';
 import ErrorBoundary from './components/ErrorBoundary';
 
-console.log('📦 App.js module loading...');
-console.log('✅ Core imports loaded successfully');
-console.log('🎨 Loading CSS styles...');
-console.log('🧩 Loading components...');
-console.log('✅ All components loaded successfully');
-
-// Environment debugging
-console.group('🌍 Environment Information');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
-console.log('Location:', window.location.href);
-console.log('User Agent:', navigator.userAgent);
-console.log('Platform:', navigator.platform);
-console.log('Build timestamp:', new Date().toISOString());
-console.groupEnd();
 
 // Main App Component
 function App() {
-  // App component initializing
-  
   const [currentView, setCurrentView] = useState('home');
 
   // Make setCurrentView globally available for testing
   useEffect(() => {
     window.setCurrentView = setCurrentView;
-    // Test utilities loaded
   }, [setCurrentView]);
   
   // CENTRALIZED STATE MANAGEMENT
@@ -94,18 +76,12 @@ function AppContent({
   isLoading, setIsLoading,
   syncStatus, setSyncStatus
 }) {
-  // AppContent component rendering
-  
   const { currentUser } = useAuth();
-  console.log('👤 Current user state:', currentUser ? 'authenticated' : 'not authenticated');
   
   // 🔒 Single Source of Truth for the cart:
   // 'firestore' (default) | 'local' (only use 'local' for offline demos)
   const CART_AUTHORITY = process.env.REACT_APP_CART_AUTHORITY || 'firestore';
   const AUTOSAVE_ENABLED = (process.env.REACT_APP_CART_AUTOSAVE || 'true') !== 'false';
-  
-  console.log('🔑 Cart Authority:', CART_AUTHORITY);
-  console.log('💾 Auto-save Enabled:', AUTOSAVE_ENABLED);
   
   // Enhanced hydration guard refs
   const cartHydratedRef = useRef(false);
@@ -124,7 +100,6 @@ function AppContent({
         // Only update timestamp if cart actually changed (deletion/addition) and it's a user action
         if (result.length !== prevCart.length && !isSystemAction) {
           lastUserActionTimestamp.current = Date.now();
-          console.log('👤 User action detected - cart size changed:', prevCart.length, '->', result.length);
         }
         return result;
       });
@@ -132,27 +107,15 @@ function AppContent({
       setCurrentCart(newCart);
       if (!isSystemAction) {
         lastUserActionTimestamp.current = Date.now();
-        console.log('👤 User action detected - cart set directly');
-      } else {
-        console.log('🤖 System action - cart set without timestamp update');
       }
     }
   }, [setCurrentCart]);
 
   const loadLocalData = useCallback(() => {
     try {
-      // ✅ REMOVED: All localStorage reads - using session state only for unauthenticated users
-      console.log('🔄 App.js - Using session state only (no localStorage persistence):', {
-        cartAuthority: CART_AUTHORITY
-      });
-      
-      // No localStorage reads - session state only
+      // Using session state only for unauthenticated users
       setCurrentCartWithTracking([], true); // System action - initial load
       setSavedLists([]);
-      // ✅ REMOVED: No more localStorage for recipes - will be loaded from Firestore for auth users
-      console.log('✅ Recipes will be loaded from Firestore for authenticated users');
-      
-      console.log('✅ Loaded data from localStorage');
     } catch (error) {
       console.error('Error loading from localStorage:', error);
     }
@@ -180,9 +143,7 @@ function AppContent({
       setParsedRecipes(firebaseParsedRecipes);
       
       setSyncStatus('synced');
-      console.log('✅ Successfully synced with Firebase');
     } catch (error) {
-      console.error('Firebase sync error:', error);
       setSyncStatus('error');
     }
   }, [setSyncStatus, setSavedLists, setSavedRecipes, setMealPlans, setParsedRecipes]);
@@ -191,18 +152,15 @@ function AppContent({
   const hydrateCartFromFirestore = useCallback(async () => {
     // Multiple guards to prevent re-hydration
     if (cartHydratedRef.current) {
-      console.log('🚫 Hydration already completed, skipping');
       return;
     }
     if (hydrationInProgress.current) {
-      console.log('🚫 Hydration in progress, skipping duplicate call');
       return;
     }
     if (CART_AUTHORITY !== 'firestore') return;
     if (!currentUser) return;
 
     hydrationInProgress.current = true;
-    console.log('🔄 Starting cart hydration for user:', currentUser.uid);
 
     try {
       const ref = doc(db, 'carts', currentUser.uid);
@@ -211,7 +169,6 @@ function AppContent({
       // Check if user performed actions while we were fetching
       const timeSinceLastAction = Date.now() - lastUserActionTimestamp.current;
       if (timeSinceLastAction < 1000) {
-        console.log('🚫 User action detected during hydration, aborting to preserve user changes');
         hydrationInProgress.current = false;
         return;
       }
@@ -219,16 +176,14 @@ function AppContent({
       if (snap.exists()) {
         const items = Array.isArray(snap.data()?.items) ? snap.data().items : [];
         setCurrentCartWithTracking(items, true); // Mark as system action
-        console.log('🛒 Hydrated cart from carts/{uid}:', items.length, 'items');
       } else {
         // Create empty doc so future saves are clean
         await setDoc(ref, { items: [], updatedAt: serverTimestamp() }, { merge: false });
         setCurrentCartWithTracking([], true); // Mark as system action
-        console.log('🆕 Created empty carts/{uid} document');
       }
       cartHydratedRef.current = true;
     } catch (e) {
-      console.error('Cart hydration failed:', e);
+      // Cart hydration failed silently
     } finally {
       hydrationInProgress.current = false;
     }
@@ -240,9 +195,6 @@ function AppContent({
       // Only clear recipes if we haven't loaded them yet (prevent data loss on auth state changes)
       if (savedRecipes.length === 0) {
         setSavedRecipes([]);
-        console.log('👤 User not authenticated - no recipes to load');
-      } else {
-        console.log('👤 User not authenticated - keeping existing recipes in memory');
       }
       return;
     }
@@ -250,11 +202,8 @@ function AppContent({
     try {
       const recipes = await userDataService.getRecipes();
       setSavedRecipes(recipes);
-      console.log(`✅ Loaded ${recipes.length} recipes from Firestore for user ${currentUser.uid}`);
     } catch (error) {
-      console.error('❌ Failed to load recipes from Firestore:', error);
       // Keep current session recipes on error
-      console.log('🔒 Keeping existing recipes in memory due to load error');
     }
   }, [currentUser, setSavedRecipes, savedRecipes.length]);
   
@@ -271,7 +220,6 @@ function AppContent({
         await loadFirebaseData();
       }
     } catch (error) {
-      console.error('Error loading data:', error);
       setSyncStatus('error');
     } finally {
       setIsLoading(false);

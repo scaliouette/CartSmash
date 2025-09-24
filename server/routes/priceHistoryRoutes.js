@@ -96,8 +96,6 @@ router.get('/', async (req, res) => {
       });
     }
 
-    console.log(`🔍 Looking up real prices for "${product}" across vendors...`);
-
     // Start with real vendor data where available
     const priceResults = [];
 
@@ -108,7 +106,7 @@ router.get('/', async (req, res) => {
         priceResults.push(...instacartResults);
       }
     } catch (instacartError) {
-      console.log('Instacart price lookup failed:', instacartError.message);
+      // Silent failure - just continue without Instacart data
     }
 
     // Add other vendor integrations here as they become available
@@ -150,8 +148,6 @@ router.get('/', async (req, res) => {
 // Helper function to fetch real Instacart prices from multiple stores
 async function fetchInstacartPrices(productName, zipCode) {
   try {
-    console.log(`🥕 Searching Instacart stores for "${productName}" near ${zipCode}`);
-
     // Step 1: Get all available retailers in the area
     const axios = require('axios');
     const retailersUrl = `${process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com'}/api/instacart/retailers?postalCode=${zipCode}`;
@@ -160,13 +156,10 @@ async function fetchInstacartPrices(productName, zipCode) {
     try {
       retailersResponse = await axios.get(retailersUrl);
     } catch (error) {
-      console.log('Could not fetch retailers, using internal API call');
-      // If external call fails, we can't get price comparison data
       return [];
     }
 
     const retailers = retailersResponse.data.retailers || [];
-    console.log(`Found ${retailers.length} retailers near ${zipCode}`);
 
     if (retailers.length === 0) {
       return [];
@@ -211,12 +204,10 @@ async function fetchInstacartPrices(productName, zipCode) {
           });
         }
       } catch (searchError) {
-        console.log(`Failed to search ${retailer.name}: ${searchError.message}`);
         // Continue to next retailer
       }
     }
 
-    console.log(`Found prices in ${priceResults.length} stores for "${productName}"`);
     return priceResults;
 
   } catch (error) {
@@ -378,14 +369,11 @@ function generateStoreLocation(zipCode) {
 router.delete('/cache', (req, res) => {
   try {
     priceCache.clear();
-    console.log('🗑️ Price cache cleared');
-
     res.json({
       success: true,
       message: 'Price cache cleared successfully'
     });
   } catch (error) {
-    console.error('Cache clear error:', error);
     res.status(500).json({
       error: 'Failed to clear cache',
       message: error.message

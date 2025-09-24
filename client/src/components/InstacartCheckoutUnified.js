@@ -6,7 +6,6 @@ import { ChevronRight, Check, Store, CheckCircle, X, ArrowLeft } from 'lucide-re
 import instacartCheckoutService from '../services/instacartCheckoutService';
 import instacartShoppingListService from '../services/instacartShoppingListService';
 import AffiliateDisclosureNotice from './AffiliateDisclosureNotice';
-import { logger, createTimer, conditionalLog } from '../utils/debugLogger';
 // CSS styles now integrated with main application styles
 
 const InstacartCheckoutUnified = ({
@@ -17,20 +16,8 @@ const InstacartCheckoutUnified = ({
   title = null, // Optional custom title
   recipeData = null // Recipe context data from CartSmash
 }) => {
-  // Generate unique component ID for debug tracking
-  const componentId = `InstacartCheckoutUnified_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-  // Component lifecycle logging
-  conditionalLog.componentLifecycle(componentId, 'mounted', {
-    itemsCount: items?.length || 0,
-    hasOnClose: !!onClose,
-    mode,
-    initialLocation,
-    hasCustomTitle: !!title
-  });
 
   // State management - Always start at step 1 (Select Store)
-  logger.debug(componentId, 'init', 'Initializing state management');
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedStore, setSelectedStore] = useState(null);
   const [retailers, setRetailers] = useState([]);
@@ -40,18 +27,6 @@ const InstacartCheckoutUnified = ({
   const [location, setLocation] = useState(initialLocation);
   const [editingZip, setEditingZip] = useState(false);
   const [tempZip, setTempZip] = useState(initialLocation);
-
-  logger.debug(componentId, 'init', 'State initialized', {
-    currentStep: 1,
-    selectedStore: null,
-    retailersCount: 0,
-    loading: false,
-    hasError: false,
-    checkoutUrl: null,
-    location: initialLocation,
-    editingZip: false,
-    tempZip: initialLocation
-  });
 
   // Initialize ingredients state from items prop
   logger.debug(componentId, 'processIngredients', 'Processing ingredients from items');
