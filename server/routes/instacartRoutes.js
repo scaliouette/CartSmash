@@ -1029,20 +1029,39 @@ async function createRecipeFromCartItems(items, retailerId, zipCode, metadata) {
     console.log(`   📝 Generated recipe title: "${title}"`);
 
     // Convert cart items to ingredients format (same as working recipe API)
-    const ingredients = items.map(item => ({
-      name: item.name || item.productName || 'Unknown Item',
-      display_text: `${item.quantity || 1} ${item.unit || 'each'} ${item.name || item.productName}`,
-      measurements: [{
-        quantity: parseFloat(item.quantity) || 1,
-        unit: item.unit || 'each'
-      }]
-    }));
+    const ingredients = items.map(item => {
+      const itemName = item.name || item.productName || item.query || 'Unknown Item';
+
+      // Ensure we never have undefined or empty names
+      if (!itemName || itemName === 'undefined' || itemName.trim() === '') {
+        console.warn('⚠️ Item with undefined name detected:', item);
+        return null; // Will be filtered out
+      }
+
+      return {
+        name: itemName.trim(),
+        display_text: `${item.quantity || 1} ${item.unit || 'each'} ${itemName.trim()}`,
+        measurements: [{
+          quantity: parseFloat(item.quantity) || 1,
+          unit: item.unit || 'each'
+        }]
+      };
+    }).filter(ingredient => ingredient !== null); // Remove null ingredients
 
     console.log(`   🥕 Converted to Instacart ingredients format:`, ingredients.map(item => ({
       name: item.name,
       display_text: item.display_text,
       measurements: item.measurements
     })));
+
+    // Validate that we have at least one valid ingredient
+    if (ingredients.length === 0) {
+      console.warn('⚠️ No valid ingredients found after filtering');
+      return {
+        success: false,
+        error: 'No valid ingredients found'
+      };
+    }
 
     // Create recipe payload using working /products/recipe format
     const recipePayload = {
@@ -2605,15 +2624,19 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
       console.log('📄 Recipe page loaded successfully, parsing content...');
       const $ = cheerio.load(response.data);
 
-      // Extract Apollo GraphQL state data (modern approach)
+      // Extract Apollo GraphQL state data (modern approach - multiple formats)
+      let apolloStateExtracted = false;
+
+      // Method 1: Check for window.__APOLLO_STATE__ (legacy format)
       $('script').each((i, elem) => {
         const scriptContent = $(elem).html();
         if (scriptContent && scriptContent.includes('window.__APOLLO_STATE__')) {
-          console.log('🎯 Found Apollo GraphQL state data');
+          console.log('🎯 Found Apollo GraphQL state data (window format)');
           try {
             const apolloMatch = scriptContent.match(/window\.__APOLLO_STATE__\s*=\s*({.*?});/s);
             if (apolloMatch) {
               const apolloState = JSON.parse(apolloMatch[1]);
+              apolloStateExtracted = true;
 
               // Extract product data from Apollo state
               Object.keys(apolloState).forEach(key => {
@@ -2635,7 +2658,8 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
                         package_size: size,
                         brand: obj.brand || 'Instacart',
                         availability: obj.availability === false ? 'out_of_stock' : 'in_stock',
-                        confidence: confidence
+                        confidence: confidence,
+                        source: 'apollo_window'
                       });
                     }
                   }
@@ -2643,10 +2667,104 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
               });
             }
           } catch (parseError) {
-            console.log('⚠️ Apollo state parsing failed:', parseError.message);
+            console.log('⚠️ Apollo state parsing (window) failed:', parseError.message);
           }
         }
       });
+
+      // Method 2: Check for node-apollo-state and node-state script tags (new format)
+      if (!apolloStateExtracted) {
+        const apolloScriptSelectors = [
+          'script#node-apollo-state[type="application/json"]',
+          'script#node-state[type="application/json"]'
+        ];
+
+        apolloScriptSelectors.forEach(selector => {
+          const apolloScript = $(selector);
+          if (apolloScript.length > 0) {
+            console.log(`🎯 Found Apollo GraphQL state data (${selector})`);
+            try {
+              const encodedData = apolloScript.html();
+              if (encodedData) {
+                // URL decode the JSON data
+                const decodedData = decodeURIComponent(encodedData);
+                const apolloState = JSON.parse(decodedData);
+                apolloStateExtracted = true;
+                console.log(`   Apollo state keys: ${Object.keys(apolloState).length}`);
+
+                // Extract product data from Apollo state
+                Object.keys(apolloState).forEach(key => {
+                  const obj = apolloState[key];
+
+                  // Check for items/products in the Apollo state
+                  if (obj && typeof obj === 'object') {
+                    // Look for product data in various formats
+                    if (obj.name || obj.displayName || obj.productName) {
+                      const productName = obj.name || obj.displayName || obj.productName || obj.title;
+                      const price = obj.price || obj.currentPrice || obj.regularPrice || 0;
+                      const imageUrl = obj.imageUrl || obj.image || obj.thumbnail || obj.image_url;
+                      const size = obj.size || obj.packageSize || obj.volume;
+
+                      if (productName && typeof productName === 'string' && productName.length > 2) {
+                        const confidence = calculateMatchConfidence(query, productName);
+                        if (confidence > 0.4) {
+                          products.push({
+                            id: `apollo_${products.length}`,
+                            name: productName,
+                            price: typeof price === 'number' ? price : parseFloat(String(price).replace(/[^0-9.]/g, '')) || 0,
+                            image_url: imageUrl,
+                            package_size: size,
+                            brand: obj.brand || 'Instacart',
+                            availability: obj.availability === false ? 'out_of_stock' : 'in_stock',
+                            confidence: confidence,
+                            source: 'apollo_json'
+                          });
+                        }
+                      }
+                    }
+
+                    // Also check nested objects for items/products
+                    if (obj.items || obj.products) {
+                      const items = obj.items || obj.products;
+                      if (Array.isArray(items)) {
+                        items.forEach(item => {
+                          if (item && typeof item === 'object' && (item.name || item.displayName || item.productName)) {
+                            const productName = item.name || item.displayName || item.productName || item.title;
+                            const price = item.price || item.currentPrice || item.regularPrice || 0;
+                            const imageUrl = item.imageUrl || item.image || item.thumbnail || item.image_url;
+                            const size = item.size || item.packageSize || item.volume;
+
+                            if (productName && typeof productName === 'string' && productName.length > 2) {
+                              const confidence = calculateMatchConfidence(query, productName);
+                              if (confidence > 0.4) {
+                                products.push({
+                                  id: `apollo_${products.length}`,
+                                  name: productName,
+                                  price: typeof price === 'number' ? price : parseFloat(String(price).replace(/[^0-9.]/g, '')) || 0,
+                                  image_url: imageUrl,
+                                  package_size: size,
+                                  brand: item.brand || 'Instacart',
+                                  availability: item.availability === false ? 'out_of_stock' : 'in_stock',
+                                  confidence: confidence,
+                                  source: 'apollo_json_nested'
+                                });
+                              }
+                            }
+                          }
+                        });
+                      }
+                    }
+                  }
+                });
+
+                console.log(`   Products extracted from Apollo: ${products.length}`);
+              }
+            } catch (parseError) {
+              console.log(`⚠️ Apollo state parsing (${selector}) failed:`, parseError.message);
+            }
+          }
+        });
+      }
 
       // Fallback: Traditional CSS selector approach
       if (products.length === 0) {

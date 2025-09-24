@@ -189,15 +189,6 @@ class ImageService {
    * @returns {string} Image URL
    */
   getProductImage(item, options = {}) {
-    console.log('🖼️ getProductImage called for:', item.productName, {
-      hasImage: !!item.image,
-      hasImageUrl: !!item.imageUrl,
-      hasInstacartData: !!item.instacartData,
-      enriched: !!item.enriched,
-      actualImageUrl: item.imageUrl,
-      actualImage: item.image,
-      instacartImageUrl: item.instacartData?.image_url || item.instacartData?.imageUrl || item.instacartData?.image
-    });
 
     // First priority: Use real product images from Instacart API if available
     const optimizedImageUrl = this.optimizeImageUrl(item.imageUrl);
@@ -205,10 +196,8 @@ class ImageService {
       // Check cache first for external images
       const cached = this.getCachedImage(item.imageUrl);
       if (cached) {
-        console.log('✅ Using cached Instacart image:', item.imageUrl);
         return cached;
       }
-      console.log('✅ Using real Instacart image:', item.imageUrl);
 
       // Preload and cache in background (don't wait)
       if (options.enableCaching !== false) {
@@ -226,10 +215,8 @@ class ImageService {
       // Check cache first for external images
       const cached = this.getCachedImage(item.image);
       if (cached) {
-        console.log('✅ Using cached product image:', item.image);
         return cached;
       }
-      console.log('✅ Using real product image:', item.image);
 
       // Preload and cache in background (don't wait)
       if (options.enableCaching !== false) {
@@ -250,10 +237,8 @@ class ImageService {
         // Check cache first for external images
         const cached = this.getCachedImage(instacartImageUrl);
         if (cached) {
-          console.log('✅ Using cached Instacart data image:', instacartImageUrl);
           return cached;
         }
-        console.log('✅ Using Instacart data image:', instacartImageUrl);
 
         // Preload and cache in background (don't wait)
         if (options.enableCaching !== false) {
@@ -270,7 +255,6 @@ class ImageService {
     // No real image found - provide category-based fallback
     const category = this.getCategoryFromItem(item);
     const fallbackImage = this.getImageUrl(category);
-    console.log('💾 No real image found, using fallback for product:', item.productName, 'category:', category);
     return fallbackImage;
   }
 
@@ -386,26 +370,16 @@ class ImageService {
    * Optimize image URLs to prevent 404s
    */
   optimizeImageUrl(url) {
-    console.log('🔍 optimizeImageUrl called with:', url);
-
     if (!url || !this.isValidImageUrl(url)) {
-      console.log('❌ URL failed validation:', url, 'isValid:', this.isValidImageUrl(url));
       return null;
     }
 
     // Allow Unsplash URLs temporarily for mock data (development)
     // Skip URLs that commonly cause 404s - but allow Unsplash for now
     if (url.includes('picsum.photos')) {
-      console.log('🚫 Skipping unreliable image source:', url);
       return null;
     }
 
-    // Allow Unsplash URLs as they're used in mock data
-    if (url.includes('unsplash.com')) {
-      console.log('✅ Allowing Unsplash URL for mock data:', url);
-    }
-
-    console.log('✅ URL passed optimization:', url);
     return url;
   }
 

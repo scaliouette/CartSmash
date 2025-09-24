@@ -18,54 +18,12 @@ const ShoppingListItem = ({
   toggleItemSelection,
   onShowPriceHistory
 }) => {
-  // Generate unique component ID for debug tracking
-  const componentId = `ShoppingListItem_${item?.id || 'unknown'}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-  const renderStartTime = performance.now();
-
-  console.log(`🛒 [${componentId}] COMPONENT RENDER INITIATED:`, {
-    timestamp: new Date().toISOString(),
-    item: {
-      id: item?.id,
-      productName: item?.productName,
-      quantity: item?.quantity,
-      price: item?.price,
-      category: item?.category
-    },
-    props: {
-      hasOnQuantityChange: !!onQuantityChange,
-      hasOnDelete: !!onDelete,
-      hasOnSelect: !!onSelect,
-      isSelected,
-      hasGetProductImage: !!getProductImage,
-      hasGetConfidenceDisplay: !!getConfidenceDisplay,
-      hasGetCategory: !!getCategory,
-      hasFormatUnitDisplay: !!formatUnitDisplay,
-      hasUpdateQuantity: !!updateQuantity,
-      hasSetQuantity: !!setQuantity,
-      hasDeleteSingleItem: !!deleteSingleItem,
-      hasToggleItemSelection: !!toggleItemSelection,
-      hasOnShowPriceHistory: !!onShowPriceHistory
-    }
-  });
-
   const { isMobile } = useDeviceDetection();
-  console.log(`📱 [${componentId}] Device detection:`, { isMobile });
-
   const confidence = getConfidenceDisplay(item);
-  console.log(`🎯 [${componentId}] Confidence calculation:`, confidence);
-
   const isChecked = isSelected;
-  console.log(`☑️ [${componentId}] Selection state:`, { isSelected, isChecked });
 
   // Mobile layout with card-based design
   if (isMobile) {
-    console.log(`📱 [${componentId}] Rendering MOBILE layout:`, {
-      itemId: item?.id,
-      productName: item?.productName,
-      isChecked,
-      confidence: confidence?.level,
-      renderDuration: Math.round(performance.now() - renderStartTime)
-    });
 
     return (
       <div style={{
@@ -96,16 +54,7 @@ const ShoppingListItem = ({
             <input
               type="checkbox"
               checked={isChecked}
-              onChange={() => {
-                console.log(`☑️ [${componentId}] MOBILE checkbox toggle initiated:`, {
-                  itemId: item.id,
-                  productName: item.productName,
-                  currentState: isChecked,
-                  newState: !isChecked,
-                  timestamp: new Date().toISOString()
-                });
-                toggleItemSelection(item.id);
-              }}
+              onChange={() => toggleItemSelection(item.id)}
               style={{
                 position: 'absolute',
                 opacity: 0,
@@ -145,12 +94,6 @@ const ShoppingListItem = ({
             src={getProductImage(item) || 'data:image/svg+xml;charset=utf-8,%3Csvg width="64" height="64" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="64" height="64" fill="%239E9E9E"/%3E%3Ctext x="32" y="32" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E'}
             alt={item.productName || item.name}
             onError={(e) => {
-              console.log(`🚨 [${componentId}] MOBILE image load failed:`, {
-                itemId: item.id,
-                productName: item.productName,
-                originalSrc: e.target.src,
-                timestamp: new Date().toISOString()
-              });
               e.target.src = 'data:image/svg+xml;charset=utf-8,%3Csvg width="64" height="64" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="64" height="64" fill="%239E9E9E"/%3E%3Ctext x="32" y="32" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E';
             }}
             style={{
@@ -228,17 +171,7 @@ const ShoppingListItem = ({
             gap: '8px'
           }}>
             <button
-              onClick={() => {
-                console.log(`➖ [${componentId}] MOBILE quantity decrease initiated:`, {
-                  itemId: item.id,
-                  productName: item.productName,
-                  currentQuantity: item.quantity || 1,
-                  targetQuantity: (item.quantity || 1) - 1,
-                  willHitMinimum: (item.quantity || 1) - 1 <= 1,
-                  timestamp: new Date().toISOString()
-                });
-                updateQuantity(item.id, -1);
-              }}
+              onClick={() => updateQuantity(item.id, -1)}
               disabled={(item.quantity || 1) <= 1}
               style={{
                 minWidth: '40px',
@@ -270,16 +203,7 @@ const ShoppingListItem = ({
             </span>
 
             <button
-              onClick={() => {
-                console.log(`➕ [${componentId}] MOBILE quantity increase initiated:`, {
-                  itemId: item.id,
-                  productName: item.productName,
-                  currentQuantity: item.quantity || 1,
-                  targetQuantity: (item.quantity || 1) + 1,
-                  timestamp: new Date().toISOString()
-                });
-                updateQuantity(item.id, 1);
-              }}
+              onClick={() => updateQuantity(item.id, 1)}
               style={{
                 minWidth: '40px',
                 minHeight: '40px',
@@ -342,17 +266,7 @@ const ShoppingListItem = ({
 
             {/* Delete Button with larger touch target */}
             <button
-              onClick={() => {
-                console.log(`🗑️ [${componentId}] MOBILE delete button clicked:`, {
-                  itemId: item.id,
-                  productName: item.productName,
-                  quantity: item.quantity,
-                  price: item.price,
-                  isSelected: isChecked,
-                  timestamp: new Date().toISOString()
-                });
-                deleteSingleItem(item.id);
-              }}
+              onClick={() => deleteSingleItem(item.id)}
               style={{
                 minWidth: '44px',
                 minHeight: '44px',
@@ -388,13 +302,6 @@ const ShoppingListItem = ({
   }
 
   // Desktop layout (original design)
-  console.log(`🖥️ [${componentId}] Rendering DESKTOP layout:`, {
-    itemId: item?.id,
-    productName: item?.productName,
-    isChecked,
-    confidence: confidence?.level,
-    renderDuration: Math.round(performance.now() - renderStartTime)
-  });
 
   return (
     <div style={{
@@ -427,16 +334,7 @@ const ShoppingListItem = ({
           <input
             type="checkbox"
             checked={isChecked}
-            onChange={() => {
-              console.log(`☑️ [${componentId}] DESKTOP checkbox toggle initiated:`, {
-                itemId: item.id,
-                productName: item.productName,
-                currentState: isChecked,
-                newState: !isChecked,
-                timestamp: new Date().toISOString()
-              });
-              toggleItemSelection(item.id);
-            }}
+            onChange={() => toggleItemSelection(item.id)}
             style={{
               position: 'absolute',
               opacity: 0,
@@ -482,12 +380,6 @@ const ShoppingListItem = ({
           src={getProductImage(item) || 'data:image/svg+xml;charset=utf-8,%3Csvg width="56" height="56" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="56" height="56" fill="%239E9E9E"/%3E%3Ctext x="28" y="28" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E'}
           alt={item.productName || item.name}
           onError={(e) => {
-            console.log(`🚨 [${componentId}] DESKTOP image load failed:`, {
-              itemId: item.id,
-              productName: item.productName,
-              originalSrc: e.target.src,
-              timestamp: new Date().toISOString()
-            });
             e.target.src = 'data:image/svg+xml;charset=utf-8,%3Csvg width="56" height="56" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="56" height="56" fill="%239E9E9E"/%3E%3Ctext x="28" y="28" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E';
           }}
           style={{
@@ -575,17 +467,7 @@ const ShoppingListItem = ({
         padding: '2px'
       }}>
         <button
-          onClick={() => {
-            console.log(`➖ [${componentId}] DESKTOP quantity decrease initiated:`, {
-              itemId: item.id,
-              productName: item.productName,
-              currentQuantity: item.quantity || 1,
-              targetQuantity: (item.quantity || 1) - 1,
-              willHitMinimum: (item.quantity || 1) - 1 <= 1,
-              timestamp: new Date().toISOString()
-            });
-            updateQuantity(item.id, -1);
-          }}
+          onClick={() => updateQuantity(item.id, -1)}
           disabled={(item.quantity || 1) <= 1}
           style={{
             width: '32px',
@@ -626,16 +508,7 @@ const ShoppingListItem = ({
         />
 
         <button
-          onClick={() => {
-            console.log(`➕ [${componentId}] DESKTOP quantity increase initiated:`, {
-              itemId: item.id,
-              productName: item.productName,
-              currentQuantity: item.quantity || 1,
-              targetQuantity: (item.quantity || 1) + 1,
-              timestamp: new Date().toISOString()
-            });
-            updateQuantity(item.id, 1);
-          }}
+          onClick={() => updateQuantity(item.id, 1)}
           style={{
             width: '32px',
             height: '32px',
@@ -707,17 +580,7 @@ const ShoppingListItem = ({
         alignItems: 'center'
       }}>
         <button
-          onClick={() => {
-            console.log(`🗑️ [${componentId}] DESKTOP delete button clicked:`, {
-              itemId: item.id,
-              productName: item.productName,
-              quantity: item.quantity,
-              price: item.price,
-              isSelected: isChecked,
-              timestamp: new Date().toISOString()
-            });
-            deleteSingleItem(item.id);
-          }}
+          onClick={() => deleteSingleItem(item.id)}
           style={{
             width: '36px',
             height: '36px',

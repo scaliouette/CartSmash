@@ -4,6 +4,7 @@ import instacartService from '../services/instacartService';
 import instacartShoppingListService from '../services/instacartShoppingListService';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import ShoppingListItem from './ShoppingListItem';
+import AffiliateDisclosureNotice from './AffiliateDisclosureNotice';
 import { logger, conditionalLog, createTimer } from '../utils/debugLogger';
 
 // Optimized debug functions using configurable logging
@@ -1222,6 +1223,14 @@ const InstacartShoppingList = ({
               </button>
             </div>
           </div>
+
+          {/* Affiliate Disclosure Notice */}
+          <AffiliateDisclosureNotice
+            variant="default"
+            position="bottom"
+            compact={isMobile}
+            onLearnMore={() => window.setCurrentView?.('affiliate-disclosure')}
+          />
 
           {/* Advanced filters dropdown */}
           {showAdvancedFilters && (

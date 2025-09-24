@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronRight, Check, Store, CheckCircle, X, ArrowLeft } from 'lucide-react';
 import instacartCheckoutService from '../services/instacartCheckoutService';
 import instacartShoppingListService from '../services/instacartShoppingListService';
+import AffiliateDisclosureNotice from './AffiliateDisclosureNotice';
 import { logger, createTimer, conditionalLog } from '../utils/debugLogger';
 // CSS styles now integrated with main application styles
 
@@ -976,6 +977,13 @@ const InstacartCheckoutUnified = ({
               <span className="total-amount">${finalEstimate.total}</span>
             </div>
           </div>
+
+          {/* Affiliate Disclosure Notice */}
+          <AffiliateDisclosureNotice
+            variant="prominent"
+            position="bottom"
+            onLearnMore={() => window.setCurrentView?.('affiliate-disclosure')}
+          />
 
           <div className="checkout-actions">
             <button

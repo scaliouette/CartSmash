@@ -313,6 +313,14 @@ const Footer = ({ currentView, onViewChange }) => {
               Help
             </button>
             <button
+              onClick={() => handleViewChange('affiliate-disclosure')}
+              style={styles.link}
+              onMouseOver={(e) => e.target.style.color = '#FB4F14'}
+              onMouseOut={(e) => e.target.style.color = '#94A3B8'}
+            >
+              Affiliates
+            </button>
+            <button
               onClick={() => handleViewChange('contact')}
               style={styles.link}
               onMouseOver={(e) => e.target.style.color = '#FB4F14'}
@@ -535,6 +543,16 @@ const Footer = ({ currentView, onViewChange }) => {
                   onMouseOut={(e) => e.target.style.color = '#94A3B8'}
                 >
                   Cookie Policy
+                </button>
+              </li>
+              <li style={styles.linkItem}>
+                <button
+                  onClick={() => handleViewChange('affiliate-disclosure')}
+                  style={styles.link}
+                  onMouseOver={(e) => e.target.style.color = '#FB4F14'}
+                  onMouseOut={(e) => e.target.style.color = '#94A3B8'}
+                >
+                  Affiliate Disclosure
                 </button>
               </li>
               <li style={styles.linkItem}>

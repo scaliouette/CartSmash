@@ -98,7 +98,7 @@ const Terms = () => {
                   <li>Intelligent parsing of grocery lists using AI</li>
                   <li>Shopping list organization and storage</li>
                   <li>Recipe management and ingredient extraction</li>
-                  <li>Integration with Kroger for cart management</li>
+                  <li>Integration with Instacart and other retail partners for cart management</li>
                   <li>Cloud synchronization across devices</li>
                 </ul>
               </div>
@@ -152,7 +152,29 @@ const Terms = () => {
 
             <section>
               <h2 style={headingStyle}>
-                6. Content
+                6. Affiliate Relationships & Monetization
+              </h2>
+              <div>
+                <p style={textStyle}>
+                  <strong>Commercial Relationships:</strong> CARTSMASH participates in affiliate marketing programs
+                  and earns commissions from purchases made through our platform. By using our Service, you acknowledge
+                  and agree to these commercial relationships.
+                </p>
+                <ul style={listStyle}>
+                  <li>We may receive compensation when you make purchases through Instacart or other partner integrations</li>
+                  <li>These relationships help support our free service but do not affect pricing or our recommendations</li>
+                  <li>We maintain editorial independence in our product recommendations and service features</li>
+                  <li>All affiliate relationships are disclosed in accordance with FTC guidelines</li>
+                </ul>
+                <p style={textStyle}>
+                  For complete details about our affiliate relationships, please review our Affiliate Disclosure page.
+                </p>
+              </div>
+            </section>
+
+            <section>
+              <h2 style={headingStyle}>
+                7. Content
               </h2>
               <div>
                 <p style={textStyle}>
@@ -169,7 +191,7 @@ const Terms = () => {
 
             <section>
               <h2 style={headingStyle}>
-                7. Termination
+                8. Termination
               </h2>
               <div>
                 <p style={textStyle}>
@@ -185,7 +207,7 @@ const Terms = () => {
 
             <section>
               <h2 style={headingStyle}>
-                8. Disclaimer
+                9. Disclaimer
               </h2>
               <div>
                 <p style={textStyle}>
@@ -198,7 +220,7 @@ const Terms = () => {
 
             <section>
               <h2 style={headingStyle}>
-                9. Limitation of Liability
+                10. Limitation of Liability
               </h2>
               <div>
                 <p style={textStyle}>
@@ -212,7 +234,7 @@ const Terms = () => {
 
             <section>
               <h2 style={headingStyle}>
-                10. Changes to Terms
+                11. Changes to Terms
               </h2>
               <div>
                 <p style={textStyle}>
@@ -228,7 +250,7 @@ const Terms = () => {
 
             <section>
               <h2 style={headingStyle}>
-                11. Contact Information
+                12. Contact Information
               </h2>
               <div>
                 <p style={textStyle}>

@@ -218,11 +218,47 @@ const Privacy = () => {
                 We only share your data in these specific circumstances:
               </p>
               <ul style={{ paddingLeft: '24px', margin: 0 }}>
-                <li style={{ marginBottom: '8px' }}>With your explicit consent (like when connecting to Kroger)</li>
+                <li style={{ marginBottom: '8px' }}>With your explicit consent (like when connecting to Instacart)</li>
                 <li style={{ marginBottom: '8px' }}>To comply with legal requirements</li>
                 <li style={{ marginBottom: '8px' }}>With trusted service providers who help us operate CARTSMASH</li>
                 <li style={{ marginBottom: '8px' }}>Anonymous, aggregated data for research purposes</li>
+                <li style={{ marginBottom: '8px' }}>With affiliate partners when you make purchases through our platform</li>
               </ul>
+            </div>
+          </div>
+
+          {/* Affiliate Relationships */}
+          <div style={{ marginBottom: '32px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1f2937', marginBottom: '16px' }}>
+              Affiliate Relationships & Monetization
+            </h2>
+            <div style={{ color: '#6b7280', lineHeight: '1.6' }}>
+              <p style={{ marginBottom: '12px' }}>
+                <strong>CartSmash participates in affiliate marketing programs</strong> to support our free service:
+              </p>
+              <ul style={{ paddingLeft: '24px', margin: '0 0 12px 0' }}>
+                <li style={{ marginBottom: '8px' }}>We earn commissions when you make purchases through Instacart integration</li>
+                <li style={{ marginBottom: '8px' }}>Affiliate relationships do not influence our product recommendations</li>
+                <li style={{ marginBottom: '8px' }}>Your personal data is not sold to third parties for marketing purposes</li>
+                <li style={{ marginBottom: '8px' }}>We may share anonymized usage statistics with partners</li>
+              </ul>
+              <p style={{ marginBottom: '0' }}>
+                For complete details about our affiliate relationships and compensation, please see our
+                <button
+                  onClick={() => window.setCurrentView?.('affiliate-disclosure')}
+                  style={{
+                    color: '#FF6B35',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    marginLeft: '4px',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Affiliate Disclosure
+                </button>.
+              </p>
             </div>
           </div>
 

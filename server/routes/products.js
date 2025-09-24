@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 
-console.log('🛒 Loading Product Validation System...');
+if (process.env.DEBUG) console.log('🛒 Loading Product Validation System...');
 
 // Product database - In production, this would be a real database or API
 const PRODUCT_DATABASE = {
@@ -139,9 +139,7 @@ const STORE_DATA = {
  * Validate a single product by name
  */
 router.post('/validate', async (req, res) => {
-  console.log('🔍 Product validation request received');
-  
-  try {
+    try {
     const { productName, quantity = 1, preferredStores = [] } = req.body;
     
     if (!productName) {
@@ -174,9 +172,7 @@ router.post('/validate', async (req, res) => {
  * Validate multiple products at once
  */
 router.post('/validate-batch', async (req, res) => {
-  console.log('🔍 Batch product validation request received');
-  
-  try {
+    try {
     const { products, preferredStores = [] } = req.body;
     
     if (!Array.isArray(products) || products.length === 0) {
@@ -221,9 +217,7 @@ router.post('/validate-batch', async (req, res) => {
  * Get product pricing across different stores
  */
 router.get('/pricing/:productId', async (req, res) => {
-  console.log('💰 Product pricing request received');
-  
-  try {
+    try {
     const { productId } = req.params;
     const { stores = [], zipCode } = req.query;
     
@@ -250,7 +244,7 @@ router.get('/pricing/:productId', async (req, res) => {
  * Get product alternatives/substitutions
  */
 router.get('/alternatives/:productName', async (req, res) => {
-  console.log('🔄 Product alternatives request received');
+  if (process.env.DEBUG) console.log('🔄 Product alternatives request received');
   
   try {
     const { productName } = req.params;
@@ -283,7 +277,7 @@ router.get('/alternatives/:productName', async (req, res) => {
  * Calculate cart totals with real pricing
  */
 router.post('/calculate-cart', async (req, res) => {
-  console.log('🧮 Cart calculation request received');
+  if (process.env.DEBUG) console.log('🧮 Cart calculation request received');
   
   try {
     const { items, store = 'instacart', zipCode, promoCode } = req.body;
@@ -317,7 +311,7 @@ router.post('/calculate-cart', async (req, res) => {
  * Search products by name or category
  */
 router.get('/search', async (req, res) => {
-  console.log('🔎 Product search request received');
+  if (process.env.DEBUG) console.log('🔎 Product search request received');
   
   try {
     const { q, category, store, limit = 20 } = req.query;
@@ -489,7 +483,7 @@ async function getProductPricing(productId, stores = [], zipCode = null) {
   for (const store of availableStores) {
     if (STORE_DATA[store]) {
       // No mock price generation - return error instead
-      console.log('🚫 Mock pricing generation disabled for store:', store);
+      if (process.env.DEBUG) console.log('🚫 Mock pricing generation disabled for store:', store);
       pricing[store] = {
         ...STORE_DATA[store],
         price: null,
@@ -683,5 +677,4 @@ function generateValidationSummary(validations) {
   };
 }
 
-console.log('✅ Product Validation System loaded successfully');
 module.exports = router;
