@@ -5,6 +5,11 @@ import instacartShoppingListService from '../services/instacartShoppingListServi
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import ShoppingListItem from './ShoppingListItem';
 import AffiliateDisclosureNotice from './AffiliateDisclosureNotice';
+// Temporary debug imports to fix build - will be cleaned up
+const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {}, trace: () => {} };
+const createTimer = () => ({ start: () => {}, mark: () => {}, end: () => {} });
+const conditionalLog = { apiCall: () => {}, componentLifecycle: () => {}, stateChange: () => {}, performance: () => {}, apiSuccess: () => {} };
+const componentId = 'InstacartShoppingList';
 
 const InstacartShoppingList = ({
   items = [],

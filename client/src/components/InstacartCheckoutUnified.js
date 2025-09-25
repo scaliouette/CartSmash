@@ -6,6 +6,11 @@ import { ChevronRight, Check, Store, CheckCircle, X, ArrowLeft } from 'lucide-re
 import instacartCheckoutService from '../services/instacartCheckoutService';
 import instacartShoppingListService from '../services/instacartShoppingListService';
 import AffiliateDisclosureNotice from './AffiliateDisclosureNotice';
+// Temporary debug imports to fix build - will be cleaned up
+const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
+const createTimer = () => ({ start: () => {}, mark: () => {}, end: () => {} });
+const conditionalLog = { apiCall: () => {}, componentLifecycle: () => {}, stateChange: () => {}, performance: () => {} };
+const componentId = 'InstacartCheckoutUnified';
 // CSS styles now integrated with main application styles
 
 const InstacartCheckoutUnified = ({
@@ -29,7 +34,6 @@ const InstacartCheckoutUnified = ({
   const [tempZip, setTempZip] = useState(initialLocation);
 
   // Initialize ingredients state from items prop
-  logger.debug(componentId, 'processIngredients', 'Processing ingredients from items');
   const ingredientProcessingStartTime = performance.now();
 
   // eslint-disable-next-line no-unused-vars
