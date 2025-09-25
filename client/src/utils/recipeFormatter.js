@@ -125,19 +125,19 @@ function getBoldLabelForStep(step, stepNumber) {
   if (stepLower.includes('preheat') || stepLower.includes('heat oven')) {
     return 'Preheat oven';
   }
-  if (stepLower.includes('boil') || stepLower.includes('bring') && stepLower.includes('water')) {
+  if (stepLower.includes('boil') || (stepLower.includes('bring') && stepLower.includes('water'))) {
     return 'Boil water';
   }
   if (stepLower.includes('mix') || stepLower.includes('combine') || stepLower.includes('blend')) {
     return 'Mix ingredients';
   }
-  if (stepLower.includes('add') && stepLower.includes('onion') || stepLower.includes('garlic')) {
+  if ((stepLower.includes('add') && stepLower.includes('onion')) || stepLower.includes('garlic')) {
     return 'Add aromatics';
   }
   if (stepLower.includes('season') || stepLower.includes('salt') || stepLower.includes('pepper')) {
     return 'Season';
   }
-  if (stepLower.includes('simmer') || stepLower.includes('cook') && stepLower.includes('low')) {
+  if (stepLower.includes('simmer') || (stepLower.includes('cook') && stepLower.includes('low'))) {
     return 'Simmer';
   }
   if (stepLower.includes('layer') || stepLower.includes('assemble')) {

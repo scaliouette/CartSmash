@@ -562,6 +562,10 @@ function GroceryListForm({
   const [parsingStats, setParsingStats] = useState(null);
   const [showValidator, setShowValidator] = useState(false);
   const [showInstacartCheckout, setShowInstacartCheckout] = useState(false);
+
+  // Shopping list filter and sort states
+  const [sortBy, setSortBy] = useState('alphabetical');
+  const [filterBy, setFilterBy] = useState('all');
   const [currentRecipeContext, setCurrentRecipeContext] = useState(null);
   const [currentRecipeItems, setCurrentRecipeItems] = useState([]);
   // Product Matcher moved to Admin page
@@ -4742,6 +4746,8 @@ Or paste any grocery list directly!"
 
           <InstacartShoppingList
             items={currentCart}
+            sortBy={sortBy}
+            filterBy={filterBy}
             onItemsChange={handleItemsChange}
             onDeleteItem={handleDeleteItem}
             onCheckout={() => setShowInstacartCheckout(true)}
