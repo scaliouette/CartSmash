@@ -775,16 +775,30 @@ router.post('/search', async (req, res) => {
               const name = nameEl.text()?.trim();
               const priceText = priceEl.text() || $elem.find('*:contains("$")').first().text();
               const price = priceText ? parseFloat(priceText.replace(/[^0-9.]/g, '')) : 0;
-              const imageUrl = imageEl.attr('src') || imageEl.attr('data-src');
+              const imageUrl = imageEl.attr('src') ||
+                              imageEl.attr('data-src') ||
+                              imageEl.attr('data-lazy-src') ||
+                              imageEl.attr('srcset')?.split(' ')[0];
 
               if (name && name.length > 2 && price > 0 && !name.includes('Loading')) {
                 const confidence = name.toLowerCase().includes(query.toLowerCase()) ? 0.9 : 0.5;
+
+                // Validate and clean image URL
+                let cleanImageUrl = null;
+                if (imageUrl && imageUrl.startsWith('http')) {
+                  cleanImageUrl = imageUrl;
+                } else if (imageUrl && imageUrl.startsWith('//')) {
+                  cleanImageUrl = 'https:' + imageUrl;
+                } else if (imageUrl && imageUrl.startsWith('/')) {
+                  cleanImageUrl = 'https://www.instacart.com' + imageUrl;
+                }
 
                 products.push({
                   id: `${retailerId}_${Date.now()}_${i}`,
                   name: name,
                   price: price,
-                  image_url: imageUrl,
+                  image_url: cleanImageUrl,
+                  has_image: !!cleanImageUrl,
                   retailer_id: retailerId,
                   retailer_name: getRetailerName(retailerId),
                   availability: 'available',
