@@ -31,6 +31,21 @@ const API_ENDPOINTS = {
 
 const BASE_URL = NODE_ENV === 'production' ? API_ENDPOINTS.PRODUCTION : API_ENDPOINTS.DEVELOPMENT;
 
+// Helper function to get retailer display names
+const getRetailerName = (retailerKey) => {
+  const retailerNames = {
+    'safeway': 'Safeway',
+    'kroger': 'Kroger',
+    'walmart': 'Walmart',
+    'sprouts': 'Sprouts Farmers Market',
+    'smart-final': 'Smart & Final',
+    'raleys': "Raley's",
+    'food4less': 'Food 4 Less',
+    'grocery-outlet': 'Grocery Outlet'
+  };
+  return retailerNames[retailerKey] || retailerKey;
+};
+
 // Performance optimization configurations
 const PERFORMANCE_CONFIG = {
   HTML_CACHE_SIZE: 50,
@@ -707,46 +722,107 @@ router.post('/search', async (req, res) => {
         ...(retailerId && { retailer_id: retailerId })
       };
 
-      console.log('🛒 Calling Instacart Recipe API for product search:', query);
-      const catalogResponse = await instacartApiCall('/products/recipe', 'POST', recipePayload, INSTACART_API_KEY);
+      console.log('🛒 Creating products link for pricing comparison:', query);
 
-      if (catalogResponse && catalogResponse.items && catalogResponse.items.length > 0) {
-        console.log(`✅ Found ${catalogResponse.items.length} products from Recipe API`);
+      // Use products_link instead of recipe for better product matching
+      const productsLinkPayload = {
+        title: `Price check for ${query}`,
+        line_items: [{
+          name: query,
+          quantity: "1"
+        }],
+        retailer_key: retailerId,
+        postal_code: "95670"
+      };
 
-        // Transform Instacart Recipe API response to expected format
-        const products = catalogResponse.items.map(product => ({
-          id: product.id || product.product_id,
-          name: product.name || product.display_name,
-          price: parseFloat(product.price) || parseFloat(product.pricing?.price) || 0,
-          image_url: product.image_url || product.images?.[0]?.url,
-          brand: product.brand_name || product.brand?.name,
-          size: product.package_size || product.size,
-          unit: product.unit || 'each',
-          availability: 'available',
-          retailer_id: retailerId,
-          instacart_product_id: product.id || product.product_id,
-          // Include Instacart's substitute recommendations
-          substitutes: product.substitutes || [],
-          alternatives: product.alternatives || [],
-          // Additional product details
-          description: product.description,
-          nutrition_facts: product.nutrition_facts,
-          ingredients_list: product.ingredients,
-          source: 'instacart_catalog_api'
-        }));
+      const linkResponse = await instacartApiCall('/products/products_link', 'POST', productsLinkPayload, INSTACART_API_KEY);
 
-        res.json({
-          success: true,
-          products: products,
-          query: query,
-          retailer: retailerId,
-          count: products.length,
-          has_substitutes: products.some(p => p.substitutes?.length > 0 || p.alternatives?.length > 0),
-          source: 'instacart_recipe_api'
+      if (linkResponse && linkResponse.products_link_url) {
+        console.log(`✅ Products link created: ${linkResponse.products_link_url}`);
+        console.log('📄 Fetching and parsing pricing data...');
+
+        // Fetch HTML content from the Instacart page
+        const axios = require('axios');
+        const cheerio = require('cheerio');
+
+        const htmlResponse = await axios.get(linkResponse.products_link_url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+          },
+          timeout: 10000
         });
 
+        if (htmlResponse.data && htmlResponse.data.length > 1000) {
+          const $ = cheerio.load(htmlResponse.data);
+          let products = [];
+
+          // Parse products from the shopping list page
+          const productSelectors = [
+            '[data-testid*="product"]',
+            '[class*="product"]',
+            '[class*="item"]',
+            'article'
+          ];
+
+          productSelectors.forEach(selector => {
+            $(selector).each((i, elem) => {
+              const $elem = $(elem);
+              const nameEl = $elem.find('h3, h4, [class*="name"], [class*="title"]').first();
+              const priceEl = $elem.find('[class*="price"], .price, [data-testid*="price"]').first();
+              const imageEl = $elem.find('img').first();
+
+              const name = nameEl.text()?.trim();
+              const priceText = priceEl.text() || $elem.find('*:contains("$")').first().text();
+              const price = priceText ? parseFloat(priceText.replace(/[^0-9.]/g, '')) : 0;
+              const imageUrl = imageEl.attr('src') || imageEl.attr('data-src');
+
+              if (name && name.length > 2 && price > 0 && !name.includes('Loading')) {
+                const confidence = name.toLowerCase().includes(query.toLowerCase()) ? 0.9 : 0.5;
+
+                products.push({
+                  id: `${retailerId}_${Date.now()}_${i}`,
+                  name: name,
+                  price: price,
+                  image_url: imageUrl,
+                  retailer_id: retailerId,
+                  retailer_name: getRetailerName(retailerId),
+                  availability: 'available',
+                  confidence: confidence,
+                  source: 'instacart_scraped'
+                });
+              }
+            });
+          });
+
+          console.log(`✅ Found ${products.length} products with real pricing from ${retailerId}`);
+
+          res.json({
+            success: true,
+            products: products,
+            query: query,
+            retailer: retailerId,
+            retailer_name: getRetailerName(retailerId),
+            count: products.length,
+            instacart_url: linkResponse.products_link_url,
+            source: 'instacart_scraped_pricing'
+          });
+
+        } else {
+          console.log('⚠️ Could not load HTML content from Instacart page');
+          res.json({
+            success: true,
+            products: [],
+            query: query,
+            retailer: retailerId,
+            count: 0,
+            message: `Could not parse pricing data for "${query}" from ${retailerId}`,
+            source: 'instacart_html_parse_failed'
+          });
+        }
+
       } else {
-        console.log('⚠️ No products found in Recipe API, returning empty results');
+        console.log('⚠️ No products link URL returned from Instacart API');
         res.json({
           success: true,
           products: [],
@@ -754,15 +830,15 @@ router.post('/search', async (req, res) => {
           retailer: retailerId,
           count: 0,
           message: `No products found for "${query}" at ${retailerId}`,
-          source: 'instacart_recipe_api_empty'
+          source: 'instacart_products_link_empty'
         });
       }
 
     } catch (apiError) {
-      console.error('❌ Instacart Recipe API error:', apiError);
+      console.error('❌ Instacart Products API error:', apiError);
       res.status(500).json({
         success: false,
-        error: 'Instacart Recipe API failed',
+        error: 'Instacart Products API failed',
         message: apiError.message,
         details: apiError.response?.data || apiError.message
       });
