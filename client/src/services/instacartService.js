@@ -205,39 +205,49 @@ class InstacartService {
       const data = await response.json();
       console.log('✅ Backend search API response:', data);
 
-      if (data.success && data.products && data.products.length > 0) {
-        console.log(`🔍 Found ${data.products.length} products with real Instacart data`);
+      if (data.success && data.products && Array.isArray(data.products)) {
+        if (data.products.length > 0) {
+          console.log(`🔍 Found ${data.products.length} products with real Instacart data`);
 
-        // Transform to expected format with enhanced validation
-        const products = data.products.map(product => {
-          const transformedProduct = {
-            ...product,
-            // Ensure image field consistency
-            image_url: product.image || product.image_url || product.imageUrl,
-            imageUrl: product.image || product.image_url || product.imageUrl,
-            image: product.image || product.image_url || product.imageUrl,
-            // Ensure price is numeric
-            price: parseFloat(product.price) || 0,
-            // Mark as successfully enriched
-            enriched: true,
-            source: 'instacart_api'
-          };
+          // Transform to expected format with enhanced validation
+          const products = data.products.map(product => {
+            const transformedProduct = {
+              ...product,
+              // Ensure image field consistency
+              image_url: product.image || product.image_url || product.imageUrl,
+              imageUrl: product.image || product.image_url || product.imageUrl,
+              image: product.image || product.image_url || product.imageUrl,
+              // Ensure price is numeric
+              price: parseFloat(product.price) || 0,
+              // Mark as successfully enriched
+              enriched: true,
+              source: 'instacart_api'
+            };
 
-          console.log(`✅ Transformed product: ${product.name || product.productName}`, {
-            price: transformedProduct.price,
-            hasImage: !!transformedProduct.image,
-            enriched: transformedProduct.enriched
+            console.log(`✅ Transformed product: ${product.name || product.productName}`, {
+              price: transformedProduct.price,
+              hasImage: !!transformedProduct.image,
+              enriched: transformedProduct.enriched
+            });
+
+            return transformedProduct;
           });
 
-          return transformedProduct;
-        });
-
-        return {
-          success: true,
-          products: products,
-          results: products, // Legacy compatibility
-          source: 'backend_api'
-        };
+          return {
+            success: true,
+            products: products,
+            results: products, // Legacy compatibility
+            source: 'backend_api'
+          };
+        } else {
+          console.log('⚠️ No products found from backend API');
+          return {
+            success: true,
+            products: [],
+            results: [],
+            source: 'backend_api_empty'
+          };
+        }
       } else {
         throw new Error('Invalid response format from backend');
       }
