@@ -183,10 +183,10 @@ const createRateLimiter = (windowMs, max, message) => {
   });
 };
 
-// Apply rate limiting
-app.use('/api/', createRateLimiter(15 * 60 * 1000, 100, 'Too many requests'));
-app.use('/api/auth/', createRateLimiter(15 * 60 * 1000, 10, 'Too many authentication attempts'));
-app.use('/api/ai/', createRateLimiter(60 * 1000, 10, 'Too many AI requests'));
+// Apply rate limiting - Increased limits for production usage
+app.use('/api/', createRateLimiter(15 * 60 * 1000, 1000, 'Too many requests'));
+app.use('/api/auth/', createRateLimiter(15 * 60 * 1000, 50, 'Too many authentication attempts'));
+app.use('/api/ai/', createRateLimiter(60 * 1000, 30, 'Too many AI requests'));
 
 // CORS Configuration
 const corsOptions = {

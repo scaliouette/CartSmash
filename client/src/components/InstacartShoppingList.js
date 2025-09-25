@@ -23,23 +23,19 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
   // Generate a unique component ID for debugging
   const componentId = useMemo(() => `InstacartShoppingList_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`, []);
 
-  // Local state management
-  const [localItems, setLocalItems] = useState(items);
+  // Only manage selection state locally - let parent manage items
   const [selectedItems, setSelectedItems] = useState(new Set());
 
-  // Keep local state in sync with props
-  useEffect(() => {
-    setLocalItems(items);
-  }, [items]);
+  // Use items directly from props instead of local state
 
   // Calculate totals
   const total = useMemo(() => {
-    return localItems.reduce((sum, item) => {
+    return items.reduce((sum, item) => {
       const itemPrice = parseFloat(item.price) || 0;
       const itemQuantity = parseInt(item.quantity) || 1;
       return sum + (itemPrice * itemQuantity);
     }, 0);
-  }, [localItems]);
+  }, [items]);
 
   // Format product names consistently
   const formatProductName = useCallback((name) => {
@@ -65,19 +61,18 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
 
   // Handle select all toggle
   const toggleSelectAll = () => {
-    const allItemsSelected = localItems.length > 0 && selectedItems.size === localItems.length;
+    const allItemsSelected = items.length > 0 && selectedItems.size === items.length;
 
     if (allItemsSelected) {
       setSelectedItems(new Set());
     } else {
-      setSelectedItems(new Set(localItems.map(item => item.id)));
+      setSelectedItems(new Set(items.map(item => item.id)));
     }
   };
 
   // Handle delete selected items
   const deleteSelectedItems = () => {
-    const updatedItems = localItems.filter(item => !selectedItems.has(item.id));
-    setLocalItems(updatedItems);
+    const updatedItems = items.filter(item => !selectedItems.has(item.id));
     setSelectedItems(new Set());
 
     if (onItemsChange) {
@@ -85,11 +80,8 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
     }
   };
 
-  // Handle delete single item
+  // Handle delete single item - ONLY call the parent's delete handler, no dual state updates
   const deleteSingleItem = (itemId) => {
-    const updatedItems = localItems.filter(item => item.id !== itemId);
-    setLocalItems(updatedItems);
-
     // Remove from selected items if it was selected
     setSelectedItems(prev => {
       const newSet = new Set(prev);
@@ -97,33 +89,28 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
       return newSet;
     });
 
-    if (onItemsChange) {
-      onItemsChange(updatedItems);
-    }
-
+    // Only call the delete handler - parent will manage the state
     if (onDeleteItem) {
       onDeleteItem(itemId);
     }
   };
 
   // Calculate if all items are selected
-  const allItemsSelected = localItems.length > 0 && selectedItems.size === localItems.length;
+  const allItemsSelected = items.length > 0 && selectedItems.size === items.length;
   const someItemsSelected = selectedItems.size > 0;
 
   // Handle quantity change
   const updateQuantity = (itemId, delta) => {
-    const targetItem = localItems.find(item => item.id === itemId);
+    const targetItem = items.find(item => item.id === itemId);
     const currentQty = parseInt(targetItem?.quantity) || 1;
     const newQty = Math.max(1, currentQty + delta);
 
-    const updatedItems = localItems.map(item => {
+    const updatedItems = items.map(item => {
       if (item.id === itemId) {
         return { ...item, quantity: newQty };
       }
       return item;
     });
-
-    setLocalItems(updatedItems);
 
     if (onItemsChange) {
       onItemsChange(updatedItems);
@@ -152,14 +139,12 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
     const qty = parseInt(value) || 1;
     const finalQty = Math.max(1, qty);
 
-    const updatedItems = localItems.map(item => {
+    const updatedItems = items.map(item => {
       if (item.id === itemId) {
         return { ...item, quantity: finalQty };
       }
       return item;
     });
-
-    setLocalItems(updatedItems);
 
     if (onItemsChange) {
       onItemsChange(updatedItems);
@@ -231,7 +216,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
   const retailerName = currentRetailer?.name;
 
   // Sort items
-  const sortedItems = [...localItems].sort((a, b) => {
+  const sortedItems = [...items].sort((a, b) => {
     let result = 0;
 
     switch (sortBy) {
