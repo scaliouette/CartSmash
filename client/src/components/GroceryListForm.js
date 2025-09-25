@@ -708,6 +708,7 @@ function GroceryListForm({
   }, []);
   const textareaRef = useRef(null);
 
+
   // Enrich cart items with real Instacart product data (prices, images, etc.)
   const enrichCartWithInstacartData = useCallback(async (cartItems) => {
     try {
@@ -827,14 +828,28 @@ function GroceryListForm({
 
               // Enrich the original item with Instacart data
               // PRESERVE ORIGINAL RECIPE QUANTITIES - only enrich pricing and product info
+              const instacartPrice = parseFloat(instacartProduct.price) || 0;
+              const instacartImage = instacartProduct.image_url || instacartProduct.imageUrl || instacartProduct.image;
+
               const enrichedItem = {
                 ...item,
-                price: parseFloat(instacartProduct.price) || 0,
-                image: instacartProduct.image_url || instacartProduct.imageUrl || instacartProduct.image,
-                imageUrl: instacartProduct.image_url || instacartProduct.imageUrl || instacartProduct.image,
+                price: instacartPrice,
+                image: instacartImage,
+                imageUrl: instacartImage,
                 instacartId: instacartProduct.id,
                 instacartData: instacartProduct,
                 enriched: true,
+                hasRealPrice: instacartPrice > 0,
+                hasRealImage: !!instacartImage,
+                // Include Instacart's substitute and alternative options
+                substitutes: instacartProduct.substitutes || [],
+                alternatives: instacartProduct.alternatives || [],
+                hasSubstitutes: !!(instacartProduct.substitutes?.length > 0 || instacartProduct.alternatives?.length > 0),
+                // Additional product details from Instacart
+                brand: instacartProduct.brand,
+                packageSize: instacartProduct.size,
+                description: instacartProduct.description,
+                availability: instacartProduct.availability,
                 // Preserve original recipe quantities and units - don't let Instacart data override them
                 quantity: item.quantity, // Force preserve original quantity
                 unit: item.unit,         // Force preserve original unit

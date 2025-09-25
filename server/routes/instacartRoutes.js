@@ -667,10 +667,10 @@ router.get('/retailers', async (req, res) => {
   }
 });
 
-// POST /api/instacart/search - Search for products using recipe API preview
+// POST /api/instacart/search - Direct Instacart Catalog API search with substitutes
 router.post('/search', async (req, res) => {
   try {
-    const { query, retailerId, zipCode, quantity, category, originalItem } = req.body;
+    const { query, retailerId = 'kroger' } = req.body;
 
     if (!query) {
       return res.status(400).json({
@@ -679,176 +679,88 @@ router.post('/search', async (req, res) => {
       });
     }
 
+    console.log(`🔍 Instacart Catalog API search for: "${query}" with retailer: ${retailerId}`);
+
     // Check if we have valid API keys
-    if (validateApiKeys()) {
-
-      // Step 1: Try Recipe API (if circuit is not open)
-      if (!circuitBreaker.isCircuitOpen('recipe')) {
-        try {
-          // Create a temporary recipe with just this ingredient to see what Instacart matches
-          const previewRecipePayload = {
-          title: `Preview Recipe - ${query}`,
-          instructions: [`Use ${query} in your cooking.`],
-          ingredients: [
-            {
-              name: query,
-              display_text: query,
-              measurements: quantity && category ? [{
-                quantity: parseFloat(quantity) || 1,
-                unit: category || 'each'
-              }] : [{
-                quantity: 1,
-                unit: 'each'
-              }]
-            }
-          ],
-          author: 'CartSmash Preview',
-          servings: 1,
-          cooking_time_minutes: 5,
-          partner_reference_url: 'https://cartsmash.com/preview',
-          enable_pantry_items: false
-        };
-
-        const recipeResponse = await instacartApiCall('/products/recipe', 'POST', previewRecipePayload);
-
-        if (recipeResponse && recipeResponse.products_link_url) {
-          // Parse real product data from the recipe page
-          const realProducts = await parseRealProductsFromRecipe(recipeResponse.products_link_url, query, originalItem, retailerId);
-
-          if (realProducts.length > 0) {
-            circuitBreaker.recordSuccess('recipe');
-            res.json({
-              success: true,
-              products: realProducts,
-              query: query,
-              retailer: retailerId,
-              count: realProducts.length,
-              preview_recipe_url: recipeResponse.products_link_url,
-              source: 'recipe_api_preview'
-            });
-            return;
-          }
-          throw new Error('No products found in recipe page');
-        } else {
-          throw new Error('Recipe API did not return products link');
-        }
-        } catch (error) {
-          circuitBreaker.recordFailure('recipe');
-        }
-      }
-
-      // Step 2: Try Catalog API (if circuit is not open)
-      if (!circuitBreaker.isCircuitOpen('catalog')) {
-        try {
-          const searchParams = {
-            q: query,
-            limit: 10
-          };
-
-          if (retailerId) searchParams.retailer_id = retailerId;
-          if (zipCode) searchParams.zip_code = zipCode;
-          if (category) searchParams.category = category;
-
-          // FIXED: Use recipe creation + page parsing approach (same as working batch-search)
-          const searchItem = {
-            name: query,
-            quantity: quantity || 1,
-            unit: 'each'
-          };
-
-          // Create recipe and parse for products (proven working approach)
-          const quickRecipe = await createRecipeFromCartItems([searchItem], retailerId);
-          let products = [];
-
-          if (quickRecipe.success && quickRecipe.instacartUrl) {
-            const parsedProducts = await parseRecipePageWithDynamicContent(
-              quickRecipe.instacartUrl,
-              query,
-              searchItem
-            );
-
-            if (parsedProducts.length > 0) {
-              products = parsedProducts.map(product => ({
-                id: product.id,
-                sku: product.sku,
-                name: product.name,
-                price: product.price || 0,
-                size: product.package_size,
-                brand: product.brand,
-                image_url: product.image_url,
-                availability: 'available',
-                confidence: product.confidence || calculateMatchConfidence(query, product.name),
-                retailer_id: retailerId,
-                unit_price: product.unit_price,
-                description: product.description
-              }));
-              // Success logged
-            }
-          }
-
-          circuitBreaker.recordSuccess('catalog');
-          res.json({
-            success: true,
-            products,
-            query: query,
-            retailer: retailerId,
-            count: products.length,
-            source: 'catalog_api'
-          });
-          return;
-        } catch (catalogError) {
-          circuitBreaker.recordFailure('catalog');
-        }
-      }
-
-      // Step 3: Enhanced error response with circuit breaker status
-      const circuitStatus = {
-        recipe: {
-          isOpen: circuitBreaker.isCircuitOpen('recipe'),
-          failures: circuitBreaker.recipe.failures,
-          nextRetryIn: circuitBreaker.recipe.isOpen ?
-            Math.max(0, circuitBreaker.TIMEOUT - (Date.now() - circuitBreaker.recipe.lastFailure)) : 0
-        },
-        catalog: {
-          isOpen: circuitBreaker.isCircuitOpen('catalog'),
-          failures: circuitBreaker.catalog.failures,
-          nextRetryIn: circuitBreaker.catalog.isOpen ?
-            Math.max(0, circuitBreaker.TIMEOUT - (Date.now() - circuitBreaker.catalog.lastFailure)) : 0
-        }
-      };
-
-      res.status(503).json({
+    if (!validateApiKeys()) {
+      return res.status(503).json({
         success: false,
-        error: 'Service temporarily unavailable',
-        message: `Unable to search for "${query}" - Instacart APIs are experiencing issues`,
-        query: query,
-        retailer: retailerId,
-        source: 'circuit_breaker_protection',
-        circuitStatus,
-        suggestedRetryIn: Math.min(
-          circuitStatus.recipe.nextRetryIn || Infinity,
-          circuitStatus.catalog.nextRetryIn || Infinity
-        )
+        error: 'Instacart API not configured',
+        message: 'API keys missing or invalid'
       });
-      return;
     }
 
-    // Fallback for when API keys are not available
-    console.log('❌ API keys not validated - unable to search for real products');
-    res.status(401).json({
-      success: false,
-      error: 'API keys not configured',
-      message: 'Instacart API integration is not properly configured. Please check server configuration.',
-      query: query,
-      retailer: retailerId,
-      source: 'api_keys_missing'
-    });
+    try {
+      // Use Instacart Catalog API for direct product search with substitutes
+      const catalogEndpoint = `/catalog/products/search?query=${encodeURIComponent(query)}&retailer_id=${retailerId}&include_substitutes=true&limit=5`;
+
+      console.log('🛒 Calling Instacart Catalog API:', catalogEndpoint);
+      const catalogResponse = await instacartApiCall(catalogEndpoint, 'GET', null, INSTACART_CATALOG_API_KEY);
+
+      if (catalogResponse && catalogResponse.products && catalogResponse.products.length > 0) {
+        console.log(`✅ Found ${catalogResponse.products.length} products with substitutes from Catalog API`);
+
+        // Transform Instacart catalog response to expected format
+        const products = catalogResponse.products.map(product => ({
+          id: product.id || product.product_id,
+          name: product.name || product.display_name,
+          price: parseFloat(product.price) || parseFloat(product.current_price) || 0,
+          image_url: product.image_url || product.primary_image_url || product.images?.[0]?.url,
+          brand: product.brand_name || product.brand,
+          size: product.package_size || product.size,
+          unit: product.unit || 'each',
+          availability: product.availability || 'available',
+          retailer_id: retailerId,
+          instacart_product_id: product.id || product.product_id,
+          // Include Instacart's substitute recommendations
+          substitutes: product.substitutes || [],
+          alternatives: product.alternatives || [],
+          // Additional product details
+          description: product.description,
+          nutrition_facts: product.nutrition_facts,
+          ingredients_list: product.ingredients,
+          source: 'instacart_catalog_api'
+        }));
+
+        res.json({
+          success: true,
+          products: products,
+          query: query,
+          retailer: retailerId,
+          count: products.length,
+          has_substitutes: products.some(p => p.substitutes?.length > 0 || p.alternatives?.length > 0),
+          source: 'instacart_catalog_api'
+        });
+
+      } else {
+        console.log('⚠️ No products found in Catalog API, returning empty results');
+        res.json({
+          success: true,
+          products: [],
+          query: query,
+          retailer: retailerId,
+          count: 0,
+          message: `No products found for "${query}" at ${retailerId}`,
+          source: 'instacart_catalog_api_empty'
+        });
+      }
+
+    } catch (apiError) {
+      console.error('❌ Instacart Catalog API error:', apiError);
+      res.status(500).json({
+        success: false,
+        error: 'Instacart Catalog API failed',
+        message: apiError.message,
+        details: apiError.response?.data || apiError.message
+      });
+    }
+
   } catch (error) {
-    console.error('Error searching products:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to search products',
-      message: error.message 
+    console.error('❌ Search error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Search failed',
+      message: error.message
     });
   }
 });
