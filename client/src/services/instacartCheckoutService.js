@@ -243,15 +243,15 @@ class InstacartCheckoutService {
 
       if (data.success) {
         console.log('✅ Instacart cart created successfully');
-        console.log(`🔗 Checkout URL: ${data.checkoutUrl}`);
+        console.log(`🔗 Checkout URL: ${data.checkoutUrl || 'Not provided'}`);
 
         return {
           success: true,
-          cartId: data.cartId,
-          checkoutUrl: data.checkoutUrl,
-          itemsAdded: data.itemsAdded,
-          totals: data.totals,
-          metadata: data.metadata,
+          cartId: data.cartId || null,
+          checkoutUrl: data.checkoutUrl || this.getFallbackCheckoutUrl(retailerId),
+          itemsAdded: data.itemsAdded || 0,
+          totals: data.totals || null,
+          metadata: data.metadata || null,
           retailer: retailerId
         };
       } else {

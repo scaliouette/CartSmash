@@ -278,7 +278,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
     }
 
     const itemCategory = (getCategory(item) || 'Other').toLowerCase();
-    const targetCategory = filterBy.toLowerCase();
+    const targetCategory = (filterBy || '').toLowerCase();
     const matches = itemCategory === targetCategory;
     return matches;
   });
