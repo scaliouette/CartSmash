@@ -271,7 +271,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
 
     if (filterBy === 'ingredients') {
       // Show items that are typically cooking ingredients
-      const category = getCategory(item).toLowerCase();
+      const category = (getCategory(item) || 'Other').toLowerCase();
       const ingredientCategories = ['pantry', 'spices', 'oils', 'seasonings', 'baking', 'condiments'];
       const isIngredient = ingredientCategories.some(cat => category.includes(cat));
       return isIngredient;

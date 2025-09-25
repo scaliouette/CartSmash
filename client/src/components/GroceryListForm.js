@@ -748,7 +748,7 @@ function GroceryListForm({
       const { default: instacartService } = await import('../services/instacartService');
 
       // Default retailer - could be made configurable
-      const retailerId = currentUser?.preferredRetailer || 'kroger';
+      const retailerId = currentUser?.preferredRetailer || 'default';
       console.log(`🏪 ENRICHMENT CONFIG:`, {
         retailerId,
         currentUserExists: !!currentUser,
@@ -4752,7 +4752,7 @@ Or paste any grocery list directly!"
               setShowPriceHistory(true);
             }}
             userZipCode={currentUser?.zipCode || currentUser?.postalCode || '95670'}
-            selectedRetailer={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'kroger'}
+            selectedRetailer={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'default'}
           />
           
 
@@ -4822,7 +4822,7 @@ Or paste any grocery list directly!"
       {showProductMatcher && (
         <InstacartProductMatcher
           searchTerm={productMatcherTerm}
-          retailerId={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'kroger'}
+          retailerId={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'default'}
           onProductSelect={(product) => {
             // Add selected product to cart with confidence score
             const newItem = {

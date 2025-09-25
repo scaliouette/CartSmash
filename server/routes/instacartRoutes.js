@@ -636,10 +636,10 @@ router.get('/retailers', async (req, res) => {
         distance: 3.5,
         address: `789 Business Park Dr, ${postal}`
       },
-      { 
-        id: 'kroger', 
-        name: 'Kroger', 
-        logo: '🛒', 
+      {
+        id: 'safeway',
+        name: 'Safeway',
+        logo: '🛒',
         estimatedDelivery: '2-3 hours',
         available: true,
         service_fee: 2.99,
@@ -685,7 +685,7 @@ router.get('/retailers', async (req, res) => {
 // POST /api/instacart/search - Direct Instacart Catalog API search with substitutes
 router.post('/search', async (req, res) => {
   try {
-    const { query, retailerId = 'kroger' } = req.body;
+    const { query, retailerId = 'safeway' } = req.body;
 
     if (!query) {
       return res.status(400).json({
