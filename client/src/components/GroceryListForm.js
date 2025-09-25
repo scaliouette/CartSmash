@@ -715,8 +715,7 @@ function GroceryListForm({
     try {
       // Check if real-time pricing is enabled (per user "NO MOCK DATA" requirement)
       if (!FEATURES.REAL_TIME_PRICING) {
-        console.log('⏭️ ENRICHMENT SKIPPED - REAL_TIME_PRICING disabled (no mock data policy)');
-        console.log('📦 Returning original cart items without enrichment');
+        console.log('⏭️ Enrichment skipped - REAL_TIME_PRICING disabled');
         setCurrentCart(cartItems);
         return;
       }
@@ -1068,22 +1067,8 @@ function GroceryListForm({
       console.log('📖 Loading persisted cart:', persistedCart.length, 'items');
       setCurrentCart(persistedCart);
 
-      // CRITICAL: Enrich persisted cart items with real Instacart product data
-      console.log('🔍 ===== PERSISTENCE ENRICHMENT TRIGGER =====');
-      console.log('🔍 Enriching persisted cart items with Instacart product data...');
-      console.log('📊 About to call enrichCartWithInstacartData with', persistedCart.length, 'items');
-      console.log('📦 Sample items to enrich:', persistedCart.slice(0, 2).map(item => ({
-        id: item.id,
-        productName: item.productName || item.name,
-        enriched: item.enriched,
-        hasPrice: !!item.price && item.price > 0,
-        hasImage: !!item.image
-      })));
-
+      // Enrich persisted cart items with product data if enabled
       enrichCartWithInstacartData(persistedCart);
-
-      console.log('✅ enrichCartWithInstacartData call completed');
-      console.log('🔍 ===== PERSISTENCE ENRICHMENT TRIGGER COMPLETE =====');
     }
     
     // Load saved recipes WITH VALIDATION
@@ -1152,45 +1137,11 @@ function GroceryListForm({
     }
   }, [currentCart]);
 
-  // 🔍 DEBUG: Monitor all currentCart state changes
+  // Monitor currentCart state changes
   useEffect(() => {
-    // Current cart state change
-    console.log(`📊 CURRENTCART UPDATE DETECTED:`, {
-      cartExists: !!currentCart,
-      itemCount: currentCart?.length || 0,
-      timestamp: new Date().toISOString()
-    });
-
     if (currentCart && currentCart.length > 0) {
-      const enrichmentStats = {
-        totalItems: currentCart.length,
-        enrichedItems: currentCart.filter(item => item.enriched).length,
-        itemsWithPrices: currentCart.filter(item => item.price && item.price > 0).length,
-        itemsWithImages: currentCart.filter(item => item.image && !item.image.includes('data:image/svg')).length,
-        averagePrice: currentCart.filter(item => item.price > 0).reduce((sum, item) => sum + item.price, 0) / currentCart.filter(item => item.price > 0).length || 0
-      };
-
-      console.log(`📊 CART ENRICHMENT STATUS:`, enrichmentStats);
-      console.log(`📦 SAMPLE CART ITEMS:`, currentCart.slice(0, 3).map((item, index) => ({
-        index,
-        id: item.id,
-        productName: item.productName || item.name,
-        price: item.price,
-        priceType: typeof item.price,
-        hasValidPrice: !!(item.price && item.price > 0),
-        image: item.image ? item.image.substring(0, 50) + '...' : null,
-        hasValidImage: !!(item.image && !item.image.includes('data:image/svg')),
-        enriched: item.enriched,
-        instacartId: item.instacartId,
-        allKeys: Object.keys(item)
-      })));
-
-      console.log(`🎯 WILL BE PASSED TO InstacartShoppingList as 'items' prop`);
-    } else {
-      console.log(`⚠️ EMPTY OR NULL CART - InstacartShoppingList will receive empty array`);
+      console.log(`📊 Cart updated: ${currentCart.length} items`);
     }
-
-    // Current cart debug complete
   }, [currentCart]);
 
   // Auto-save recipes when they change - WITH VALIDATION
@@ -1427,18 +1378,10 @@ function GroceryListForm({
            'Unknown Item';
   };
 
-  // Debug effect to monitor cart structure changes
+  // Monitor cart changes
   useEffect(() => {
     if (currentCart && currentCart.length > 0) {
-      console.log('🛒 Current cart structure:', currentCart);
-      currentCart.forEach((item, index) => {
-        console.log(`Item ${index}:`, {
-          fullItem: item,
-          productNameType: typeof item.productName,
-          productNameValue: item.productName,
-          allKeys: Object.keys(item)
-        });
-      });
+      console.log(`🛒 Cart contains ${currentCart.length} items`);
     }
   }, [currentCart]);
 
