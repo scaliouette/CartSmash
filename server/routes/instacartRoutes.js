@@ -691,25 +691,38 @@ router.post('/search', async (req, res) => {
     }
 
     try {
-      // Use Instacart Catalog API for direct product search with substitutes
-      const catalogEndpoint = `/catalog/products/search?query=${encodeURIComponent(query)}&retailer_id=${retailerId}&include_substitutes=true&limit=5`;
+      // Use working Instacart Recipe API approach for product search
+      const recipePayload = {
+        title: `Search for ${query}`,
+        instructions: [`Find ${query} and related products`],
+        ingredients: [{
+          name: query,
+          quantity: "1",
+          unit: "item"
+        }],
+        author: "CartSmash",
+        servings: 1,
+        cooking_time: "0 minutes",
+        external_reference_id: `search-${Date.now()}`,
+        ...(retailerId && { retailer_id: retailerId })
+      };
 
-      console.log('🛒 Calling Instacart Catalog API:', catalogEndpoint);
-      const catalogResponse = await instacartApiCall(catalogEndpoint, 'GET', null, INSTACART_CATALOG_API_KEY);
+      console.log('🛒 Calling Instacart Recipe API for product search:', query);
+      const catalogResponse = await instacartApiCall('/products/recipe', 'POST', recipePayload, INSTACART_API_KEY);
 
-      if (catalogResponse && catalogResponse.products && catalogResponse.products.length > 0) {
-        console.log(`✅ Found ${catalogResponse.products.length} products with substitutes from Catalog API`);
+      if (catalogResponse && catalogResponse.items && catalogResponse.items.length > 0) {
+        console.log(`✅ Found ${catalogResponse.items.length} products from Recipe API`);
 
-        // Transform Instacart catalog response to expected format
-        const products = catalogResponse.products.map(product => ({
+        // Transform Instacart Recipe API response to expected format
+        const products = catalogResponse.items.map(product => ({
           id: product.id || product.product_id,
           name: product.name || product.display_name,
-          price: parseFloat(product.price) || parseFloat(product.current_price) || 0,
-          image_url: product.image_url || product.primary_image_url || product.images?.[0]?.url,
-          brand: product.brand_name || product.brand,
+          price: parseFloat(product.price) || parseFloat(product.pricing?.price) || 0,
+          image_url: product.image_url || product.images?.[0]?.url,
+          brand: product.brand_name || product.brand?.name,
           size: product.package_size || product.size,
           unit: product.unit || 'each',
-          availability: product.availability || 'available',
+          availability: 'available',
           retailer_id: retailerId,
           instacart_product_id: product.id || product.product_id,
           // Include Instacart's substitute recommendations
@@ -729,11 +742,11 @@ router.post('/search', async (req, res) => {
           retailer: retailerId,
           count: products.length,
           has_substitutes: products.some(p => p.substitutes?.length > 0 || p.alternatives?.length > 0),
-          source: 'instacart_catalog_api'
+          source: 'instacart_recipe_api'
         });
 
       } else {
-        console.log('⚠️ No products found in Catalog API, returning empty results');
+        console.log('⚠️ No products found in Recipe API, returning empty results');
         res.json({
           success: true,
           products: [],
@@ -741,15 +754,15 @@ router.post('/search', async (req, res) => {
           retailer: retailerId,
           count: 0,
           message: `No products found for "${query}" at ${retailerId}`,
-          source: 'instacart_catalog_api_empty'
+          source: 'instacart_recipe_api_empty'
         });
       }
 
     } catch (apiError) {
-      console.error('❌ Instacart Catalog API error:', apiError);
+      console.error('❌ Instacart Recipe API error:', apiError);
       res.status(500).json({
         success: false,
-        error: 'Instacart Catalog API failed',
+        error: 'Instacart Recipe API failed',
         message: apiError.message,
         details: apiError.response?.data || apiError.message
       });
