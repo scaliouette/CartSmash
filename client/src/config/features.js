@@ -2,7 +2,7 @@ export const FEATURES = {
   // Core features
   INTELLIGENT_PARSING: true,
   PRODUCT_VALIDATION: true,
-  REAL_TIME_PRICING: true,
+  REAL_TIME_PRICING: false, // Disabled - Instacart API doesn't provide product search data
   
   // Advanced features
   ANALYTICS_DASHBOARD: process.env.NODE_ENV === 'development',

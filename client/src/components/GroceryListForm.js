@@ -18,6 +18,7 @@ import { unified as unifiedRecipeService } from '../services/unifiedRecipeServic
 import persistenceService from '../services/persistenceService';
 import { generateAIMealPlan } from '../services/aiMealPlanService';
 import { formatInstructionsToNumberedSteps } from '../utils/recipeFormatter';
+import { FEATURES } from '../config/features';
 
 // MixingBowlLoader Component
 const MixingBowlLoader = ({ text = "CARTSMASH AI is preparing your meal plan..." }) => {
@@ -712,6 +713,14 @@ function GroceryListForm({
   // Enrich cart items with real Instacart product data (prices, images, etc.)
   const enrichCartWithInstacartData = useCallback(async (cartItems) => {
     try {
+      // Check if real-time pricing is enabled (per user "NO MOCK DATA" requirement)
+      if (!FEATURES.REAL_TIME_PRICING) {
+        console.log('⏭️ ENRICHMENT SKIPPED - REAL_TIME_PRICING disabled (no mock data policy)');
+        console.log('📦 Returning original cart items without enrichment');
+        setCurrentCart(cartItems);
+        return;
+      }
+
       // Starting enrichment pipeline
       console.log(`📊 ENRICHMENT INPUT - Cart Items to Process:`, {
         itemCount: cartItems.length,
