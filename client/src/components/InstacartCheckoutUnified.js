@@ -6,7 +6,7 @@ import { ChevronRight, Check, Store, CheckCircle, X, ArrowLeft } from 'lucide-re
 import instacartCheckoutService from '../services/instacartCheckoutService';
 import instacartShoppingListService from '../services/instacartShoppingListService';
 import AffiliateDisclosureNotice from './AffiliateDisclosureNotice';
-// Temporary debug imports to fix build - will be cleaned up
+// No-op debug stubs (cleaned up for production)
 const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
 const createTimer = () => ({ start: () => {}, mark: () => {}, end: () => {} });
 const conditionalLog = { apiCall: () => {}, componentLifecycle: () => {}, stateChange: () => {}, performance: () => {} };

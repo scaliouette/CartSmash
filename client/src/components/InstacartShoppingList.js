@@ -5,11 +5,26 @@ import instacartShoppingListService from '../services/instacartShoppingListServi
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import ShoppingListItem from './ShoppingListItem';
 import AffiliateDisclosureNotice from './AffiliateDisclosureNotice';
-// Temporary debug imports to fix build - will be cleaned up
+// No-op debug stubs (cleaned up for production)
 const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {}, trace: () => {} };
 const createTimer = () => ({ start: () => {}, mark: () => {}, end: () => {} });
 const conditionalLog = { apiCall: () => {}, componentLifecycle: () => {}, stateChange: () => {}, performance: () => {}, apiSuccess: () => {} };
 const componentId = 'InstacartShoppingList';
+
+// Override console.log for this component to reduce noise
+const originalConsoleLog = console.log;
+console.log = (...args) => {
+  // Filter out verbose debug logging
+  if (args[0] && typeof args[0] === 'string') {
+    if (args[0].includes('✅ [InstacartShoppingList') ||
+        args[0].includes('📦 [InstacartShoppingList') ||
+        args[0].includes('🎯 [InstacartShoppingList') ||
+        args[0].includes('🔍 [InstacartShoppingList')) {
+      return; // Silent skip
+    }
+  }
+  originalConsoleLog.apply(console, args);
+};
 
 const InstacartShoppingList = ({
   items = [],
@@ -253,13 +268,7 @@ const InstacartShoppingList = ({
       console.log(`⚠️ [${componentId}] [${functionId}] No onItemsChange callback provided`);
     }
 
-    const totalDuration = Math.round(performance.now() - startTime);
-    console.log(`✅ [${componentId}] [${functionId}] Bulk delete completed:`, {
-      deletedItems: itemsToDelete.length,
-      remainingItems: updatedItems.length,
-      totalDuration,
-      averageTimePerItem: itemsToDelete.length > 0 ? Math.round(totalDuration / itemsToDelete.length * 100) / 100 : 0
-    });
+    // Bulk delete completed
   };
 
   // Handle delete single item
@@ -801,7 +810,6 @@ const InstacartShoppingList = ({
         const aConf = a.confidence || 0;
         const bConf = b.confidence || 0;
         result = bConf - aConf;
-        console.log(`🎯 [${componentId}] Confidence comparison #${comparisons}: ${a.productName} (${aConf}) vs ${b.productName} (${bConf}) = ${result}`);
         break;
       case 'price':
         const aPrice = a.price || 0;
@@ -830,14 +838,7 @@ const InstacartShoppingList = ({
     return result;
   });
 
-  const sortDuration = Math.round(performance.now() - sortStartTime);
-  console.log(`✅ [${componentId}] Sorting completed:`, {
-    originalCount: localItems.length,
-    sortedCount: sortedItems.length,
-    totalComparisons: comparisons,
-    sortDuration,
-    averageComparisonTime: comparisons > 0 ? Math.round((sortDuration / comparisons) * 1000) / 1000 : 0
-  });
+  // Sorting completed
 
   // Filter items
   console.log(`🔍 [${componentId}] Filtering items:`, {
@@ -854,7 +855,6 @@ const InstacartShoppingList = ({
     itemsEvaluated++;
 
     if (filterBy === 'all') {
-      console.log(`✅ [${componentId}] Filter evaluation #${itemsEvaluated}: ${item.productName} - PASSED (show all)`);
       return true;
     }
 
