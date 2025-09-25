@@ -1,5 +1,25 @@
 const express = require('express');
 const router = express.Router();
+const winston = require('winston');
+
+// Configure logger for this route
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'grocery-routes' },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    })
+  ]
+});
 
 // Mock AI parsing service
 async function parseGroceryListWithAI(text) {
@@ -149,7 +169,7 @@ router.post('/parse', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error parsing grocery list:', error);
+    logger.error('Error parsing grocery list:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to parse grocery list'

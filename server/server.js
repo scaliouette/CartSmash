@@ -600,7 +600,7 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
               }, 100);
             }, 300); // Reduced delay for faster response
           } catch (e) {
-            console.error('Failed to send message:', e);
+            logger.error('Failed to send message:', e);
           }
           setTimeout(() => window.close(), 2000); // Faster close
         </script>

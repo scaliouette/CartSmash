@@ -3,24 +3,44 @@ const express = require('express');
 const router = express.Router();
 const AIProductParser = require('../utils/aiProductParser');
 const { extractRecipe, toCartSmashFormat } = require('../utils/recipeScraper');
+const winston = require('winston');
 // REMOVED: Manual meal planner - AI-ONLY processing enforced
 
-console.log('🤖 Loading Enhanced AI routes with intelligent parsing...');
+// Configure logger for this route
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'ai-routes' },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    })
+  ]
+});
+
+logger.info('Loading Enhanced AI routes with intelligent parsing...');
 
 // Import AI SDKs
 let Anthropic, OpenAI;
 try {
   Anthropic = require('@anthropic-ai/sdk');
-  console.log('✅ Anthropic SDK loaded');
+  logger.info('✅ Anthropic SDK loaded');
 } catch (error) {
-  console.warn('⚠️ Anthropic SDK not found - install with: npm install @anthropic-ai/sdk');
+  logger.warn('⚠️ Anthropic SDK not found - install with: npm install @anthropic-ai/sdk');
 }
 
 try {
   OpenAI = require('openai');
-  console.log('✅ OpenAI SDK loaded');
+  logger.info('✅ OpenAI SDK loaded');
 } catch (error) {
-  console.warn('⚠️ OpenAI SDK not found - install with: npm install openai');
+  logger.warn('⚠️ OpenAI SDK not found - install with: npm install openai');
 }
 
 // Initialize AI clients
@@ -143,7 +163,7 @@ router.post('/claude', async (req, res) => {
     res.header('Access-Control-Allow-Credentials', 'true');
   }
 
-  console.log('🧠 Enhanced Claude API request received');
+  logger.info('🧠 Enhanced Claude API request received');
 
   try {
     const { prompt, context, options = {} } = req.body;
@@ -161,7 +181,7 @@ router.post('/claude', async (req, res) => {
     let processedPrompt = prompt;
 
     if (urls && urls.length > 0) {
-      console.log(`🌐 Detected ${urls.length} URL(s) in prompt, scraping recipes...`);
+      logger.info(`🌐 Detected ${urls.length} URL(s) in prompt, scraping recipes...`);
 
       try {
         // Process first URL (could be extended for multiple URLs)
@@ -172,10 +192,10 @@ router.post('/claude', async (req, res) => {
         const recipeText = toCartSmashFormat(scrapedRecipe);
         processedPrompt = processedPrompt.replace(url, recipeText);
 
-        console.log(`✅ Successfully scraped recipe: "${scrapedRecipe.title}" from ${url}`);
+        logger.info(`✅ Successfully scraped recipe: "${scrapedRecipe.title}" from ${url}`);
 
       } catch (scrapeError) {
-        console.log(`⚠️ Recipe scraping failed: ${scrapeError.message}, continuing with original prompt`);
+        logger.info(`⚠️ Recipe scraping failed: ${scrapeError.message}, continuing with original prompt`);
         // Continue with original prompt if scraping fails
       }
     }
@@ -190,7 +210,7 @@ router.post('/claude', async (req, res) => {
                              /\b\w+\s+(tacos?|burgers?|soup|salad|curry|stew|casserole|pasta|pizza|sandwich)\b/i.test(processedPrompt) ||
                              /\b(make|cook|prepare)\s+\w+/i.test(processedPrompt);
 
-    console.log({
+    logger.info({
       wasRecipeScraped,
       isMealPlanning,
       isBudgetPlanning,
@@ -438,7 +458,7 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
     // Try real Claude API first
     if (anthropic) {
       try {
-        console.log('🔄 Calling real Claude API...');
+        logger.info('🔄 Calling real Claude API...');
         
         // Dynamic token allocation based on request type for optimal UX
         const baseTokenLimit = options.includeRecipes ? 4000 : 2000; // More tokens for complete recipes
@@ -456,17 +476,17 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
         usage = response.usage;
         model = response.model;
         
-        console.log(`✅ Real Claude API success! (${usage?.input_tokens || 0} input tokens, ${usage?.output_tokens || 0} output tokens)`);
+        logger.info(`✅ Real Claude API success! (${usage?.input_tokens || 0} input tokens, ${usage?.output_tokens || 0} output tokens)`);
         
       } catch (apiError) {
-        console.log('⚠️ Real Claude API failed:', apiError.message);
+        logger.info('⚠️ Real Claude API failed:', apiError.message);
         // Fall through to fallback
       }
     }
     
     // Fallback only if API is truly unavailable (no client or API error)
     if (!responseText) {
-      console.log('❌ Claude API unavailable - no fallback data allowed');
+      logger.info('❌ Claude API unavailable - no fallback data allowed');
       return res.status(503).json({
         success: false,
         error: 'AI service temporarily unavailable',
@@ -476,7 +496,7 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
     }
     
     // 🚀 STRUCTURED JSON PARSING - AI generates complete structured data
-    console.log('🎯 Processing AI-generated structured response...');
+    logger.info('🎯 Processing AI-generated structured response...');
     
     let structuredData = null;
     let products = [];
@@ -487,7 +507,7 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
       const trimmedResponse = responseText.trim();
       if (trimmedResponse.startsWith('{') && trimmedResponse.endsWith('}')) {
         structuredData = JSON.parse(trimmedResponse);
-        console.log(`✅ Successfully parsed structured JSON response: ${structuredData.type}`);
+        logger.info(`✅ Successfully parsed structured JSON response: ${structuredData.type}`);
         
         // Extract products/ingredients based on response type - COMPREHENSIVE HANDLING
         if (structuredData.type === 'single_recipe' && structuredData.recipes) {
@@ -654,7 +674,7 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
           }
         } else {
           // FALLBACK: Try to extract from any structure that looks like it contains recipes or ingredients
-          console.log(`⚠️ Unknown response type: ${structuredData.type}, attempting fallback extraction`);
+          logger.info(`⚠️ Unknown response type: ${structuredData.type}, attempting fallback extraction`);
           
           // Generic extraction function
           const extractFromAnyStructure = (obj, path = '') => {
@@ -700,13 +720,13 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
           extractFromAnyStructure(structuredData);
         }
         
-        console.log(`✅ Extracted ${products.length} products and ${recipes.length} recipes from structured data`);
+        logger.info(`✅ Extracted ${products.length} products and ${recipes.length} recipes from structured data`);
         
       } else {
         throw new Error('Response is not valid JSON format');
       }
     } catch (parseError) {
-      console.log(`⚠️ JSON parsing failed: ${parseError.message}, attempting recovery...`);
+      logger.info(`⚠️ JSON parsing failed: ${parseError.message}, attempting recovery...`);
       
       // ENHANCED ERROR HANDLING: Try to recover from malformed JSON
       let recoveredData = null;
@@ -725,10 +745,10 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
         if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
           const jsonPart = cleanedResponse.substring(firstBrace, lastBrace + 1);
           recoveredData = JSON.parse(jsonPart);
-          console.log('✅ Successfully recovered JSON from malformed response');
+          logger.info('✅ Successfully recovered JSON from malformed response');
         }
       } catch (recoveryError) {
-        console.log(`⚠️ JSON recovery failed: ${recoveryError.message}`);
+        logger.info(`⚠️ JSON recovery failed: ${recoveryError.message}`);
       }
       
       if (recoveredData) {
@@ -738,7 +758,7 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
         // Re-run extraction logic with recovered data
         try {
           if (structuredData.type) {
-            console.log(`✅ Processing recovered JSON response: ${structuredData.type}`);
+            logger.info(`✅ Processing recovered JSON response: ${structuredData.type}`);
             // Run the same extraction logic as above (could be refactored into a function)
             // For now, just treat it as a generic structure
             const extractFromAnyStructure = (obj, path = '') => {
@@ -784,7 +804,7 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
             extractFromAnyStructure(structuredData);
           }
         } catch (extractionError) {
-          console.log(`⚠️ Extraction from recovered data failed: ${extractionError.message}`);
+          logger.info(`⚠️ Extraction from recovered data failed: ${extractionError.message}`);
         }
       } else {
         // Fallback: treat as unstructured text
@@ -795,7 +815,7 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
         };
         
         // Enhanced text parsing for better accuracy
-        console.log('🔄 Using enhanced text fallback parsing...');
+        logger.info('🔄 Using enhanced text fallback parsing...');
         const lines = responseText.split('\n');
         
         lines.forEach(line => {
@@ -826,7 +846,7 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
                   item.includes('**') ||             // Any markdown formatting
                   item.match(/^(This provides|Here|Total estimated|Day \d+|Recipe|Instructions)/i) || // Summary text
                   item.length < 3) {
-                console.log('🍽️ Skipping non-grocery item in text fallback:', item);
+                logger.info('🍽️ Skipping non-grocery item in text fallback:', item);
                 break;
               }
               
@@ -852,14 +872,14 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
                   confidence: 0.7,
                   source: 'text_fallback_enhanced'
                 });
-                console.log('📝 Extracted from text fallback:', productName, quantity, unit);
+                logger.info('📝 Extracted from text fallback:', productName, quantity, unit);
                 break;
               }
             }
           }
         });
         
-        console.log(`✅ Enhanced text fallback extracted ${products.length} items`);
+        logger.info(`✅ Enhanced text fallback extracted ${products.length} items`);
       }
     }
     
@@ -895,7 +915,7 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
     });
     
   } catch (error) {
-    console.error('❌ Enhanced Claude API error:', error);
+    logger.error('❌ Enhanced Claude API error:', error);
     
     if (error.status === 401) {
       res.status(401).json({ 
@@ -942,7 +962,7 @@ router.post('/chatgpt', async (req, res) => {
     res.header('Access-Control-Allow-Credentials', 'true');
   }
   
-  console.log('🤖 Enhanced ChatGPT API request received');
+  logger.info('🤖 Enhanced ChatGPT API request received');
   
   try {
     const { prompt, context, options = {} } = req.body;
@@ -960,7 +980,7 @@ router.post('/chatgpt', async (req, res) => {
     let processedPrompt = prompt;
     
     if (urls && urls.length > 0) {
-      console.log(`🌐 Detected ${urls.length} URL(s) in prompt, scraping recipes...`);
+      logger.info(`🌐 Detected ${urls.length} URL(s) in prompt, scraping recipes...`);
       
       try {
         // For now, just process the first URL found
@@ -971,10 +991,10 @@ router.post('/chatgpt', async (req, res) => {
         const recipeText = toCartSmashFormat(scrapedRecipe);
         processedPrompt = processedPrompt.replace(url, recipeText);
         
-        console.log(`✅ Successfully scraped recipe: "${scrapedRecipe.title}" from ${url}`);
+        logger.info(`✅ Successfully scraped recipe: "${scrapedRecipe.title}" from ${url}`);
         
       } catch (scrapeError) {
-        console.log(`⚠️ Recipe scraping failed: ${scrapeError.message}, continuing with original prompt`);
+        logger.info(`⚠️ Recipe scraping failed: ${scrapeError.message}, continuing with original prompt`);
         // Continue with original prompt if scraping fails
       }
     }
@@ -984,7 +1004,7 @@ router.post('/chatgpt', async (req, res) => {
     const isMealPlanning = /\b(meal\s*plan|weekly\s*plan|7-?day|seven\s*day|menu|dinner\s*recipes)\b/i.test(processedPrompt);
     const isBudgetPlanning = /\bbudget\b|\$\d+|\d+\s*dollar/i.test(processedPrompt);
     
-    console.log({
+    logger.info({
       wasRecipeScraped,
       isMealPlanning,
       isBudgetPlanning,
@@ -1155,7 +1175,7 @@ Focus on specific, measurable grocery items that can be easily found in a store.
     // Try real OpenAI API first
     if (openai) {
       try {
-        console.log('🔄 Calling real OpenAI API...');
+        logger.info('🔄 Calling real OpenAI API...');
         
         const response = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
@@ -1171,17 +1191,17 @@ Focus on specific, measurable grocery items that can be easily found in a store.
         usage = response.usage;
         model = response.model;
         
-        console.log(`✅ Real OpenAI API success! (${usage?.prompt_tokens || 0} input tokens, ${usage?.completion_tokens || 0} output tokens)`);
+        logger.info(`✅ Real OpenAI API success! (${usage?.prompt_tokens || 0} input tokens, ${usage?.completion_tokens || 0} output tokens)`);
         
       } catch (apiError) {
-        console.log('⚠️ Real OpenAI API failed:', apiError.message);
+        logger.info('⚠️ Real OpenAI API failed:', apiError.message);
         // Fall through to fallback
       }
     }
     
     // Fallback only if API is truly unavailable (no client or API error)
     if (!responseText) {
-      console.log('❌ OpenAI API unavailable - no fallback data allowed');
+      logger.info('❌ OpenAI API unavailable - no fallback data allowed');
       return res.status(503).json({
         success: false,
         error: 'AI service temporarily unavailable',
@@ -1195,7 +1215,7 @@ Focus on specific, measurable grocery items that can be easily found in a store.
     let parsingResults;
     
     if (responseText.length > MAX_PARSING_CHARS) {
-      console.log(`🚫 Skipping AI parsing - text too long (${responseText.length} chars > ${MAX_PARSING_CHARS})`);
+      logger.info(`🚫 Skipping AI parsing - text too long (${responseText.length} chars > ${MAX_PARSING_CHARS})`);
       parsingResults = {
         products: [],
         totalCandidates: 0,
@@ -1203,14 +1223,14 @@ Focus on specific, measurable grocery items that can be easily found in a store.
         averageConfidence: 0
       };
     } else {
-      console.log('🎯 Starting intelligent product parsing...');
+      logger.info('🎯 Starting intelligent product parsing...');
       
       // Check cache first
       const cacheKey = getCacheKey(responseText + (context || '') + String(isMealPlanning || isBudgetPlanning));
       const cachedResult = getCachedResult(cacheKey);
       
       if (cachedResult) {
-        console.log('💾 Using cached parsing results');
+        logger.info('💾 Using cached parsing results');
         parsingResults = cachedResult;
       } else {
         // Determine parsing mode based on content complexity and confidence requirements
@@ -1224,14 +1244,14 @@ Focus on specific, measurable grocery items that can be easily found in a store.
           confidenceThreshold: shouldUseLiteMode ? 0.3 : 0.2 // Lower thresholds to preserve more items
         });
         setCacheResult(cacheKey, parsingResults);
-        console.log(`💾 Cached parsing results (${shouldUseLiteMode ? 'lite' : 'full'} mode)`);
+        logger.info(`💾 Cached parsing results (${shouldUseLiteMode ? 'lite' : 'full'} mode)`);
       }
     }
     
     // Generate parsing statistics
     const parsingStats = productParser.getParsingStats(parsingResults);
     
-    console.log(`✅ Intelligent parsing complete: ${parsingResults.products.length} validated products extracted`);
+    logger.info(`✅ Intelligent parsing complete: ${parsingResults.products.length} validated products extracted`);
     
     res.json({
       success: true,
@@ -1262,7 +1282,7 @@ Focus on specific, measurable grocery items that can be easily found in a store.
     });
     
   } catch (error) {
-    console.error('❌ Enhanced ChatGPT API error:', error);
+    logger.error('❌ Enhanced ChatGPT API error:', error);
     
     if (error.status === 401) {
       res.status(401).json({ 
@@ -1288,7 +1308,7 @@ Focus on specific, measurable grocery items that can be easily found in a store.
 
 // Smart parsing endpoint - re-parse existing text with intelligence
 router.post('/smart-parse', async (req, res) => {
-  console.log('🎯 Smart parsing request received');
+  logger.info('🎯 Smart parsing request received');
   
   try {
     const { text, options = {} } = req.body;
@@ -1300,7 +1320,7 @@ router.post('/smart-parse', async (req, res) => {
       });
     }
     
-    console.log('🔄 Running intelligent parsing on provided text...');
+    logger.info('🔄 Running intelligent parsing on provided text...');
     
     const parsingResults = await productParser.parseGroceryProducts(text, {
       strictMode: options.strictMode !== false, // Default to strict
@@ -1309,7 +1329,7 @@ router.post('/smart-parse', async (req, res) => {
     
     const parsingStats = productParser.getParsingStats(parsingResults);
     
-    console.log(`✅ Smart parsing complete: ${parsingResults.products.length} products extracted`);
+    logger.info(`✅ Smart parsing complete: ${parsingResults.products.length} products extracted`);
     
     res.json({
       success: true,
@@ -1329,14 +1349,14 @@ router.post('/smart-parse', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Smart parsing error:', error);
-    console.log('🔄 Attempting fallback parsing...');
+    logger.error('❌ Smart parsing error:', error);
+    logger.info('🔄 Attempting fallback parsing...');
 
     try {
       // Fallback to manual parsing when AI fails
       const fallbackProducts = parseWithFallback(text);
 
-      console.log(`✅ Fallback parsing successful: ${fallbackProducts.length} products extracted`);
+      logger.info(`✅ Fallback parsing successful: ${fallbackProducts.length} products extracted`);
 
       res.json({
         success: true,
@@ -1366,7 +1386,7 @@ router.post('/smart-parse', async (req, res) => {
         timestamp: new Date().toISOString()
       });
     } catch (fallbackError) {
-      console.error('❌ Fallback parsing also failed:', fallbackError);
+      logger.error('❌ Fallback parsing also failed:', fallbackError);
       res.status(500).json({
         success: false,
         error: 'Both AI and fallback parsing failed',
@@ -1379,7 +1399,7 @@ router.post('/smart-parse', async (req, res) => {
 
 // Product validation integration
 router.post('/validate-products', async (req, res) => {
-  console.log('🔍 Product validation request received');
+  logger.info('🔍 Product validation request received');
   
   try {
     const { products } = req.body;
@@ -1408,7 +1428,7 @@ router.post('/validate-products', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Product validation error:', error);
+    logger.error('❌ Product validation error:', error);
     res.status(500).json({ 
       success: false,
       error: 'Failed to validate products',
@@ -1419,7 +1439,7 @@ router.post('/validate-products', async (req, res) => {
 
 // Test endpoint for the enhanced system
 router.post('/test-enhanced', async (req, res) => {
-  console.log('🧪 Enhanced system test endpoint called');
+  logger.info('🧪 Enhanced system test endpoint called');
   
   const { service = 'claude' } = req.body;
   const testPrompt = 'Create a grocery list for a family of 4 for one week including breakfast, lunch, and dinner meals.';
@@ -1470,7 +1490,7 @@ router.post('/test-enhanced', async (req, res) => {
     });
     
   } catch (error) {
-    console.error(`❌ Enhanced test ${service} error:`, error);
+    logger.error(`❌ Enhanced test ${service} error:`, error);
     res.status(500).json({
       success: false,
       error: `Enhanced test failed for ${service}`,
@@ -1492,20 +1512,20 @@ function generateEnhancedChatGPTResponse(prompt) {
 
 // Restart AI services
 router.post('/restart', async (req, res) => {
-  console.log('🔄 AI services restart requested');
+  logger.info('🔄 AI services restart requested');
   
   try {
     // Reinitialize AI clients
     if (process.env.ANTHROPIC_API_KEY) {
       const Anthropic = require('@anthropic-ai/sdk');
       global.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      console.log('✅ Claude AI client restarted');
+      logger.info('✅ Claude AI client restarted');
     }
     
     if (process.env.OPENAI_API_KEY) {
       const OpenAI = require('openai');
       global.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      console.log('✅ OpenAI client restarted');
+      logger.info('✅ OpenAI client restarted');
     }
     
     res.json({
@@ -1519,7 +1539,7 @@ router.post('/restart', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ AI restart failed:', error);
+    logger.error('❌ AI restart failed:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to restart AI services',
@@ -1530,7 +1550,7 @@ router.post('/restart', async (req, res) => {
 
 // Clear AI cache
 router.post('/cache/clear', async (req, res) => {
-  console.log('🗑️ AI cache clear requested');
+  logger.info('🗑️ AI cache clear requested');
   
   try {
     // Clear any in-memory caches
@@ -1549,7 +1569,7 @@ router.post('/cache/clear', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Cache clear failed:', error);
+    logger.error('❌ Cache clear failed:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to clear cache',
@@ -1570,7 +1590,7 @@ router.post('/enhance-product-match', async (req, res) => {
       });
     }
     
-    console.log('🤖 AI Product Matching Request:', {
+    logger.info('🤖 AI Product Matching Request:', {
       ingredient: itemDetails.cleanName,
       candidateCount: candidates.length
     });
@@ -1591,7 +1611,7 @@ router.post('/enhance-product-match', async (req, res) => {
         });
         
         const responseText = response.content[0].text;
-        console.log('🤖 Raw AI response:', responseText);
+        logger.info('🤖 Raw AI response:', responseText);
         
         // Parse JSON response
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -1602,11 +1622,11 @@ router.post('/enhance-product-match', async (req, res) => {
         }
         
       } catch (aiError) {
-        console.warn('🤖 Anthropic AI failed, using fallback logic:', aiError.message);
+        logger.warn('🤖 Anthropic AI failed, using fallback logic:', aiError.message);
         aiResponse = generateFallbackMatch(itemDetails, candidates);
       }
     } else {
-      console.log('🤖 No AI available, using intelligent fallback logic');
+      logger.info('🤖 No AI available, using intelligent fallback logic');
       aiResponse = generateFallbackMatch(itemDetails, candidates);
     }
     
@@ -1618,7 +1638,7 @@ router.post('/enhance-product-match', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ AI Product Matching Error:', error);
+    logger.error('❌ AI Product Matching Error:', error);
     res.status(500).json({
       success: false,
       error: 'AI product matching failed',
@@ -1629,7 +1649,7 @@ router.post('/enhance-product-match', async (req, res) => {
 
 // Intelligent fallback logic for product matching
 function generateFallbackMatch(itemDetails, candidates) {
-  console.log('🧠 Using intelligent fallback matching logic');
+  logger.info('🧠 Using intelligent fallback matching logic');
   
   // Advanced scoring that considers multiple factors
   const scoredCandidates = candidates.map(candidate => {
@@ -1716,5 +1736,5 @@ function generateFallbackMatch(itemDetails, candidates) {
   };
 }
 
-console.log('✅ Enhanced AI routes loaded with intelligent parsing and product matching');
+logger.info('✅ Enhanced AI routes loaded with intelligent parsing and product matching');
 module.exports = router;

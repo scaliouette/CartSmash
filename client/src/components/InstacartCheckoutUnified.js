@@ -6,6 +6,7 @@ import { ChevronRight, Check, Store, CheckCircle, X, ArrowLeft } from 'lucide-re
 import instacartCheckoutService from '../services/instacartCheckoutService';
 import instacartShoppingListService from '../services/instacartShoppingListService';
 import AffiliateDisclosureNotice from './AffiliateDisclosureNotice';
+import debugService from '../services/debugService';
 // No-op debug stubs (cleaned up for production)
 const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
 const createTimer = () => ({ start: () => {}, mark: () => {}, end: () => {} });
@@ -54,7 +55,7 @@ const InstacartCheckoutUnified = ({
         productIds: item.productIds || item.product_ids || []
       };
 
-      console.log(`🧪 [${componentId}] Processed ingredient ${index + 1}/${items.length}:`, {
+      debugService.log(`🧪 [${componentId}] Processed ingredient ${index + 1}/${items.length}:`, {
         original: {
           id: item.id,
           productName: item.productName || item.name,
@@ -79,7 +80,7 @@ const InstacartCheckoutUnified = ({
     });
 
     const processingDuration = Math.round(performance.now() - ingredientProcessingStartTime);
-    console.log(`✅ [${componentId}] Ingredients processing completed:`, {
+    debugService.log(`✅ [${componentId}] Ingredients processing completed:`, {
       originalCount: items.length,
       processedCount: processedIngredients.length,
       processingDuration,
@@ -95,7 +96,7 @@ const InstacartCheckoutUnified = ({
     const functionId = `getRecipeInfo_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const startTime = performance.now();
 
-    console.log(`📜 [${componentId}] [${functionId}] Recipe info lookup initiated:`, {
+    debugService.log(`📜 [${componentId}] [${functionId}] Recipe info lookup initiated:`, {
       hasRecipeData: !!recipeData,
       hasRecipes: recipeData?.recipes?.length > 0,
       recipeCount: recipeData?.recipes?.length || 0,
@@ -106,7 +107,7 @@ const InstacartCheckoutUnified = ({
 
     if (recipeData && recipeData.recipes && recipeData.recipes.length > 0) {
       const firstRecipe = recipeData.recipes[0];
-      console.log(`📜 [${componentId}] [${functionId}] Using REAL recipe data:`, {
+      debugService.log(`📜 [${componentId}] [${functionId}] Using REAL recipe data:`, {
         recipeTitle: firstRecipe.title || firstRecipe.name,
         author: firstRecipe.author,
         servings: firstRecipe.servings,
@@ -126,12 +127,12 @@ const InstacartCheckoutUnified = ({
       };
 
       const duration = Math.round(performance.now() - startTime);
-      console.log(`✅ [${componentId}] [${functionId}] Real recipe processed:`, { ...result, duration });
+      debugService.log(`✅ [${componentId}] [${functionId}] Real recipe processed:`, { ...result, duration });
       return result;
     }
 
     // Fallback to mock data
-    console.log(`📜 [${componentId}] [${functionId}] Using MOCK recipe data (no real data available)`);
+    debugService.log(`📜 [${componentId}] [${functionId}] Using MOCK recipe data (no real data available)`);
     const mockResult = {
       name: title || (mode === 'recipe' ? 'My CartSmash Recipe' : mode === 'cart' ? 'Shopping Cart' : 'Shopping List'),
       chef: 'CartSmash Chef',
@@ -142,7 +143,7 @@ const InstacartCheckoutUnified = ({
     };
 
     const duration = Math.round(performance.now() - startTime);
-    console.log(`✅ [${componentId}] [${functionId}] Mock recipe generated:`, { ...mockResult, duration });
+    debugService.log(`✅ [${componentId}] [${functionId}] Mock recipe generated:`, { ...mockResult, duration });
     return mockResult;
   };
 
@@ -354,17 +355,17 @@ const InstacartCheckoutUnified = ({
 
       if (mode === 'recipe') {
         // Create a recipe page with ingredients
-        console.log(`🧾 Creating recipe page "${checkoutData.name}" with ${checkedIngredients.length} ingredients`);
-        console.log(`📊 Recipe data source: ${checkoutData.source}`);
-        console.log(`📝 Recipe title: ${checkoutData.name}`);
-        console.log(`👨‍🍳 Recipe author: ${checkoutData.chef}`);
-        console.log(`🍽️ Recipe servings: ${checkoutData.servings}`);
-        console.log(`⏱️ Recipe time: ${checkoutData.time} minutes`);
-        console.log(`📖 Recipe instructions: ${checkoutData.instructions?.length || 0} steps`);
+        debugService.log(`🧾 Creating recipe page "${checkoutData.name}" with ${checkedIngredients.length} ingredients`);
+        debugService.log(`📊 Recipe data source: ${checkoutData.source}`);
+        debugService.log(`📝 Recipe title: ${checkoutData.name}`);
+        debugService.log(`👨‍🍳 Recipe author: ${checkoutData.chef}`);
+        debugService.log(`🍽️ Recipe servings: ${checkoutData.servings}`);
+        debugService.log(`⏱️ Recipe time: ${checkoutData.time} minutes`);
+        debugService.log(`📖 Recipe instructions: ${checkoutData.instructions?.length || 0} steps`);
         if (checkoutData.source === 'real_recipe') {
-          console.log('✅ Using REAL recipe data from CartSmash!');
+          debugService.log('✅ Using REAL recipe data from CartSmash!');
         } else {
-          console.log('⚠️ Using MOCK recipe data (fallback)');
+          debugService.log('⚠️ Using MOCK recipe data (fallback)');
         }
 
         const recipePayload = {
@@ -421,7 +422,7 @@ const InstacartCheckoutUnified = ({
         });
       } else if (mode === 'shopping-list') {
         // Create enhanced shopping list with full API features
-        console.log(`🛒 Creating enhanced shopping list for ${checkedIngredients.length} items at ${selectedRetailer.name}`);
+        debugService.log(`🛒 Creating enhanced shopping list for ${checkedIngredients.length} items at ${selectedRetailer.name}`);
 
         const enhancedItems = checkedIngredients.map(ingredient => {
           const quantityMatch = ingredient.amount.match(/^(\d*\.?\d+)\s*(.*)$/);
@@ -461,7 +462,7 @@ const InstacartCheckoutUnified = ({
         });
       } else {
         // Create a shopping cart for cart mode (fallback)
-        console.log(`🛒 Creating shopping cart for ${checkedIngredients.length} items at ${selectedRetailer.name}`);
+        debugService.log(`🛒 Creating shopping cart for ${checkedIngredients.length} items at ${selectedRetailer.name}`);
 
         const instacartItems = checkedIngredients.map(ingredient => ({
           name: ingredient.name,
@@ -485,24 +486,24 @@ const InstacartCheckoutUnified = ({
         );
       }
 
-      console.log('📊 Checkout creation result:', result);
+      debugService.log('📊 Checkout creation result:', result);
 
       if (result.success && (result.checkoutUrl || result.instacartUrl)) {
         const finalUrl = result.checkoutUrl || result.instacartUrl;
         setCheckoutUrl(finalUrl);
-        console.log(`✅ ${mode === 'recipe' ? 'Recipe page' : 'Shopping cart'} created successfully:`, finalUrl);
+        debugService.log(`✅ ${mode === 'recipe' ? 'Recipe page' : 'Shopping cart'} created successfully:`, finalUrl);
 
         // Store checkout URL for user to access later if desired
-        console.log('✅ Checkout URL created:', finalUrl);
+        debugService.log('✅ Checkout URL created:', finalUrl);
 
         // Update to completion step
         setCurrentStep(2);
       } else {
-        console.error('❌ Checkout creation failed:', result);
+        debugService.logError('❌ Checkout creation failed:', result);
         throw new Error(result.error || `${mode === 'recipe' ? 'Recipe creation' : 'Checkout creation'} failed`);
       }
     } catch (err) {
-      console.error('❌ Error creating checkout:', err);
+      debugService.logError('❌ Error creating checkout:', err);
 
       // Provide more specific error messages
       let errorMessage = 'Failed to create checkout. Please try again.';
@@ -532,7 +533,7 @@ const InstacartCheckoutUnified = ({
 
   const handleProceedToCheckout = () => {
     if (checkoutUrl) {
-      console.log('🔗 User chose to open Instacart checkout:', checkoutUrl);
+      debugService.log('🔗 User chose to open Instacart checkout:', checkoutUrl);
       window.open(checkoutUrl, '_blank');
     }
     onClose?.();
@@ -544,7 +545,7 @@ const InstacartCheckoutUnified = ({
   // Direct store selection - API-driven with immediate navigation
   const handleStoreSelect = async (store) => {
     try {
-      console.log('🏪 Store selected:', store.name);
+      debugService.log('🏪 Store selected:', store.name);
 
       // Immediately select the store
       setSelectedStore(store.id);
@@ -560,7 +561,7 @@ const InstacartCheckoutUnified = ({
       await createCheckout();
 
     } catch (error) {
-      console.error('Error selecting store:', error);
+      debugService.logError('Error selecting store:', error);
       setError('Failed to create checkout. Please try again.');
       setLoading(false);
     }
@@ -592,7 +593,7 @@ const InstacartCheckoutUnified = ({
 
       setRetailers(storesWithPricing);
     } catch (error) {
-      console.error('Error fetching store prices:', error);
+      debugService.logError('Error fetching store prices:', error);
       // Fallback to existing mock data if API fails
     } finally {
       setLoading(false);

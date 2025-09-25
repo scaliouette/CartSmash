@@ -13,6 +13,7 @@ import StoresPage from './components/StoresPage';
 import Contact from './components/Contact';
 import Terms from './components/Terms';
 import Privacy from './components/privacy';
+import debugService from './services/debugService';
 import AffiliateDisclosure from './components/AffiliateDisclosure';
 import Footer from './components/Footer';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -117,7 +118,7 @@ function AppContent({
       setCurrentCartWithTracking([], true); // System action - initial load
       setSavedLists([]);
     } catch (error) {
-      console.error('Error loading from localStorage:', error);
+      debugService.logError('Error loading from localStorage:', error);
     }
   }, [setCurrentCartWithTracking, setSavedLists, CART_AUTHORITY]);
 
@@ -231,7 +232,7 @@ function AppContent({
     
     // ⚠️ Only auto-save if explicitly enabled
     if (!AUTOSAVE_ENABLED) {
-      console.log('🚫 Auto-save disabled - skipping Firebase save');
+      debugService.log('🚫 Auto-save disabled - skipping Firebase save');
       return;
     }
     
@@ -239,7 +240,7 @@ function AppContent({
       // Save to carts/{uid} (replace write so deletions stick)
       // ⚡ Skip hydration check for immediate saves (deletions)
       if (!cartHydratedRef.current && !forceImmediate) {
-        console.log('⏸️ Skipping save until cart hydration completes');
+        debugService.log('⏸️ Skipping save until cart hydration completes');
         return;
       }
       const ref = doc(db, 'carts', currentUser.uid);
@@ -248,21 +249,21 @@ function AppContent({
         { items: currentCart, updatedAt: serverTimestamp() },
         { merge: false } // 🔥 replace entire array; no re-merge ghosts
       );
-      console.log('✅ Cart saved to carts/{uid}');
+      debugService.log('✅ Cart saved to carts/{uid}');
       
       // Also save to localStorage as backup ONLY if localStorage is cart authority
       if (CART_AUTHORITY === 'local') {
-        console.log('💾 Cart also saved to localStorage (authority)');
+        debugService.log('💾 Cart also saved to localStorage (authority)');
       }
       
     } catch (error) {
-      console.error('Error saving cart to Firebase:', error);
+      debugService.logError('Error saving cart to Firebase:', error);
       // Fallback to localStorage on error ONLY if localStorage is cart authority
       if (CART_AUTHORITY === 'local') {
         try {
-          console.log('💾 Cart saved locally as fallback');
+          debugService.log('💾 Cart saved locally as fallback');
         } catch (localError) {
-          console.error('Local save also failed:', localError);
+          debugService.logError('Local save also failed:', localError);
         }
       }
     }
@@ -279,7 +280,7 @@ function AppContent({
         if (!currentUser) return;
         await setDoc(doc(db, 'carts', currentUser.uid), { items: [], updatedAt: serverTimestamp() }, { merge: false });
         setCurrentCartWithTracking([], true); // System action - debug clear
-        console.log('🧼 carts/{uid} cleared');
+        debugService.log('🧼 carts/{uid} cleared');
       }
     };
     
@@ -299,8 +300,8 @@ function AppContent({
 
   // ✅ NEW: Ensure data consistency when switching views
   useEffect(() => {
-    console.log(`📍 View changed to: ${currentView}`);
-    console.log(`📊 Current data state:`, {
+    debugService.log(`📍 View changed to: ${currentView}`);
+    debugService.log(`📊 Current data state:`, {
       recipes: savedRecipes.length,
       cartItems: currentCart.length,
       user: currentUser?.uid || 'not authenticated'
@@ -315,7 +316,7 @@ function AppContent({
     
     if (wasLarger) {
       // Immediate save on deletion - don't wait for debounce
-      console.log('🚨 Deletion detected - immediate save to prevent hydration race');
+      debugService.log('🚨 Deletion detected - immediate save to prevent hydration race');
       saveCartToFirebase(true); // Pass forceImmediate = true
     } else {
       // Regular debounced save for other changes
@@ -338,7 +339,7 @@ function AppContent({
         // Save even if empty array to ensure proper persistence
         await userDataService.saveParsedRecipes(parsedRecipes);
       } catch (error) {
-        console.error('Error auto-saving parsed recipes:', error);
+        debugService.logError('Error auto-saving parsed recipes:', error);
       }
     }, 2000); // 2 second debounce
 
@@ -347,7 +348,7 @@ function AppContent({
   
   // CONNECTED FUNCTIONS
   const loadRecipeToCart = async (recipe, merge = false) => {
-    console.log('📖 Loading recipe to cart:', recipe.name);
+    debugService.log('📖 Loading recipe to cart:', recipe.name);
     
     const ingredients = recipe.ingredients || '';
     const lines = typeof ingredients === 'string' 
@@ -381,9 +382,9 @@ function AppContent({
         // Only save to localStorage if it's the cart authority
         if (CART_AUTHORITY === 'local') {
           try {
-            console.log('💾 Recipe cart saved to localStorage (authority)');
+            debugService.log('💾 Recipe cart saved to localStorage (authority)');
           } catch (error) {
-            console.error('Failed to save recipe cart to localStorage:', error);
+            debugService.logError('Failed to save recipe cart to localStorage:', error);
           }
         }
         
@@ -395,14 +396,14 @@ function AppContent({
         return data.cart.length;
       }
     } catch (error) {
-      console.error('Error loading recipe:', error);
+      debugService.logError('Error loading recipe:', error);
     }
     
     return 0;
   };
   
   const loadListToCart = (list, merge = false) => {
-    console.log('📋 Loading list to cart:', list.name);
+    debugService.log('📋 Loading list to cart:', list.name);
 
     if (!list.items || list.items.length === 0) {
       alert('This list is empty');
@@ -419,9 +420,9 @@ function AppContent({
     // Clear localStorage to prevent the old cart from being reloaded
     try {
       localStorage.removeItem('cart');
-      console.log('🗑️ Cleared old cart from localStorage');
+      debugService.log('🗑️ Cleared old cart from localStorage');
     } catch (error) {
-      console.error('Failed to clear cart from localStorage:', error);
+      debugService.logError('Failed to clear cart from localStorage:', error);
     }
 
     // Update cart state
@@ -457,18 +458,18 @@ function AppContent({
       // Save to Firebase if user is authenticated
       if (currentUser) {
         await userDataService.saveParsedList(newList);
-        console.log('✅ List saved to Firebase');
+        debugService.log('✅ List saved to Firebase');
       }
       
       // Also save locally
       const updatedLists = [...savedLists, newList];
       setSavedLists(updatedLists);
       
-      console.log('💾 List saved:', newList.name);
+      debugService.log('💾 List saved:', newList.name);
       return newList;
       
     } catch (error) {
-      console.error('Error saving list:', error);
+      debugService.logError('Error saving list:', error);
       alert('Failed to save list to cloud, but saved locally');
       return newList;
     }
@@ -490,11 +491,11 @@ function AppContent({
         // Update existing recipe
         updatedRecipes = [...savedRecipes];
         updatedRecipes[existingRecipeIndex] = newRecipe;
-        console.log('🔄 Updating existing recipe:', newRecipe.title || newRecipe.name);
+        debugService.log('🔄 Updating existing recipe:', newRecipe.title || newRecipe.name);
       } else {
         // Add new recipe
         updatedRecipes = [...savedRecipes, newRecipe];
-        console.log('➕ Adding new recipe:', newRecipe.title || newRecipe.name);
+        debugService.log('➕ Adding new recipe:', newRecipe.title || newRecipe.name);
       }
       
       // Update session state
@@ -503,16 +504,16 @@ function AppContent({
       // Save to Firestore only if user is authenticated
       if (currentUser) {
         await userDataService.saveRecipe(newRecipe);
-        console.log('✅ Recipe saved to Firestore');
+        debugService.log('✅ Recipe saved to Firestore');
       } else {
-        console.log('👤 User not authenticated - recipe saved to session only');
+        debugService.log('👤 User not authenticated - recipe saved to session only');
       }
       
-      console.log('📝 Recipe saved successfully:', newRecipe.title || newRecipe.name);
+      debugService.log('📝 Recipe saved successfully:', newRecipe.title || newRecipe.name);
       return newRecipe;
       
     } catch (error) {
-      console.error('❌ Error saving recipe:', error);
+      debugService.logError('❌ Error saving recipe:', error);
       alert('Failed to save recipe to cloud, but saved locally');
       return newRecipe;
     }
@@ -529,7 +530,7 @@ function AppContent({
       setSavedLists(prev => prev.filter(l => l.id !== listId));
       
     } catch (error) {
-      console.error('Error deleting list:', error);
+      debugService.logError('Error deleting list:', error);
     }
   };
   
@@ -544,7 +545,7 @@ function AppContent({
       setSavedRecipes(prev => prev.filter(r => r.id !== recipeId));
       
     } catch (error) {
-      console.error('Error deleting recipe:', error);
+      debugService.logError('Error deleting recipe:', error);
     }
   };
   
@@ -553,7 +554,7 @@ function AppContent({
       // Update in Firebase if user is authenticated
       if (currentUser) {
         await userDataService.updateShoppingList(updatedList.id, updatedList);
-        console.log('✅ List updated in Firebase');
+        debugService.log('✅ List updated in Firebase');
       }
       
       // Update local state
@@ -562,11 +563,11 @@ function AppContent({
       );
       setSavedLists(updatedLists);
       
-      console.log('✅ List updated locally');
+      debugService.log('✅ List updated locally');
       return updatedList;
       
     } catch (error) {
-      console.error('Error updating list:', error);
+      debugService.logError('Error updating list:', error);
       throw error;
     }
   };
@@ -579,7 +580,7 @@ function AppContent({
       }
       
       await userDataService.saveMealPlan(mealPlan);
-      console.log('✅ Meal plan saved to Firebase');
+      debugService.log('✅ Meal plan saved to Firebase');
       
       // Update local state only after successful cloud save
       const existingIndex = mealPlans.findIndex(p => p.id === mealPlan.id);
@@ -596,11 +597,11 @@ function AppContent({
       
       setMealPlans(updatedPlans);
       
-      console.log('📅 Meal plan saved:', mealPlan.name);
+      debugService.log('📅 Meal plan saved:', mealPlan.name);
       return mealPlan;
       
     } catch (error) {
-      console.error('❌ Failed to save meal plan to cloud:', error);
+      debugService.logError('❌ Failed to save meal plan to cloud:', error);
       alert('❌ Failed to save meal plan. Please check your connection and try again.');
       throw error; // Don't return the meal plan on failure
     }
@@ -662,7 +663,7 @@ function AppContent({
         ) : currentView === 'stores' ? (
           <StoresPage 
             onStoreSelect={(store) => {
-              console.log('🏪 Store selected in app:', store);
+              debugService.log('🏪 Store selected in app:', store);
               // Store selection is handled in StoresPage component
               // After selection, user can return to home to start shopping
             }}

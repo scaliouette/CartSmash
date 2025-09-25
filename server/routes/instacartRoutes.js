@@ -1017,7 +1017,7 @@ router.post('/cart/create', authenticateUser, preventNoSQLInjection, validateReq
     })));
     logger.debug(`Target retailer: ${retailerId}`);
     logger.debug(`Delivery location: ${zipCode}`);
-    console.log(`   🔄 Connection status: VERIFIED - CartSmash shopping list successfully mapped to Instacart mock data`);
+    logger.info(`   🔄 Connection status: VERIFIED - CartSmash shopping list successfully mapped to Instacart mock data`);
     
     // Process immediately for faster performance
     
@@ -1034,7 +1034,7 @@ router.post('/cart/create', authenticateUser, preventNoSQLInjection, validateReq
       }
     });
   } catch (error) {
-    console.error('Error creating cart:', error);
+    logger.error('Error creating cart:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to create cart',
@@ -1046,8 +1046,8 @@ router.post('/cart/create', authenticateUser, preventNoSQLInjection, validateReq
 // Helper function to create a recipe from cart items for proper checkout URLs
 async function createRecipeFromCartItems(items, retailerId, zipCode, metadata) {
   try {
-    console.log(`🍳 Converting ${items.length} cart items to recipe for ${retailerId}`);
-    console.log('🔄 CartSmash Shopping List → Instacart Recipe Conversion:');
+    logger.info(`🍳 Converting ${items.length} cart items to recipe for ${retailerId}`);
+    logger.info('🔄 CartSmash Shopping List → Instacart Recipe Conversion:');
 
     // Generate recipe title based on items
     const itemNames = items.slice(0, 3).map(item =>
@@ -1057,7 +1057,7 @@ async function createRecipeFromCartItems(items, retailerId, zipCode, metadata) {
       `${itemNames.join(', ')} Shopping List` :
       `${itemNames[0]} Recipe`;
 
-    console.log(`   📝 Generated recipe title: "${title}"`);
+    logger.info(`   📝 Generated recipe title: "${title}"`);
 
     // Convert cart items to ingredients format (same as working recipe API)
     const ingredients = items.map(item => {
@@ -1065,7 +1065,7 @@ async function createRecipeFromCartItems(items, retailerId, zipCode, metadata) {
 
       // Ensure we never have undefined or empty names
       if (!itemName || itemName === 'undefined' || itemName.trim() === '') {
-        console.warn('⚠️ Item with undefined name detected:', item);
+        logger.warn('⚠️ Item with undefined name detected:', item);
         return null; // Will be filtered out
       }
 
@@ -1079,7 +1079,7 @@ async function createRecipeFromCartItems(items, retailerId, zipCode, metadata) {
       };
     }).filter(ingredient => ingredient !== null); // Remove null ingredients
 
-    console.log(`   🥕 Converted to Instacart ingredients format:`, ingredients.map(item => ({
+    logger.info(`   🥕 Converted to Instacart ingredients format:`, ingredients.map(item => ({
       name: item.name,
       display_text: item.display_text,
       measurements: item.measurements
@@ -1087,7 +1087,7 @@ async function createRecipeFromCartItems(items, retailerId, zipCode, metadata) {
 
     // Validate that we have at least one valid ingredient
     if (ingredients.length === 0) {
-      console.warn('⚠️ No valid ingredients found after filtering');
+      logger.warn('⚠️ No valid ingredients found after filtering');
       return {
         success: false,
         error: 'No valid ingredients found'
@@ -1113,7 +1113,7 @@ async function createRecipeFromCartItems(items, retailerId, zipCode, metadata) {
 
     // Use the working /products/recipe endpoint
     if (validateApiKeys()) {
-      console.log(`   🔗 Calling Instacart recipe API with working format`);
+      logger.info(`   🔗 Calling Instacart recipe API with working format`);
       const response = await instacartApiCall('/products/recipe', 'POST', recipePayload);
 
       const result = {
@@ -1130,16 +1130,16 @@ async function createRecipeFromCartItems(items, retailerId, zipCode, metadata) {
         result.instacartUrl += `${separator}retailer_key=${retailerId}`;
       }
 
-      console.log(`   ✅ Recipe created: ${result.instacartUrl}`);
-      console.log(`   📊 CartSmash → Instacart connection: SUCCESSFUL`);
+      logger.info(`   ✅ Recipe created: ${result.instacartUrl}`);
+      logger.info(`   📊 CartSmash → Instacart connection: SUCCESSFUL`);
       return result;
     } else {
       // Mock recipe URL for development using working format
       const mockRecipeId = Math.floor(Math.random() * 9000000) + 1000000;
       const mockUrl = `https://customers.dev.instacart.tools/store/recipes/${mockRecipeId}?retailer_key=${retailerId}`;
 
-      console.log(`   🧪 Mock recipe URL created: ${mockUrl}`);
-      console.log(`   📊 CartSmash → Instacart mock connection: VERIFIED`);
+      logger.info(`   🧪 Mock recipe URL created: ${mockUrl}`);
+      logger.info(`   📊 CartSmash → Instacart mock connection: VERIFIED`);
       return {
         success: true,
         recipeId: mockRecipeId.toString(),
@@ -1150,7 +1150,7 @@ async function createRecipeFromCartItems(items, retailerId, zipCode, metadata) {
       };
     }
   } catch (error) {
-    console.error('❌ Error creating recipe from cart items:', error);
+    logger.error('❌ Error creating recipe from cart items:', error);
     return {
       success: false,
       error: error.message
@@ -1216,16 +1216,16 @@ function calculateConfidence(originalItem, instacartProduct) {
 // Helper function to generate mock products for development
 // Enhanced product generator that can create products based on real API responses or improved mock data
 function generateEnhancedProducts(query, originalItem, retailerId, options = {}) {
-  console.log(`🚫 DISABLED: Mock data generation is no longer allowed for: "${query}"`);
-  console.log(`🚫 This function should not be called. Use real API data only.`);
+  logger.warn(`DISABLED: Mock data generation is no longer allowed for: "${query}"`);
+  logger.info(`🚫 This function should not be called. Use real API data only.`);
 
   // Return empty array instead of mock data
   return [];
 }
 
 function generateMockProducts(query, originalItem, retailerId, options = {}) {
-  console.log(`🚫 DISABLED: Mock products generation completely eliminated for: "${query}"`);
-  console.log(`🚫 All mock data functions are disabled. Use real API responses only.`);
+  logger.info(`🚫 DISABLED: Mock products generation completely eliminated for: "${query}"`);
+  logger.info(`🚫 All mock data functions are disabled. Use real API responses only.`);
   return [];
 }
 
@@ -1234,7 +1234,7 @@ router.get('/cart/:cartId/status', authenticateUser, async (req, res) => {
   try {
     const { cartId } = req.params;
     
-    console.log(`📊 Getting cart status: ${cartId}`);
+    logger.info(`📊 Getting cart status: ${cartId}`);
     
     // Check if we have valid API keys
     if (validateApiKeys()) {
@@ -1254,7 +1254,7 @@ router.get('/cart/:cartId/status', authenticateUser, async (req, res) => {
         });
         return;
       } catch (error) {
-        console.log('⚠️ Cart status API failed, returning mock data');
+        logger.info('⚠️ Cart status API failed, returning mock data');
         // Fall through to mock data section
       }
     }
@@ -1267,7 +1267,7 @@ router.get('/cart/:cartId/status', authenticateUser, async (req, res) => {
       source: 'mock_data_elimination'
     });
   } catch (error) {
-    console.error('Error getting cart status:', error);
+    logger.error('Error getting cart status:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to get cart status',
@@ -1279,7 +1279,7 @@ router.get('/cart/:cartId/status', authenticateUser, async (req, res) => {
 // GET /api/instacart/test - Test API connectivity
 router.get('/test', async (req, res) => {
   try {
-    console.log('🧪 Testing Instacart API connectivity');
+    logger.info('🧪 Testing Instacart API connectivity');
     
     const testResults = {
       apiKeys: validateApiKeys(),
@@ -1310,7 +1310,7 @@ router.get('/test', async (req, res) => {
       test: testResults
     });
   } catch (error) {
-    console.error('Test endpoint error:', error);
+    logger.error('Test endpoint error:', error);
     res.status(500).json({
       success: false,
       error: 'Test failed',
@@ -1385,7 +1385,7 @@ router.post('/batch-search', authenticateUser, preventNoSQLInjection, validateRe
                 }
               }
             } catch (recipeError) {
-              console.log(`Recipe approach failed for "${item.name}":`, recipeError.message);
+              logger.info(`Recipe approach failed for "${item.name}":`, recipeError.message);
             }
 
             // APPROACH 2: Try recipe page parsing as backup (enhanced)
@@ -1417,7 +1417,7 @@ router.post('/batch-search', authenticateUser, preventNoSQLInjection, validateRe
                   }
                 }
               } catch (recipeError) {
-                console.log(`Enhanced recipe parsing failed for "${item.name}":`, recipeError.message);
+                logger.info(`Enhanced recipe parsing failed for "${item.name}":`, recipeError.message);
               }
             }
 
@@ -1450,7 +1450,7 @@ router.post('/batch-search', authenticateUser, preventNoSQLInjection, validateRe
                   // Success logged
                 }
               } catch (catalogError) {
-                console.log(`Catalog API failed for "${item.name}":`, catalogError.message);
+                logger.info(`Catalog API failed for "${item.name}":`, catalogError.message);
               }
             }
           }
@@ -1462,7 +1462,7 @@ router.post('/batch-search', authenticateUser, preventNoSQLInjection, validateRe
           };
 
         } catch (error) {
-          console.error(`Error searching for item "${item.name}":`, error);
+          logger.error(`Error searching for item "${item.name}":`, error);
           return {
             originalItem: item,
             matches: [],
@@ -1480,7 +1480,7 @@ router.post('/batch-search', authenticateUser, preventNoSQLInjection, validateRe
         if (result.status === 'fulfilled') {
           results.push(result.value);
         } else {
-          console.error('Batch item failed:', result.reason);
+          logger.error('Batch item failed:', result.reason);
           results.push({
             originalItem: { name: 'unknown' },
             matches: [],
@@ -1509,7 +1509,7 @@ router.post('/batch-search', authenticateUser, preventNoSQLInjection, validateRe
     });
     
   } catch (error) {
-    console.error('Batch search error:', error);
+    logger.error('Batch search error:', error);
     res.status(500).json({
       success: false,
       error: 'Batch search failed',
@@ -1630,7 +1630,7 @@ router.post('/recipe/create', preventNoSQLInjection, validateRequestBody(), asyn
       externalReferenceId 
     } = req.body;
     
-    console.log(`🍳 Creating enhanced Instacart recipe: "${title}"`);
+    logger.info(`🍳 Creating enhanced Instacart recipe: "${title}"`);
     
     if (!title || !instructions || !ingredients || ingredients.length === 0) {
       return res.status(400).json({
@@ -1820,11 +1820,11 @@ router.post('/recipe/create', preventNoSQLInjection, validateRequestBody(), asyn
           }
         });
         
-        console.log('📤 Creating enhanced recipe with payload:', JSON.stringify(recipePayload, null, 2));
+        logger.info('📤 Creating enhanced recipe with payload:', JSON.stringify(recipePayload, null, 2));
         
         const response = await instacartApiCall('/products/recipe', 'POST', recipePayload);
         
-        console.log('✅ Enhanced recipe created successfully:', response);
+        logger.info('✅ Enhanced recipe created successfully:', response);
         
         // Format enhanced response
         const result = {
@@ -1857,7 +1857,7 @@ router.post('/recipe/create', preventNoSQLInjection, validateRequestBody(), asyn
         res.json(result);
         return;
       } catch (error) {
-        console.log('⚠️ Recipe API failed, falling back to mock data');
+        logger.info('⚠️ Recipe API failed, falling back to mock data');
         // Fall through to mock response
       }
     }
@@ -1878,7 +1878,7 @@ router.post('/recipe/create', preventNoSQLInjection, validateRequestBody(), asyn
       mockMode: true
     });
   } catch (error) {
-    console.error('Error creating recipe:', error);
+    logger.error('Error creating recipe:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create recipe',
@@ -1902,7 +1902,7 @@ router.post('/products-link/create', authenticateUser, preventNoSQLInjection, va
       filters = {}
     } = req.body;
 
-    console.log(`🛒 Creating Instacart products link (${linkType}): "${title}"`);
+    logger.info(`🛒 Creating Instacart products link (${linkType}): "${title}"`);
 
     if (!title || !lineItems || lineItems.length === 0) {
       return res.status(400).json({
@@ -1948,7 +1948,7 @@ router.post('/products-link/create', authenticateUser, preventNoSQLInjection, va
             // Validate UPC format and check for duplicates
             const validUpcs = upcArray.filter(upc => {
               if (typeof upc !== 'string' || !/^\d{8,14}$/.test(upc)) {
-                console.warn(`Invalid UPC format: ${upc} for item "${formatted.name}"`);
+                logger.warn(`Invalid UPC format: ${upc} for item "${formatted.name}"`);
                 return false;
               }
               if (usedUpcs.has(upc)) {
@@ -1970,7 +1970,7 @@ router.post('/products-link/create', authenticateUser, preventNoSQLInjection, va
             // Validate product IDs and check for duplicates
             const validProductIds = productIds.filter(id => {
               if (typeof id !== 'string' || id.trim().length === 0) {
-                console.warn(`Invalid product ID: ${id} for item "${formatted.name}"`);
+                logger.warn(`Invalid product ID: ${id} for item "${formatted.name}"`);
                 return false;
               }
               if (usedProductIds.has(id)) {
@@ -2095,12 +2095,12 @@ router.post('/products-link/create', authenticateUser, preventNoSQLInjection, va
           }
         });
 
-        console.log('📝 Products link payload with alternatives:', JSON.stringify(productsLinkPayload, null, 2));
+        logger.info('📝 Products link payload with alternatives:', JSON.stringify(productsLinkPayload, null, 2));
 
         // Make API call to create products link with alternatives
         const response = await instacartApiCall('/products/products_link', 'POST', productsLinkPayload);
 
-        console.log('✅ Products link API response:', response);
+        logger.info('✅ Products link API response:', response);
 
         if (response && response.products_link_url) {
           let finalUrl = response.products_link_url;
@@ -2128,14 +2128,14 @@ router.post('/products-link/create', authenticateUser, preventNoSQLInjection, va
 
           res.json(result);
         } else {
-          console.log('⚠️ Unexpected API response format:', response);
+          logger.info('⚠️ Unexpected API response format:', response);
           throw new Error('Invalid API response format');
         }
       } catch (error) {
-        console.error('❌ Products link API failed:', error);
+        logger.error('❌ Products link API failed:', error);
 
         // Fallback to mock response with alternatives structure
-        console.log('🔄 Falling back to mock products link with alternatives...');
+        logger.info('🔄 Falling back to mock products link with alternatives...');
 
         const mockLinkId = `mock-products-link-${Date.now()}`;
         const mockUrl = NODE_ENV === 'development'
@@ -2171,7 +2171,7 @@ router.post('/products-link/create', authenticateUser, preventNoSQLInjection, va
       });
     }
   } catch (error) {
-    console.error('❌ Error creating products link:', error);
+    logger.error('❌ Error creating products link:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create products link',
@@ -2192,7 +2192,7 @@ router.post('/shopping-list/create', authenticateUser, preventNoSQLInjection, va
       instructions
     } = req.body;
     
-    console.log(`🛒 Creating Instacart shopping list: "${title}"`);
+    logger.info(`🛒 Creating Instacart shopping list: "${title}"`);
     
     if (!title || !lineItems || lineItems.length === 0) {
       return res.status(400).json({
@@ -2360,12 +2360,12 @@ router.post('/shopping-list/create', authenticateUser, preventNoSQLInjection, va
           }
         });
         
-        console.log('📝 Shopping list payload:', JSON.stringify(shoppingListPayload, null, 2));
+        logger.info('📝 Shopping list payload:', JSON.stringify(shoppingListPayload, null, 2));
         
         // Make API call to create shopping list
         const response = await instacartApiCall('/products/products_link', 'POST', shoppingListPayload);
         
-        console.log('✅ Shopping list API response:', response);
+        logger.info('✅ Shopping list API response:', response);
         
         if (response && response.products_link_url) {
           const result = {
@@ -2383,14 +2383,14 @@ router.post('/shopping-list/create', authenticateUser, preventNoSQLInjection, va
           
           res.json(result);
         } else {
-          console.log('⚠️ Unexpected API response format:', response);
+          logger.info('⚠️ Unexpected API response format:', response);
           throw new Error('Invalid API response format');
         }
       } catch (error) {
-        console.error('❌ Shopping list API failed:', error);
+        logger.error('❌ Shopping list API failed:', error);
         
         // Fallback to recipe API if shopping list fails
-        console.log('🔄 Falling back to recipe API...');
+        logger.info('🔄 Falling back to recipe API...');
         
         // Convert shopping list items to recipe ingredients
         const recipeIngredients = lineItems.map(item => ({
@@ -2451,7 +2451,7 @@ router.post('/shopping-list/create', authenticateUser, preventNoSQLInjection, va
       });
     }
   } catch (error) {
-    console.error('❌ Error creating shopping list:', error);
+    logger.error('❌ Error creating shopping list:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create shopping list',
@@ -2472,7 +2472,7 @@ router.post('/compare-prices', authenticateUser, preventNoSQLInjection, validate
       });
     }
 
-    console.log(`🏪 Comparing prices across stores for: "${query}" in ${postal_code}`);
+    logger.info(`🏪 Comparing prices across stores for: "${query}" in ${postal_code}`);
 
     // Get available retailers for the location
     const retailersResponse = await instacartApiCall(`/retailers?postal_code=${postal_code}&country_code=US`, 'GET', null, INSTACART_API_KEY);
@@ -2486,14 +2486,14 @@ router.post('/compare-prices', authenticateUser, preventNoSQLInjection, validate
 
     // Get top retailers for comparison (limit to avoid too many requests)
     const topRetailers = retailersResponse.retailers.slice(0, 5);
-    console.log(`🏪 Comparing across ${topRetailers.length} stores: ${topRetailers.map(r => r.retailer_key).join(', ')}`);
+    logger.info(`🏪 Comparing across ${topRetailers.length} stores: ${topRetailers.map(r => r.retailer_key).join(', ')}`);
 
     // Search each store for pricing
     const storeComparisons = [];
 
     for (const retailer of topRetailers) {
       try {
-        console.log(`🔍 Checking ${retailer.name}...`);
+        logger.info(`🔍 Checking ${retailer.name}...`);
 
         // Use our existing search logic for each store
         const productsLinkPayload = {
@@ -2523,7 +2523,7 @@ router.post('/compare-prices', authenticateUser, preventNoSQLInjection, validate
         }
 
       } catch (storeError) {
-        console.log(`⚠️ Error checking ${retailer.name}: ${storeError.message}`);
+        logger.info(`⚠️ Error checking ${retailer.name}: ${storeError.message}`);
         storeComparisons.push({
           retailer_key: retailer.retailer_key,
           retailer_name: retailer.name,
@@ -2554,7 +2554,7 @@ router.post('/compare-prices', authenticateUser, preventNoSQLInjection, validate
     });
 
   } catch (error) {
-    console.error('❌ Price comparison error:', error);
+    logger.error('❌ Price comparison error:', error);
     res.status(500).json({
       success: false,
       error: 'Price comparison failed',
@@ -2565,7 +2565,7 @@ router.post('/compare-prices', authenticateUser, preventNoSQLInjection, validate
 
 // Error handling middleware
 router.use((error, req, res, next) => {
-  console.error('Instacart API Error:', error);
+  logger.error('Instacart API Error:', error);
   res.status(500).json({
     success: false,
     error: 'Internal server error',
@@ -2577,7 +2577,7 @@ router.use((error, req, res, next) => {
 // This bypasses recipe pages entirely and searches Instacart's product catalog directly
 router.post('/direct-product-search', authenticateUser, preventNoSQLInjection, validateRequestBody(), async (req, res) => {
   try {
-    console.log('🔍 Direct product search requested');
+    logger.info('🔍 Direct product search requested');
     const { items = [], retailer_key = 'safeway', postal_code = '95670' } = req.body;
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -2627,13 +2627,13 @@ router.post('/direct-product-search', authenticateUser, preventNoSQLInjection, v
             }));
           }
         } catch (catalogError) {
-          console.log(`Catalog search failed for "${searchQuery}":`, catalogError.message);
+          logger.info(`Catalog search failed for "${searchQuery}":`, catalogError.message);
         }
 
         // BACKUP METHOD REMOVED: /stores/{retailer}/items endpoint doesn't exist
         // Instead, if no products found, use the main search endpoint's proven working approach
         if (products.length === 0) {
-          console.log(`⚠️ No products found for "${searchQuery}" via recipe method, trying main search approach...`);
+          logger.info(`⚠️ No products found for "${searchQuery}" via recipe method, trying main search approach...`);
           try {
             // Use the same approach as the working /search endpoint
             const searchItem = {
@@ -2662,7 +2662,7 @@ router.post('/direct-product-search', authenticateUser, preventNoSQLInjection, v
               }
             }
           } catch (fallbackError) {
-            console.log(`Main search fallback failed for "${searchQuery}":`, fallbackError.message);
+            logger.info(`Main search fallback failed for "${searchQuery}":`, fallbackError.message);
           }
         }
 
@@ -2680,7 +2680,7 @@ router.post('/direct-product-search', authenticateUser, preventNoSQLInjection, v
         });
 
       } catch (itemError) {
-        console.error(`Error searching for item:`, itemError.message);
+        logger.error(`Error searching for item:`, itemError.message);
         results.push({
           query: typeof item === 'string' ? item : item.name,
           products: [],
@@ -2702,7 +2702,7 @@ router.post('/direct-product-search', authenticateUser, preventNoSQLInjection, v
     });
 
   } catch (error) {
-    console.error('❌ Direct product search error:', error);
+    logger.error('❌ Direct product search error:', error);
     res.status(500).json({
       success: false,
       error: 'Direct product search failed',
@@ -2742,7 +2742,7 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
     let products = [];
 
     // First try standard HTML parsing
-    console.log('🌐 Fetching recipe page HTML:', recipeUrl);
+    logger.info('🌐 Fetching recipe page HTML:', recipeUrl);
     const response = await axios.get(recipeUrl, {
       timeout: 10000,
       headers: {
@@ -2756,7 +2756,7 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
     });
 
     if (response.data && response.data.length > 1000) {
-      console.log('📄 Recipe page loaded successfully, parsing content...');
+      logger.info('📄 Recipe page loaded successfully, parsing content...');
       const $ = cheerio.load(response.data);
 
       // Extract Apollo GraphQL state data (modern approach - multiple formats)
@@ -2766,7 +2766,7 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
       $('script').each((i, elem) => {
         const scriptContent = $(elem).html();
         if (scriptContent && scriptContent.includes('window.__APOLLO_STATE__')) {
-          console.log('🎯 Found Apollo GraphQL state data (window format)');
+          logger.info('🎯 Found Apollo GraphQL state data (window format)');
           try {
             const apolloMatch = scriptContent.match(/window\.__APOLLO_STATE__\s*=\s*({.*?});/s);
             if (apolloMatch) {
@@ -2802,7 +2802,7 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
               });
             }
           } catch (parseError) {
-            console.log('⚠️ Apollo state parsing (window) failed:', parseError.message);
+            logger.info('⚠️ Apollo state parsing (window) failed:', parseError.message);
           }
         }
       });
@@ -2817,7 +2817,7 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
         apolloScriptSelectors.forEach(selector => {
           const apolloScript = $(selector);
           if (apolloScript.length > 0) {
-            console.log(`🎯 Found Apollo GraphQL state data (${selector})`);
+            logger.info(`🎯 Found Apollo GraphQL state data (${selector})`);
             try {
               const encodedData = apolloScript.html();
               if (encodedData) {
@@ -2825,7 +2825,7 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
                 const decodedData = decodeURIComponent(encodedData);
                 const apolloState = JSON.parse(decodedData);
                 apolloStateExtracted = true;
-                console.log(`   Apollo state keys: ${Object.keys(apolloState).length}`);
+                logger.info(`   Apollo state keys: ${Object.keys(apolloState).length}`);
 
                 // Extract product data from Apollo state
                 Object.keys(apolloState).forEach(key => {
@@ -2892,10 +2892,10 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
                   }
                 });
 
-                console.log(`   Products extracted from Apollo: ${products.length}`);
+                logger.info(`   Products extracted from Apollo: ${products.length}`);
               }
             } catch (parseError) {
-              console.log(`⚠️ Apollo state parsing (${selector}) failed:`, parseError.message);
+              logger.info(`⚠️ Apollo state parsing (${selector}) failed:`, parseError.message);
             }
           }
         });
@@ -2903,7 +2903,7 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
 
       // Fallback: Traditional CSS selector approach
       if (products.length === 0) {
-        console.log('🔍 Trying CSS selector approach...');
+        logger.info('🔍 Trying CSS selector approach...');
         const productSelectors = [
           '[data-testid*="product"]',
           '.product-item',
@@ -2953,13 +2953,13 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
 
       // Success logged
     } else {
-      console.log('⚠️ Recipe page content too small or empty');
+      logger.info('⚠️ Recipe page content too small or empty');
     }
 
     // If no products found and puppeteer is available, try dynamic loading
     if (products.length === 0 && typeof puppeteer !== 'undefined') {
       try {
-        console.log('🎭 Trying dynamic content loading with Puppeteer');
+        logger.info('🎭 Trying dynamic content loading with Puppeteer');
 
         const browser = await puppeteer.launch({
           headless: true,
@@ -3029,10 +3029,10 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
           .sort((a, b) => b.confidence - a.confidence)
           .slice(0, 3);
 
-        console.log(`🎭 Dynamic loading found ${products.length} products`);
+        logger.info(`🎭 Dynamic loading found ${products.length} products`);
 
       } catch (puppeteerError) {
-        console.log('🎭 Puppeteer parsing failed:', puppeteerError.message);
+        logger.info('🎭 Puppeteer parsing failed:', puppeteerError.message);
       }
     }
 
@@ -3045,13 +3045,13 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
     return products;
 
   } catch (error) {
-    console.error('Enhanced parsing error:', error.message);
+    logger.error('Enhanced parsing error:', error.message);
     return [];
   }
 }
 
 // Initialize API on module load
-console.log('🚀 Initializing Instacart API routes...');
+logger.info('🚀 Initializing Instacart API routes...');
 validateApiKeys();
 
 module.exports = router;

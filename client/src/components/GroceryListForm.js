@@ -19,6 +19,7 @@ import persistenceService from '../services/persistenceService';
 import { generateAIMealPlan } from '../services/aiMealPlanService';
 import { formatInstructionsToNumberedSteps } from '../utils/recipeFormatter';
 import { FEATURES } from '../config/features';
+import debugService from '../services/debugService';
 
 // MixingBowlLoader Component
 const MixingBowlLoader = ({ text = "CARTSMASH AI is preparing your meal plan..." }) => {
@@ -376,7 +377,7 @@ function getTimeAgo(date) {
 
 // Extract only grocery list items from AI response (not full meal plan)
 function extractGroceryListOnly(text) {
-  console.log('🛒 Extracting grocery list from AI response...');
+  debugService.log('Extracting grocery list from AI response...');
   
   const lines = text.split('\n');
   const groceryItems = [];
@@ -389,7 +390,7 @@ function extractGroceryListOnly(text) {
     
     // Skip meal plan items (they should be recipes, not grocery items)
     if (line.match(/^(•|-|\*|\d+\.)\s*(Breakfast|Lunch|Dinner|Snack):/i)) {
-      console.log('🍽️ Skipping meal plan item (should be recipe):', line);
+      debugService.log('Skipping meal plan item (should be recipe):', line);
       inMealPlanSection = true;
       continue;
     }
@@ -397,7 +398,7 @@ function extractGroceryListOnly(text) {
     // Detect actual grocery list section
     if (lowerLine.includes('grocery list') || lowerLine.includes('shopping list') || 
         lowerLine.includes('ingredients needed') || lowerLine.includes('shopping items')) {
-      console.log('🛒 Found grocery section start');
+      debugService.log('Found grocery section start');
       inGrocerySection = true;
       inMealPlanSection = false;
       continue;
@@ -435,7 +436,7 @@ const cleanRecipeTitle = (title) => {
 const cleanMarkdown = (text) => {
   // Ensure we always work with a string
   if (typeof text !== 'string') {
-    console.warn('⚠️ cleanMarkdown received non-string input:', text);
+    debugService.logWarning('cleanMarkdown received non-string input:', text);
     return String(text || '');
   }
 
@@ -452,13 +453,13 @@ const cleanMarkdown = (text) => {
 //   
 //   // Must have at least 3 ingredients
 //   if (!ingredients || ingredients.length < 3) {
-//     console.log('❌ Too few ingredients:', ingredients?.length || 0);
+// Debug: Too few ingredients check removed
 //     return false;
 //   }
 //   
 //   // Must have at least 3 instructions
 //   if (!instructions || instructions.length < 3) {
-//     console.log('❌ Too few instructions:', instructions?.length || 0);
+// Debug: Too few instructions check removed
 //     return false;
 //   }
 //   
@@ -469,7 +470,7 @@ const cleanMarkdown = (text) => {
 //   });
 //   
 //   if (tooShortInstructions.length > 0) {
-//     console.log('❌ Instructions too brief:', tooShortInstructions);
+// Debug: Instructions too brief check removed
 //     return false;
 //   }
 //   
@@ -488,7 +489,7 @@ const cleanMarkdown = (text) => {
 //     if (inst.split(' ').length < 10) { // Very short instruction
 //       for (let pattern of lazyPatterns) {
 //         if (pattern.test(inst)) {
-//           console.log('❌ Lazy instruction detected:', inst);
+// Debug: Lazy instruction check removed
 //           return false;
 //         }
 //       }
@@ -659,7 +660,7 @@ function GroceryListForm({
   // Clean up corrupted localStorage data on component mount
   useEffect(() => {
     const cleanupCorruptedData = () => {
-      console.log('🧹 Checking for corrupted localStorage data...');
+      debugService.log('Checking for corrupted localStorage data...');
       
       // List of localStorage keys that might contain corrupted meal plan data
       const keysToCheck = [
@@ -676,7 +677,7 @@ function GroceryListForm({
         try {
           const data = localStorage.getItem(key);
           if (data && (data.includes('Failed to generate') || data.includes('⚠️') || data.includes('please retry'))) {
-            console.log(`🧹 Removing corrupted ${key} on mount`);
+            debugService.log(`Removing corrupted ${key} on mount`);
             localStorage.removeItem(key);
           } else if (data) {
             try {
@@ -693,16 +694,16 @@ function GroceryListForm({
               }
               
               if (isCorrupted) {
-                console.log(`🗑️ Removing corrupted data from localStorage key: ${key}`);
+                debugService.log(`🗑️ Removing corrupted data from localStorage key: ${key}`);
                 localStorage.removeItem(key);
               }
             } catch (parseError) {
-              console.log(`🗑️ Removing invalid JSON from localStorage key: ${key}`);
+              debugService.log(`🗑️ Removing invalid JSON from localStorage key: ${key}`);
               localStorage.removeItem(key);
             }
           }
         } catch (error) {
-          console.log(`🗑️ Removing invalid JSON from localStorage key: ${key}`);
+          debugService.log(`🗑️ Removing invalid JSON from localStorage key: ${key}`);
           localStorage.removeItem(key);
         }
       });
@@ -719,7 +720,7 @@ function GroceryListForm({
     try {
       // Check if real-time pricing is enabled (per user "NO MOCK DATA" requirement)
       if (!FEATURES.REAL_TIME_PRICING) {
-        console.log('⏭️ Enrichment skipped - REAL_TIME_PRICING disabled');
+        debugService.log('⏭️ Enrichment skipped - REAL_TIME_PRICING disabled');
         setCurrentCart(cartItems);
         return;
       }
@@ -727,12 +728,12 @@ function GroceryListForm({
       // Check if items are already enriched to prevent re-enrichment loops
       const alreadyEnriched = cartItems.every(item => item.enriched === true);
       if (alreadyEnriched) {
-        console.log('✅ Items already enriched, skipping re-enrichment');
+        debugService.log('✅ Items already enriched, skipping re-enrichment');
         return;
       }
 
       // Starting enrichment pipeline
-      console.log(`📊 ENRICHMENT INPUT - Cart Items to Process:`, {
+      debugService.log(`📊 ENRICHMENT INPUT - Cart Items to Process:`, {
         itemCount: cartItems.length,
         sampleItems: cartItems.slice(0, 3).map((item, index) => ({
           index,
@@ -760,7 +761,7 @@ function GroceryListForm({
 
       // Default retailer - could be made configurable
       const retailerId = currentUser?.preferredRetailer || 'default';
-      console.log(`🏪 ENRICHMENT CONFIG:`, {
+      debugService.log(`🏪 ENRICHMENT CONFIG:`, {
         retailerId,
         currentUserExists: !!currentUser,
         preferredRetailer: currentUser?.preferredRetailer,
@@ -776,7 +777,7 @@ function GroceryListForm({
         const batchNumber = Math.floor(i/batchSize) + 1;
 
         // Processing batch
-        console.log(`📦 Batch items:`, batch.map(item => ({
+        debugService.log(`📦 Batch items:`, batch.map(item => ({
           id: item.id,
           productName: item.productName || item.name,
           currentPrice: item.price,
@@ -787,7 +788,7 @@ function GroceryListForm({
           const searchQuery = item.productName || item.name;
 
           // Processing item
-          console.log(`📊 Item Debug Info:`, {
+          debugService.log(`📊 Item Debug Info:`, {
             originalItem: {
               id: item.id,
               productName: item.productName,
@@ -804,13 +805,13 @@ function GroceryListForm({
           });
 
           try {
-            console.log(`🌐 Making Instacart API call for: "${searchQuery}"`);
+            debugService.log(`🌐 Making Instacart API call for: "${searchQuery}"`);
             const startTime = Date.now();
 
             const searchResults = await instacartService.searchProducts(searchQuery, retailerId);
             const apiCallDuration = Date.now() - startTime;
 
-            console.log(`📡 API Call Results for "${searchQuery}":`, {
+            debugService.log(`📡 API Call Results for "${searchQuery}":`, {
               duration: `${apiCallDuration}ms`,
               success: searchResults.success,
               productsFound: searchResults.products?.length || 0,
@@ -831,7 +832,7 @@ function GroceryListForm({
               // Use the first (best) match
               const instacartProduct = searchResults.products[0];
 
-              console.log(`✅ ENRICHMENT SUCCESS for "${searchQuery}":`, {
+              debugService.log(`✅ ENRICHMENT SUCCESS for "${searchQuery}":`, {
                 instacartProduct: {
                   id: instacartProduct.id,
                   name: instacartProduct.name,
@@ -875,7 +876,7 @@ function GroceryListForm({
                 size: item.size          // Force preserve original size if it exists
               };
 
-              console.log(`✅ ENRICHED ITEM CREATED for "${searchQuery}":`, {
+              debugService.log(`✅ ENRICHED ITEM CREATED for "${searchQuery}":`, {
                 enrichedItem: {
                   id: enrichedItem.id,
                   productName: enrichedItem.productName || enrichedItem.name,
@@ -892,7 +893,7 @@ function GroceryListForm({
 
               return enrichedItem;
             } else {
-              console.log(`⚠️ NO MATCH FOUND for "${searchQuery}":`, {
+              debugService.log(`⚠️ NO MATCH FOUND for "${searchQuery}":`, {
                 reason: !searchResults.success ? 'API call failed' :
                         !searchResults.products ? 'No products array' :
                         searchResults.products.length === 0 ? 'Empty products array' : 'Unknown',
@@ -909,11 +910,11 @@ function GroceryListForm({
                 enriched: false
               };
 
-              console.log(`⚠️ UNENRICHED ITEM for "${searchQuery}":`, unEnrichedItem);
+              debugService.log(`⚠️ UNENRICHED ITEM for "${searchQuery}":`, unEnrichedItem);
               return unEnrichedItem;
             }
           } catch (error) {
-            console.error(`❌ ENRICHMENT ERROR for "${searchQuery}":`, {
+            debugService.logError(`❌ ENRICHMENT ERROR for "${searchQuery}":`, {
               error: {
                 name: error.name,
                 message: error.message,
@@ -932,15 +933,15 @@ function GroceryListForm({
               enrichmentError: error.message
             };
 
-            console.log(`❌ ERROR ITEM for "${searchQuery}":`, errorItem);
+            debugService.log(`❌ ERROR ITEM for "${searchQuery}":`, errorItem);
             return errorItem;
           }
         });
 
-        console.log(`⏳ Waiting for batch ${batchNumber} to complete...`);
+        debugService.log(`⏳ Waiting for batch ${batchNumber} to complete...`);
         const batchResults = await Promise.all(batchPromises);
 
-        console.log(`✅ BATCH ${batchNumber} COMPLETE:`, {
+        debugService.log(`✅ BATCH ${batchNumber} COMPLETE:`, {
           batchSize: batchResults.length,
           enrichedCount: batchResults.filter(item => item.enriched).length,
           unEnrichedCount: batchResults.filter(item => !item.enriched).length,
@@ -960,11 +961,11 @@ function GroceryListForm({
 
         // Process next batch immediately for faster performance
         if (i + batchSize < cartItems.length) {
-          console.log(`⚡ Processing next batch immediately...`);
+          debugService.log(`⚡ Processing next batch immediately...`);
         }
       }
 
-      console.log(`🎉 ===== ENRICHMENT PIPELINE COMPLETE =====`);
+      debugService.log(`🎉 ===== ENRICHMENT PIPELINE COMPLETE =====`);
       const finalStats = {
         totalItems: enrichedItems.length,
         enrichedSuccessfully: enrichedItems.filter(item => item.enriched).length,
@@ -973,8 +974,8 @@ function GroceryListForm({
         averagePrice: enrichedItems.filter(item => item.price > 0).reduce((sum, item) => sum + item.price, 0) / enrichedItems.filter(item => item.price > 0).length || 0
       };
 
-      console.log(`📊 FINAL ENRICHMENT STATS:`, finalStats);
-      console.log(`📦 SAMPLE ENRICHED ITEMS:`, enrichedItems.slice(0, 3).map(item => ({
+      debugService.log(`📊 FINAL ENRICHMENT STATS:`, finalStats);
+      debugService.log(`📦 SAMPLE ENRICHED ITEMS:`, enrichedItems.slice(0, 3).map(item => ({
         id: item.id,
         productName: item.productName || item.name,
         price: item.price,
@@ -984,8 +985,8 @@ function GroceryListForm({
       })));
 
       // Update the cart with enriched data
-      console.log(`🔄 CALLING setCurrentCart with enriched items...`);
-      console.log(`📊 BEFORE setCurrentCart - Current cart state:`, {
+      debugService.log(`🔄 CALLING setCurrentCart with enriched items...`);
+      debugService.log(`📊 BEFORE setCurrentCart - Current cart state:`, {
         currentCartLength: currentCart?.length || 0,
         newEnrichedItemsLength: enrichedItems.length
       });
@@ -1000,12 +1001,12 @@ function GroceryListForm({
       setEnrichmentProgress(0);
       setEnrichmentTotal(0);
 
-      console.log(`✅ setCurrentCart called successfully`);
-      console.log(`🔍 ===== ENRICHMENT PIPELINE DEBUG COMPLETE =====`);
+      debugService.log(`✅ setCurrentCart called successfully`);
+      debugService.log(`🔍 ===== ENRICHMENT PIPELINE DEBUG COMPLETE =====`);
 
     } catch (error) {
-      console.error('❌ ===== ENRICHMENT PIPELINE FATAL ERROR =====');
-      console.error('💥 Fatal enrichment error:', {
+      debugService.logError('❌ ===== ENRICHMENT PIPELINE FATAL ERROR =====');
+      debugService.logError('💥 Fatal enrichment error:', {
         error: {
           name: error.name,
           message: error.message,
@@ -1014,7 +1015,7 @@ function GroceryListForm({
         inputCartItemsLength: cartItems?.length || 0,
         currentTime: new Date().toISOString()
       });
-      console.error('🔍 ===== ENRICHMENT PIPELINE ERROR COMPLETE =====');
+      debugService.logError('🔍 ===== ENRICHMENT PIPELINE ERROR COMPLETE =====');
 
       // Hide enrichment status on error
       setShowEnrichmentStatus(false);
@@ -1061,12 +1062,12 @@ function GroceryListForm({
 
   // Data persistence hooks - load data on component mount
   useEffect(() => {
-    console.log('💾 Loading persisted data on component mount...');
+    debugService.log('💾 Loading persisted data on component mount...');
     
     // Load cart data
     const persistedCart = persistenceService.loadCart();
     if (persistedCart && persistedCart.length > 0) {
-      console.log('📖 Loading persisted cart:', persistedCart.length, 'items');
+      debugService.log('📖 Loading persisted cart:', persistedCart.length, 'items');
       setCurrentCart(persistedCart);
 
       // Enrich persisted cart items with product data if enabled
@@ -1078,11 +1079,11 @@ function GroceryListForm({
     if (persistedRecipes && persistedRecipes.length > 0) {
       // Filter out corrupted recipes
       const validRecipes = persistedRecipes.filter(recipe => isValidRecipe(recipe));
-      console.log(`📖 Loading recipes: ${validRecipes.length} valid out of ${persistedRecipes.length} total`);
+      debugService.log(`📖 Loading recipes: ${validRecipes.length} valid out of ${persistedRecipes.length} total`);
       
       if (validRecipes.length !== persistedRecipes.length) {
         // Clean corrupted recipes from storage
-        console.log('🧹 Cleaning corrupted recipes from storage');
+        debugService.log('🧹 Cleaning corrupted recipes from storage');
         persistenceService.saveRecipes(validRecipes, 24);
       }
       
@@ -1094,11 +1095,11 @@ function GroceryListForm({
     if (persistedParsedRecipes && persistedParsedRecipes.length > 0) {
       // Filter out corrupted recipes
       const validParsedRecipes = persistedParsedRecipes.filter(recipe => isValidRecipe(recipe));
-      console.log(`📖 Loading parsed recipes: ${validParsedRecipes.length} valid out of ${persistedParsedRecipes.length} total`);
+      debugService.log(`📖 Loading parsed recipes: ${validParsedRecipes.length} valid out of ${persistedParsedRecipes.length} total`);
       
       if (validParsedRecipes.length !== persistedParsedRecipes.length) {
         // Clean corrupted recipes from storage
-        console.log('🧹 Cleaning corrupted parsed recipes from storage');
+        debugService.log('🧹 Cleaning corrupted parsed recipes from storage');
         persistenceService.saveSessionData('parsed_recipes', validParsedRecipes, 2);
       }
       
@@ -1110,11 +1111,11 @@ function GroceryListForm({
     if (persistedAIRecipes && persistedAIRecipes.length > 0) {
       // Filter out corrupted recipes
       const validAIRecipes = persistedAIRecipes.filter(recipe => isValidRecipe(recipe));
-      console.log(`📖 Loading AI recipes: ${validAIRecipes.length} valid out of ${persistedAIRecipes.length} total`);
+      debugService.log(`📖 Loading AI recipes: ${validAIRecipes.length} valid out of ${persistedAIRecipes.length} total`);
 
       if (validAIRecipes.length !== persistedAIRecipes.length) {
         // Clean corrupted recipes from storage
-        console.log('🧹 Cleaning corrupted AI recipes from storage');
+        debugService.log('🧹 Cleaning corrupted AI recipes from storage');
         persistenceService.saveSessionData('ai_recipes', validAIRecipes, 2);
       }
 
@@ -1124,17 +1125,17 @@ function GroceryListForm({
     // Load last AI response text
     const persistedAIText = persistenceService.loadSessionData('ai_recipe_text', '');
     if (persistedAIText) {
-      console.log('📖 Loading persisted AI text');
+      debugService.log('📖 Loading persisted AI text');
       setAiRecipeText(persistedAIText);
     }
     
-    console.log('✅ Data persistence loading complete');
+    debugService.log('✅ Data persistence loading complete');
   }, []); // Run only once on component mount
 
   // Auto-save cart data when it changes (including empty carts)
   useEffect(() => {
     if (currentCart !== null && currentCart !== undefined) {
-      console.log('💾 Auto-saving cart:', currentCart.length, 'items');
+      debugService.log('💾 Auto-saving cart:', currentCart.length, 'items');
       persistenceService.saveCart(currentCart, 48); // 48-hour expiration
     }
   }, [currentCart]);
@@ -1142,7 +1143,7 @@ function GroceryListForm({
   // Monitor currentCart state changes
   useEffect(() => {
     if (currentCart && currentCart.length > 0) {
-      console.log(`📊 Cart updated: ${currentCart.length} items`);
+      debugService.log(`📊 Cart updated: ${currentCart.length} items`);
     }
   }, [currentCart]);
 
@@ -1152,7 +1153,7 @@ function GroceryListForm({
       // Only save valid recipes
       const validRecipes = savedRecipes.filter(recipe => isValidRecipe(recipe));
       if (validRecipes.length > 0) {
-        console.log(`💾 Auto-saving ${validRecipes.length} valid recipes`);
+        debugService.log(`💾 Auto-saving ${validRecipes.length} valid recipes`);
         persistenceService.saveRecipes(validRecipes, 24);
       }
     }
@@ -1164,7 +1165,7 @@ function GroceryListForm({
       // Only save valid recipes
       const validRecipes = parsedRecipes.filter(recipe => isValidRecipe(recipe));
       if (validRecipes.length > 0) {
-        console.log(`💾 Auto-saving ${validRecipes.length} valid parsed recipes`);
+        debugService.log(`💾 Auto-saving ${validRecipes.length} valid parsed recipes`);
         persistenceService.saveSessionData('parsed_recipes', validRecipes, 2);
       }
     }
@@ -1176,7 +1177,7 @@ function GroceryListForm({
       // Only save valid recipes
       const validRecipes = recipes.filter(recipe => isValidRecipe(recipe));
       if (validRecipes.length > 0) {
-        console.log(`💾 Auto-saving ${validRecipes.length} valid AI recipes`);
+        debugService.log(`💾 Auto-saving ${validRecipes.length} valid AI recipes`);
         persistenceService.saveSessionData('ai_recipes', validRecipes, 2);
       }
     }
@@ -1185,14 +1186,14 @@ function GroceryListForm({
   // Auto-save AI response text when it changes
   useEffect(() => {
     if (aiRecipeText && aiRecipeText.trim()) {
-      console.log('💾 Auto-saving AI recipe text');
+      debugService.log('💾 Auto-saving AI recipe text');
       persistenceService.saveSessionData('ai_recipe_text', aiRecipeText, 2); // 2-hour expiration
     }
   }, [aiRecipeText]);
 
   // Debug function to identify cart item structure
   const debugCartItem = (item) => {
-    console.log('Cart item structure:', {
+    debugService.log('Cart item structure:', {
       fullItem: item,
       keys: Object.keys(item),
       productName: item.productName,
@@ -1321,7 +1322,7 @@ function GroceryListForm({
         
         // Skip items with invalid names or corrupted error messages
         if (invalidNames.includes(productName) || productName.includes('⚠️') || productName.includes('failed to generate')) {
-          console.warn('🗑️ Filtering out corrupted cart item:', {
+          debugService.logWarning('🗑️ Filtering out corrupted cart item:', {
             originalProductName: item.productName,
             convertedProductName: productName,
             itemKeys: Object.keys(item),
@@ -1383,7 +1384,7 @@ function GroceryListForm({
   // Monitor cart changes
   useEffect(() => {
     if (currentCart && currentCart.length > 0) {
-      console.log(`🛒 Cart contains ${currentCart.length} items`);
+      debugService.log(`🛒 Cart contains ${currentCart.length} items`);
     }
   }, [currentCart]);
 
@@ -1416,9 +1417,9 @@ function GroceryListForm({
     // 🚨 DEBUG: Track when this function is called
     const callStack = new Error().stack;
     const timestamp = new Date().toISOString();
-    console.log('🚨 MEAL PLAN DEBUG: generateCompleteMealPlan called at', timestamp);
-    console.log('🚨 CALL STACK:', callStack);
-    console.log('🚨 CURRENT STATE:', {
+    debugService.log('🚨 MEAL PLAN DEBUG: generateCompleteMealPlan called at', timestamp);
+    debugService.log('🚨 CALL STACK:', callStack);
+    debugService.log('🚨 CURRENT STATE:', {
       generatingMealPlan,
       currentUser: currentUser?.uid || 'none',
       componentMounted: true,
@@ -1426,11 +1427,11 @@ function GroceryListForm({
     });
 
     if (generatingMealPlan) {
-      console.log('🚫 Meal plan generation already in progress - BLOCKING');
+      debugService.log('🚫 Meal plan generation already in progress - BLOCKING');
       return;
     }
 
-    console.log('🚨 PROCEEDING with meal plan generation...');
+    debugService.log('🚨 PROCEEDING with meal plan generation...');
     setGeneratingMealPlan(true);
     setError('');
     setIsLoading(true);
@@ -1439,7 +1440,7 @@ function GroceryListForm({
     setParsingProgress(0);
 
     try {
-      console.log('🍽️ Starting complete AI meal plan generation with preferences:', mealPlanPreferences);
+      debugService.log('🍽️ Starting complete AI meal plan generation with preferences:', mealPlanPreferences);
 
       // Clear existing recipes to make room for new meal plan
       setParsedRecipes([]);
@@ -1448,20 +1449,20 @@ function GroceryListForm({
       // Call the dedicated AI meal plan service
       const mealPlanResult = await generateAIMealPlan(mealPlanPreferences, currentUser);
 
-      console.log('✅ AI meal plan generated successfully:', mealPlanResult);
+      debugService.log('✅ AI meal plan generated successfully:', mealPlanResult);
 
       if (mealPlanResult.success && mealPlanResult.mealPlan) {
         const { mealPlan } = mealPlanResult;
 
         // Set the recipes from the meal plan
         if (mealPlan.recipes && mealPlan.recipes.length > 0) {
-          console.log(`📋 Displaying ${mealPlan.recipes.length} meal plan recipes`);
+          debugService.log(`📋 Displaying ${mealPlan.recipes.length} meal plan recipes`);
           setRecipes(mealPlan.recipes);
         }
 
         // Set the shopping list from the meal plan
         if (mealPlan.shoppingList && mealPlan.shoppingList.length > 0) {
-          console.log(`🛒 Setting shopping list with ${mealPlan.shoppingList.length} items`);
+          debugService.log(`🛒 Setting shopping list with ${mealPlan.shoppingList.length} items`);
           const shoppingListText = mealPlan.shoppingList.map(item => {
             const quantity = item.quantity || '1';
             const unit = item.unit ? ` ${item.unit}` : '';
@@ -1483,24 +1484,24 @@ function GroceryListForm({
               mealPlan.id = `meal_plan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             }
             await saveMealPlan(mealPlan);
-            console.log('💾 Meal plan saved successfully');
+            debugService.log('💾 Meal plan saved successfully');
           } catch (saveError) {
-            console.error('💾 Failed to save meal plan:', saveError);
+            debugService.logError('💾 Failed to save meal plan:', saveError);
           }
         }
 
         setParsingProgress(100);
-        console.log('✅ Complete AI meal plan generation finished successfully');
+        debugService.log('✅ Complete AI meal plan generation finished successfully');
       } else {
         throw new Error(mealPlanResult.error || 'Failed to generate meal plan');
       }
     } catch (error) {
-      console.error('❌ Error generating complete meal plan:', error);
-      console.log('🚨 MEAL PLAN DEBUG: Error occurred at', new Date().toISOString());
+      debugService.logError('❌ Error generating complete meal plan:', error);
+      debugService.log('🚨 MEAL PLAN DEBUG: Error occurred at', new Date().toISOString());
       setError(`Failed to generate meal plan: ${error.message}`);
     } finally {
-      console.log('🚨 MEAL PLAN DEBUG: Function completed at', new Date().toISOString());
-      console.log('🚨 MEAL PLAN DEBUG: Resetting state flags');
+      debugService.log('🚨 MEAL PLAN DEBUG: Function completed at', new Date().toISOString());
+      debugService.log('🚨 MEAL PLAN DEBUG: Resetting state flags');
       setGeneratingMealPlan(false);
       setIsLoading(false);
       setShowProgress(false);
@@ -1618,11 +1619,11 @@ function GroceryListForm({
   const generateDetailedRecipeWithAI = useCallback(async (recipeName, retryCount = 0) => {
     const MAX_RETRIES = 2;
 
-    console.log('🤖 AI-ONLY generation for:', recipeName);
-    console.log('📊 Attempt:', retryCount + 1, 'of', MAX_RETRIES);
+    debugService.log('🤖 AI-ONLY generation for:', recipeName);
+    debugService.log('📊 Attempt:', retryCount + 1, 'of', MAX_RETRIES);
 
     if (retryCount >= MAX_RETRIES) {
-      console.error(`❌ AI failed after ${MAX_RETRIES} attempts for: ${recipeName}`);
+      debugService.logError(`❌ AI failed after ${MAX_RETRIES} attempts for: ${recipeName}`);
       throw new Error(`AI generation failed for "${recipeName}" after ${MAX_RETRIES} attempts. Please try again with a different recipe name.`);
     }
 
@@ -1644,7 +1645,7 @@ Return as JSON with this structure:
   "instructions": ["step 1", "step 2", ...]
 }`;
 
-      console.log('📝 Sending prompt attempt', retryCount + 1);
+      debugService.log('📝 Sending prompt attempt', retryCount + 1);
 
       const response = await fetch(`${API_URL}/api/ai/${selectedAI || 'anthropic'}`, {
         method: 'POST',
@@ -1666,7 +1667,7 @@ Return as JSON with this structure:
       const data = await response.json();
 
       // Debug what we received
-      console.log('🔍 AI Response Structure:', {
+      debugService.log('🔍 AI Response Structure:', {
         hasResponse: !!data.response,
         hasStructuredData: !!data.structuredData,
         hasInstructions: !!data.instructions,
@@ -1705,13 +1706,13 @@ Return as JSON with this structure:
             parsedData = jsonStr;
           }
         } catch (e) {
-          console.error('JSON parse error:', e);
-          console.log('Raw response length:', data.response?.length);
-          console.log('Raw response preview:', data.response?.substring(0, 500));
+          debugService.logError('JSON parse error:', e);
+          debugService.log('Raw response length:', data.response?.length);
+          debugService.log('Raw response preview:', data.response?.substring(0, 500));
 
           // Check if response appears truncated
           if (data.response && data.response.length > 6000 && !data.response.trim().endsWith('}')) {
-            console.warn('⚠️ Response appears to be truncated - trying to repair JSON');
+            debugService.logWarning('⚠️ Response appears to be truncated - trying to repair JSON');
             // Try to repair truncated JSON by closing incomplete structures
             let repairedJson = data.response;
 
@@ -1725,9 +1726,9 @@ Return as JSON with this structure:
               repairedJson += '}'.repeat(missingBraces);
               try {
                 parsedData = JSON.parse(repairedJson);
-                console.log('✅ Successfully repaired truncated JSON');
+                debugService.log('✅ Successfully repaired truncated JSON');
               } catch (repairError) {
-                console.error('❌ Failed to repair JSON:', repairError);
+                debugService.logError('❌ Failed to repair JSON:', repairError);
                 throw new Error(`Response appears truncated (${data.response.length} chars). Try reducing meal plan size or increasing token limit.`);
               }
             } else {
@@ -1749,7 +1750,7 @@ Return as JSON with this structure:
       const formattedInstructions = formatInstructionsToNumberedSteps(instructionsText);
       const finalInstructions = formattedInstructions ? formattedInstructions.split('\n\n').filter(step => step.trim()) : rawInstructions;
 
-      console.log('📊 Parsed recipe data:', {
+      debugService.log('📊 Parsed recipe data:', {
         ingredientCount: ingredients.length,
         instructionCount: finalInstructions.length,
         formatted: !!formattedInstructions,
@@ -1757,11 +1758,11 @@ Return as JSON with this structure:
       });
 
       // Accept all valid recipes without artificial restrictions
-      console.log(`✅ Recipe validation passed - accepting AI-generated content as provided`);
+      debugService.log(`✅ Recipe validation passed - accepting AI-generated content as provided`);
 
-      console.log(`✅ AI successfully generated detailed recipe for "${recipeName}"`);
-      console.log(`   - ${ingredients.length} ingredients`);
-      console.log(`   - ${finalInstructions.length} detailed formatted instructions`);
+      debugService.log(`✅ AI successfully generated detailed recipe for "${recipeName}"`);
+      debugService.log(`   - ${ingredients.length} ingredients`);
+      debugService.log(`   - ${finalInstructions.length} detailed formatted instructions`);
 
       return {
         ingredients: ingredients,
@@ -1771,11 +1772,11 @@ Return as JSON with this structure:
       };
 
     } catch (error) {
-      console.error(`❌ AI attempt ${retryCount + 1} failed:`, error.message);
+      debugService.logError(`❌ AI attempt ${retryCount + 1} failed:`, error.message);
 
       // Retry with different prompt
       if (retryCount < MAX_RETRIES - 1) {
-        console.log(`🔄 Retrying with more explicit prompt...`);
+        debugService.log(`🔄 Retrying with more explicit prompt...`);
         return await generateDetailedRecipeWithAI(recipeName, retryCount + 1);
       }
 
@@ -1793,8 +1794,8 @@ Return as JSON with this structure:
     let currentDay = '';
     let captureNextAsRecipeName = false;
 
-    console.log('🔍 Enhanced recipe extraction starting...');
-    console.log('📊 Total lines to process:', lines.length);
+    debugService.log('🔍 Enhanced recipe extraction starting...');
+    debugService.log('📊 Total lines to process:', lines.length);
 
     // Smart detection: Is this a single recipe or a meal plan?
     const dayIndicators = text.match(/\b(Day\s+[1-7]|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi) || [];
@@ -1812,7 +1813,7 @@ Return as JSON with this structure:
 
     const isTrueMealPlan = (hasMultipleDays || hasMultipleMealTypes || hasMultipleRecipeHeaders || hasListedMeals) && !appearsToBeRecipe;
 
-    console.log('🔍 Content analysis:', {
+    debugService.log('🔍 Content analysis:', {
       dayIndicators: dayIndicators.length,
       mealTypeCount: mealTypeCount,
       recipeHeaders: recipeHeaders.length,
@@ -1826,7 +1827,7 @@ Return as JSON with this structure:
 
     // If this looks like a single recipe, use AI generation
     if (!isTrueMealPlan) {
-      console.log('📝 Content appears to be a single recipe, using AI generation...');
+      debugService.log('📝 Content appears to be a single recipe, using AI generation...');
       // Return AI-only placeholder - actual AI generation handled elsewhere
       return {
         recipes: [],
@@ -1835,7 +1836,7 @@ Return as JSON with this structure:
       };
     }
 
-    console.log('📅 Content appears to be a multi-day meal plan, using full parsing...');
+    debugService.log('📅 Content appears to be a multi-day meal plan, using full parsing...');
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -1848,7 +1849,7 @@ Return as JSON with this structure:
                        line.match(/^##\s+(Day\s+\d+|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
       if (dayMatch) {
         currentDay = dayMatch[1].replace(':', '').trim();
-        console.log('📅 Found day header:', currentDay);
+        debugService.log('📅 Found day header:', currentDay);
         continue;
       }
 
@@ -1859,7 +1860,7 @@ Return as JSON with this structure:
       if (mealTypeMatch) {
         captureNextAsRecipeName = true;
         currentSection = ''; // Reset section when new meal starts
-        console.log('Found meal type header:', mealTypeMatch[1]);
+        debugService.log('Found meal type header:', mealTypeMatch[1]);
         continue;
       }
 
@@ -1886,7 +1887,7 @@ Return as JSON with this structure:
           // Save previous recipe if exists
           if (currentRecipe && currentRecipe.title) {
             if (currentRecipe.ingredients.length === 0 || currentRecipe.instructions.length === 0) {
-              console.log('🤖 AI generation required for:', currentRecipe.title);
+              debugService.log('🤖 AI generation required for:', currentRecipe.title);
 
               try {
                 const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
@@ -1899,19 +1900,19 @@ Return as JSON with this structure:
                 }
               } catch (error) {
                 // Show error to user instead of using fallbacks
-                console.error('❌ Recipe generation failed for:', currentRecipe.title, error.message);
+                debugService.logError('❌ Recipe generation failed for:', currentRecipe.title, error.message);
                 // Don't save corrupted recipes to avoid localStorage pollution
-                console.log('🚫 Skipping corrupted recipe to prevent localStorage pollution');
+                debugService.log('🚫 Skipping corrupted recipe to prevent localStorage pollution');
                 continue; // Skip this recipe instead of saving it with error messages
               }
             }
             // Validate the recipe before adding it
             if (isValidRecipe(currentRecipe)) {
-              console.log('💾 Saving recipe:', currentRecipe.title,
+              debugService.log('💾 Saving recipe:', currentRecipe.title,
                          `(${currentRecipe.ingredients.length} ingredients)`);
               recipes.push(currentRecipe);
             } else {
-              console.log('🚫 Skipping invalid recipe:', currentRecipe.title);
+              debugService.log('🚫 Skipping invalid recipe:', currentRecipe.title);
             }
           }
 
@@ -1949,7 +1950,7 @@ Return as JSON with this structure:
           };
 
           foundRecipe = true;
-          console.log(`📝 Found ${mealType} recipe: "${recipeName}"`);
+          debugService.log(`📝 Found ${mealType} recipe: "${recipeName}"`);
           break;
         }
       }
@@ -1961,7 +1962,7 @@ Return as JSON with this structure:
         // Save previous recipe
         if (currentRecipe && currentRecipe.title) {
           if (currentRecipe.ingredients.length === 0 || currentRecipe.instructions.length === 0) {
-            console.log('🤖 AI generation required for:', currentRecipe.title);
+            debugService.log('🤖 AI generation required for:', currentRecipe.title);
 
             try {
               const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
@@ -1973,9 +1974,9 @@ Return as JSON with this structure:
                 currentRecipe.instructions = aiRecipe.instructions;
               }
             } catch (error) {
-              console.error('❌ Recipe generation failed for:', currentRecipe.title, error.message);
+              debugService.logError('❌ Recipe generation failed for:', currentRecipe.title, error.message);
               // Don't add corrupted recipe - just skip it
-              console.log('🚫 Skipping failed recipe to prevent corruption');
+              debugService.log('🚫 Skipping failed recipe to prevent corruption');
               // Continue to next recipe without adding this one
               continue;
             }
@@ -1983,10 +1984,10 @@ Return as JSON with this structure:
 
           // Validate the recipe before adding it
           if (isValidRecipe(currentRecipe)) {
-            console.log('💾 Saving recipe:', currentRecipe.title);
+            debugService.log('💾 Saving recipe:', currentRecipe.title);
             recipes.push(currentRecipe);
           } else {
-            console.log('🚫 Skipping invalid recipe:', currentRecipe.title);
+            debugService.log('🚫 Skipping invalid recipe:', currentRecipe.title);
           }
         }
 
@@ -2006,7 +2007,7 @@ Return as JSON with this structure:
         };
 
         captureNextAsRecipeName = false;
-        console.log('📝 Captured recipe name:', line);
+        debugService.log('📝 Captured recipe name:', line);
         continue;
       }
 
@@ -2020,7 +2021,7 @@ Return as JSON with this structure:
     if (currentRecipe && currentRecipe.title) {
       // Add AI-generated content if missing
       if (currentRecipe.ingredients.length === 0 || currentRecipe.instructions.length === 0) {
-        console.log('🤖 AI generation required for final recipe:', currentRecipe.title);
+        debugService.log('🤖 AI generation required for final recipe:', currentRecipe.title);
 
         try {
           const aiRecipe = await generateDetailedRecipeWithAI(currentRecipe.title);
@@ -2032,14 +2033,14 @@ Return as JSON with this structure:
             currentRecipe.instructions = aiRecipe.instructions;
           }
         } catch (error) {
-          console.error('❌ Recipe generation failed for final recipe:', currentRecipe.title, error.message);
+          debugService.logError('❌ Recipe generation failed for final recipe:', currentRecipe.title, error.message);
           currentRecipe.ingredients = currentRecipe.ingredients.length === 0 ? ['⚠️ Failed to generate ingredients - please retry'] : currentRecipe.ingredients;
           currentRecipe.instructions = currentRecipe.instructions.length === 0 ? ['⚠️ Failed to generate instructions - please retry'] : currentRecipe.instructions;
           currentRecipe.error = true;
         }
       }
 
-      console.log('💾 Saving final recipe:', currentRecipe.title,
+      debugService.log('💾 Saving final recipe:', currentRecipe.title,
                  `(${currentRecipe.ingredients.length} ingredients, ${currentRecipe.instructions.length} steps)`);
       recipes.push(currentRecipe);
     }
@@ -2049,17 +2050,17 @@ Return as JSON with this structure:
     const uniqueRecipes = recipes.filter(recipe => {
       const key = recipe.title.toLowerCase().trim();
       if (seen.has(key)) {
-        console.log(`🚫 Skipping duplicate recipe: ${recipe.title}`);
+        debugService.log(`🚫 Skipping duplicate recipe: ${recipe.title}`);
         return false;
       }
       seen.add(key);
       return true;
     });
 
-    console.log(`✅ Extraction complete: Found ${uniqueRecipes.length} unique recipes (${recipes.length} total, ${recipes.length - uniqueRecipes.length} duplicates removed)`);
+    debugService.log(`✅ Extraction complete: Found ${uniqueRecipes.length} unique recipes (${recipes.length} total, ${recipes.length - uniqueRecipes.length} duplicates removed)`);
     uniqueRecipes.forEach(r => {
-      console.log(`  - ${r.day || 'No day'} ${r.mealType}: ${r.title}`);
-      console.log(`    Ingredients: ${r.ingredients.length}, Instructions: ${r.instructions.length}`);
+      debugService.log(`  - ${r.day || 'No day'} ${r.mealType}: ${r.title}`);
+      debugService.log(`    Ingredients: ${r.ingredients.length}, Instructions: ${r.instructions.length}`);
     });
 
     return {
@@ -2073,14 +2074,14 @@ Return as JSON with this structure:
     // Debounce: prevent submissions within 500ms
     const now = Date.now();
     if (now - lastSubmitTime < 500) {
-      console.log('🚫 Submission debounced - too fast');
+      debugService.log('🚫 Submission debounced - too fast');
       return;
     }
     setLastSubmitTime(now);
 
     // Prevent duplicate submissions
     if (isSubmitting) {
-      console.log('🚫 Submission blocked - already processing');
+      debugService.log('🚫 Submission blocked - already processing');
       return;
     }
     setIsSubmitting(true);
@@ -2106,7 +2107,7 @@ Return as JSON with this structure:
 
       // Reduced logging - only essential info
       if (process.env.NODE_ENV === 'development') {
-        console.log(`🚀 [${sessionId}] Starting workflow:`, {
+        debugService.log(`🚀 [${sessionId}] Starting workflow:`, {
           inputLength: listText.length,
           useAI,
           selectedAI
@@ -2115,7 +2116,7 @@ Return as JSON with this structure:
 
     // Safety: prevent overlays from blocking UI if a request hangs
     const overlaySafety = setTimeout(() => {
-      console.log(`⚠️ [${sessionId}] Safety timeout triggered at 20s`);
+      debugService.log(`⚠️ [${sessionId}] Safety timeout triggered at 20s`);
       setIsLoading(false);
       setShowProgress(false);
       setWaitingForAIResponse(false);
@@ -2132,7 +2133,7 @@ Return as JSON with this structure:
       // STEP 1: Generate with AI (first click)
       if (useAI && selectedAI && !waitingForAIResponse) {
         if (process.env.NODE_ENV === 'development') {
-          console.log(`🤖 [${sessionId}] AI Processing:`, { ai: selectedAI });
+          debugService.log(`🤖 [${sessionId}] AI Processing:`, { ai: selectedAI });
         }
 
         try {
@@ -2150,7 +2151,7 @@ Return as JSON with this structure:
 
           // Minimal logging
           if (process.env.NODE_ENV === 'development') {
-            console.log(`📤 [${sessionId}] Making AI request`);
+            debugService.log(`📤 [${sessionId}] Making AI request`);
           }
 
           const aiStepStart = performance.now(); // Track AI request timing
@@ -2162,7 +2163,7 @@ Return as JSON with this structure:
 
           if (!aiResponse.ok) {
             const errorText = await aiResponse.text();
-            console.error(`❌ [${sessionId}] AI Response error:`, {
+            debugService.logError(`❌ [${sessionId}] AI Response error:`, {
               status: aiResponse.status,
               statusText: aiResponse.statusText,
               errorText: errorText.substring(0, 200),
@@ -2173,7 +2174,7 @@ Return as JSON with this structure:
 
           const aiData = await aiResponse.json();
           const aiStepDuration = Math.round(performance.now() - aiStepStart);
-          console.log(`✅ [${sessionId}] AI Response received:`, {
+          debugService.log(`✅ [${sessionId}] AI Response received:`, {
             responseSize: JSON.stringify(aiData).length,
             hasRecipes: !!aiData.recipes,
             hasShoppingList: !!aiData.shoppingList,
@@ -2186,7 +2187,7 @@ Return as JSON with this structure:
           // Handle structured data response
           if (aiData.structuredData && aiData.recipes) {
             const structureProcessStart = performance.now();
-            console.log(`📊 [${sessionId}] STEP 1.1: Processing structured AI data`, {
+            debugService.log(`📊 [${sessionId}] STEP 1.1: Processing structured AI data`, {
               recipesCount: aiData.recipes.length,
               productsCount: aiData.products?.length || 0,
               elapsedMs: Math.round(structureProcessStart - startTime)
@@ -2194,13 +2195,13 @@ Return as JSON with this structure:
 
             // Store structured recipes for display
             if (aiData.recipes.length > 0) {
-              console.log(`🍳 [${sessionId}] Setting ${aiData.recipes.length} AI-generated recipes`);
+              debugService.log(`🍳 [${sessionId}] Setting ${aiData.recipes.length} AI-generated recipes`);
               setRecipes(aiData.recipes);
             }
 
             // Use structured products - filter out meal descriptions
             if (aiData.products && aiData.products.length > 0) {
-              console.log(`🔍 [${sessionId}] STEP 1.2: Filtering products`, {
+              debugService.log(`🔍 [${sessionId}] STEP 1.2: Filtering products`, {
                 totalProducts: aiData.products.length
               });
 
@@ -2213,7 +2214,7 @@ Return as JSON with this structure:
 
               // Reduced logging - only in development
               if (process.env.NODE_ENV === 'development') {
-                console.log(`✅ [${sessionId}] Filtered ${realGroceryItems.length}/${aiData.products.length} items`);
+                debugService.log(`✅ [${sessionId}] Filtered ${realGroceryItems.length}/${aiData.products.length} items`);
               }
 
               if (realGroceryItems.length > 0) {
@@ -2234,25 +2235,25 @@ Return as JSON with this structure:
 
                 groceryListProcessed = true;
               } else {
-                console.log(`⚠️ [${sessionId}] No real grocery items found after filtering meal descriptions`);
+                debugService.log(`⚠️ [${sessionId}] No real grocery items found after filtering meal descriptions`);
               }
             }
 
             // Reduced logging
             if (process.env.NODE_ENV === 'development') {
-              console.log(`⏱️ [${sessionId}] Structured data processed:`, { success: groceryListProcessed });
+              debugService.log(`⏱️ [${sessionId}] Structured data processed:`, { success: groceryListProcessed });
             }
           }
 
           // Fallback to text extraction if no structured data
           if (!groceryListProcessed) {
             const fallbackStart = performance.now();
-            console.log(`🔄 [${sessionId}] STEP 1.3: Fallback text extraction`);
+            debugService.log(`🔄 [${sessionId}] STEP 1.3: Fallback text extraction`);
 
             const aiResponseText = extractAIResponseText(aiData);
             if (aiResponseText) {
               const cleanGroceryList = extractGroceryListOnly(aiResponseText);
-              console.log(`📝 [${sessionId}] Extracted grocery list text`, {
+              debugService.log(`📝 [${sessionId}] Extracted grocery list text`, {
                 originalLength: aiResponseText.length,
                 cleanedLength: cleanGroceryList.length
               });
@@ -2266,24 +2267,24 @@ Return as JSON with this structure:
               // Parse and display recipes from AI response  WHERE THE MAGIC HAPPENS FOR RECIPES
               try {
                 const recipeParseStart = performance.now();
-                console.log(`🍳 [${sessionId}] STEP 1.4: Parsing recipes from AI response`);
+                debugService.log(`🍳 [${sessionId}] STEP 1.4: Parsing recipes from AI response`);
 
                 const recipeResult = await extractMealPlanRecipes(aiResponseText);
                 const recipeParseDuration = Math.round(performance.now() - recipeParseStart);
 
                 if (recipeResult.recipes && recipeResult.recipes.length > 0) {
-                  console.log(`✅ [${sessionId}] Recipe parsing successful:`, {
+                  debugService.log(`✅ [${sessionId}] Recipe parsing successful:`, {
                     recipesFound: recipeResult.recipes.length,
                     duration: recipeParseDuration
                   });
                   setValidParsedRecipes(recipeResult.recipes);
                 } else {
-                  console.log(`⚠️ [${sessionId}] No recipes found in AI response`, {
+                  debugService.log(`⚠️ [${sessionId}] No recipes found in AI response`, {
                     duration: recipeParseDuration
                   });
                 }
               } catch (recipeError) {
-                console.error(`❌ [${sessionId}] Recipe parsing failed:`, {
+                debugService.logError(`❌ [${sessionId}] Recipe parsing failed:`, {
                   error: recipeError.message,
                   stack: recipeError.stack?.substring(0, 200)
                 });
@@ -2293,14 +2294,14 @@ Return as JSON with this structure:
             }
 
             const fallbackDuration = Math.round(performance.now() - fallbackStart);
-            console.log(`⏱️ [${sessionId}] STEP 1.3-1.4 Complete: Fallback processing`, {
+            debugService.log(`⏱️ [${sessionId}] STEP 1.3-1.4 Complete: Fallback processing`, {
               duration: fallbackDuration,
               success: groceryListProcessed
             });
           }
           
           if (groceryListProcessed) {
-            console.log(`🎯 [${sessionId}] STEP 1.5: Post-processing AI results`);
+            debugService.log(`🎯 [${sessionId}] STEP 1.5: Post-processing AI results`);
 
             // Expand textarea
             setTimeout(() => {
@@ -2309,7 +2310,7 @@ Return as JSON with this structure:
 
             // Set flag and continue to parsing step without requiring second click
             setWaitingForAIResponse(true);
-            console.log(`✅ [${sessionId}] AI processing complete, proceeding to cart parsing`, {
+            debugService.log(`✅ [${sessionId}] AI processing complete, proceeding to cart parsing`, {
               elapsedMs: Math.round(performance.now() - startTime)
             });
 
@@ -2319,11 +2320,11 @@ Return as JSON with this structure:
             // Jump directly to cart parsing section
             if (shouldParseToCarts) {
               const cartParseStart = performance.now();
-              console.log(`📦 [${sessionId}] STEP 2: Cart Parsing - Starting`);
+              debugService.log(`📦 [${sessionId}] STEP 2: Cart Parsing - Starting`);
 
               // Use the processed grocery list text, not the original prompt
               const currentListText = textareaRef.current?.value || inputText || listText;
-              console.log(`📝 [${sessionId}] Text sources analysis:`, {
+              debugService.log(`📝 [${sessionId}] Text sources analysis:`, {
                 textareaLength: textareaRef.current?.value?.length || 0,
                 inputTextLength: inputText?.length || 0,
                 originalListLength: listText?.length || 0,
@@ -2342,7 +2343,7 @@ Return as JSON with this structure:
                 }
               };
 
-              console.log(`📤 [${sessionId}] Cart parse request:`, {
+              debugService.log(`📤 [${sessionId}] Cart parse request:`, {
                 payloadSize: JSON.stringify(parsePayload).length,
                 textLength: currentListText?.length,
                 action: parsePayload.action,
@@ -2358,7 +2359,7 @@ Return as JSON with this structure:
 
               if (!response.ok) {
                 const errorText = await response.text();
-                console.error(`❌ [${sessionId}] Cart parse failed:`, {
+                debugService.logError(`❌ [${sessionId}] Cart parse failed:`, {
                   status: response.status,
                   statusText: response.statusText,
                   errorText: errorText.substring(0, 200),
@@ -2369,7 +2370,7 @@ Return as JSON with this structure:
 
               const data = await response.json();
               const cartParseDuration = Math.round(performance.now() - cartParseStart);
-              console.log(`✅ [${sessionId}] Cart parse response received:`, {
+              debugService.log(`✅ [${sessionId}] Cart parse response received:`, {
                 responseSize: JSON.stringify(data).length,
                 itemsCount: data.items?.length || 0,
                 categoriesCount: data.categories?.length || 0,
@@ -2379,13 +2380,13 @@ Return as JSON with this structure:
 
               if (data.success && data.cart) {
                 const structureFixStart = performance.now();
-                console.log(`🔧 [${sessionId}] STEP 2.1: Fixing cart item structure`);
+                debugService.log(`🔧 [${sessionId}] STEP 2.1: Fixing cart item structure`);
 
                 // Fix cart item structure before setting
                 const fixedCart = fixCartItemStructure(data.cart);
                 const structureFixDuration = Math.round(performance.now() - structureFixStart);
 
-                console.log(`✅ [${sessionId}] Cart structure fixed:`, {
+                debugService.log(`✅ [${sessionId}] Cart structure fixed:`, {
                   originalItems: data.cart?.length || 0,
                   fixedItems: fixedCart?.length || 0,
                   duration: structureFixDuration
@@ -2396,7 +2397,7 @@ Return as JSON with this structure:
 
                 // Update parsing stats
                 if (data.stats) {
-                  console.log(`📊 [${sessionId}] Setting parsing stats:`, {
+                  debugService.log(`📊 [${sessionId}] Setting parsing stats:`, {
                     totalParsed: data.stats.totalParsed,
                     successRate: data.stats.successRate,
                     duplicatesFound: data.stats.duplicatesFound
@@ -2406,7 +2407,7 @@ Return as JSON with this structure:
 
                 // DO NOT clear waiting flag yet - wait for enrichment to complete
                 const cleanupStart = performance.now();
-                console.log(`🧹 [${sessionId}] STEP 2.2: Preparing for enrichment - keeping parsing active`);
+                debugService.log(`🧹 [${sessionId}] STEP 2.2: Preparing for enrichment - keeping parsing active`);
 
                 // Clear the input for next use
                 setInputText('');
@@ -2420,7 +2421,7 @@ Return as JSON with this structure:
                 const cleanupDuration = Math.round(performance.now() - cleanupStart);
                 const totalWorkflowDuration = Math.round(performance.now() - startTime);
 
-                console.log(`🎉 [${sessionId}] WORKFLOW COMPLETE - SUCCESS:`, {
+                debugService.log(`🎉 [${sessionId}] WORKFLOW COMPLETE - SUCCESS:`, {
                   itemsAdded: fixedCart.length,
                   cleanupDuration,
                   totalDuration: totalWorkflowDuration,
@@ -2428,7 +2429,7 @@ Return as JSON with this structure:
                 });
 
                 // KEEP LOADING STATE ACTIVE - will be cleared after enrichment completes
-                console.log(`🔍 [${sessionId}] STEP 2.3: Starting enrichment - keeping loading state active`);
+                debugService.log(`🔍 [${sessionId}] STEP 2.3: Starting enrichment - keeping loading state active`);
 
                 // Start enrichment immediately and wait for completion
                 enrichCartWithInstacartData(fixedCart).then(() => {
@@ -2440,7 +2441,7 @@ Return as JSON with this structure:
                   setParsingProgress(0);
                   setWaitingForAIResponse(false); // NOW clear the parsing indicator
 
-                  console.log(`✅ [${sessionId}] Complete workflow finished - UI ready with full content`);
+                  debugService.log(`✅ [${sessionId}] Complete workflow finished - UI ready with full content`);
                 }).catch(() => {
                   // Clear loading states on error too
                   clearInterval(progressInterval);
@@ -2463,7 +2464,7 @@ Return as JSON with this structure:
           
         } catch (aiError) {
           const aiErrorDuration = Math.round(performance.now() - startTime);
-          console.error(`❌ [${sessionId}] AI request failed:`, {
+          debugService.logError(`❌ [${sessionId}] AI request failed:`, {
             error: aiError.message,
             stack: aiError.stack?.substring(0, 200),
             totalDuration: aiErrorDuration
@@ -2483,7 +2484,7 @@ Return as JSON with this structure:
       // STEP 2: Parse text into cart items (second click or manual text)
       if (waitingForAIResponse || !useAI) {
         const manualParseStart = performance.now();
-        console.log(`📦 [${sessionId}] STEP 3: Manual Cart Parsing - Starting`, {
+        debugService.log(`📦 [${sessionId}] STEP 3: Manual Cart Parsing - Starting`, {
           waitingForAIResponse,
           useAI,
           textLength: listText?.length || 0,
@@ -2501,7 +2502,7 @@ Return as JSON with this structure:
           }
         };
 
-        console.log(`📤 [${sessionId}] Manual parse request:`, {
+        debugService.log(`📤 [${sessionId}] Manual parse request:`, {
           payloadSize: JSON.stringify(manualParsePayload).length,
           endpoint: `${API_URL}/api/cart/parse`
         });
@@ -2514,7 +2515,7 @@ Return as JSON with this structure:
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`❌ [${sessionId}] Manual parse failed:`, {
+          debugService.logError(`❌ [${sessionId}] Manual parse failed:`, {
             status: response.status,
             errorText: errorText.substring(0, 200),
             elapsedMs: Math.round(performance.now() - manualParseStart)
@@ -2524,7 +2525,7 @@ Return as JSON with this structure:
 
         const data = await response.json();
         const manualParseDuration = Math.round(performance.now() - manualParseStart);
-        console.log(`✅ [${sessionId}] Manual parse response:`, {
+        debugService.log(`✅ [${sessionId}] Manual parse response:`, {
           responseSize: JSON.stringify(data).length,
           itemsCount: data.cart?.length || 0,
           success: !!data.success,
@@ -2533,13 +2534,13 @@ Return as JSON with this structure:
 
         if (data.success && data.cart) {
           const manualStructureStart = performance.now();
-          console.log(`🔧 [${sessionId}] STEP 3.1: Manual structure fix`);
+          debugService.log(`🔧 [${sessionId}] STEP 3.1: Manual structure fix`);
 
           // Fix cart item structure before setting
           const fixedCart = fixCartItemStructure(data.cart);
 
           const manualStructureDuration = Math.round(performance.now() - manualStructureStart);
-          console.log(`✅ [${sessionId}] Manual structure fixed:`, {
+          debugService.log(`✅ [${sessionId}] Manual structure fixed:`, {
             originalItems: data.cart.length,
             fixedItems: fixedCart.length,
             duration: manualStructureDuration
@@ -2550,7 +2551,7 @@ Return as JSON with this structure:
 
           // Update parsing stats
           if (data.stats) {
-            console.log(`📊 [${sessionId}] STEP 3.2: Setting manual parsing stats:`, {
+            debugService.log(`📊 [${sessionId}] STEP 3.2: Setting manual parsing stats:`, {
               totalParsed: data.stats.totalParsed,
               successRate: data.stats.successRate
             });
@@ -2559,7 +2560,7 @@ Return as JSON with this structure:
 
           // Clear the waiting flag and UI state
           const manualCleanupStart = performance.now();
-          console.log(`🧹 [${sessionId}] STEP 3.3: Manual cleanup`);
+          debugService.log(`🧹 [${sessionId}] STEP 3.3: Manual cleanup`);
 
           setWaitingForAIResponse(false);
 
@@ -2575,7 +2576,7 @@ Return as JSON with this structure:
           const manualCleanupDuration = Math.round(performance.now() - manualCleanupStart);
           const totalManualDuration = Math.round(performance.now() - startTime);
 
-          console.log(`🎉 [${sessionId}] MANUAL WORKFLOW COMPLETE - SUCCESS:`, {
+          debugService.log(`🎉 [${sessionId}] MANUAL WORKFLOW COMPLETE - SUCCESS:`, {
             itemsAdded: fixedCart.length,
             cleanupDuration: manualCleanupDuration,
             totalDuration: totalManualDuration,
@@ -2584,7 +2585,7 @@ Return as JSON with this structure:
 
         } else {
           const manualErrorDuration = Math.round(performance.now() - startTime);
-          console.error(`❌ [${sessionId}] Manual parse data error:`, {
+          debugService.logError(`❌ [${sessionId}] Manual parse data error:`, {
             error: data.error || 'Failed to process grocery list',
             hasCart: !!data.cart,
             success: !!data.success,
@@ -2604,7 +2605,7 @@ Return as JSON with this structure:
 
       // If we get here, something went wrong
       const fallbackErrorDuration = Math.round(performance.now() - startTime);
-      console.error(`⚠️ [${sessionId}] WORKFLOW FALLBACK ERROR - Conditions not met:`, {
+      debugService.logError(`⚠️ [${sessionId}] WORKFLOW FALLBACK ERROR - Conditions not met:`, {
         waitingForAIResponse,
         useAI,
         totalDuration: fallbackErrorDuration,
@@ -2613,7 +2614,7 @@ Return as JSON with this structure:
       setError('Unable to process. Please try again.');
 
       } catch (err) {
-        console.error(`❌ [${sessionId}] Error:`, err.message);
+        debugService.logError(`❌ [${sessionId}] Error:`, err.message);
         setError(`Failed to process: ${err.message}`);
       } finally {
         // Optimized cleanup - minimal operations
@@ -2625,7 +2626,7 @@ Return as JSON with this structure:
         setIsSubmitting(false);
 
         if (process.env.NODE_ENV === 'development') {
-          console.log(`🏁 [${sessionId}] Complete`);
+          debugService.log(`🏁 [${sessionId}] Complete`);
         }
       }
     }, 0); // setTimeout end
@@ -2645,7 +2646,7 @@ Return as JSON with this structure:
 
     // Log only in development and minimal data
     if (process.env.NODE_ENV === 'development') {
-      console.log('Submit:', { useAI: shouldUseAI, model: selectedAI });
+      debugService.log('Submit:', { useAI: shouldUseAI, model: selectedAI });
     }
 
     // Call optimized submit function
@@ -2706,7 +2707,7 @@ Return as JSON with this structure:
           'user-id': currentUser.uid
         },
         body: JSON.stringify(savedRecipe)
-      }).catch(err => console.error('Failed to save to server, but saved locally:', err));
+      }).catch(err => debugService.logError('Failed to save to server, but saved locally:', err));
     }
 
     alert(`✅ Recipe "${recipe.name}" saved to My Recipes!`);
@@ -2771,7 +2772,7 @@ Return as JSON with this structure:
   // Handle adding recipe to recipe library
   // eslint-disable-next-line no-unused-vars
   const handleAddRecipeToLibrary = (recipe) => {
-    console.log('📚 Adding recipe to library:', recipe.title);
+    debugService.log('📚 Adding recipe to library:', recipe.title);
     // Recipe library functionality preserved
   };
 
@@ -2789,7 +2790,7 @@ Return as JSON with this structure:
     // Safely handle ingredients and instructions that might be arrays or strings
     const ingredientsText = Array.isArray(recipe.ingredients) 
       ? recipe.ingredients.map((ingredient, index) => {
-          console.log(`🔍 [DEBUG] Processing recipe library ingredient ${index}:`, ingredient);
+          debugService.log(`🔍 [DEBUG] Processing recipe library ingredient ${index}:`, ingredient);
           
           if (typeof ingredient === 'string') {
             return ingredient;
@@ -2839,7 +2840,7 @@ Return as JSON with this structure:
             }
           }
           
-          console.warn(`⚠️ Could not parse recipe library ingredient at index ${index}:`, ingredient);
+          debugService.logWarning(`⚠️ Could not parse recipe library ingredient at index ${index}:`, ingredient);
           return `• Unknown ingredient`;
         }).filter(ingredient => ingredient && ingredient.trim() !== '').join('\n')
       : recipe.ingredients || '';
@@ -2862,7 +2863,7 @@ Return as JSON with this structure:
       source: 'ai_generated'
     };
 
-    console.log('🔲 Adding recipe to library:', savedRecipe);
+    debugService.log('🔲 Adding recipe to library:', savedRecipe);
 
     // Use the existing saveRecipe function
     if (saveRecipe) {
@@ -2870,7 +2871,7 @@ Return as JSON with this structure:
       alert(`✅ Recipe "${savedRecipe.name}" added to Recipe Library!`);
     } else {
       alert('❌ Unable to save recipe. Recipe Library not available.');
-      console.error('❌ saveRecipe function not available');
+      debugService.logError('❌ saveRecipe function not available');
     }
   };
 
@@ -2879,7 +2880,7 @@ Return as JSON with this structure:
     // For now, just add to recipe library instead of opening complex meal plan modal
     // This prevents crashes and provides useful functionality
     handleAddToRecipeLibrary(recipe);
-    console.log('Recipe added to library:', recipe.title || recipe.name);
+    debugService.log('Recipe added to library:', recipe.title || recipe.name);
   };
 
   // Helper function to get current day of week
@@ -2965,7 +2966,7 @@ Return as JSON with this structure:
         
         onClose();
       } catch (error) {
-        console.error('Error creating meal plan:', error);
+        debugService.logError('Error creating meal plan:', error);
         alert('Failed to create meal plan. Please try again.');
       }
     };
@@ -3118,7 +3119,7 @@ Return as JSON with this structure:
         await onSave(listName, items);
         alert(`✅ Quick saved "${listName}"!`);
       } catch (error) {
-        console.error('Quick save failed:', error);
+        debugService.logError('Quick save failed:', error);
         alert('Failed to quick save list');
       } finally {
         setIsSaving(false);
@@ -3201,7 +3202,7 @@ Return as JSON with this structure:
         alert(`✅ List "${listName}" saved successfully!`);
         onClose();
       } catch (error) {
-        console.error('Save failed:', error);
+        debugService.logError('Save failed:', error);
         alert('Failed to save list. Please try again.');
       } finally {
         setIsSaving(false);
@@ -3311,10 +3312,10 @@ Return as JSON with this structure:
     const allRecipes = [...parsedRecipes, ...recipes];
     const newExpandedState = !mealPlanExpanded;
 
-    console.log(`🎛️ [GLOBAL TOGGLE DEBUG] === COLLAPSE/EXPAND ALL CLICKED ===`);
-    console.log(`🔄 [GLOBAL TOGGLE DEBUG] Toggling all ${allRecipes.length} recipes to ${newExpandedState ? 'expanded' : 'collapsed'}`);
-    console.log(`📊 [GLOBAL TOGGLE DEBUG] Current states before toggle:`, individualExpansionStates);
-    console.log(`🍳 [GLOBAL TOGGLE DEBUG] Recipe details:`, allRecipes.map((recipe, idx) => ({
+    debugService.log(`🎛️ [GLOBAL TOGGLE DEBUG] === COLLAPSE/EXPAND ALL CLICKED ===`);
+    debugService.log(`🔄 [GLOBAL TOGGLE DEBUG] Toggling all ${allRecipes.length} recipes to ${newExpandedState ? 'expanded' : 'collapsed'}`);
+    debugService.log(`📊 [GLOBAL TOGGLE DEBUG] Current states before toggle:`, individualExpansionStates);
+    debugService.log(`🍳 [GLOBAL TOGGLE DEBUG] Recipe details:`, allRecipes.map((recipe, idx) => ({
       index: idx,
       title: recipe.title || recipe.name,
       ingredientsCount: recipe.ingredients?.length || 0,
@@ -3329,12 +3330,12 @@ Return as JSON with this structure:
       newIndividualStates[i] = newExpandedState;
     }
 
-    console.log(`🔄 [GLOBAL TOGGLE DEBUG] New states to set:`, newIndividualStates);
+    debugService.log(`🔄 [GLOBAL TOGGLE DEBUG] New states to set:`, newIndividualStates);
     
     // Replace the entire state object to force re-render
     setIndividualExpansionStates(newIndividualStates);
     
-    console.log(`✅ Setting all ${allRecipes.length} recipes (indices 0-${allRecipes.length - 1}) to ${newExpandedState ? 'expanded' : 'collapsed'}`);
+    debugService.log(`✅ Setting all ${allRecipes.length} recipes (indices 0-${allRecipes.length - 1}) to ${newExpandedState ? 'expanded' : 'collapsed'}`);
   };
 
   // Clear all recipes function
@@ -3347,12 +3348,12 @@ Return as JSON with this structure:
     persistenceService.removeSessionData('parsed_recipes');
     persistenceService.removeSessionData('ai_recipes');
 
-    console.log('✨ Cleared all recipes and persistent storage');
+    debugService.log('✨ Cleared all recipes and persistent storage');
   };
 
   // Helper function to format ingredients with quantities
   const formatIngredientWithQuantity = (item, debugIndex = -1) => {
-    console.log(`🔍 [INGREDIENT DEBUG ${debugIndex}] Processing item:`, {
+    debugService.log(`🔍 [INGREDIENT DEBUG ${debugIndex}] Processing item:`, {
       type: typeof item,
       value: item,
       isNull: item === null,
@@ -3363,45 +3364,45 @@ Return as JSON with this structure:
 
     // Handle null, undefined, or empty values
     if (!item) {
-      console.log(`🚨 [INGREDIENT DEBUG ${debugIndex}] Null/undefined item, returning fallback`);
+      debugService.log(`🚨 [INGREDIENT DEBUG ${debugIndex}] Null/undefined item, returning fallback`);
       return 'Unknown ingredient';
     }
 
     if (typeof item === 'string') {
-      console.log(`📝 [INGREDIENT DEBUG ${debugIndex}] String ingredient: "${item}"`);
+      debugService.log(`📝 [INGREDIENT DEBUG ${debugIndex}] String ingredient: "${item}"`);
       // Try to parse if it's a string with quantity pattern
       const match = item.match(/^(\d+(?:\.\d+)?)\s*([\w\s]+?)\s+(.+)$/);
       if (match) {
         const result = `${match[1]} ${match[2]} ${match[3]}`;
-        console.log(`✅ [INGREDIENT DEBUG ${debugIndex}] Parsed with quantity: "${result}"`);
+        debugService.log(`✅ [INGREDIENT DEBUG ${debugIndex}] Parsed with quantity: "${result}"`);
         return result;
       }
       // If no quantity found, add default serving
       const hasQuantity = item.includes('1 ') || item.includes('2 ') || item.includes('cup') || item.includes('tsp') || item.includes('tbsp') || item.includes('lb') || item.includes('oz');
       const result = hasQuantity ? item : `1 serving ${item}`;
-      console.log(`✅ [INGREDIENT DEBUG ${debugIndex}] String result: "${result}" (had quantity: ${hasQuantity})`);
+      debugService.log(`✅ [INGREDIENT DEBUG ${debugIndex}] String result: "${result}" (had quantity: ${hasQuantity})`);
       return result;
     }
 
     // If it's an object with quantity and unit
     if (typeof item === 'object' && item !== null) {
-      console.log(`🏷️ [INGREDIENT DEBUG ${debugIndex}] Object ingredient with keys:`, Object.keys(item));
+      debugService.log(`🏷️ [INGREDIENT DEBUG ${debugIndex}] Object ingredient with keys:`, Object.keys(item));
       const qty = item.quantity || 1;
       const unit = item.unit || 'each';
       const name = item.productName || item.name || item.original || item.item || '';
 
-      console.log(`🔧 [INGREDIENT DEBUG ${debugIndex}] Extracted: qty="${qty}", unit="${unit}", name="${name}"`);
+      debugService.log(`🔧 [INGREDIENT DEBUG ${debugIndex}] Extracted: qty="${qty}", unit="${unit}", name="${name}"`);
 
       // Ensure we always return a string
       const result = `${qty} ${unit} ${name}`.trim();
       const finalResult = result || 'Unknown ingredient';
-      console.log(`✅ [INGREDIENT DEBUG ${debugIndex}] Object result: "${finalResult}"`);
+      debugService.log(`✅ [INGREDIENT DEBUG ${debugIndex}] Object result: "${finalResult}"`);
       return finalResult;
     }
 
     // Fallback for any other type - convert to string
     const result = String(item) || 'Unknown ingredient';
-    console.log(`⚠️ [INGREDIENT DEBUG ${debugIndex}] Fallback conversion: "${result}" (original type: ${typeof item})`);
+    debugService.log(`⚠️ [INGREDIENT DEBUG ${debugIndex}] Fallback conversion: "${result}" (original type: ${typeof item})`);
     return result;
   };
 
@@ -3450,8 +3451,8 @@ Return as JSON with this structure:
 
     // When clicking expand button, use the external toggle function
     const handleToggle = () => {
-      console.log(`🎛️ [TOGGLE DEBUG] Recipe "${title}" toggle clicked - current expanded: ${expanded}`);
-      console.log(`🔍 [TOGGLE DEBUG] Recipe data:`, {
+      debugService.log(`🎛️ [TOGGLE DEBUG] Recipe "${title}" toggle clicked - current expanded: ${expanded}`);
+      debugService.log(`🔍 [TOGGLE DEBUG] Recipe data:`, {
         title,
         ingredientsLength: recipe.ingredients?.length || 0,
         ingredientsType: typeof recipe.ingredients,
@@ -3459,10 +3460,10 @@ Return as JSON with this structure:
       });
 
       if (onToggleExpanded) {
-        console.log(`🔄 [TOGGLE DEBUG] Calling onToggleExpanded for "${title}"`);
+        debugService.log(`🔄 [TOGGLE DEBUG] Calling onToggleExpanded for "${title}"`);
         onToggleExpanded();
       } else {
-        console.warn(`⚠️ [TOGGLE DEBUG] No onToggleExpanded function for "${title}"`);
+        debugService.logWarning(`⚠️ [TOGGLE DEBUG] No onToggleExpanded function for "${title}"`);
       }
     };
     const mealType = recipe.mealType || 'Dinner';
@@ -3475,41 +3476,41 @@ Return as JSON with this structure:
     const cookTime = recipe.cookTime;
     
     // Handle both string arrays and object arrays for ingredients with proper quantity formatting
-    console.log(`🍳 [RECIPE DEBUG] Processing recipe: "${title}" with ${ingredients.length} ingredients`);
-    console.log(`📋 [RECIPE DEBUG] Raw ingredients array:`, ingredients);
+    debugService.log(`🍳 [RECIPE DEBUG] Processing recipe: "${title}" with ${ingredients.length} ingredients`);
+    debugService.log(`📋 [RECIPE DEBUG] Raw ingredients array:`, ingredients);
 
     const displayIngredients = ingredients
       .filter((ing, idx) => {
         const isValid = ing !== null && ing !== undefined;
         if (!isValid) {
-          console.log(`🚫 [RECIPE DEBUG] Filtered out ingredient at index ${idx}:`, ing);
+          debugService.log(`🚫 [RECIPE DEBUG] Filtered out ingredient at index ${idx}:`, ing);
         }
         return isValid;
       }) // Filter out null/undefined ingredients
       .map((ing, idx) => {
         try {
-          console.log(`🔄 [RECIPE DEBUG] Processing ingredient ${idx}:`, ing);
+          debugService.log(`🔄 [RECIPE DEBUG] Processing ingredient ${idx}:`, ing);
           const formatted = formatIngredientWithQuantity(ing, idx);
           const cleaned = cleanMarkdown(formatted);
 
           // Extra safety: ensure we always return a string
           const result = typeof cleaned === 'string' ? cleaned : String(cleaned || 'Unknown ingredient');
-          console.log(`✅ [RECIPE DEBUG] Final ingredient ${idx}: "${result}" (type: ${typeof result})`);
+          debugService.log(`✅ [RECIPE DEBUG] Final ingredient ${idx}: "${result}" (type: ${typeof result})`);
           return result;
         } catch (error) {
-          console.error(`❌ [RECIPE DEBUG] Error formatting ingredient ${idx}:`, ing, error);
+          debugService.logError(`❌ [RECIPE DEBUG] Error formatting ingredient ${idx}:`, ing, error);
           return 'Unknown ingredient';
         }
       })
       .filter((ing, idx) => {
         const isValid = ing && ing.trim() !== '';
         if (!isValid) {
-          console.log(`🚫 [RECIPE DEBUG] Filtered out empty ingredient at final index ${idx}:`, ing);
+          debugService.log(`🚫 [RECIPE DEBUG] Filtered out empty ingredient at final index ${idx}:`, ing);
         }
         return isValid;
       }); // Filter out empty strings
 
-    console.log(`✨ [RECIPE DEBUG] Final displayIngredients (${displayIngredients.length} items):`, displayIngredients);
+    debugService.log(`✨ [RECIPE DEBUG] Final displayIngredients (${displayIngredients.length} items):`, displayIngredients);
     
     // Handle both string arrays and object arrays for instructions
     const rawInstructions = instructions.map(inst => {
@@ -3621,7 +3622,7 @@ Return as JSON with this structure:
               <h5 style={styles.sectionTitle}>📝 Ingredients:</h5>
               <ul style={styles.ingredientsList}>
                 {displayIngredients.map((ingredient, idx) => {
-                  console.log(`🎯 [RENDER DEBUG] Rendering ingredient ${idx}:`, {
+                  debugService.log(`🎯 [RENDER DEBUG] Rendering ingredient ${idx}:`, {
                     type: typeof ingredient,
                     value: ingredient,
                     isString: typeof ingredient === 'string',
@@ -3631,7 +3632,7 @@ Return as JSON with this structure:
 
                   // Extra safety check before rendering
                   if (typeof ingredient !== 'string') {
-                    console.error(`💥 [RENDER DEBUG] NON-STRING INGREDIENT DETECTED at ${idx}:`, ingredient);
+                    debugService.logError(`💥 [RENDER DEBUG] NON-STRING INGREDIENT DETECTED at ${idx}:`, ingredient);
                     return <li key={idx} style={styles.ingredientItem}>Invalid ingredient type</li>;
                   }
 
@@ -3726,7 +3727,7 @@ Return as JSON with this structure:
 
   // Handle recipe checkout with full recipe context
   const handleRecipeCheckout = (recipe) => {
-    console.log('🍽️ Opening recipe checkout with full context:', recipe.title || recipe.name || 'Unnamed Recipe');
+    debugService.log('🍽️ Opening recipe checkout with full context:', recipe.title || recipe.name || 'Unnamed Recipe');
 
     // Extract and format recipe ingredients for InstacartCheckoutUnified
     const recipeIngredients = recipe.ingredients?.map((ingredient, index) => {
@@ -3770,11 +3771,11 @@ Return as JSON with this structure:
         };
       }
 
-      console.log(`📦 Recipe ingredient ${index + 1}:`, ingredientData);
+      debugService.log(`📦 Recipe ingredient ${index + 1}:`, ingredientData);
       return ingredientData;
     }) || [];
 
-    console.log(`🛒 Extracted ${recipeIngredients.length} ingredients from recipe for checkout`);
+    debugService.log(`🛒 Extracted ${recipeIngredients.length} ingredients from recipe for checkout`);
 
     // Format recipe data to match InstacartCheckoutUnified expectations
     const formattedRecipeData = {
@@ -3794,17 +3795,17 @@ Return as JSON with this structure:
       return;
     }
 
-    console.log('🛒 Adding recipe to cart:', recipe.title || recipe.name || 'Unnamed Recipe');
-    console.log('🥕 Recipe ingredients:', recipe.ingredients);
+    debugService.log('🛒 Adding recipe to cart:', recipe.title || recipe.name || 'Unnamed Recipe');
+    debugService.log('🥕 Recipe ingredients:', recipe.ingredients);
     
     // Debug: Check if ingredients need conversion
     const hasObjectIngredients = recipe.ingredients.some(ing => typeof ing === 'object');
-    console.log('🔍 Has object ingredients:', hasObjectIngredients);
+    debugService.log('🔍 Has object ingredients:', hasObjectIngredients);
 
     try {
       // Convert ingredients array to text format, handling both string and object formats
       const ingredientsText = recipe.ingredients.map((ingredient, index) => {
-        console.log(`🔍 [DEBUG] Processing ingredient ${index}:`, ingredient);
+        debugService.log(`🔍 [DEBUG] Processing ingredient ${index}:`, ingredient);
         
         if (typeof ingredient === 'string') {
           return ingredient;
@@ -3840,7 +3841,7 @@ Return as JSON with this structure:
           
           // Try to extract meaningful content from the object
           const keys = Object.keys(ingredient);
-          console.log(`🔍 [DEBUG] Ingredient object keys:`, keys);
+          debugService.log(`🔍 [DEBUG] Ingredient object keys:`, keys);
           
           // Look for common ingredient property names
           const commonProps = ['ingredient', 'product', 'food', 'description'];
@@ -3868,17 +3869,17 @@ Return as JSON with this structure:
         }
         
         // Last resort: if we can't extract anything meaningful, skip this ingredient
-        console.warn(`⚠️ Could not parse ingredient at index ${index}:`, ingredient);
+        debugService.logWarning(`⚠️ Could not parse ingredient at index ${index}:`, ingredient);
         return null;
       }).filter(ingredient => ingredient !== null && ingredient.trim() !== '').join('\n');
       
-      console.log('📝 [DEBUG] Final ingredients text to send to API:');
-      console.log(ingredientsText);
-      console.log('📝 [DEBUG] Length:', ingredientsText.length);
+      debugService.log('📝 [DEBUG] Final ingredients text to send to API:');
+      debugService.log(ingredientsText);
+      debugService.log('📝 [DEBUG] Length:', ingredientsText.length);
       
       // Check if we have any ingredients to send
       if (!ingredientsText.trim()) {
-        console.error('❌ No valid ingredients found to send to API');
+        debugService.logError('❌ No valid ingredients found to send to API');
         alert('❌ Could not extract ingredients from this recipe. Please check the recipe format.');
         return;
       }
@@ -3906,18 +3907,18 @@ Return as JSON with this structure:
         // Fix cart item structure before setting
         const fixedCart = fixCartItemStructure(data.cart);
         
-        console.log('🔍 [DEBUG] Recipe API Response:', {
+        debugService.log('🔍 [DEBUG] Recipe API Response:', {
           success: data.success,
           cartLength: data.cart?.length,
           fullResponse: data
         });
-        console.log('🔍 [DEBUG] Original cart items:', data.cart?.map(item => ({
+        debugService.log('🔍 [DEBUG] Original cart items:', data.cart?.map(item => ({
           productName: item.productName,
           quantity: item.quantity,
           unit: item.unit,
           keys: Object.keys(item)
         })));
-        console.log('🔍 [DEBUG] Fixed cart items:', fixedCart?.map(item => ({
+        debugService.log('🔍 [DEBUG] Fixed cart items:', fixedCart?.map(item => ({
           productName: item.productName,
           quantity: item.quantity,
           unit: item.unit
@@ -3925,7 +3926,7 @@ Return as JSON with this structure:
         
         // Debug each item before setting
         data.cart.forEach((item, index) => {
-          console.log(`🔍 [DEBUG] Raw cart item ${index}:`, item);
+          debugService.log(`🔍 [DEBUG] Raw cart item ${index}:`, item);
           debugCartItem(item);
         });
         
@@ -3937,13 +3938,13 @@ Return as JSON with this structure:
         
         alert(`✅ Added ${addedCount} ingredients from "${recipe.title || recipe.name || 'Recipe'}" to your cart!`);
         
-        console.log(`✅ Successfully added ${addedCount} items to cart from recipe:`, recipe.title);
+        debugService.log(`✅ Successfully added ${addedCount} items to cart from recipe:`, recipe.title);
       } else {
-        console.error('API Response:', data);
+        debugService.logError('API Response:', data);
         throw new Error(data.error || 'Failed to process recipe ingredients');
       }
     } catch (error) {
-      console.error('❌ Error adding recipe to cart:', error);
+      debugService.logError('❌ Error adding recipe to cart:', error);
       alert('❌ Failed to add recipe ingredients to cart. Please try again.');
     }
   };
@@ -3959,18 +3960,18 @@ Return as JSON with this structure:
       // Recipe is from parsedRecipes array
       const updatedRecipes = parsedRecipes.filter((_, index) => index !== recipeIndex);
       setParsedRecipes(updatedRecipes);
-      console.log(`🗑️ Removed parsed recipe at index ${recipeIndex}. ${updatedRecipes.length} parsed recipes remaining.`);
+      debugService.log(`🗑️ Removed parsed recipe at index ${recipeIndex}. ${updatedRecipes.length} parsed recipes remaining.`);
     } else {
       // Recipe is from recipes array (AI-generated)
       const aiRecipeIndex = recipeIndex - parsedRecipesCount;
       const updatedRecipes = recipes.filter((_, index) => index !== aiRecipeIndex);
       setRecipes(updatedRecipes);
-      console.log(`🗑️ Removed AI recipe at index ${aiRecipeIndex}. ${updatedRecipes.length} AI recipes remaining.`);
+      debugService.log(`🗑️ Removed AI recipe at index ${aiRecipeIndex}. ${updatedRecipes.length} AI recipes remaining.`);
     }
   };
 
   const handleItemsChange = (updatedItems) => {
-    console.log('🔄 Updating cart items:', {
+    debugService.log('🔄 Updating cart items:', {
       before: currentCart.length,
       after: updatedItems.length,
       items: updatedItems.map(item => ({
@@ -3986,16 +3987,16 @@ Return as JSON with this structure:
 
   // Debug delete function to test individual item removal
   const debugDeleteItem = useCallback((itemId) => {
-    console.log('🗑️ Attempting to delete item:', itemId);
+    debugService.log('🗑️ Attempting to delete item:', itemId);
     const itemToDelete = currentCart.find(item => item.id === itemId);
-    console.log('Item found:', itemToDelete);
+    debugService.log('Item found:', itemToDelete);
     
     if (itemToDelete) {
       const newCart = currentCart.filter(item => item.id !== itemId);
-      console.log('New cart after deletion:', newCart);
+      debugService.log('New cart after deletion:', newCart);
       setCurrentCart(newCart);
     } else {
-      console.error('❌ Item not found in cart!');
+      debugService.logError('❌ Item not found in cart!');
     }
   }, [currentCart, setCurrentCart]);
 
@@ -4009,7 +4010,7 @@ Return as JSON with this structure:
 
     setImportingRecipe(true);
     try {
-      console.log('🔗 Importing recipe from URL:', recipeUrl);
+      debugService.log('🔗 Importing recipe from URL:', recipeUrl);
       
       const result = await unifiedRecipeService.importOne({
         source: 'url',
@@ -4019,7 +4020,7 @@ Return as JSON with this structure:
 
       if (result.success && result.recipes?.length > 0) {
         const importedRecipes = result.recipes;
-        console.log('✅ Successfully imported recipes:', importedRecipes);
+        debugService.log('✅ Successfully imported recipes:', importedRecipes);
         
         // Add to parsed recipes to display them
         setValidParsedRecipes([...parsedRecipes, ...importedRecipes]);
@@ -4030,11 +4031,11 @@ Return as JSON with this structure:
         
         alert(`✅ Successfully imported ${importedRecipes.length} recipe(s) from URL!`);
       } else {
-        console.error('❌ Recipe import failed:', result.error);
+        debugService.logError('❌ Recipe import failed:', result.error);
         alert(`❌ Failed to import recipe: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('❌ Recipe import error:', error);
+      debugService.logError('❌ Recipe import error:', error);
       alert(`❌ Error importing recipe: ${error.message}`);
     } finally {
       setImportingRecipe(false);
@@ -4050,7 +4051,7 @@ Return as JSON with this structure:
 
     setImportingRecipe(true);
     try {
-      console.log('🤖 Importing recipe from AI text:', aiRecipeText.substring(0, 300) + '...');
+      debugService.log('🤖 Importing recipe from AI text:', aiRecipeText.substring(0, 300) + '...');
       
       const result = await unifiedRecipeService.importOne({
         source: 'ai-text',
@@ -4060,7 +4061,7 @@ Return as JSON with this structure:
 
       if (result.success && result.recipes?.length > 0) {
         const importedRecipes = result.recipes;
-        console.log('✅ Successfully imported recipes from AI:', importedRecipes);
+        debugService.log('✅ Successfully imported recipes from AI:', importedRecipes);
         
         // Add to parsed recipes to display them
         setValidParsedRecipes([...parsedRecipes, ...importedRecipes]);
@@ -4071,11 +4072,11 @@ Return as JSON with this structure:
         
         alert(`✅ Successfully imported ${importedRecipes.length} recipe(s) from AI text!`);
       } else {
-        console.error('❌ AI recipe import failed:', result.error);
+        debugService.logError('❌ AI recipe import failed:', result.error);
         alert(`❌ Failed to import recipe: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('❌ AI recipe import error:', error);
+      debugService.logError('❌ AI recipe import error:', error);
       alert(`❌ Error importing recipe: ${error.message}`);
     } finally {
       setImportingRecipe(false);
@@ -4101,84 +4102,84 @@ Return as JSON with this structure:
         },
         deleteItem: (itemId) => debugDeleteItem(itemId),
         deleteByIndex: (index) => {
-          console.log(`🗑️ Attempting to delete item at index ${index}`);
+          debugService.log(`🗑️ Attempting to delete item at index ${index}`);
           if (currentCart[index]) {
             const item = currentCart[index];
-            console.log('Item to delete:', item);
+            debugService.log('Item to delete:', item);
             debugDeleteItem(item.id);
           } else {
-            console.error(`❌ No item at index ${index}`);
+            debugService.logError(`❌ No item at index ${index}`);
           }
         },
         forceDeleteByName: (productName) => {
-          console.log(`🔨 Force deleting item by name: "${productName}"`);
+          debugService.log(`🔨 Force deleting item by name: "${productName}"`);
           const beforeCount = currentCart.length;
           const newCart = currentCart.filter(item => 
             item.productName !== productName && 
             item.name !== productName
           );
           setCurrentCart(newCart);
-          console.log(`Deleted ${beforeCount - newCart.length} items matching "${productName}"`);
+          debugService.log(`Deleted ${beforeCount - newCart.length} items matching "${productName}"`);
         },
         findProblematicItems: () => {
           const problematic = currentCart.filter(item => 
             !item.id || item.id === undefined || item.id === null || typeof item.id !== 'string'
           );
-          console.log('🚨 Problematic items (no valid ID):', problematic);
+          debugService.log('🚨 Problematic items (no valid ID):', problematic);
           return problematic;
         },
         regenerateIds: () => {
-          console.log('🔄 Regenerating IDs for all items...');
+          debugService.log('🔄 Regenerating IDs for all items...');
           const updatedCart = currentCart.map((item, index) => ({
             ...item,
             id: item.id || generateStableId('item')
           }));
           setCurrentCart(updatedCart);
-          console.log('✅ All IDs regenerated');
+          debugService.log('✅ All IDs regenerated');
         },
         clearCart: () => setCurrentCart([]),
         getItem: (index) => currentCart[index],
         getFullCart: () => currentCart,
         testDeleteAll: () => {
-          console.log('🧪 Testing deletion of all items one by one...');
+          debugService.log('🧪 Testing deletion of all items one by one...');
           currentCart.forEach((item, index) => {
-            console.log(`Testing deletion of item ${index + 1}:`, item.productName);
+            debugService.log(`Testing deletion of item ${index + 1}:`, item.productName);
             if (item.id) {
               debugDeleteItem(item.id);
             } else {
-              console.error(`❌ Item ${index + 1} has no ID, cannot delete`);
+              debugService.logError(`❌ Item ${index + 1} has no ID, cannot delete`);
             }
           });
         },
         // Local Storage debugging
         checkLocalStorage: () => {
           const savedCart = [];
-          console.log('💾 Current localStorage cart:', savedCart ? JSON.parse(savedCart) : 'empty');
+          debugService.log('💾 Current localStorage cart:', savedCart ? JSON.parse(savedCart) : 'empty');
           return savedCart ? JSON.parse(savedCart) : [];
         },
         clearLocalStorage: () => {
-          console.log('🗑️ Cleared localStorage cart - refresh page to see effect');
+          debugService.log('🗑️ Cleared localStorage cart - refresh page to see effect');
         },
         updateLocalStorage: () => {
-          console.log('🚫 Cart localStorage writes disabled (Firestore is cart authority)');
-          console.log('💡 Cart authority system prevents localStorage cart writes');
+          debugService.log('🚫 Cart localStorage writes disabled (Firestore is cart authority)');
+          debugService.log('💡 Cart authority system prevents localStorage cart writes');
         },
         compareWithLocalStorage: () => {
           const savedCart = [];
           const saved = savedCart ? JSON.parse(savedCart) : [];
-          console.log('🔍 Comparison between current cart and localStorage:');
-          console.log('Current cart items:', currentCart.length);
-          console.log('LocalStorage items:', saved.length);
-          console.log('Items in current but not in storage:', 
+          debugService.log('🔍 Comparison between current cart and localStorage:');
+          debugService.log('Current cart items:', currentCart.length);
+          debugService.log('LocalStorage items:', saved.length);
+          debugService.log('Items in current but not in storage:', 
             currentCart.filter(current => !saved.some(s => s.id === current.id))
           );
-          console.log('Items in storage but not in current:', 
+          debugService.log('Items in storage but not in current:', 
             saved.filter(s => !currentCart.some(current => current.id === s.id))
           );
         },
         // EMERGENCY NUCLEAR OPTION - Clear ALL cart data sources
         nuclearClear: () => {
-          console.log('💥 NUCLEAR CLEAR: Removing cart from ALL sources...');
+          debugService.log('💥 NUCLEAR CLEAR: Removing cart from ALL sources...');
           
           // 1. Clear localStorage
           localStorage.removeItem('cart-smash-draft');
@@ -4190,13 +4191,13 @@ Return as JSON with this structure:
           if (window.userDataService) {
             try {
               window.userDataService.saveShoppingList({id: 'current-cart', items: []});
-            } catch(e) { console.log('Could not clear Firebase:', e); }
+            } catch(e) { debugService.log('Could not clear Firebase:', e); }
           }
           
           // 4. Server clearing skipped (no compatible endpoints found)
-          console.log('⚠️ Server clearing skipped - no compatible API endpoints');
+          debugService.log('⚠️ Server clearing skipped - no compatible API endpoints');
           
-          console.log('💥 Nuclear clear completed. Refresh page to verify.');
+          debugService.log('💥 Nuclear clear completed. Refresh page to verify.');
         }
       };
       
@@ -4211,21 +4212,21 @@ Return as JSON with this structure:
 
   // Fixed delete handler - simple ID-based filtering with proper hydration handling
   const handleDeleteItem = useCallback((itemId) => {
-    console.log('🗑️ handleDeleteItem called with:', itemId);
+    debugService.log('🗑️ handleDeleteItem called with:', itemId);
     
     setCurrentCart(prevCart => {
-      console.log('📋 Cart items before deletion:', prevCart.map(item => ({id: item.id, name: item.productName})));
+      debugService.log('📋 Cart items before deletion:', prevCart.map(item => ({id: item.id, name: item.productName})));
       
       // Simple filtering - only match the exact item ID
       const newCart = prevCart.filter(item => item.id !== itemId);
-      console.log(`🗑️ Deletion: ${prevCart.length} → ${newCart.length} items (removed ID: ${itemId})`);
+      debugService.log(`🗑️ Deletion: ${prevCart.length} → ${newCart.length} items (removed ID: ${itemId})`);
       
       // Debug: show which items remain
       if (prevCart.length === newCart.length) {
-        console.warn('⚠️ No item was removed - ID not found in cart');
-        console.log('Available IDs:', prevCart.map(item => item.id));
+        debugService.logWarning('⚠️ No item was removed - ID not found in cart');
+        debugService.log('Available IDs:', prevCart.map(item => item.id));
       } else {
-        console.log('✅ Item successfully removed');
+        debugService.log('✅ Item successfully removed');
       }
       
       return newCart;

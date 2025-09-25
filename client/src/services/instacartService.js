@@ -1,5 +1,6 @@
 // client/src/services/instacartService.js
 // Instacart Developer Platform API integration
+import debugService from './debugService';
 
 class InstacartService {
   constructor() {
@@ -17,7 +18,7 @@ class InstacartService {
     if (!this.apiKey || this.apiKey === 'your_development_api_key_here') {
       throw new Error('⚠️ Instacart API key not configured. Real API key is required.');
     } else {
-      console.log('✅ Instacart API configured for', this.isDevelopment ? 'development' : 'production');
+      debugService.log('✅ Instacart API configured for', this.isDevelopment ? 'development' : 'production');
     }
   }
 
@@ -55,12 +56,12 @@ class InstacartService {
 
   // Find nearby retailers using backend API
   async getNearbyRetailers(zipCode = '95670') {
-    console.log('🏪 InstacartService: Getting nearby retailers for', zipCode);
+    debugService.log('🏪 InstacartService: Getting nearby retailers for', zipCode);
     
     try {
       // Always try backend API first (regardless of client API key configuration)
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-      console.log('📡 Calling backend retailer API:', `${API_URL}/api/instacart/retailers?postalCode=${zipCode}`);
+      debugService.log('📡 Calling backend retailer API:', `${API_URL}/api/instacart/retailers?postalCode=${zipCode}`);
       
       const response = await fetch(`${API_URL}/api/instacart/retailers?postalCode=${zipCode}&countryCode=US`, {
         method: 'GET',
@@ -75,10 +76,10 @@ class InstacartService {
       }
 
       const data = await response.json();
-      console.log('✅ Backend API response:', data);
+      debugService.log('✅ Backend API response:', data);
 
       if (data.success && data.retailers) {
-        console.log(`🏪 Found ${data.retailers.length} real retailers from Instacart API`);
+        debugService.log(`🏪 Found ${data.retailers.length} real retailers from Instacart API`);
         return {
           success: true,
           retailers: data.retailers
@@ -87,14 +88,14 @@ class InstacartService {
         throw new Error('Invalid response format from backend');
       }
     } catch (error) {
-      console.error('❌ Error fetching Instacart retailers from backend:', error);
+      debugService.logError('❌ Error fetching Instacart retailers from backend:', error);
       throw error;
     }
   }
 
   // 🆕 CREATE RECIPE PAGE - Official Instacart Developer Platform API
   async createRecipePage(recipeData) {
-    console.log('🍳 InstacartService: Creating recipe page for:', recipeData.title);
+    debugService.log('🍳 InstacartService: Creating recipe page for:', recipeData.title);
     
 
     try {
@@ -118,7 +119,7 @@ class InstacartService {
         payload.partner_linkback_url = recipeData.partnerUrl;
       }
 
-      console.log('📤 Sending recipe to Instacart:', payload);
+      debugService.log('📤 Sending recipe to Instacart:', payload);
 
       const response = await fetch(`${this.baseURL}${this.recipeEndpoint}`, {
         method: 'POST',
@@ -128,22 +129,22 @@ class InstacartService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Instacart API Error Response:', errorText);
+        debugService.logError('❌ Instacart API Error Response:', errorText);
         throw new Error(`Instacart recipe creation error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('✅ Recipe page created successfully:', data);
+      debugService.log('✅ Recipe page created successfully:', data);
       return this.formatRecipeResponse(data);
     } catch (error) {
-      console.error('❌ Error creating Instacart recipe page:', error);
+      debugService.logError('❌ Error creating Instacart recipe page:', error);
       throw error;
     }
   }
 
   // Export grocery list as recipe page to Instacart
   async exportGroceryListAsRecipe(groceryItems, options = {}) {
-    console.log('📦 InstacartService: Exporting', groceryItems.length, 'grocery items as recipe');
+    debugService.log('📦 InstacartService: Exporting', groceryItems.length, 'grocery items as recipe');
 
     const recipeTitle = options.title || 'My CartSmash Grocery List';
     
@@ -175,12 +176,12 @@ class InstacartService {
 
   // Search for products in Instacart catalog (keeping existing method)
   async searchProducts(query, retailerId = null) {
-    console.log('🔍 InstacartService: Searching for products:', query);
+    debugService.log('🔍 InstacartService: Searching for products:', query);
 
     try {
       // Always try backend API first (backend handles all Instacart API complexities)
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-      console.log('📡 Calling backend search API:', `${API_URL}/api/instacart/search`);
+      debugService.log('📡 Calling backend search API:', `${API_URL}/api/instacart/search`);
 
       const requestBody = {
         query: query,
@@ -198,16 +199,16 @@ class InstacartService {
       });
 
       if (!response.ok) {
-        console.error(`❌ Backend API error: ${response.status} ${response.statusText}`);
+        debugService.logError(`❌ Backend API error: ${response.status} ${response.statusText}`);
         throw new Error(`Backend API error: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('✅ Backend search API response:', data);
+      debugService.log('✅ Backend search API response:', data);
 
       if (data.success && data.products && Array.isArray(data.products)) {
         if (data.products.length > 0) {
-          console.log(`🔍 Found ${data.products.length} products with real Instacart data`);
+          debugService.log(`🔍 Found ${data.products.length} products with real Instacart data`);
 
           // Transform to expected format with enhanced validation
           const products = data.products.map(product => {
@@ -224,7 +225,7 @@ class InstacartService {
               source: 'instacart_api'
             };
 
-            console.log(`✅ Transformed product: ${product.name || product.productName}`, {
+            debugService.log(`✅ Transformed product: ${product.name || product.productName}`, {
               price: transformedProduct.price,
               hasImage: !!transformedProduct.image,
               enriched: transformedProduct.enriched
@@ -240,7 +241,7 @@ class InstacartService {
             source: 'backend_api'
           };
         } else {
-          console.log('⚠️ No products found from backend API');
+          debugService.log('⚠️ No products found from backend API');
           return {
             success: true,
             products: [],
@@ -252,14 +253,14 @@ class InstacartService {
         throw new Error('Invalid response format from backend');
       }
     } catch (error) {
-      console.error('❌ Error searching Instacart products from backend:', error);
+      debugService.logError('❌ Error searching Instacart products from backend:', error);
       throw error;
     }
   }
 
   // Create shopping list via Instacart API
   async createShoppingList(items, listName = 'CartSmash List') {
-    console.log('📝 InstacartService: Creating shopping list with', items.length, 'items');
+    debugService.log('📝 InstacartService: Creating shopping list with', items.length, 'items');
     
 
     try {
@@ -285,14 +286,14 @@ class InstacartService {
       const data = await response.json();
       return this.formatShoppingListResponse(data);
     } catch (error) {
-      console.error('❌ Error creating Instacart shopping list:', error);
+      debugService.logError('❌ Error creating Instacart shopping list:', error);
       throw error;
     }
   }
 
   // Add items to existing Instacart cart
   async addToCart(items, retailerId) {
-    console.log('🛒 InstacartService: Adding items to cart for retailer', retailerId);
+    debugService.log('🛒 InstacartService: Adding items to cart for retailer', retailerId);
     
 
     try {
@@ -317,22 +318,22 @@ class InstacartService {
       const data = await response.json();
       return this.formatCartResponse(data);
     } catch (error) {
-      console.error('❌ Error adding to Instacart cart:', error);
+      debugService.logError('❌ Error adding to Instacart cart:', error);
       throw error;
     }
   }
 
   // 🆕 CREATE PRODUCTS LINK WITH ALTERNATIVES - Via CartSmash backend API
   async createProductsLinkWithAlternatives(lineItems, options = {}) {
-    console.log('🛒 ===== INSTACART PRODUCTS LINK DEBUG =====');
-    console.log('📝 createProductsLinkWithAlternatives called with:', {
+    debugService.log('🛒 ===== INSTACART PRODUCTS LINK DEBUG =====');
+    debugService.log('📝 createProductsLinkWithAlternatives called with:', {
       lineItemsCount: lineItems.length,
       title: options.title,
       linkType: options.linkType || 'shopping_list',
       retailerKey: options.retailerKey,
       timestamp: new Date().toISOString()
     });
-    console.log('📦 Line items to send:', lineItems.map((item, index) => ({
+    debugService.log('📦 Line items to send:', lineItems.map((item, index) => ({
       index,
       name: item.name || item.productName,
       upcs: item.upcs,
@@ -362,7 +363,7 @@ class InstacartService {
         filters: options.filters || {}
       };
 
-      console.log('📤 Sending products link request:', JSON.stringify(requestPayload, null, 2));
+      debugService.log('📤 Sending products link request:', JSON.stringify(requestPayload, null, 2));
 
       const response = await fetch(`${apiUrl}/api/instacart/products-link/create`, {
         method: 'POST',
@@ -375,18 +376,18 @@ class InstacartService {
 
       clearTimeout(timeoutId); // Clear timeout if request completes
 
-      console.log('📞 API Response status:', response.status);
-      console.log('📞 API Response headers:', Object.fromEntries(response.headers.entries()));
+      debugService.log('📞 API Response status:', response.status);
+      debugService.log('📞 API Response headers:', Object.fromEntries(response.headers.entries()));
 
       const data = await response.json();
-      console.log('📞 API Response data:', data);
+      debugService.log('📞 API Response data:', data);
 
       if (data.success) {
-        console.log('✅ ===== PRODUCTS LINK CREATION SUCCESS =====');
-        console.log('🎉 Products link with alternatives created successfully');
-        console.log('🔗 Instacart URL:', data.instacartUrl);
-        console.log('📊 Items count:', data.itemsCount);
-        console.log('🔄 Alternatives supported:', data.alternativesSupported);
+        debugService.log('✅ ===== PRODUCTS LINK CREATION SUCCESS =====');
+        debugService.log('🎉 Products link with alternatives created successfully');
+        debugService.log('🔗 Instacart URL:', data.instacartUrl);
+        debugService.log('📊 Items count:', data.itemsCount);
+        debugService.log('🔄 Alternatives supported:', data.alternativesSupported);
 
         return {
           success: true,
@@ -402,19 +403,19 @@ class InstacartService {
           mockMode: data.mockMode
         };
       } else {
-        console.error('❌ ===== PRODUCTS LINK CREATION FAILED =====');
-        console.error('💥 Backend products link creation failed:', data.error);
+        debugService.logError('❌ ===== PRODUCTS LINK CREATION FAILED =====');
+        debugService.logError('💥 Backend products link creation failed:', data.error);
         throw new Error(data.error || 'Products link creation failed');
       }
     } catch (error) {
-      console.error('❌ ===== INSTACART PRODUCTS LINK ERROR =====');
+      debugService.logError('❌ ===== INSTACART PRODUCTS LINK ERROR =====');
 
       if (error.name === 'AbortError') {
-        console.error('⏰ Request timed out after 30 seconds');
-        console.error('🌐 This is likely due to the remote API being slow or unresponsive');
+        debugService.logError('⏰ Request timed out after 30 seconds');
+        debugService.logError('🌐 This is likely due to the remote API being slow or unresponsive');
       } else {
-        console.error('💥 Error creating products link with alternatives:', error);
-        console.error('🔍 Error details:', {
+        debugService.logError('💥 Error creating products link with alternatives:', error);
+        debugService.logError('🔍 Error details:', {
           name: error.name,
           message: error.message,
           stack: error.stack?.split('\n').slice(0, 5) // First 5 lines of stack trace
@@ -427,15 +428,15 @@ class InstacartService {
 
   // 🆕 CREATE DIRECT CART - Via CartSmash backend API
   async createDirectCart(cartItems, retailerId, zipCode, metadata = {}) {
-    console.log('🛒 ===== INSTACART SERVICE DEBUG =====');
-    console.log('📝 createDirectCart called with:', {
+    debugService.log('🛒 ===== INSTACART SERVICE DEBUG =====');
+    debugService.log('📝 createDirectCart called with:', {
       cartItemsCount: cartItems.length,
       retailerId,
       zipCode,
       metadataKeys: Object.keys(metadata),
       timestamp: new Date().toISOString()
     });
-    console.log('📦 Cart items to send:', cartItems.map((item, index) => ({
+    debugService.log('📦 Cart items to send:', cartItems.map((item, index) => ({
       index,
       product_id: item.product_id,
       retailer_sku: item.retailer_sku,
@@ -444,7 +445,7 @@ class InstacartService {
       price: item.price,
       hasRequiredFields: !!(item.product_id && item.retailer_sku && item.quantity && item.name)
     })));
-    console.log(`🔧 API URL: ${process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com'}`);
+    debugService.log(`🔧 API URL: ${process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com'}`);
     
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
@@ -473,18 +474,18 @@ class InstacartService {
       
       clearTimeout(timeoutId); // Clear timeout if request completes
 
-      console.log('📞 API Response status:', response.status);
-      console.log('📞 API Response headers:', Object.fromEntries(response.headers.entries()));
+      debugService.log('📞 API Response status:', response.status);
+      debugService.log('📞 API Response headers:', Object.fromEntries(response.headers.entries()));
       
       const data = await response.json();
-      console.log('📞 API Response data:', data);
+      debugService.log('📞 API Response data:', data);
       
       if (data.success) {
-        console.log('✅ ===== CART CREATION SUCCESS =====');
-        console.log('🎉 Direct cart created successfully via backend');
-        console.log('🔗 Checkout URL:', data.checkoutUrl);
-        console.log('📊 Items added:', data.itemsAdded);
-        console.log('💰 Totals:', data.totals);
+        debugService.log('✅ ===== CART CREATION SUCCESS =====');
+        debugService.log('🎉 Direct cart created successfully via backend');
+        debugService.log('🔗 Checkout URL:', data.checkoutUrl);
+        debugService.log('📊 Items added:', data.itemsAdded);
+        debugService.log('💰 Totals:', data.totals);
         
         return {
           success: true,
@@ -495,19 +496,19 @@ class InstacartService {
           metadata: data.metadata
         };
       } else {
-        console.error('❌ ===== CART CREATION FAILED =====');
-        console.error('💥 Backend cart creation failed:', data.error);
+        debugService.logError('❌ ===== CART CREATION FAILED =====');
+        debugService.logError('💥 Backend cart creation failed:', data.error);
         throw new Error(data.error || 'Cart creation failed');
       }
     } catch (error) {
-      console.error('❌ ===== INSTACART API ERROR =====');
+      debugService.logError('❌ ===== INSTACART API ERROR =====');
       
       if (error.name === 'AbortError') {
-        console.error('⏰ Request timed out after 30 seconds');
-        console.error('🌐 This is likely due to the remote API being slow or unresponsive');
+        debugService.logError('⏰ Request timed out after 30 seconds');
+        debugService.logError('🌐 This is likely due to the remote API being slow or unresponsive');
       } else {
-        console.error('💥 Error creating direct cart via backend:', error);
-        console.error('🔍 Error details:', {
+        debugService.logError('💥 Error creating direct cart via backend:', error);
+        debugService.logError('🔍 Error details:', {
           name: error.name,
           message: error.message,
           stack: error.stack?.split('\n').slice(0, 5) // First 5 lines of stack trace

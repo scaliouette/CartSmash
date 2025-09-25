@@ -4,6 +4,26 @@ const router = express.Router();
 const AIProductParser = require('../utils/aiProductParser');
 const { parseIngredientLine, buildSearchQuery } = require('../utils/ingredientParser');
 const { validateUserId, validateQuantity, sanitizeText } = require('../utils/validation');
+const winston = require('winston');
+
+// Configure logger for this route
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'cart-routes' },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    })
+  ]
+});
 
 // Initialize AI parser
 const productParser = new AIProductParser();
@@ -189,7 +209,7 @@ function extractRecipes(text) {
     recipes.push(currentRecipe);
   }
   
-  console.log(`📝 Extracted ${recipes.length} recipes from text`);
+  logger.info(`📝 Extracted ${recipes.length} recipes from text`);
   return recipes;
 }
 
@@ -204,13 +224,13 @@ router.post('/parse', async (req, res) => {
       });
     }
 
-    console.log('🔍 Parsing grocery list with AI intelligence...');
+    logger.info('🔍 Parsing grocery list with AI intelligence...');
     
     let parsedItems = [];
     
     // Use AI parsing for intelligent extraction
     if (useAI) {
-      console.log('🤖 Using AI-powered intelligent parsing...');
+      logger.info('🤖 Using AI-powered intelligent parsing...');
       
       try {
         const parsingResults = await productParser.parseGroceryProducts(listText, {
@@ -259,7 +279,7 @@ router.post('/parse', async (req, res) => {
           };
           searchQuery = productName;
 
-          console.log('🔍 [DEBUG] Using AI-parsed data directly (no secondary parsing):', {
+          logger.info('🔍 [DEBUG] Using AI-parsed data directly (no secondary parsing):', {
             productName,
             quantity: product.quantity,
             unit: product.unit,
@@ -291,21 +311,21 @@ router.post('/parse', async (req, res) => {
           };
         }));
         
-        console.log(`✅ AI parsed ${parsedItems.length} validated products from ${parsingResults.totalCandidates} candidates`);
-        console.log(`📊 Average confidence: ${(parsingResults.averageConfidence * 100).toFixed(1)}%`);
+        logger.info(`✅ AI parsed ${parsedItems.length} validated products from ${parsingResults.totalCandidates} candidates`);
+        logger.info(`📊 Average confidence: ${(parsingResults.averageConfidence * 100).toFixed(1)}%`);
         
       } catch (aiError) {
-        console.error('🔍 [DEBUG] AI parsing failed in cart.js - analyzing error...');
-        console.error('🔍 [DEBUG] Error message:', aiError.message);
-        console.error('🔍 [DEBUG] Error type:', typeof aiError);
-        console.error('🔍 [DEBUG] Error stack:', aiError.stack?.substring(0, 500));
-        console.error('🔍 [DEBUG] Full error object:', JSON.stringify(aiError, null, 2));
+        logger.error('🔍 [DEBUG] AI parsing failed in cart.js - analyzing error...');
+        logger.error('🔍 [DEBUG] Error message:', aiError.message);
+        logger.error('🔍 [DEBUG] Error type:', typeof aiError);
+        logger.error('🔍 [DEBUG] Error stack:', aiError.stack?.substring(0, 500));
+        logger.error('🔍 [DEBUG] Full error object:', JSON.stringify(aiError, null, 2));
         
         // AI-only mode: No emergency fallback available
         
         // Check if it's a credit/billing issue
         if (aiError.message && aiError.message.includes('credit balance is too low')) {
-          console.error('🔍 [DEBUG] Detected credit balance issue - returning 400');
+          logger.error('🔍 [DEBUG] Detected credit balance issue - returning 400');
           return res.status(400).json({
             success: false,
             error: 'AI credits exhausted',
@@ -316,7 +336,7 @@ router.post('/parse', async (req, res) => {
         }
         
         // Other AI failures - add debugging
-        console.error('🔍 [DEBUG] Other AI failure - returning 400');
+        logger.error('🔍 [DEBUG] Other AI failure - returning 400');
         return res.status(400).json({
           success: false,
           error: 'AI parsing unavailable',
@@ -341,7 +361,7 @@ router.post('/parse', async (req, res) => {
       const beforeCount = parsedItems.length;
       finalParsedItems = mergeDuplicates(parsedItems);
       duplicatesMerged = beforeCount - finalParsedItems.length;
-      console.log(`✅ Merged ${duplicatesMerged} duplicate items`);
+      logger.info(`✅ Merged ${duplicatesMerged} duplicate items`);
     }
 
     // Get user's existing cart
@@ -353,10 +373,10 @@ router.post('/parse', async (req, res) => {
     if (action === 'merge') {
       const combined = [...existingCart, ...finalParsedItems];
       finalCart = options.mergeDuplicates !== false ? mergeDuplicates(combined) : combined;
-      console.log(`✅ Merged ${finalParsedItems.length} new items with ${existingCart.length} existing items`);
+      logger.info(`✅ Merged ${finalParsedItems.length} new items with ${existingCart.length} existing items`);
     } else {
       finalCart = finalParsedItems;
-      console.log(`✅ Replaced cart with ${finalParsedItems.length} new items`);
+      logger.info(`✅ Replaced cart with ${finalParsedItems.length} new items`);
     }
     
     // Save the cart
@@ -392,7 +412,7 @@ router.post('/parse', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error parsing grocery list:', error);
+    logger.error('❌ Error parsing grocery list:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to parse grocery list',
@@ -415,7 +435,7 @@ router.post('/validate-all', async (req, res) => {
       });
     }
     
-    console.log(`🔍 Validating ${userCart.length} items with AI...`);
+    logger.info(`🔍 Validating ${userCart.length} items with AI...`);
     
     const validatedItems = [];
     
@@ -454,7 +474,7 @@ router.post('/validate-all', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error validating items:', error);
+    logger.error('Error validating items:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to validate items'
@@ -474,7 +494,7 @@ router.post('/fetch-prices', async (req, res) => {
       });
     }
 
-    console.log(`🚫 Kroger price fetching disabled - returning empty results for ${items.length} items`);
+    logger.info(`🚫 Kroger price fetching disabled - returning empty results for ${items.length} items`);
 
     // Return empty prices since Kroger integration is archived
     return res.json({
@@ -486,7 +506,7 @@ router.post('/fetch-prices', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error fetching prices:', error);
+    logger.error('❌ Error fetching prices:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch prices from Kroger',
@@ -643,7 +663,7 @@ router.delete('/items/:itemId', (req, res) => {
     
     cartItems.set(userId, userCart);
     
-    console.log(`🗑️ Deleted item ${itemId} from cart for user ${userId}`);
+    logger.info(`🗑️ Deleted item ${itemId} from cart for user ${userId}`);
     
     res.json({
       success: true,
@@ -652,7 +672,7 @@ router.delete('/items/:itemId', (req, res) => {
       remainingItems: userCart.length
     });
   } catch (error) {
-    console.error('❌ Error deleting cart item:', error);
+    logger.error('❌ Error deleting cart item:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to delete item'
