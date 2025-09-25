@@ -46,6 +46,7 @@ const getRetailerName = (retailerKey) => {
   return retailerNames[retailerKey] || retailerKey;
 };
 
+
 // Performance optimization configurations
 const PERFORMANCE_CONFIG = {
   HTML_CACHE_SIZE: 50,
@@ -829,6 +830,7 @@ router.post('/search', async (req, res) => {
             products: [],
             query: query,
             retailer: retailerId,
+            retailer_name: getRetailerName(retailerId),
             count: 0,
             message: `Could not parse pricing data for "${query}" from ${retailerId}`,
             source: 'instacart_html_parse_failed'
@@ -842,6 +844,7 @@ router.post('/search', async (req, res) => {
           products: [],
           query: query,
           retailer: retailerId,
+          retailer_name: getRetailerName(retailerId),
           count: 0,
           message: `No products found for "${query}" at ${retailerId}`,
           source: 'instacart_products_link_empty'
@@ -1302,6 +1305,7 @@ router.get('/test', async (req, res) => {
     });
   }
 });
+
 
 // POST /api/instacart/batch-search - Search for multiple items at once
 router.post('/batch-search', async (req, res) => {
