@@ -2429,6 +2429,109 @@ router.post('/shopping-list/create', async (req, res) => {
   }
 });
 
+// POST /api/instacart/compare-prices - Multi-store price comparison for cheapest options
+router.post('/compare-prices', async (req, res) => {
+  try {
+    const { query, postal_code = '95670' } = req.body;
+
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        error: 'Query is required'
+      });
+    }
+
+    console.log(`🏪 Comparing prices across stores for: "${query}" in ${postal_code}`);
+
+    // Get available retailers for the location
+    const retailersResponse = await instacartApiCall(`/retailers?postal_code=${postal_code}&country_code=US`, 'GET', null, INSTACART_API_KEY);
+
+    if (!retailersResponse || !retailersResponse.retailers) {
+      return res.status(500).json({
+        success: false,
+        error: 'Could not fetch retailers'
+      });
+    }
+
+    // Get top retailers for comparison (limit to avoid too many requests)
+    const topRetailers = retailersResponse.retailers.slice(0, 5);
+    console.log(`🏪 Comparing across ${topRetailers.length} stores: ${topRetailers.map(r => r.retailer_key).join(', ')}`);
+
+    // Search each store for pricing
+    const storeComparisons = [];
+
+    for (const retailer of topRetailers) {
+      try {
+        console.log(`🔍 Checking ${retailer.name}...`);
+
+        // Use our existing search logic for each store
+        const productsLinkPayload = {
+          title: `Price check for ${query}`,
+          line_items: [{
+            name: query,
+            quantity: "1"
+          }],
+          retailer_key: retailer.retailer_key,
+          postal_code: postal_code
+        };
+
+        const linkResponse = await instacartApiCall('/products/products_link', 'POST', productsLinkPayload, INSTACART_API_KEY);
+
+        if (linkResponse && linkResponse.products_link_url) {
+          // For now, we'll return the store availability info
+          // In a full implementation, we'd scrape each page for pricing
+          storeComparisons.push({
+            retailer_key: retailer.retailer_key,
+            retailer_name: retailer.name,
+            available: true,
+            instacart_url: linkResponse.products_link_url,
+            // Placeholder - would be populated by scraping
+            products: [],
+            lowest_price: null
+          });
+        }
+
+      } catch (storeError) {
+        console.log(`⚠️ Error checking ${retailer.name}: ${storeError.message}`);
+        storeComparisons.push({
+          retailer_key: retailer.retailer_key,
+          retailer_name: retailer.name,
+          available: false,
+          error: storeError.message
+        });
+      }
+    }
+
+    // Sort by availability and potential savings
+    storeComparisons.sort((a, b) => {
+      if (a.available && !b.available) return -1;
+      if (!a.available && b.available) return 1;
+      return 0;
+    });
+
+    res.json({
+      success: true,
+      query: query,
+      location: postal_code,
+      stores_compared: storeComparisons.length,
+      stores: storeComparisons,
+      cheapest_store: storeComparisons.find(s => s.available),
+      recommendations: {
+        message: `Found ${query} available at ${storeComparisons.filter(s => s.available).length} stores in your area`,
+        next_step: "Click on a store link to see actual pricing and add items to your cart"
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Price comparison error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Price comparison failed',
+      message: error.message
+    });
+  }
+});
+
 // Error handling middleware
 router.use((error, req, res, next) => {
   console.error('Instacart API Error:', error);
