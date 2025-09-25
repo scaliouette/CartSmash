@@ -12,12 +12,13 @@ const { OpenAI } = require('openai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Anthropic = require('@anthropic-ai/sdk');
 require('dotenv').config();
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const config = require('./config');
 
-console.log(`⚙️ Configuration loaded for environment: ${process.env.NODE_ENV || 'development'}`);
+logger.info(`Configuration loaded for environment: ${process.env.NODE_ENV || 'development'}`);
 
 
 // Validate required environment variables
@@ -34,7 +35,7 @@ const requiredEnvVars = [
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 if (missingEnvVars.length > 0) {
-  console.error('❌ Missing required environment variables:', missingEnvVars);
+  logger.error('Missing required environment variables:', missingEnvVars);
   if (process.env.NODE_ENV === 'production') {
     process.exit(1);
   }
@@ -304,10 +305,10 @@ app.options('*', (req, res) => {
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
     res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization,X-API-Key,User-ID,user-id');
     res.header('Access-Control-Max-Age', '86400');
-    console.log('✅ OPTIONS: Preflight response sent with CORS headers');
+    logger.debug('OPTIONS: Preflight response sent with CORS headers');
     res.sendStatus(200);
   } else {
-    console.log('❌ OPTIONS: Origin not allowed in preflight');
+    logger.warn('OPTIONS: Origin not allowed in preflight');
     res.sendStatus(403);
   }
 });
@@ -440,13 +441,13 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
   }
   
   try {
-    console.log('🔄 Processing OAuth callback with Azure B2C support...');
+    logger.info('Processing OAuth callback with Azure B2C support...');
     
     // Try Azure B2C callback processing first
     try {
       const result = await azureB2CService.processAuthCallback(code, state, req.query);
       
-      console.log('✅ Azure B2C authentication successful!');
+      logger.info('Azure B2C authentication successful!');
       logger.info(`Azure B2C authentication completed for user: ${result.userId}`);
       
       return res.send(`
@@ -471,8 +472,8 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
       `);
       
     } catch (azureB2CError) {
-      console.log('❌ Azure B2C callback failed, trying legacy OAuth...');
-      console.log(`   Azure B2C error: ${azureB2CError.message}`);
+      logger.warn('Azure B2C callback failed, trying legacy OAuth...');
+      logger.warn(`Azure B2C error: ${azureB2CError.message}`);
       
       // Fallback to legacy OAuth processing
       try {
@@ -492,11 +493,11 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
       `${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`
     ).toString('base64');
     
-    console.log(`🔄 [OAUTH DEBUG] Attempting token exchange for user: ${userId}`);
-    console.log(`   Using client ID: ${process.env.KROGER_CLIENT_ID}`);
-    console.log(`   Token endpoint: ${process.env.KROGER_BASE_URL}/connect/oauth2/token`);
-    console.log(`   Redirect URI: ${process.env.KROGER_REDIRECT_URI}`);
-    console.log(`   Authorization code: ${code?.substring(0, 20)}...`);
+    logger.info(`Attempting token exchange for user: ${userId}`);
+    logger.debug(`Using client ID: ${process.env.KROGER_CLIENT_ID}`);
+    logger.debug(`Token endpoint: ${process.env.KROGER_BASE_URL}/connect/oauth2/token`);
+    logger.debug(`Redirect URI: ${process.env.KROGER_REDIRECT_URI}`);
+    logger.debug(`Authorization code: ${code?.substring(0, 20)}...`);
     
     logger.info(`Attempting token exchange for user: ${userId}`);
     logger.info(`Using client ID: ${process.env.KROGER_CLIENT_ID}`);
@@ -509,11 +510,11 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
     params.append('redirect_uri', process.env.KROGER_REDIRECT_URI);
     
     // Log the exact request body for debugging
-    console.log(`🔄 [OAUTH DEBUG] Token exchange body: ${params.toString()}`);
+    logger.debug(`Token exchange body: ${params.toString()}`);
     logger.info(`Token exchange body: ${params.toString()}`);
     
     try {
-      console.log(`🔄 [OAUTH DEBUG] Making token exchange request...`);
+      logger.info('Making token exchange request...');
       const tokenResponse = await axios.post(
         `${process.env.KROGER_BASE_URL}/connect/oauth2/token`,
         params.toString(),  // Use params.toString()
@@ -527,15 +528,15 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
         }
       );
       
-      console.log(`✅ [OAUTH DEBUG] Token exchange successful!`);
-      console.log(`   Response status: ${tokenResponse.status}`);
-      console.log(`   Access token length: ${tokenResponse.data.access_token?.length || 0}`);
-      console.log(`   Token type: ${tokenResponse.data.token_type}`);
-      console.log(`   Scope: ${tokenResponse.data.scope}`);
-      console.log(`   Expires in: ${tokenResponse.data.expires_in}s`);
+      logger.info('Token exchange successful!');
+      logger.debug(`Response status: ${tokenResponse.status}`);
+      logger.debug(`Access token length: ${tokenResponse.data.access_token?.length || 0}`);
+      logger.debug(`Token type: ${tokenResponse.data.token_type}`);
+      logger.debug(`Scope: ${tokenResponse.data.scope}`);
+      logger.debug(`Expires in: ${tokenResponse.data.expires_in}s`);
       
       // Save tokens to database
-      console.log(`🔄 [OAUTH DEBUG] Saving tokens to database...`);
+      logger.info('Saving tokens to database...');
       await tokenStore.setTokens(userId, {
         accessToken: tokenResponse.data.access_token,
         refreshToken: tokenResponse.data.refresh_token,
@@ -544,13 +545,13 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
         expiresAt: new Date(Date.now() + (tokenResponse.data.expires_in * 1000))
       });
       
-      console.log(`✅ [OAUTH DEBUG] Tokens saved successfully for user: ${userId}`);
+      logger.info(`Tokens saved successfully for user: ${userId}`);
       
     } catch (tokenExchangeError) {
-      console.error(`❌ [OAUTH DEBUG] Token exchange failed:`, tokenExchangeError.message);
-      console.error(`   Status: ${tokenExchangeError.response?.status}`);
-      console.error(`   Status Text: ${tokenExchangeError.response?.statusText}`);
-      console.error(`   Response Data:`, tokenExchangeError.response?.data);
+      logger.error('Token exchange failed:', tokenExchangeError.message);
+      logger.error(`Status: ${tokenExchangeError.response?.status}`);
+      logger.error(`Status Text: ${tokenExchangeError.response?.statusText}`);
+      logger.error('Response Data:', tokenExchangeError.response?.data);
       throw tokenExchangeError;
     }
     
@@ -608,7 +609,7 @@ app.get('/api/auth/kroger/callback', async (req, res) => {
     `);
       
       } catch (legacyError) {
-        console.error('❌ Legacy OAuth also failed:', legacyError.message);
+        logger.error('Legacy OAuth also failed:', legacyError.message);
         throw legacyError;
       }
     }
@@ -655,7 +656,7 @@ app.get('/api/auth/kroger/status-and-stores', async (req, res) => {
   try {
     const userId = req.headers['user-id'] || req.query.userId || 'demo-user';
     
-    console.log(`🔍 [AUTH+STORES] Checking auth status and stores for user: ${userId}`);
+    logger.info(`Checking auth status and stores for user: ${userId}`);
     
     const tokenStore = require('./services/TokenStore');
     const tokens = await tokenStore.getTokens(userId);
@@ -704,7 +705,7 @@ app.get('/api/auth/kroger/status-and-stores', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Auth+Stores check failed:', error);
+    logger.error('Auth+Stores check failed:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to check authentication and stores',
@@ -725,11 +726,11 @@ app.get('/api/auth/kroger/login', async (req, res) => {
     });
   }
   
-  console.log(`🔗 Azure B2C OAuth login requested for user: ${userId}`);
+  logger.info(`Azure B2C OAuth login requested for user: ${userId}`);
   
   try {
     // Skip Azure B2C for now - use legacy OAuth directly
-    console.log('🔄 Using Legacy OAuth (Azure B2C disabled for testing)...');
+    logger.info('Using Legacy OAuth (Azure B2C disabled for testing)...');
     
     const state = Buffer.from(`${userId}:${Date.now()}:${Math.random()}`).toString('base64');
     const legacyAuthUrl = `${process.env.KROGER_BASE_URL || 'https://api.kroger.com/v1'}/connect/oauth2/authorize?` +
@@ -739,11 +740,11 @@ app.get('/api/auth/kroger/login', async (req, res) => {
       `scope=${encodeURIComponent('cart.basic:write profile.compact product.compact')}&` +
       `state=${state}`;
     
-    console.log('🚀 Redirecting to Kroger Legacy OAuth:', legacyAuthUrl);
+    logger.info('Redirecting to Kroger Legacy OAuth:', legacyAuthUrl);
     res.redirect(legacyAuthUrl);
     
   } catch (error) {
-    console.error('❌ OAuth login failed:', error);
+    logger.error('OAuth login failed:', error);
     res.status(500).json({ 
       error: 'Authentication setup failed',
       message: error.message
@@ -804,7 +805,7 @@ app.get('/api/test/kroger-creds', async (req, res) => {
       expiresIn: response.data.expires_in
     });
   } catch (error) {
-    console.error('Credential test failed:', error.response?.data || error.message);
+    logger.error('Credential test failed:', error.response?.data || error.message);
     res.status(401).json({
       success: false,
       error: error.response?.data || error.message
@@ -1060,7 +1061,7 @@ app.get('/api/docs', (req, res) => {
 
 // Cache management endpoint for Admin Dashboard
 app.post('/api/cache/clear', (req, res) => {
-  console.log('🗑️ Cache clear requested from Admin Dashboard');
+  logger.info('Cache clear requested from Admin Dashboard');
   
   try {
     // Clear any in-memory caches that might exist
@@ -1078,7 +1079,7 @@ app.post('/api/cache/clear', (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Cache clear failed:', error);
+    logger.error('Cache clear failed:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to clear cache',
@@ -1121,25 +1122,10 @@ routes.forEach(route => {
 });
 
 // 404 Handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Endpoint not found',
-    message: `Cannot ${req.method} ${req.path}`
-  });
-});
+app.use(notFoundHandler);
 
-// Error Handler
-app.use((err, req, res, next) => {
-  logger.error('Unhandled error:', err);
-  
-  res.status(err.status || 500).json({
-    success: false,
-    error: process.env.NODE_ENV === 'production' ? 
-      'Internal server error' : err.message,
-    code: err.code || 'SERVER_ERROR'
-  });
-});
+// Global Error Handler
+app.use(errorHandler);
 
 // Graceful Shutdown
 const gracefulShutdown = async (signal) => {
@@ -1214,8 +1200,8 @@ if (require.main === module) {
     ========================================
     `);
 
-    console.log('\n🧪 CORS Debug Mode: ENABLED');
-    console.log('📊 All requests will be logged with detailed CORS information');
+    logger.info('CORS Debug Mode: ENABLED');
+    logger.info('All requests will be logged with detailed CORS information');
   });
   
   app.set('server', server);

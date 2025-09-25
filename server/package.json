@@ -33,7 +33,9 @@
     "node-cache": "^5.1.2",
     "openai": "^4.77.3",
     "puppeteer": "^24.22.2",
-    "winston": "^3.17.0"
+    "validator": "^13.15.15",
+    "winston": "^3.17.0",
+    "xss": "^1.0.15"
   },
   "devDependencies": {
     "jest": "^29.7.0",

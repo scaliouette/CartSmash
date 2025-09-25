@@ -4,13 +4,34 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const { authenticateUser } = require('../middleware/auth');
+const { validateRequestBody, preventNoSQLInjection, validators, sanitizeInput } = require('../middleware/validation');
+const winston = require('winston');
+
+// Configure logger for this route
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'instacart-routes' },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    })
+  ]
+});
 
 // Try to import puppeteer for dynamic content loading (optional)
 let puppeteer;
 try {
   puppeteer = require('puppeteer');
 } catch (e) {
-  console.log('⚠️ Puppeteer not available - using HTML-only parsing');
+  logger.warn('Puppeteer not available - using HTML-only parsing');
 }
 
 // Import cheerio for HTML parsing
@@ -77,7 +98,7 @@ const circuitBreaker = {
     if (Date.now() - circuit.lastFailure > this.TIMEOUT) {
       circuit.isOpen = false;
       circuit.failures = 0;
-      console.log(`🔄 Circuit breaker RESET for ${service} service`);
+      logger.info(`Circuit breaker RESET for ${service} service`);
       return false;
     }
 
@@ -91,7 +112,7 @@ const circuitBreaker = {
 
     if (circuit.failures >= this.FAILURE_THRESHOLD) {
       circuit.isOpen = true;
-      console.log(`⚡ Circuit breaker OPENED for ${service} service after ${circuit.failures} failures`);
+      logger.warn(`Circuit breaker OPENED for ${service} service after ${circuit.failures} failures`);
     }
   },
 
@@ -102,10 +123,21 @@ const circuitBreaker = {
   }
 };
 
-// Initialize cache cleanup
+// Initialize cache cleanup with proper memory management
 if (!cacheCleanupInterval) {
   cacheCleanupInterval = setInterval(() => {
     const now = Date.now();
+
+    // Limit cache sizes to prevent memory bloat
+    if (htmlCache.size > PERFORMANCE_CONFIG.HTML_CACHE_SIZE) {
+      const entries = Array.from(htmlCache.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp);
+      while (htmlCache.size > PERFORMANCE_CONFIG.HTML_CACHE_SIZE * 0.8) {
+        htmlCache.delete(entries.shift()[0]);
+      }
+    }
+
+    // Clean expired entries
     for (const [key, value] of htmlCache.entries()) {
       if (now - value.timestamp > PERFORMANCE_CONFIG.HTML_CACHE_TTL) {
         htmlCache.delete(key);
@@ -119,6 +151,21 @@ if (!cacheCleanupInterval) {
     // Silent cache cleanup for production efficiency
   }, PERFORMANCE_CONFIG.HTML_CACHE_TTL);
 }
+
+// Cleanup on process exit
+process.on('SIGINT', () => {
+  if (cacheCleanupInterval) {
+    clearInterval(cacheCleanupInterval);
+  }
+  process.exit();
+});
+
+process.on('SIGTERM', () => {
+  if (cacheCleanupInterval) {
+    clearInterval(cacheCleanupInterval);
+  }
+  process.exit();
+});
 
 // Recipe caching system - Best practice per Instacart docs
 const crypto = require('crypto');
@@ -146,7 +193,7 @@ function isCacheValid(cacheEntry) {
 function getCachedRecipeUrl(cacheKey) {
   const cached = recipeCache.get(cacheKey);
   if (isCacheValid(cached)) {
-    console.log(`🎯 Using cached recipe URL for key: ${cacheKey}`);
+    logger.debug(`Using cached recipe URL for key: ${cacheKey}`);
     return cached;
   }
   
@@ -330,7 +377,7 @@ async function parseRealProductsFromRecipe(recipeUrl, query, originalItem, retai
         }
       }
     } catch (apolloError) {
-      console.log('Enhanced Apollo parsing failed:', apolloError.message);
+      logger.warn('Enhanced Apollo parsing failed:', apolloError.message);
     }
 
     // Method 2: Enhanced CSS selector parsing
@@ -510,7 +557,7 @@ const instacartApiCall = async (endpoint, method = 'GET', data = null, apiKey = 
     const response = await axios(config);
     return response.data;
   } catch (error) {
-    console.error(`❌ Error making Instacart API call to ${endpoint}:`, {
+    logger.error(`Error making Instacart API call to ${endpoint}:`, {
       status: error.response?.status,
       statusText: error.response?.statusText,
       data: error.response?.data,
@@ -528,13 +575,13 @@ const validateApiKeys = () => {
       INSTACART_API_KEY !== 'your_instacart_key_here' &&
       INSTACART_API_KEY.startsWith('keys.')) {
     // Success logged
-    console.log(`🔗 Base URL: ${BASE_URL}`);
+    logger.info(`Base URL: ${BASE_URL}`);
     return true;
   } else {
-    console.log(`⚠️ Instacart API key missing or invalid`);
-    console.log(`📝 Current key value: ${INSTACART_API_KEY || 'UNDEFINED'}`);
-    console.log(`📝 Please set INSTACART_API_KEY environment variable with a valid Instacart API key`);
-    console.log(`🔗 Using base URL: ${BASE_URL} (will fall back to mock data)`);
+    logger.warn('Instacart API key missing or invalid');
+    logger.debug(`Current key value: ${INSTACART_API_KEY || 'UNDEFINED'}`);
+    logger.warn('Please set INSTACART_API_KEY environment variable with a valid Instacart API key');
+    logger.info(`Using base URL: ${BASE_URL} (will fall back to mock data)`);
     return false;
   }
 };
@@ -542,7 +589,7 @@ const validateApiKeys = () => {
 // GET /api/instacart/retailers - Get available retailers for a location
 router.get('/retailers', async (req, res) => {
   try {
-    console.log('🏪 Fetching available retailers');
+    logger.info('Fetching available retailers');
     
     const { postalCode, zipCode, countryCode = 'US' } = req.query;
     
@@ -597,7 +644,7 @@ router.get('/retailers', async (req, res) => {
         });
         return;
       } catch (error) {
-        console.log('⚠️ Real API failed, falling back to mock data');
+        logger.warn('Real API failed, falling back to mock data');
         // Fall through to mock data section
       }
     }
@@ -674,7 +721,7 @@ router.get('/retailers', async (req, res) => {
     
     res.json({ success: true, retailers: mockRetailers });
   } catch (error) {
-    console.error('Error fetching retailers:', error);
+    logger.error('Error fetching retailers:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to fetch retailers',
@@ -684,7 +731,7 @@ router.get('/retailers', async (req, res) => {
 });
 
 // POST /api/instacart/search - Direct Instacart Catalog API search with substitutes
-router.post('/search', async (req, res) => {
+router.post('/search', authenticateUser, preventNoSQLInjection, validateRequestBody(), async (req, res) => {
   try {
     const { query, retailerId = 'safeway' } = req.body;
 
@@ -695,12 +742,12 @@ router.post('/search', async (req, res) => {
       });
     }
 
-    console.log(`🔍 Instacart Catalog API search for: "${query}" with retailer: ${retailerId}`);
+    logger.info(`Instacart Catalog API search for: "${query}" with retailer: ${retailerId}`);
 
     // Check if we have valid API keys
     if (!validateApiKeys()) {
       // Return empty products array per user requirements (NO MOCK DATA)
-      console.log('⚠️ API keys not configured - returning empty products');
+      logger.warn('API keys not configured - returning empty products');
       return res.json({
         success: true,
         products: [],
@@ -728,19 +775,19 @@ router.post('/search', async (req, res) => {
         ...(retailerId && { retailer_key: retailerId })
       };
 
-      console.log('🛒 Creating recipe for product search:', query);
+      logger.info('Creating recipe for product search:', query);
 
       // Use the recipe API to create a shopping list
       const recipeResponse = await instacartApiCall('/recipes', 'POST', recipePayload, INSTACART_API_KEY);
 
-      console.log('Recipe API response:', {
+      logger.debug('Recipe API response:', {
         success: !!recipeResponse,
         recipeId: recipeResponse?.id,
         url: recipeResponse?.recipe_url
       });
 
       if (recipeResponse && (recipeResponse.recipe_url || recipeResponse.id)) {
-        console.log(`✅ Recipe created successfully with ID: ${recipeResponse.id}`);
+        logger.info(`Recipe created successfully with ID: ${recipeResponse.id}`);
 
         // Per user requirements: NO SCRAPING, return structured product data
         // The recipe API response contains matched products information
@@ -773,7 +820,7 @@ router.post('/search', async (req, res) => {
 
         // If no products found in response, create a basic product entry
         if (products.length === 0) {
-          console.log('⚠️ No matched products in recipe response, creating basic entry');
+          logger.warn('No matched products in recipe response, creating basic entry');
           products.push({
             id: `search_${Date.now()}`,
             name: query,
@@ -789,7 +836,7 @@ router.post('/search', async (req, res) => {
           });
         }
 
-        console.log(`✅ Returning ${products.length} products for query: ${query}`);
+        logger.info(`Returning ${products.length} products for query: ${query}`);
 
         res.json({
           success: true,
@@ -804,7 +851,7 @@ router.post('/search', async (req, res) => {
         });
 
       } else {
-        console.log('⚠️ Recipe creation failed, returning empty products');
+        logger.warn('Recipe creation failed, returning empty products');
         res.json({
           success: true,
           products: [],
@@ -818,7 +865,7 @@ router.post('/search', async (req, res) => {
       }
 
     } catch (apiError) {
-      console.error('❌ Instacart Products API error:', apiError);
+      logger.error('Instacart Products API error:', apiError);
       res.status(500).json({
         success: false,
         error: 'Instacart Products API failed',
@@ -828,7 +875,7 @@ router.post('/search', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('❌ Search error:', error);
+    logger.error('Search error:', error);
     res.status(500).json({
       success: false,
       error: 'Search failed',
@@ -839,19 +886,19 @@ router.post('/search', async (req, res) => {
 
 // POST /api/instacart/cart/create - Create cart and add items
 // Remove authentication for development to allow easy testing
-router.post('/cart/create', async (req, res) => {
+router.post('/cart/create', authenticateUser, preventNoSQLInjection, validateRequestBody(), async (req, res) => {
   try {
     const { retailerId, zipCode, items, userId, metadata } = req.body;
     
-    console.log('🛒 ===== INSTACART CART CREATION DEBUG =====');
-    console.log(`📝 Request body:`, {
+    logger.info('===== INSTACART CART CREATION DEBUG =====');
+    logger.debug('Request body:', {
       retailerId,
       zipCode,
       userId,
       itemsCount: items?.length || 0,
       metadata: metadata ? Object.keys(metadata) : null
     });
-    console.log(`📦 Items received:`, items?.map((item, index) => ({
+    logger.debug('Items received:', items?.map((item, index) => ({
       index,
       product_id: item.product_id,
       retailer_sku: item.retailer_sku,
@@ -860,7 +907,7 @@ router.post('/cart/create', async (req, res) => {
       price: item.price,
       hasAllRequiredFields: !!(item.product_id && item.retailer_sku && item.quantity && item.name)
     })));
-    console.log(`🛒 Creating Instacart cart for user ${userId} with ${items?.length || 0} items`);
+    logger.info(`Creating Instacart cart for user ${userId} with ${items?.length || 0} items`);
     
     if (!retailerId || !items || items.length === 0) {
       return res.status(400).json({ 
@@ -879,7 +926,7 @@ router.post('/cart/create', async (req, res) => {
           ...(zipCode && { delivery_address: { zip_code: zipCode } })
         };
         
-        console.log('🛒 Creating cart with data:', cartData);
+        logger.debug('Creating cart with data:', cartData);
         
         const cartResponse = await instacartApiCall('/carts', 'POST', cartData, INSTACART_CONNECT_API_KEY);
         const cartId = cartResponse.id || cartResponse.cart_id;
@@ -894,7 +941,7 @@ router.post('/cart/create', async (req, res) => {
           ...(item.variant_id && { variant_id: item.variant_id })
         }));
         
-        console.log('📦 Adding items to cart:', cartItems);
+        logger.debug('Adding items to cart:', cartItems);
         
         const addItemsResponse = await instacartApiCall(
           `/carts/${cartId}/items`, 
@@ -921,12 +968,12 @@ router.post('/cart/create', async (req, res) => {
             item_count: cartDetails.item_count
           };
         } catch (e) {
-          console.log('⚠️ Could not fetch cart totals:', e.message);
+          logger.warn('Could not fetch cart totals:', e.message);
         }
         
         // Log successful integration
         if (metadata) {
-          console.log('📊 Integration metadata:', metadata);
+          logger.debug('Integration metadata:', metadata);
         }
         
         res.json({
@@ -944,7 +991,7 @@ router.post('/cart/create', async (req, res) => {
         });
         return;
       } catch (error) {
-        console.log('⚠️ Connect API failed, falling back to mock cart');
+        logger.warn('Connect API failed, falling back to mock cart');
         // Fall through to mock data section
       }
     }
@@ -958,18 +1005,18 @@ router.post('/cart/create', async (req, res) => {
       recipeData.instacartUrl :
       `https://customers.dev.instacart.tools/store/retailers/${retailerId}`;
     
-    console.log('📋 ===== MOCK CART RESPONSE DEBUG =====');
+    logger.debug('===== MOCK CART RESPONSE DEBUG =====');
     // Success logged
-    console.log(`🔗 Mock checkout URL: ${mockCheckoutUrl}`);
-    console.log(`📊 Mock totals calculation for ${items.length} items`);
-    console.log('🛒 CartSmash → Instacart Mock Data Connection:');
-    console.log(`   📦 Original CartSmash items:`, items.map(item => ({
+    logger.debug(`Mock checkout URL: ${mockCheckoutUrl}`);
+    logger.debug(`Mock totals calculation for ${items.length} items`);
+    logger.debug('CartSmash → Instacart Mock Data Connection:');
+    logger.debug('Original CartSmash items:', items.map(item => ({
       name: item.name,
       quantity: item.quantity,
       source: 'CartSmash Shopping List'
     })));
-    console.log(`   🏪 Target retailer: ${retailerId}`);
-    console.log(`   📍 Delivery location: ${zipCode}`);
+    logger.debug(`Target retailer: ${retailerId}`);
+    logger.debug(`Delivery location: ${zipCode}`);
     console.log(`   🔄 Connection status: VERIFIED - CartSmash shopping list successfully mapped to Instacart mock data`);
     
     // Process immediately for faster performance
@@ -1274,7 +1321,7 @@ router.get('/test', async (req, res) => {
 
 
 // POST /api/instacart/batch-search - Search for multiple items at once
-router.post('/batch-search', async (req, res) => {
+router.post('/batch-search', authenticateUser, preventNoSQLInjection, validateRequestBody(), async (req, res) => {
   try {
     const { items, retailerId, zipCode } = req.body;
     
@@ -1566,7 +1613,7 @@ function formatInstructionsAsSteps(instructions) {
     });
 }
 
-router.post('/recipe/create', async (req, res) => {
+router.post('/recipe/create', preventNoSQLInjection, validateRequestBody(), async (req, res) => {
   try {
     const { 
       title, 
@@ -1841,7 +1888,7 @@ router.post('/recipe/create', async (req, res) => {
 });
 
 // POST /api/instacart/products-link/create - Create shopping list with alternatives using official Products Link API
-router.post('/products-link/create', async (req, res) => {
+router.post('/products-link/create', authenticateUser, preventNoSQLInjection, validateRequestBody(), async (req, res) => {
   try {
     const {
       title,
@@ -2134,7 +2181,7 @@ router.post('/products-link/create', async (req, res) => {
 });
 
 // POST /api/instacart/shopping-list/create - Create shopping list page using Instacart Products Link API
-router.post('/shopping-list/create', async (req, res) => {
+router.post('/shopping-list/create', authenticateUser, preventNoSQLInjection, validateRequestBody(), async (req, res) => {
   try {
     const { 
       title, 
@@ -2414,7 +2461,7 @@ router.post('/shopping-list/create', async (req, res) => {
 });
 
 // POST /api/instacart/compare-prices - Multi-store price comparison for cheapest options
-router.post('/compare-prices', async (req, res) => {
+router.post('/compare-prices', authenticateUser, preventNoSQLInjection, validateRequestBody(), async (req, res) => {
   try {
     const { query, postal_code = '95670' } = req.body;
 
@@ -2528,7 +2575,7 @@ router.use((error, req, res, next) => {
 
 // APPROACH 1: Direct Product Search API (NEW - For Redundancy)
 // This bypasses recipe pages entirely and searches Instacart's product catalog directly
-router.post('/direct-product-search', async (req, res) => {
+router.post('/direct-product-search', authenticateUser, preventNoSQLInjection, validateRequestBody(), async (req, res) => {
   try {
     console.log('🔍 Direct product search requested');
     const { items = [], retailer_key = 'safeway', postal_code = '95670' } = req.body;
