@@ -724,6 +724,13 @@ function GroceryListForm({
         return;
       }
 
+      // Check if items are already enriched to prevent re-enrichment loops
+      const alreadyEnriched = cartItems.every(item => item.enriched === true);
+      if (alreadyEnriched) {
+        console.log('✅ Items already enriched, skipping re-enrichment');
+        return;
+      }
+
       // Starting enrichment pipeline
       console.log(`📊 ENRICHMENT INPUT - Cart Items to Process:`, {
         itemCount: cartItems.length,
@@ -948,17 +955,8 @@ function GroceryListForm({
         const currentProgress = Math.min(completedItems, cartItems.length);
         setEnrichmentProgress(currentProgress);
 
-        // Update cart with enriched items progressively
-        setCurrentCart(prevCart => {
-          const updatedCart = [...prevCart];
-          batchResults.forEach(enrichedItem => {
-            const index = updatedCart.findIndex(item => item.id === enrichedItem.id);
-            if (index !== -1) {
-              updatedCart[index] = enrichedItem;
-            }
-          });
-          return updatedCart;
-        });
+        // Remove progressive cart updates to prevent multiple re-renders
+        // Cart will be updated once at the end with all enriched items
 
         // Process next batch immediately for faster performance
         if (i + batchSize < cartItems.length) {
@@ -1131,7 +1129,7 @@ function GroceryListForm({
     }
     
     console.log('✅ Data persistence loading complete');
-  }, [setCurrentCart, setSavedRecipes, setParsedRecipes, enrichCartWithInstacartData]);
+  }, []); // Run only once on component mount
 
   // Auto-save cart data when it changes (including empty carts)
   useEffect(() => {

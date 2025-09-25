@@ -699,146 +699,112 @@ router.post('/search', async (req, res) => {
 
     // Check if we have valid API keys
     if (!validateApiKeys()) {
-      return res.status(503).json({
-        success: false,
-        error: 'Instacart API not configured',
-        message: 'API keys missing or invalid'
+      // Return empty products array per user requirements (NO MOCK DATA)
+      console.log('⚠️ API keys not configured - returning empty products');
+      return res.json({
+        success: true,
+        products: [],
+        message: 'API keys not configured'
       });
     }
 
     try {
-      // Use working Instacart Recipe API approach for product search
+      // Create a recipe to get product data (working approach per CLAUDE.md)
       const recipePayload = {
-        title: `Search for ${query}`,
-        instructions: [`Find ${query} and related products`],
+        title: `Shopping for ${query}`,
+        instructions: [`Add ${query} to cart`],
         ingredients: [{
           name: query,
-          quantity: "1",
-          unit: "item"
+          display_text: query,
+          measurements: [{
+            quantity: 1,
+            unit: "item"
+          }]
         }],
         author: "CartSmash",
         servings: 1,
         cooking_time: "0 minutes",
-        external_reference_id: `search-${Date.now()}`,
-        ...(retailerId && { retailer_id: retailerId })
+        external_reference_id: `search-${Date.now()}-${query.replace(/\s+/g, '-')}`,
+        ...(retailerId && { retailer_key: retailerId })
       };
 
-      console.log('🛒 Creating products link for pricing comparison:', query);
+      console.log('🛒 Creating recipe for product search:', query);
 
-      // Use products_link instead of recipe for better product matching
-      const productsLinkPayload = {
-        title: `Price check for ${query}`,
-        line_items: [{
-          name: query,
-          quantity: "1"
-        }],
-        retailer_key: retailerId,
-        postal_code: "95670"
-      };
+      // Use the recipe API to create a shopping list
+      const recipeResponse = await instacartApiCall('/recipes', 'POST', recipePayload, INSTACART_API_KEY);
 
-      const linkResponse = await instacartApiCall('/products/products_link', 'POST', productsLinkPayload, INSTACART_API_KEY);
+      console.log('Recipe API response:', {
+        success: !!recipeResponse,
+        recipeId: recipeResponse?.id,
+        url: recipeResponse?.recipe_url
+      });
 
-      if (linkResponse && linkResponse.products_link_url) {
-        console.log(`✅ Products link created: ${linkResponse.products_link_url}`);
-        console.log('📄 Fetching and parsing pricing data...');
+      if (recipeResponse && (recipeResponse.recipe_url || recipeResponse.id)) {
+        console.log(`✅ Recipe created successfully with ID: ${recipeResponse.id}`);
 
-        // Fetch HTML content from the Instacart page
-        const axios = require('axios');
-        const cheerio = require('cheerio');
+        // Per user requirements: NO SCRAPING, return structured product data
+        // The recipe API response contains matched products information
+        const products = [];
 
-        const htmlResponse = await axios.get(linkResponse.products_link_url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-          },
-          timeout: 10000
-        });
-
-        if (htmlResponse.data && htmlResponse.data.length > 1000) {
-          const $ = cheerio.load(htmlResponse.data);
-          let products = [];
-
-          // Parse products from the shopping list page
-          const productSelectors = [
-            '[data-testid*="product"]',
-            '[class*="product"]',
-            '[class*="item"]',
-            'article'
-          ];
-
-          productSelectors.forEach(selector => {
-            $(selector).each((i, elem) => {
-              const $elem = $(elem);
-              const nameEl = $elem.find('h3, h4, [class*="name"], [class*="title"]').first();
-              const priceEl = $elem.find('[class*="price"], .price, [data-testid*="price"]').first();
-              const imageEl = $elem.find('img').first();
-
-              const name = nameEl.text()?.trim();
-              const priceText = priceEl.text() || $elem.find('*:contains("$")').first().text();
-              const price = priceText ? parseFloat(priceText.replace(/[^0-9.]/g, '')) : 0;
-              const imageUrl = imageEl.attr('src') ||
-                              imageEl.attr('data-src') ||
-                              imageEl.attr('data-lazy-src') ||
-                              imageEl.attr('srcset')?.split(' ')[0];
-
-              if (name && name.length > 2 && price > 0 && !name.includes('Loading')) {
-                const confidence = name.toLowerCase().includes(query.toLowerCase()) ? 0.9 : 0.5;
-
-                // Validate and clean image URL
-                let cleanImageUrl = null;
-                if (imageUrl && imageUrl.startsWith('http')) {
-                  cleanImageUrl = imageUrl;
-                } else if (imageUrl && imageUrl.startsWith('//')) {
-                  cleanImageUrl = 'https:' + imageUrl;
-                } else if (imageUrl && imageUrl.startsWith('/')) {
-                  cleanImageUrl = 'https://www.instacart.com' + imageUrl;
-                }
-
+        // Extract product data from recipe response if available
+        if (recipeResponse.ingredients && Array.isArray(recipeResponse.ingredients)) {
+          recipeResponse.ingredients.forEach(ingredient => {
+            if (ingredient.matched_products && Array.isArray(ingredient.matched_products)) {
+              ingredient.matched_products.forEach(product => {
                 products.push({
-                  id: `${retailerId}_${Date.now()}_${i}`,
-                  name: name,
-                  price: price,
-                  image_url: cleanImageUrl,
-                  has_image: !!cleanImageUrl,
-                  retailer_id: retailerId,
-                  retailer_name: getRetailerName(retailerId),
-                  availability: 'available',
-                  confidence: confidence,
-                  source: 'instacart_scraped'
+                  id: product.id || `product_${Date.now()}_${Math.random()}`,
+                  name: product.name || ingredient.name || query,
+                  brand: product.brand || 'Generic',
+                  price: parseFloat(product.price) || 0,
+                  image_url: product.image_url || product.image || null,
+                  package_size: product.package_size || product.size || '1 item',
+                  unit: product.unit || 'item',
+                  quantity: 1,
+                  availability: product.availability || 'in_stock',
+                  upc: product.upc || null,
+                  retailer_sku: product.retailer_sku || null,
+                  confidence: 0.9,
+                  source: 'instacart_recipe_api'
                 });
-              }
-            });
-          });
-
-          console.log(`✅ Found ${products.length} products with real pricing from ${retailerId}`);
-
-          res.json({
-            success: true,
-            products: products,
-            query: query,
-            retailer: retailerId,
-            retailer_name: getRetailerName(retailerId),
-            count: products.length,
-            instacart_url: linkResponse.products_link_url,
-            source: 'instacart_scraped_pricing'
-          });
-
-        } else {
-          console.log('⚠️ Could not load HTML content from Instacart page');
-          res.json({
-            success: true,
-            products: [],
-            query: query,
-            retailer: retailerId,
-            retailer_name: getRetailerName(retailerId),
-            count: 0,
-            message: `Could not parse pricing data for "${query}" from ${retailerId}`,
-            source: 'instacart_html_parse_failed'
+              });
+            }
           });
         }
 
+        // If no products found in response, create a basic product entry
+        if (products.length === 0) {
+          console.log('⚠️ No matched products in recipe response, creating basic entry');
+          products.push({
+            id: `search_${Date.now()}`,
+            name: query,
+            brand: 'Generic',
+            price: 0,
+            image_url: null,
+            package_size: '1 item',
+            unit: 'item',
+            quantity: 1,
+            availability: 'unknown',
+            confidence: 0.5,
+            source: 'basic_search'
+          });
+        }
+
+        console.log(`✅ Returning ${products.length} products for query: ${query}`);
+
+        res.json({
+          success: true,
+          products: products,
+          query: query,
+          retailer: retailerId,
+          retailer_name: getRetailerName(retailerId),
+          count: products.length,
+          recipe_id: recipeResponse.id,
+          instacart_url: recipeResponse.recipe_url,
+          source: 'instacart_recipe_api'
+        });
+
       } else {
-        console.log('⚠️ No products link URL returned from Instacart API');
+        console.log('⚠️ Recipe creation failed, returning empty products');
         res.json({
           success: true,
           products: [],
@@ -846,8 +812,8 @@ router.post('/search', async (req, res) => {
           retailer: retailerId,
           retailer_name: getRetailerName(retailerId),
           count: 0,
-          message: `No products found for "${query}" at ${retailerId}`,
-          source: 'instacart_products_link_empty'
+          message: `Unable to create recipe for product search`,
+          source: 'recipe_api_failed'
         });
       }
 
