@@ -190,65 +190,34 @@ class ImageService {
    */
   getProductImage(item, options = {}) {
 
-    // First priority: Use real product images from Instacart API if available
-    const optimizedImageUrl = this.optimizeImageUrl(item.imageUrl);
-    if (optimizedImageUrl) {
-      // Check cache first for external images
-      const cached = this.getCachedImage(item.imageUrl);
-      if (cached) {
-        return cached;
-      }
+    // First priority: Check all possible image fields (support both camelCase and snake_case)
+    const possibleImageUrls = [
+      item.imageUrl,
+      item.image_url,  // Spoonacular/server format
+      item.image,
+      item.spoonacularData?.image_url,  // From Spoonacular enrichment
+      item.instacartData?.image_url     // From Instacart data
+    ].filter(Boolean);
 
-      // Preload and cache in background (don't wait)
-      if (options.enableCaching !== false) {
-        this.preloadImage(item.imageUrl).catch(error => {
-          // Silently handle image loading errors (like 404s from Unsplash)
-          console.log('🔇 Image preload failed (silently handled):', item.imageUrl);
-        });
-      }
-
-      return item.imageUrl;
-    }
-
-    const optimizedImage = this.optimizeImageUrl(item.image);
-    if (optimizedImage) {
-      // Check cache first for external images
-      const cached = this.getCachedImage(item.image);
-      if (cached) {
-        return cached;
-      }
-
-      // Preload and cache in background (don't wait)
-      if (options.enableCaching !== false) {
-        this.preloadImage(item.image).catch(error => {
-          // Silently handle image loading errors (like 404s from Unsplash)
-          console.log('🔇 Image preload failed (silently handled):', item.image);
-        });
-      }
-
-      return item.image;
-    }
-
-    // Check if instacartData has image URLs
-    if (item.instacartData) {
-      const instacartImageUrl = item.instacartData.image_url || item.instacartData.imageUrl || item.instacartData.image;
-      const optimizedInstacartUrl = this.optimizeImageUrl(instacartImageUrl);
-      if (optimizedInstacartUrl) {
+    // Try each possible image URL
+    for (const imageUrl of possibleImageUrls) {
+      const optimizedUrl = this.optimizeImageUrl(imageUrl);
+      if (optimizedUrl) {
         // Check cache first for external images
-        const cached = this.getCachedImage(instacartImageUrl);
+        const cached = this.getCachedImage(imageUrl);
         if (cached) {
           return cached;
         }
 
         // Preload and cache in background (don't wait)
         if (options.enableCaching !== false) {
-          this.preloadImage(instacartImageUrl).catch(error => {
-            // Silently handle image loading errors (like 404s from Unsplash)
-            console.log('🔇 Image preload failed (silently handled):', instacartImageUrl);
+          this.preloadImage(imageUrl).catch(error => {
+            // Silently handle image loading errors
+            console.log('🔇 Image preload failed (silently handled):', imageUrl);
           });
         }
 
-        return instacartImageUrl;
+        return imageUrl;
       }
     }
 
