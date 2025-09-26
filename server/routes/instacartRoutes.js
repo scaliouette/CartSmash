@@ -50,7 +50,9 @@ const API_ENDPOINTS = {
   PRODUCTION: 'https://connect.instacart.com/idp/v1'
 };
 
-const BASE_URL = NODE_ENV === 'production' ? API_ENDPOINTS.PRODUCTION : API_ENDPOINTS.DEVELOPMENT;
+// IMPORTANT: Using development endpoint with development API key
+// Change this when we get production API credentials
+const BASE_URL = API_ENDPOINTS.DEVELOPMENT;
 
 // Helper function to get retailer display names
 const getRetailerName = (retailerKey) => {
