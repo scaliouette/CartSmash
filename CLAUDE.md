@@ -207,6 +207,115 @@ User Input → Authentication → Validation → GroceryListForm → AI Processi
 
 ---
 
+## 🥘 Spoonacular API Integration (2025-09-26)
+
+### Overview
+Comprehensive food and recipe API providing product data, nutrition information, recipe conversion, and meal planning features. Serves as a fallback data source when Instacart doesn't return product details.
+
+### API Configuration
+```bash
+# Spoonacular API Key (configured in .env)
+SPOONACULAR_API_KEY=8d19259c6b764d38b6cc0b72396131ae
+# Daily Limit: 50 requests/day (free tier)
+# Current Usage: 5.08 requests used today
+```
+
+### Key Features Implemented
+- **Product Search**: Enhanced grocery product search with nutrition filters
+- **Recipe Integration**: Recipe search, conversion to shopping lists, meal planning
+- **Shopping List Enrichment**: Add nutrition, categories, substitutes to shopping items
+- **Smart Caching**: 24-hour cache for products, 7-day for recipes (maximizes free tier)
+- **Unit Conversion**: Convert between measurement units for ingredients
+- **Barcode Support**: Search products by UPC barcode
+- **Fallback Strategy**: Automatically uses Spoonacular when Instacart returns no data
+
+### Core Endpoints
+
+#### Product & Ingredient Search
+- `POST /api/spoonacular/products/search` - Search grocery products with nutrition filters
+- `POST /api/spoonacular/ingredients/search` - Search ingredients
+- `GET /api/spoonacular/products/:id` - Get detailed product information
+- `GET /api/spoonacular/products/upc/:upc` - Search by UPC barcode
+- `POST /api/spoonacular/products/classify` - Classify and categorize products
+
+#### Recipe Features
+- `POST /api/spoonacular/recipes/search` - Complex recipe search with dietary filters
+- `POST /api/spoonacular/recipes/by-ingredients` - Find recipes by available ingredients
+- `GET /api/spoonacular/recipes/:id` - Get detailed recipe with nutrition
+- `POST /api/spoonacular/recipes/:id/shopping-list` - Convert recipe to shopping list
+- `POST /api/spoonacular/shopping-list/from-recipes` - Create list from multiple recipes
+
+#### Enhanced Features
+- `POST /api/spoonacular/shopping-list/enrich` - Enrich shopping list with full details
+- `POST /api/spoonacular/meal-plan/generate` - Generate daily/weekly meal plans
+- `GET /api/spoonacular/ingredients/:name/substitutes` - Get ingredient substitutes
+- `POST /api/spoonacular/convert` - Convert measurement units
+- `GET /api/spoonacular/recipes/random` - Get random recipe inspiration
+
+### Service Architecture
+```
+User Input → Instacart API (primary) → No Data? → Spoonacular API (fallback)
+                    ↓                                    ↓
+             Redis/Memory Cache ← ← ← ← ← ← Cache Service (24hr TTL)
+```
+
+### Cache Configuration
+```javascript
+ttlConfig = {
+  spoonacular_product: 24 * 60 * 60 * 1000,     // 24 hours
+  spoonacular_recipe: 7 * 24 * 60 * 60 * 1000,  // 7 days (recipes don't change)
+  spoonacular_ingredient: 24 * 60 * 60 * 1000,  // 24 hours
+  instacart_product: 1 * 60 * 60 * 1000,        // 1 hour (prices change)
+}
+```
+
+### Integration Files
+- **Service**: `server/services/spoonacularService.js` - Core API integration
+- **Enhanced Service**: `server/services/spoonacularEnhanced.js` - Recipe & meal planning
+- **Routes**: `server/routes/spoonacularRoutes.js` - All API endpoints
+- **Cache**: `server/services/cacheService.js` - Redis/memory caching
+- **Fallback**: `server/routes/instacartRoutes.js:752-817` - Auto-fallback to Spoonacular
+
+### Testing & Verification
+```bash
+# Basic API test (confirms API key works)
+node server/test-spoonacular.js
+
+# Enhanced features test (all endpoints)
+node server/test-spoonacular-enhanced.js
+```
+
+### API Response Example
+```json
+{
+  "success": true,
+  "products": [{
+    "id": "spoonacular_6368850",
+    "name": "Model Dairy Fat Free Skim Milk, 1 Gallon",
+    "brand": "Generic",
+    "image_url": "https://spoonacular.com/productImages/6368850.jpg",
+    "nutrition": {
+      "nutrients": [
+        {"name": "Calories", "amount": 83, "unit": "kcal"},
+        {"name": "Protein", "amount": 8.3, "unit": "g"}
+      ]
+    },
+    "aisle": "Dairy",
+    "badges": ["low_fat", "high_protein"]
+  }],
+  "source": "spoonacular",
+  "cached": true
+}
+```
+
+### Deployment Notes
+1. **Environment Variable**: Add `SPOONACULAR_API_KEY=8d19259c6b764d38b6cc0b72396131ae` to Render
+2. **Cache Setup**: Redis URL optional, falls back to memory cache
+3. **Rate Limiting**: Automatic via caching (50 requests/day limit)
+4. **Monitoring**: Check `x-api-quota-left` header in responses
+
+---
+
 ## 🚨 Production URL Configuration
 
 ### Mandatory Standards

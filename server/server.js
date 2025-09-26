@@ -1100,7 +1100,7 @@ const routes = [
   // { path: '/api/kroger', module: './routes/kroger' },  // ARCHIVED - Kroger integration disabled
   // { path: '/api/kroger-orders', module: './routes/kroger-orders' },  // ARCHIVED - Kroger integration disabled
   { path: '/api/instacart', module: './routes/instacartRoutes' },  // Instacart integration
-  { path: '/api/spoonacular', module: './routes/spoonacularRoutes' },  // Spoonacular product data
+  { path: '/api/spoonacular', module: './routes/spoonacularRoutes' },  // Spoonacular API integration
   { path: '/api/product-validation', module: './routes/productValidationRoutes' },  // Enhanced product validation
   { path: '/api/smash-cart', module: './routes/smash-cart' },  // New comprehensive cart service
   { path: '/api/grocery', module: './routes/grocery' },

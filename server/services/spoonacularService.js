@@ -466,6 +466,255 @@ class SpoonacularService {
     }
   }
 
+  // Search All Food - Unified search for recipes, products, and menu items
+  async searchAllFood(query, options = {}) {
+    if (!this.apiKey) {
+      logger.warn('Spoonacular API key not configured');
+      return {
+        searchResults: [],
+        totalResults: 0,
+        expires: 0,
+        isStale: false
+      };
+    }
+
+    const {
+      number = 10,
+      offset = 0
+    } = options;
+
+    // Check cache first
+    const cached = await cacheService.getCachedSpoonacularResponse('search_all_food', {
+      query, number, offset
+    });
+
+    if (cached) {
+      logger.info(`Cache hit for unified search: ${query}`);
+      return cached;
+    }
+
+    try {
+      const response = await axios.get(`${this.baseURL}/food/search`, {
+        params: {
+          apiKey: this.apiKey,
+          query,
+          number,
+          offset
+        }
+      });
+
+      // Process and categorize results
+      const results = {
+        searchResults: response.data.searchResults || [],
+        totalResults: response.data.totalResults || 0,
+        expires: response.data.expires,
+        isStale: response.data.isStale || false,
+        processingTime: response.data.processingTimeMs,
+        // Categorize results by type
+        byType: this.categorizeSearchResults(response.data.searchResults || [])
+      };
+
+      // Cache the unified search results
+      await cacheService.cacheSpoonacularResponse('search_all_food', {
+        query, number, offset
+      }, results);
+
+      logger.info(`Unified search found ${results.totalResults} results for: ${query}`);
+
+      return results;
+    } catch (error) {
+      logger.error('Search All Food error:', error.message);
+      return {
+        searchResults: [],
+        totalResults: 0,
+        expires: 0,
+        isStale: false
+      };
+    }
+  }
+
+  // Categorize search results by type
+  categorizeSearchResults(searchResults) {
+    const categorized = {
+      recipes: [],
+      products: [],
+      menuItems: [],
+      articles: [],
+      videos: []
+    };
+
+    searchResults.forEach(result => {
+      const type = result.content?.type || result.type || 'unknown';
+
+      switch(type.toLowerCase()) {
+        case 'recipe':
+          categorized.recipes.push(this.formatRecipeResult(result));
+          break;
+        case 'product':
+          categorized.products.push(this.formatProductResult(result));
+          break;
+        case 'menu item':
+        case 'menuitem':
+          categorized.menuItems.push(this.formatMenuItemResult(result));
+          break;
+        case 'article':
+          categorized.articles.push(result);
+          break;
+        case 'video':
+          categorized.videos.push(result);
+          break;
+        default:
+          // Try to determine type from other fields
+          if (result.id && result.title && result.readyInMinutes) {
+            categorized.recipes.push(this.formatRecipeResult(result));
+          } else if (result.id && result.title && (result.brand || result.aisle)) {
+            categorized.products.push(this.formatProductResult(result));
+          }
+      }
+    });
+
+    return categorized;
+  }
+
+  // Format recipe result from unified search
+  formatRecipeResult(result) {
+    return {
+      id: result.id,
+      title: result.name || result.title,
+      image: result.image,
+      readyInMinutes: result.content?.readyInMinutes || result.readyInMinutes,
+      servings: result.content?.servings || result.servings,
+      sourceUrl: result.link,
+      openLicense: result.content?.openLicense,
+      dataType: result.dataType || 'recipe',
+      relevance: result.relevance
+    };
+  }
+
+  // Format product result from unified search
+  formatProductResult(result) {
+    return {
+      id: result.id,
+      name: result.name || result.title,
+      image: result.image,
+      brand: result.content?.brand || result.brand,
+      aisle: result.content?.aisle || result.aisle,
+      price: result.content?.price || null,
+      badges: result.content?.badges || [],
+      dataType: result.dataType || 'product',
+      relevance: result.relevance,
+      link: result.link
+    };
+  }
+
+  // Format menu item result from unified search
+  formatMenuItemResult(result) {
+    return {
+      id: result.id,
+      title: result.name || result.title,
+      restaurantChain: result.content?.restaurantChain || result.restaurantChain,
+      image: result.image,
+      servingSize: result.content?.servingSize,
+      calories: result.content?.calories,
+      price: result.content?.price,
+      dataType: result.dataType || 'menuItem',
+      relevance: result.relevance,
+      link: result.link
+    };
+  }
+
+  // Smart search that combines multiple data sources
+  async smartSearch(query, options = {}) {
+    const {
+      includeRecipes = true,
+      includeProducts = true,
+      includeMenuItems = false,
+      maxResults = 20
+    } = options;
+
+    logger.info(`Smart search for: ${query}`);
+
+    // Use the unified search
+    const allFoodResults = await this.searchAllFood(query, { number: maxResults });
+
+    // Get categorized results
+    const categorized = allFoodResults.byType || {};
+
+    // Build smart results combining different types
+    const smartResults = {
+      query,
+      totalResults: allFoodResults.totalResults,
+      products: includeProducts ? categorized.products : [],
+      recipes: includeRecipes ? categorized.recipes : [],
+      menuItems: includeMenuItems ? categorized.menuItems : [],
+      // Add suggestions for better results
+      suggestions: await this.getSearchSuggestions(query),
+      // Add related searches
+      relatedSearches: this.generateRelatedSearches(query),
+      cached: false
+    };
+
+    return smartResults;
+  }
+
+  // Get search suggestions
+  async getSearchSuggestions(query) {
+    // Get autocomplete suggestions for better searches
+    const suggestions = [];
+
+    try {
+      // Get product suggestions
+      const productSuggestions = await this.autocompleteProductSearch(query, 3);
+      suggestions.push(...productSuggestions.results.map(s => ({
+        type: 'product',
+        suggestion: s.title
+      })));
+
+      // Get ingredient suggestions
+      const ingredientSuggestions = await this.autocompleteIngredient(query, 3);
+      suggestions.push(...ingredientSuggestions.map(s => ({
+        type: 'ingredient',
+        suggestion: s.name
+      })));
+    } catch (error) {
+      logger.error('Failed to get search suggestions:', error.message);
+    }
+
+    return suggestions;
+  }
+
+  // Generate related searches
+  generateRelatedSearches(query) {
+    const related = [];
+    const queryLower = query.toLowerCase();
+
+    // Add variations
+    if (queryLower.includes('chicken')) {
+      related.push('turkey', 'beef', 'pork', 'tofu');
+    }
+    if (queryLower.includes('pasta')) {
+      related.push('spaghetti', 'penne', 'lasagna', 'noodles');
+    }
+    if (queryLower.includes('salad')) {
+      related.push('caesar salad', 'greek salad', 'garden salad', 'coleslaw');
+    }
+    if (queryLower.includes('soup')) {
+      related.push('stew', 'chowder', 'bisque', 'broth');
+    }
+
+    // Add meal type variations
+    if (!queryLower.includes('breakfast') && !queryLower.includes('lunch') && !queryLower.includes('dinner')) {
+      related.push(`${query} breakfast`, `${query} lunch`, `${query} dinner`);
+    }
+
+    // Add dietary variations
+    if (!queryLower.includes('vegan') && !queryLower.includes('vegetarian')) {
+      related.push(`vegan ${query}`, `vegetarian ${query}`);
+    }
+
+    return related.slice(0, 5); // Limit to 5 suggestions
+  }
+
   // Clear expired cache entries (now delegated to cache service)
   clearExpiredCache() {
     // This is now handled by cacheService

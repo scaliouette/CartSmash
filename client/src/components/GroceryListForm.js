@@ -20,6 +20,7 @@ import { generateAIMealPlan } from '../services/aiMealPlanService';
 import { formatInstructionsToNumberedSteps } from '../utils/recipeFormatter';
 import { FEATURES } from '../config/features';
 import debugService from '../services/debugService';
+import spoonacularService from '../services/spoonacularService';
 
 // MixingBowlLoader Component
 const MixingBowlLoader = ({ text = "CARTSMASH AI is preparing your meal plan..." }) => {
@@ -851,7 +852,7 @@ function GroceryListForm({
               const instacartPrice = parseFloat(instacartProduct.price) || 0;
               const instacartImage = instacartProduct.image_url || instacartProduct.imageUrl || instacartProduct.image;
 
-              const enrichedItem = {
+              let enrichedItem = {
                 ...item,
                 price: instacartPrice,
                 image: instacartImage,
@@ -873,8 +874,39 @@ function GroceryListForm({
                 // Preserve original recipe quantities and units - don't let Instacart data override them
                 quantity: item.quantity, // Force preserve original quantity
                 unit: item.unit,         // Force preserve original unit
-                size: item.size          // Force preserve original size if it exists
+                size: item.size,         // Force preserve original size if it exists
+                enrichmentSource: 'instacart'
               };
+
+              // If Instacart data is missing image or nutrition, try Spoonacular to enhance
+              if (!instacartImage || !instacartProduct.nutrition) {
+                debugService.log(`🥄 Enhancing with Spoonacular (missing ${!instacartImage ? 'image' : 'nutrition'}) for: "${searchQuery}"`);
+
+                try {
+                  const spoonResult = await spoonacularService.searchProducts(searchQuery, { number: 1 });
+
+                  if (spoonResult.success && spoonResult.products?.length > 0) {
+                    const spoonProduct = spoonResult.products[0];
+
+                    // Enhance with Spoonacular data where Instacart is lacking
+                    enrichedItem = {
+                      ...enrichedItem,
+                      image: enrichedItem.image || spoonProduct.image_url,
+                      imageUrl: enrichedItem.imageUrl || spoonProduct.image_url,
+                      nutrition: instacartProduct.nutrition || spoonProduct.nutrition,
+                      badges: [...(enrichedItem.badges || []), ...(spoonProduct.badges || [])],
+                      aisle: enrichedItem.aisle || spoonProduct.aisle,
+                      spoonacularData: spoonProduct,
+                      enrichmentSource: 'hybrid', // Both Instacart and Spoonacular
+                      hasRealImage: !!(enrichedItem.image || spoonProduct.image_url)
+                    };
+
+                    debugService.log(`✅ Enhanced with Spoonacular data for "${searchQuery}"`);
+                  }
+                } catch (spoonError) {
+                  debugService.logError(`Failed to enhance with Spoonacular:`, spoonError);
+                }
+              }
 
               debugService.log(`✅ ENRICHED ITEM CREATED for "${searchQuery}":`, {
                 enrichedItem: {
@@ -904,10 +936,50 @@ function GroceryListForm({
                 }
               });
 
+              // Try Spoonacular as fallback for missing Instacart data
+              debugService.log(`🥄 Attempting Spoonacular enrichment for: "${searchQuery}"`);
+
+              try {
+                const spoonacularResult = await spoonacularService.searchProducts(searchQuery, { number: 1 });
+
+                if (spoonacularResult.success && spoonacularResult.products?.length > 0) {
+                  const spoonProduct = spoonacularResult.products[0];
+                  debugService.log(`✅ Spoonacular found product for "${searchQuery}":`, spoonProduct);
+
+                  const spoonEnrichedItem = {
+                    ...item,
+                    price: 0, // Spoonacular doesn't provide pricing
+                    image: spoonProduct.image_url || item.image,
+                    imageUrl: spoonProduct.image_url || item.imageUrl,
+                    spoonacularId: spoonProduct.spoonacularId || spoonProduct.id,
+                    spoonacularData: spoonProduct,
+                    enriched: true,
+                    enrichmentSource: 'spoonacular',
+                    hasRealPrice: false,
+                    hasRealImage: !!spoonProduct.image_url,
+                    // Spoonacular-specific data
+                    nutrition: spoonProduct.nutrition,
+                    badges: spoonProduct.badges || [],
+                    aisle: spoonProduct.aisle,
+                    brand: spoonProduct.brand || 'Generic',
+                    // Preserve original recipe quantities
+                    quantity: item.quantity,
+                    unit: item.unit,
+                    size: item.size
+                  };
+
+                  debugService.log(`🥄 SPOONACULAR ENRICHED ITEM for "${searchQuery}":`, spoonEnrichedItem);
+                  return spoonEnrichedItem;
+                }
+              } catch (spoonError) {
+                debugService.logError(`Failed to enrich with Spoonacular:`, spoonError);
+              }
+
               const unEnrichedItem = {
                 ...item,
                 price: 0,
-                enriched: false
+                enriched: false,
+                enrichmentSource: 'none'
               };
 
               debugService.log(`⚠️ UNENRICHED ITEM for "${searchQuery}":`, unEnrichedItem);
