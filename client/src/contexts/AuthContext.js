@@ -361,7 +361,7 @@ export function AuthProvider({ children }) {
     });
   }, [currentUser, isLoading]);
 
-const value = {
+const value = useMemo(() => ({
   currentUser,
   isLoading,
   error,
@@ -373,7 +373,7 @@ const value = {
   signInWithGoogle,
   updateUserProfile,
   makeAuthenticatedRequest
-};
+}), [currentUser, isLoading, error, signup, login, logout, signInWithGoogle, updateUserProfile, makeAuthenticatedRequest]);
 
   // Only log debug info in development
   useEffect(() => {

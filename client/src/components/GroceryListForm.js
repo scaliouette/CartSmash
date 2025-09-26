@@ -770,82 +770,35 @@ function GroceryListForm({
       });
 
       // Process items in batches to avoid overwhelming the API
-      const batchSize = 3;
+      // Increased batch size for better performance
+      const batchSize = 10;
       const enrichedItems = [];
 
       for (let i = 0; i < cartItems.length; i += batchSize) {
         const batch = cartItems.slice(i, i + batchSize);
         const batchNumber = Math.floor(i/batchSize) + 1;
 
-        // Processing batch
-        debugService.log(`📦 Batch items:`, batch.map(item => ({
-          id: item.id,
-          productName: item.productName || item.name,
-          currentPrice: item.price,
-          currentImage: item.image
-        })));
+        // Processing batch (removed verbose logging for performance)
 
         const batchPromises = batch.map(async (item, batchIndex) => {
           const searchQuery = item.productName || item.name;
 
-          // Processing item
-          debugService.log(`📊 Item Debug Info:`, {
-            originalItem: {
-              id: item.id,
-              productName: item.productName,
-              name: item.name,
-              price: item.price,
-              priceType: typeof item.price,
-              image: item.image,
-              quantity: item.quantity,
-              unit: item.unit,
-              allKeys: Object.keys(item)
-            },
-            searchQuery,
-            retailerId
-          });
+          // Processing item (removed verbose logging for performance)
 
           try {
-            debugService.log(`🌐 Making Instacart API call for: "${searchQuery}"`);
+            // Making API call (logging disabled for performance)
             const startTime = Date.now();
 
             const searchResults = await instacartService.searchProducts(searchQuery, retailerId);
             const apiCallDuration = Date.now() - startTime;
 
-            debugService.log(`📡 API Call Results for "${searchQuery}":`, {
-              duration: `${apiCallDuration}ms`,
-              success: searchResults.success,
-              productsFound: searchResults.products?.length || 0,
-              searchResultsKeys: Object.keys(searchResults),
-              firstProduct: searchResults.products?.[0] ? {
-                id: searchResults.products[0].id,
-                name: searchResults.products[0].name,
-                price: searchResults.products[0].price,
-                priceType: typeof searchResults.products[0].price,
-                image_url: searchResults.products[0].image_url,
-                imageUrl: searchResults.products[0].imageUrl,
-                image: searchResults.products[0].image,
-                allKeys: Object.keys(searchResults.products[0])
-              } : null
-            });
+            // API call completed in ${apiCallDuration}ms
 
             if (searchResults.success && searchResults.products && searchResults.products.length > 0) {
               // Use the first (best) match
               const instacartProduct = searchResults.products[0];
 
-              debugService.log(`✅ ENRICHMENT SUCCESS for "${searchQuery}":`, {
-                instacartProduct: {
-                  id: instacartProduct.id,
-                  name: instacartProduct.name,
-                  price: instacartProduct.price,
-                  priceType: typeof instacartProduct.price,
-                  parsedPrice: parseFloat(instacartProduct.price),
-                  image_url: instacartProduct.image_url,
-                  imageUrl: instacartProduct.imageUrl,
-                  image: instacartProduct.image,
-                  finalImageToUse: instacartProduct.image_url || instacartProduct.imageUrl || instacartProduct.image
-                }
-              });
+              // Enrichment successful
 
               // Enrich the original item with Instacart data
               // PRESERVE ORIGINAL RECIPE QUANTITIES - only enrich pricing and product info
@@ -880,7 +833,7 @@ function GroceryListForm({
 
               // If Instacart data is missing image or nutrition, try Spoonacular to enhance
               if (!instacartImage || !instacartProduct.nutrition) {
-                debugService.log(`🥄 Enhancing with Spoonacular (missing ${!instacartImage ? 'image' : 'nutrition'}) for: "${searchQuery}"`);
+                // Enhancing with Spoonacular for missing data
 
                 try {
                   const spoonResult = await spoonacularService.searchProducts(searchQuery, { number: 1 });
@@ -909,14 +862,7 @@ function GroceryListForm({
                 }
               }
 
-              debugService.log(`✅ ENRICHED ITEM CREATED for "${searchQuery}":`, {
-                enrichedItem: {
-                  id: enrichedItem.id,
-                  productName: enrichedItem.productName || enrichedItem.name,
-                  price: enrichedItem.price,
-                  priceType: typeof enrichedItem.price,
-                  image: enrichedItem.image,
-                  imageUrl: enrichedItem.imageUrl,
+              // Item enriched successfully
                   instacartId: enrichedItem.instacartId,
                   enriched: enrichedItem.enriched,
                   hasValidPrice: !!(enrichedItem.price && enrichedItem.price > 0),
@@ -1144,8 +1090,14 @@ function GroceryListForm({
       debugService.log('📖 Loading persisted cart:', persistedCart.length, 'items');
       setCurrentCart(persistedCart);
 
-      // Enrich persisted cart items with product data if enabled
-      enrichCartWithInstacartData(persistedCart);
+      // Only enrich if items aren't already enriched
+      const needsEnrichment = persistedCart.some(item => !item.enriched);
+      if (needsEnrichment) {
+        debugService.log('🔄 Some items need enrichment, starting enrichment process');
+        enrichCartWithInstacartData(persistedCart);
+      } else {
+        debugService.log('✅ All items already enriched, skipping enrichment');
+      }
     }
     
     // Load saved recipes WITH VALIDATION

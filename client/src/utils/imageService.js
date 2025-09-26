@@ -191,16 +191,7 @@ class ImageService {
    * @returns {string} Image URL
    */
   getProductImage(item, options = {}) {
-    debugService.log('🖼️ Getting product image for:', {
-      productName: item.productName || item.name,
-      hasImageUrl: !!item.imageUrl,
-      hasImage_url: !!item.image_url,
-      hasImage: !!item.image,
-      hasSpoonacularData: !!item.spoonacularData,
-      hasInstacartData: !!item.instacartData,
-      spoonacularImage: item.spoonacularData?.image_url,
-      instacartImage: item.instacartData?.image_url
-    });
+    // Removed verbose logging for performance
 
     // First priority: Check all possible image fields (support both camelCase and snake_case)
     const possibleImageUrls = [
@@ -211,13 +202,13 @@ class ImageService {
       item.instacartData?.image_url     // From Instacart data
     ].filter(Boolean);
 
-    debugService.log('📷 Possible image URLs found:', possibleImageUrls);
+    // Check possible image URLs
 
     // Try each possible image URL
     for (const imageUrl of possibleImageUrls) {
       const optimizedUrl = this.optimizeImageUrl(imageUrl);
       if (optimizedUrl) {
-        debugService.log('✅ Using optimized image URL:', optimizedUrl);
+        // Using optimized image URL
 
         // Check cache first for external images
         const cached = this.getCachedImage(imageUrl);
@@ -240,10 +231,7 @@ class ImageService {
     // No real image found - provide category-based fallback
     const category = this.getCategoryFromItem(item);
     const fallbackImage = this.getImageUrl(category);
-    debugService.log('⚠️ No real image found, using fallback:', {
-      category,
-      fallbackImage: fallbackImage.substring(0, 100) + '...'
-    });
+    // Using fallback image for category: ${category}
     return fallbackImage;
   }
 
