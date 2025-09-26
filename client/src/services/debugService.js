@@ -117,6 +117,26 @@ class DebugService {
     console.groupEnd();
   }
 
+  // Simple log method for compatibility with console.log replacement
+  log(...args) {
+    if (!this.isEnabled) return;
+
+    // Convert arguments to a proper message
+    const message = args.map(arg => {
+      if (typeof arg === 'object') {
+        try {
+          return JSON.stringify(arg);
+        } catch {
+          return String(arg);
+        }
+      }
+      return String(arg);
+    }).join(' ');
+
+    // Log as info
+    this.logInfo('LOG', { message, args });
+  }
+
   // Specific error tracking methods
   trackApiError(endpoint, error, requestData = null) {
     this.logError('API_ERROR', {
