@@ -39,6 +39,8 @@ const cheerio = require('cheerio');
 
 // Instacart API configuration - UPDATED 2025
 const INSTACART_API_KEY = process.env.INSTACART_API_KEY;
+const INSTACART_CLIENT_ID = process.env.INSTACART_CLIENT_ID;
+const INSTACART_CLIENT_SECRET = process.env.INSTACART_CLIENT_SECRET;
 const INSTACART_CONNECT_API_KEY = process.env.INSTACART_CONNECT_API_KEY || INSTACART_API_KEY;
 const INSTACART_CATALOG_API_KEY = process.env.INSTACART_CATALOG_API_KEY || INSTACART_API_KEY;
 const INSTACART_DEVELOPER_API_KEY = process.env.INSTACART_DEVELOPER_API_KEY || INSTACART_API_KEY;
@@ -47,12 +49,113 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // Updated API endpoint configurations for 2025
 const API_ENDPOINTS = {
   DEVELOPMENT: 'https://connect.dev.instacart.tools/idp/v1',
-  PRODUCTION: 'https://connect.instacart.com/idp/v1'
+  PRODUCTION: 'https://connect.instacart.com/idp/v1',
+  CONNECT_DEV: 'https://connect.dev.instacart.tools',
+  CONNECT_PROD: 'https://connect.instacart.com'
 };
 
 // IMPORTANT: Using development endpoint with development API key
 // Change this when we get production API credentials
 const BASE_URL = API_ENDPOINTS.DEVELOPMENT;
+const CONNECT_BASE_URL = API_ENDPOINTS.CONNECT_DEV;
+
+// OAuth token cache
+let cachedOAuthToken = null;
+let tokenExpirationTime = null;
+
+// Helper function to get OAuth token for Partner API
+const getOAuthToken = async () => {
+  try {
+    // Check if we have a valid cached token
+    if (cachedOAuthToken && tokenExpirationTime && Date.now() < tokenExpirationTime) {
+      return cachedOAuthToken;
+    }
+
+    // Generate new token
+    if (!INSTACART_CLIENT_ID || !INSTACART_CLIENT_SECRET) {
+      logger.warn('Missing Instacart OAuth credentials (CLIENT_ID/CLIENT_SECRET)');
+      return null;
+    }
+
+    const tokenUrl = `${CONNECT_BASE_URL}/v2/oauth/token`;
+    const tokenPayload = {
+      client_id: INSTACART_CLIENT_ID,
+      client_secret: INSTACART_CLIENT_SECRET,
+      grant_type: 'client_credentials',
+      scope: 'connect:data_ingestion'
+    };
+
+    logger.info('Generating OAuth token for Partner API');
+
+    const tokenResponse = await axios.post(tokenUrl, tokenPayload, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (tokenResponse.data && tokenResponse.data.access_token) {
+      cachedOAuthToken = tokenResponse.data.access_token;
+      // Set expiration time (24 hours minus 1 hour buffer)
+      tokenExpirationTime = Date.now() + (23 * 60 * 60 * 1000);
+      logger.info('OAuth token generated successfully');
+      return cachedOAuthToken;
+    }
+
+    return null;
+  } catch (error) {
+    logger.error('Failed to generate OAuth token:', error.message);
+    return null;
+  }
+};
+
+// Helper function to search products using Partner API
+const searchProductsPartnerAPI = async (query, retailerId = 'safeway') => {
+  try {
+    const token = await getOAuthToken();
+    if (!token) {
+      logger.warn('No OAuth token available, falling back to public API');
+      return null;
+    }
+
+    // Partner API product search endpoint (this might need adjustment based on actual docs)
+    const searchUrl = `${CONNECT_BASE_URL}/v2/fulfillment/users/me/service_options/cart/items/search`;
+
+    const searchPayload = {
+      query: query,
+      retailer_id: retailerId,
+      per: 20 // Limit results
+    };
+
+    const response = await axios.post(searchUrl, searchPayload, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.data && response.data.items) {
+      return response.data.items.map(item => ({
+        id: item.id,
+        name: item.name || item.item_name,
+        brand: item.brand_name,
+        price: parseFloat(item.pricing?.price || 0),
+        image_url: item.image?.url || item.thumbnail?.url,
+        size: item.size,
+        availability: item.availability?.available ? 'in_stock' : 'out_of_stock',
+        aisle: item.aisle,
+        upc: item.upc,
+        source: 'partner_api'
+      }));
+    }
+
+    return null;
+  } catch (error) {
+    logger.error('Partner API search error:', error.message);
+    return null;
+  }
+};
 
 // Helper function to get retailer display names
 const getRetailerName = (retailerKey) => {
@@ -760,7 +863,24 @@ router.post('/search', async (req, res) => {
     }
 
     try {
-      // Use Shopping List API for product search (not Recipe API which only returns URLs)
+      // First, try Partner API if credentials are available
+      const partnerProducts = await searchProductsPartnerAPI(query, retailerId);
+
+      if (partnerProducts && partnerProducts.length > 0) {
+        logger.info(`Partner API returned ${partnerProducts.length} products`);
+
+        return res.json({
+          success: true,
+          products: partnerProducts,
+          query: query,
+          retailer: retailerId,
+          retailer_name: getRetailerName(retailerId),
+          count: partnerProducts.length,
+          source: 'partner_api'
+        });
+      }
+
+      // Fallback to Shopping List API if Partner API doesn't return results
       const shoppingListPayload = {
         title: `Shopping for ${query}`,
         line_items: [{
@@ -778,9 +898,9 @@ router.post('/search', async (req, res) => {
         ...(retailerId && { retailer_key: retailerId })
       };
 
-      logger.info('Creating shopping list for product search:', query);
+      logger.info('Falling back to Shopping List API for product search:', query);
 
-      // Use the Shopping List API (products_link) instead of Recipe API
+      // Use the Shopping List API (products_link) as fallback
       const shoppingListResponse = await instacartApiCall('/products/products_link', 'POST', shoppingListPayload, INSTACART_API_KEY);
 
       logger.info('Shopping List API response:', {
