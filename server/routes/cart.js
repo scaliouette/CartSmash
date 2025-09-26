@@ -5,6 +5,7 @@ const AIProductParser = require('../utils/aiProductParser');
 const { parseIngredientLine, buildSearchQuery } = require('../utils/ingredientParser');
 const { validateUserId, validateQuantity, sanitizeText } = require('../utils/validation');
 const winston = require('winston');
+const SpoonacularService = require('../services/spoonacularService');
 
 // Configure logger for this route
 const logger = winston.createLogger({
@@ -27,6 +28,9 @@ const logger = winston.createLogger({
 
 // Initialize AI parser
 const productParser = new AIProductParser();
+
+// Initialize Spoonacular service
+const spoonacularService = new SpoonacularService();
 
 // In-memory storage with size limits to prevent memory leaks
 class BoundedMap {
@@ -285,7 +289,19 @@ router.post('/parse', async (req, res) => {
             unit: product.unit,
             avoidingDoubleConversion: true
           });
-          
+
+          // Try to match with Spoonacular product data
+          let spoonacularData = null;
+          try {
+            const spoonResult = await spoonacularService.searchGroceryProducts(searchQuery, 1);
+            if (spoonResult.products && spoonResult.products.length > 0) {
+              spoonacularData = spoonResult.products[0];
+              logger.info(`✅ Matched "${productName}" with Spoonacular product: ${spoonacularData.name}`);
+            }
+          } catch (spoonError) {
+            logger.debug(`Could not match "${productName}" with Spoonacular:`, spoonError.message);
+          }
+
           return {
             id: product.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             productName: productName, // GUARANTEED to be a string
@@ -298,6 +314,16 @@ router.post('/parse', async (req, res) => {
             addedAt: new Date().toISOString(),
             aiParsed: true,
             parsingFactors: product.factors,
+            // Add Spoonacular data if found
+            spoonacularData: spoonacularData,
+            hasSpoonacularMatch: !!spoonacularData,
+            // Add Spoonacular-specific fields for easier access
+            image: spoonacularData?.image_url || null,
+            image_url: spoonacularData?.image_url || null,
+            imageUrl: spoonacularData?.image_url || null,
+            nutrition: spoonacularData?.nutrition || null,
+            aisle: spoonacularData?.aisle || null,
+            badges: spoonacularData?.badges || [],
             // Enhanced ingredient data from professional parser
             ingredientData: {
               parsedName: ingredientData.name,

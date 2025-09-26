@@ -1353,9 +1353,9 @@ function GroceryListForm({
           productName = 'Unknown Item';
         }
         
-        // Return properly structured item
+        // Return properly structured item, preserving all existing data including Spoonacular
         return {
-          ...item,
+          ...item, // Preserve all original fields including spoonacularData
           id: item.id || generateStableId('item'),
           productName: productName, // Ensure this is always a string
           quantity: item.quantity || 1,
@@ -1363,7 +1363,20 @@ function GroceryListForm({
           price: item.price || 0,
           confidence: item.confidence || 'medium',
           category: item.category || 'Other',
-          size: item.size || item.package_size || null // Add package size information
+          size: item.size || item.package_size || null, // Add package size information
+          // Preserve Spoonacular data if present
+          spoonacularData: item.spoonacularData || null,
+          hasSpoonacularMatch: item.hasSpoonacularMatch || !!item.spoonacularData,
+          image: item.image || item.image_url || item.imageUrl || null,
+          image_url: item.image_url || item.image || item.imageUrl || null,
+          imageUrl: item.imageUrl || item.image || item.image_url || null,
+          nutrition: item.nutrition || null,
+          aisle: item.aisle || null,
+          badges: item.badges || [],
+          // Preserve recipe quantities
+          recipeQuantity: item.recipeQuantity,
+          originalQuantity: item.originalQuantity,
+          unitCount: item.unitCount
         };
       }).filter(item => {
         // Filter out invalid/corrupted items
