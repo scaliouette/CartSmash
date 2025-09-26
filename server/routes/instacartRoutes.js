@@ -77,12 +77,16 @@ const getOAuthToken = async () => {
       return null;
     }
 
-    const tokenUrl = `${CONNECT_BASE_URL}/v2/oauth/token`;
+    // Use production URL for OAuth in production, dev for testing
+    const tokenUrl = process.env.NODE_ENV === 'production'
+      ? 'https://connect.instacart.com/v2/oauth/token'
+      : `${CONNECT_BASE_URL}/v2/oauth/token`;
+
     const tokenPayload = {
       client_id: INSTACART_CLIENT_ID,
       client_secret: INSTACART_CLIENT_SECRET,
       grant_type: 'client_credentials',
-      scope: 'connect:data_ingestion'
+      scope: 'connect:fulfillment' // Changed from connect:data_ingestion for product access
     };
 
     logger.info('Generating OAuth token for Partner API');
@@ -109,7 +113,7 @@ const getOAuthToken = async () => {
   }
 };
 
-// Helper function to search products using Partner API
+// Helper function to search products using Partner API with multiple endpoint attempts
 const searchProductsPartnerAPI = async (query, retailerId = 'safeway') => {
   try {
     const token = await getOAuthToken();
@@ -118,38 +122,79 @@ const searchProductsPartnerAPI = async (query, retailerId = 'safeway') => {
       return null;
     }
 
-    // Partner API product search endpoint (this might need adjustment based on actual docs)
-    const searchUrl = `${CONNECT_BASE_URL}/v2/fulfillment/users/me/service_options/cart/items/search`;
-
-    const searchPayload = {
-      query: query,
-      retailer_id: retailerId,
-      per: 20 // Limit results
-    };
-
-    const response = await axios.post(searchUrl, searchPayload, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+    // Try multiple possible endpoints for product search
+    const endpoints = [
+      {
+        name: 'Fulfillment Cart Items Search',
+        url: `${CONNECT_BASE_URL}/v2/fulfillment/users/me/service_options/cart/items/search`,
+        method: 'POST',
+        payload: { query, retailer_id: retailerId, per: 20 }
+      },
+      {
+        name: 'Stores Catalog Search',
+        url: `${CONNECT_BASE_URL}/v2/fulfillment/stores/${retailerId}/catalog/search`,
+        method: 'GET',
+        params: { q: query, per: 20 }
+      },
+      {
+        name: 'Products Search',
+        url: `${CONNECT_BASE_URL}/v2/fulfillment/products/search`,
+        method: 'POST',
+        payload: { query, retailer_id: retailerId, limit: 20 }
       }
-    });
+    ];
 
-    if (response.data && response.data.items) {
-      return response.data.items.map(item => ({
-        id: item.id,
-        name: item.name || item.item_name,
-        brand: item.brand_name,
-        price: parseFloat(item.pricing?.price || 0),
-        image_url: item.image?.url || item.thumbnail?.url,
-        size: item.size,
-        availability: item.availability?.available ? 'in_stock' : 'out_of_stock',
-        aisle: item.aisle,
-        upc: item.upc,
-        source: 'partner_api'
-      }));
+    for (const endpoint of endpoints) {
+      try {
+        logger.info(`Trying Partner API endpoint: ${endpoint.name}`);
+
+        let response;
+        const headers = {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        };
+
+        if (endpoint.method === 'GET') {
+          response = await axios.get(endpoint.url, {
+            headers,
+            params: endpoint.params
+          });
+        } else {
+          response = await axios.post(endpoint.url, endpoint.payload, { headers });
+        }
+
+        // Check various possible response structures
+        const items = response.data?.items ||
+                     response.data?.products ||
+                     response.data?.data ||
+                     response.data?.results;
+
+        if (items && Array.isArray(items) && items.length > 0) {
+          logger.info(`✅ Partner API ${endpoint.name} returned ${items.length} products`);
+
+          return items.map(item => ({
+            id: item.id || item.product_id || item.item_id,
+            name: item.name || item.item_name || item.title || item.product_name,
+            brand: item.brand_name || item.brand || item.manufacturer,
+            price: parseFloat(item.pricing?.price || item.price || item.retail_price || 0),
+            image_url: item.image?.url || item.thumbnail?.url || item.image_url || item.images?.[0]?.url,
+            size: item.size || item.package_size,
+            availability: item.availability?.available || item.in_stock ? 'in_stock' : 'out_of_stock',
+            aisle: item.aisle || item.department,
+            upc: item.upc || item.barcode,
+            sku: item.sku || item.retailer_sku,
+            source: 'partner_api',
+            endpoint: endpoint.name
+          }));
+        }
+      } catch (endpointError) {
+        logger.warn(`Partner API ${endpoint.name} failed:`, endpointError.response?.status || endpointError.message);
+        // Continue to next endpoint
+      }
     }
 
+    logger.warn('All Partner API endpoints failed or returned no results');
     return null;
   } catch (error) {
     logger.error('Partner API search error:', error.message);
@@ -880,7 +925,38 @@ router.post('/search', async (req, res) => {
         });
       }
 
-      // Fallback to Shopping List API if Partner API doesn't return results
+      // Try Recipe API first as it may provide better product matching
+      try {
+        const recipePayload = {
+          title: `Search for ${query}`,
+          instructions: [`Add ${query} to cart`],
+          ingredients: [{
+            name: query,
+            display_text: query,
+            measurements: [{
+              quantity: 1,
+              unit: 'each'
+            }]
+          }],
+          landing_page_configuration: {
+            partner_linkback_url: 'https://cartsmash.com',
+            enable_pantry_items: false
+          }
+        };
+
+        logger.info('Trying Recipe API for product search:', query);
+        const recipeResponse = await instacartApiCall('/products/recipe', 'POST', recipePayload, INSTACART_API_KEY);
+
+        if (recipeResponse && recipeResponse.products_link_url) {
+          // Recipe created successfully, return basic product info with link
+          // Note: Recipe API also doesn't return product details directly
+          logger.info('Recipe created for search, but no direct product data available');
+        }
+      } catch (recipeError) {
+        logger.debug('Recipe API attempt failed:', recipeError.message);
+      }
+
+      // Fallback to Shopping List API
       const shoppingListPayload = {
         title: `Shopping for ${query}`,
         line_items: [{
