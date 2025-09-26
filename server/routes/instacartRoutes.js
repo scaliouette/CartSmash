@@ -63,93 +63,135 @@ const CONNECT_BASE_URL = API_ENDPOINTS.CONNECT_DEV;
 let cachedOAuthToken = null;
 let tokenExpirationTime = null;
 
-// Helper function to get OAuth token for Partner API
-const getOAuthToken = async () => {
-  try {
-    // Check if we have a valid cached token
-    if (cachedOAuthToken && tokenExpirationTime && Date.now() < tokenExpirationTime) {
-      return cachedOAuthToken;
-    }
+// Helper function to get Bearer token for Partner API
+const getBearerToken = () => {
+  // The API keys are already Bearer tokens, not OAuth credentials
+  // Use the appropriate API key based on the operation
+  const token = INSTACART_CATALOG_API_KEY || INSTACART_DEVELOPER_API_KEY || INSTACART_CONNECT_API_KEY || INSTACART_API_KEY;
 
-    // Generate new token
-    if (!INSTACART_CLIENT_ID || !INSTACART_CLIENT_SECRET) {
-      logger.warn('Missing Instacart OAuth credentials (CLIENT_ID/CLIENT_SECRET)');
-      return null;
-    }
-
-    const tokenUrl = `${CONNECT_BASE_URL}/v2/oauth/token`;
-    const tokenPayload = {
-      client_id: INSTACART_CLIENT_ID,
-      client_secret: INSTACART_CLIENT_SECRET,
-      grant_type: 'client_credentials',
-      scope: 'connect:data_ingestion'
-    };
-
-    logger.info('Generating OAuth token for Partner API');
-
-    const tokenResponse = await axios.post(tokenUrl, tokenPayload, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (tokenResponse.data && tokenResponse.data.access_token) {
-      cachedOAuthToken = tokenResponse.data.access_token;
-      // Set expiration time (24 hours minus 1 hour buffer)
-      tokenExpirationTime = Date.now() + (23 * 60 * 60 * 1000);
-      logger.info('OAuth token generated successfully');
-      return cachedOAuthToken;
-    }
-
-    return null;
-  } catch (error) {
-    logger.error('Failed to generate OAuth token:', error.message);
+  if (!token) {
+    logger.warn('No Instacart API key found in environment variables');
     return null;
   }
+
+  // These are Bearer tokens that start with "keys."
+  if (!token.startsWith('keys.')) {
+    logger.warn('Invalid API key format - should start with "keys."');
+  }
+
+  logger.debug('Using Instacart Bearer token for API access');
+  return token;
 };
 
-// Helper function to search products using Partner API
+// Legacy OAuth function (kept for reference but not used)
+const getOAuthToken = async () => {
+  // This function is deprecated - we use Bearer tokens directly
+  return getBearerToken();
+};
+
+// Helper function to search products using Partner API with multiple endpoint attempts
 const searchProductsPartnerAPI = async (query, retailerId = 'safeway') => {
   try {
-    const token = await getOAuthToken();
+    const token = getBearerToken();
     if (!token) {
-      logger.warn('No OAuth token available, falling back to public API');
+      logger.warn('No Bearer token available');
       return null;
     }
 
-    // Partner API product search endpoint (this might need adjustment based on actual docs)
-    const searchUrl = `${CONNECT_BASE_URL}/v2/fulfillment/users/me/service_options/cart/items/search`;
-
-    const searchPayload = {
-      query: query,
-      retailer_id: retailerId,
-      per: 20 // Limit results
-    };
-
-    const response = await axios.post(searchUrl, searchPayload, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+    // Try multiple API endpoints to find the working one
+    const endpoints = [
+      {
+        name: 'IDP Products API',
+        url: `${BASE_URL}/products`,
+        method: 'POST',
+        params: {
+          products: [{ name: query, quantity: 1, unit: 'each' }],
+          retailer_id: retailerId
+        }
+      },
+      {
+        name: 'Catalog Search API',
+        url: `${CONNECT_BASE_URL}/api/v2/retailers/${retailerId}/catalog/search`,
+        method: 'GET',
+        params: { q: query, limit: 20 }
+      },
+      {
+        name: 'Products Search V1',
+        url: `${BASE_URL}/retailers/${retailerId}/products/search`,
+        method: 'GET',
+        params: { query: query, limit: 20 }
+      },
+      {
+        name: 'Direct Products API',
+        url: `${BASE_URL}/products/search`,
+        method: 'POST',
+        params: {
+          query: query,
+          retailer_id: retailerId,
+          limit: 20
+        }
       }
-    });
+    ];
 
-    if (response.data && response.data.items) {
-      return response.data.items.map(item => ({
-        id: item.id,
-        name: item.name || item.item_name,
-        brand: item.brand_name,
-        price: parseFloat(item.pricing?.price || 0),
-        image_url: item.image?.url || item.thumbnail?.url,
-        size: item.size,
-        availability: item.availability?.available ? 'in_stock' : 'out_of_stock',
-        aisle: item.aisle,
-        upc: item.upc,
-        source: 'partner_api'
-      }));
+    for (const endpoint of endpoints) {
+      try {
+        logger.info(`Trying ${endpoint.name}: ${endpoint.url}`);
+
+        const config = {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'CartSmash/1.0'
+          },
+          timeout: 10000
+        };
+
+        let response;
+        if (endpoint.method === 'GET') {
+          response = await axios.get(endpoint.url, { ...config, params: endpoint.params });
+        } else {
+          response = await axios.post(endpoint.url, endpoint.params, config);
+        }
+
+        if (response.data) {
+          logger.info(`✅ ${endpoint.name} successful - Status: ${response.status}`);
+
+          // Handle different response formats
+          const items = response.data.items || response.data.products || response.data.data || [];
+
+          if (Array.isArray(items) && items.length > 0) {
+            logger.info(`Found ${items.length} products via ${endpoint.name}`);
+
+            return items.map(item => ({
+              id: item.id || item.product_id || item.item_id,
+              name: item.name || item.item_name || item.title || item.product_name,
+              brand: item.brand_name || item.brand || item.manufacturer,
+              price: parseFloat(item.pricing?.price || item.price || item.retail_price || item.sale_price || 0),
+              image_url: item.image?.url || item.thumbnail?.url || item.image_url || item.images?.[0]?.url || item.primary_image || item.remote_image_url || item.product_image,
+              size: item.size || item.package_size || item.unit_size,
+              availability: item.availability?.available || item.in_stock || item.is_available ? 'in_stock' : 'out_of_stock',
+              aisle: item.aisle || item.department,
+              upc: item.upc || item.barcode,
+              sku: item.sku,
+              source: 'partner_api',
+              endpoint: endpoint.name
+            }));
+          } else if (response.data.message || response.data.error) {
+            logger.warn(`${endpoint.name} returned message: ${response.data.message || response.data.error}`);
+          }
+        }
+      } catch (endpointError) {
+        if (endpointError.response) {
+          logger.debug(`${endpoint.name} failed - Status: ${endpointError.response.status}, Message: ${endpointError.response.data?.message || endpointError.message}`);
+        } else {
+          logger.debug(`${endpoint.name} failed - ${endpointError.message}`);
+        }
+        // Continue to next endpoint
+      }
     }
 
+    logger.warn('All Partner API endpoints failed or returned no products');
     return null;
   } catch (error) {
     logger.error('Partner API search error:', error.message);
@@ -927,7 +969,7 @@ router.post('/search', async (req, res) => {
               name: product.name || product.title || query,
               brand: product.brand || 'Generic',
               price: parseFloat(product.price) || 0,
-              image_url: product.image_url || product.image || null,
+              image_url: product.image_url || product.image || product.remote_image_url || product.thumbnail || null,
               package_size: product.package_size || product.size || '1 item',
               unit: product.unit || 'item',
               quantity: 1,
@@ -948,7 +990,7 @@ router.post('/search', async (req, res) => {
                   name: product.name || item.name || query,
                   brand: product.brand || 'Generic',
                   price: parseFloat(product.price) || 0,
-                  image_url: product.image_url || product.image || null,
+                  image_url: product.image_url || product.image || product.remote_image_url || product.thumbnail || null,
                   package_size: product.package_size || product.size || '1 item',
                   unit: product.unit || 'item',
                   quantity: 1,
