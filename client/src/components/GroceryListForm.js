@@ -810,6 +810,7 @@ function GroceryListForm({
                 price: instacartPrice,
                 image: instacartImage,
                 imageUrl: instacartImage,
+                image_url: instacartImage, // Add for compatibility
                 instacartId: instacartProduct.id,
                 instacartData: instacartProduct,
                 enriched: true,
@@ -824,8 +825,11 @@ function GroceryListForm({
                 packageSize: instacartProduct.size,
                 description: instacartProduct.description,
                 availability: instacartProduct.availability,
-                // Preserve original recipe quantities and units - don't let Instacart data override them
-                quantity: item.quantity, // Force preserve original quantity
+                // Preserve ALL original recipe quantities and units - don't let Instacart data override them
+                quantity: item.quantity || 1, // Shopping multiplier
+                recipeQuantity: item.recipeQuantity, // Recipe requirement
+                originalQuantity: item.originalQuantity, // Original amount
+                unitCount: item.unitCount, // Alternative field
                 unit: item.unit,         // Force preserve original unit
                 size: item.size,         // Force preserve original size if it exists
                 enrichmentSource: 'instacart'
@@ -912,6 +916,9 @@ function GroceryListForm({
                     brand: spoonProduct.brand || 'Generic',
                     // Preserve original recipe quantities
                     quantity: item.quantity,
+                    recipeQuantity: item.recipeQuantity,
+                    originalQuantity: item.originalQuantity,
+                    unitCount: item.unitCount,
                     unit: item.unit,
                     size: item.size
                   };
@@ -3795,7 +3802,10 @@ Return as JSON with this structure:
           id: `recipe-${recipe.id || Date.now()}-ingredient-${index}`,
           name: name,
           productName: name,
-          quantity: parseFloat(quantity) || 1,
+          quantity: 1, // Shopping quantity (multiplier)
+          recipeQuantity: parseFloat(quantity) || 1, // Recipe requirement
+          originalQuantity: parseFloat(quantity) || 1, // Preserve original
+          unitCount: parseFloat(quantity) || 1, // Alternative field
           unit: unit,
           price: 0, // Will be enriched later
           category: 'Recipe Ingredient',
@@ -3809,7 +3819,10 @@ Return as JSON with this structure:
           id: ingredient.id || `recipe-${recipe.id || Date.now()}-ingredient-${index}`,
           name: ingredient.name || ingredient.productName || 'Unknown Ingredient',
           productName: ingredient.name || ingredient.productName || 'Unknown Ingredient',
-          quantity: ingredient.quantity || 1,
+          quantity: 1, // Shopping quantity (multiplier)
+          recipeQuantity: ingredient.quantity || 1, // Recipe requirement
+          originalQuantity: ingredient.quantity || 1, // Preserve original
+          unitCount: ingredient.quantity || 1, // Alternative field
           unit: ingredient.unit || '',
           price: ingredient.price || 0,
           category: ingredient.category || 'Recipe Ingredient',

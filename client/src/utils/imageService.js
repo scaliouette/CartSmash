@@ -191,8 +191,6 @@ class ImageService {
    * @returns {string} Image URL
    */
   getProductImage(item, options = {}) {
-    // Removed verbose logging for performance
-
     // First priority: Check all possible image fields (support both camelCase and snake_case)
     const possibleImageUrls = [
       item.imageUrl,
@@ -202,14 +200,10 @@ class ImageService {
       item.instacartData?.image_url     // From Instacart data
     ].filter(Boolean);
 
-    // Check possible image URLs
-
     // Try each possible image URL
     for (const imageUrl of possibleImageUrls) {
       const optimizedUrl = this.optimizeImageUrl(imageUrl);
       if (optimizedUrl) {
-        // Using optimized image URL
-
         // Check cache first for external images
         const cached = this.getCachedImage(imageUrl);
         if (cached) {
@@ -218,9 +212,8 @@ class ImageService {
 
         // Preload and cache in background (don't wait)
         if (options.enableCaching !== false) {
-          this.preloadImage(imageUrl).catch(error => {
+          this.preloadImage(imageUrl).catch(() => {
             // Silently handle image loading errors
-            debugService.log('🔇 Image preload failed (silently handled):', imageUrl);
           });
         }
 
@@ -231,7 +224,6 @@ class ImageService {
     // No real image found - provide category-based fallback
     const category = this.getCategoryFromItem(item);
     const fallbackImage = this.getImageUrl(category);
-    // Using fallback image for category: ${category}
     return fallbackImage;
   }
 

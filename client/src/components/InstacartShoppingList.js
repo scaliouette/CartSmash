@@ -99,15 +99,24 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
   const allItemsSelected = items.length > 0 && selectedItems.size === items.length;
   const someItemsSelected = selectedItems.size > 0;
 
-  // Handle quantity change
+  // Handle quantity change (shopping multiplier, not recipe amount)
   const updateQuantity = (itemId, delta) => {
     const targetItem = items.find(item => item.id === itemId);
-    const currentQty = parseInt(targetItem?.quantity) || 1;
-    const newQty = Math.max(1, currentQty + delta);
+    // This is the SHOPPING MULTIPLIER - how many "units" of the recipe requirement to buy
+    const currentMultiplier = parseInt(targetItem?.shoppingMultiplier || targetItem?.quantity) || 1;
+    const newMultiplier = Math.max(1, currentMultiplier + delta);
 
     const updatedItems = items.map(item => {
       if (item.id === itemId) {
-        return { ...item, quantity: newQty };
+        // Preserve original recipe quantity while updating shopping multiplier
+        return {
+          ...item,
+          shoppingMultiplier: newMultiplier,
+          quantity: newMultiplier,
+          // Preserve original recipe requirements
+          recipeQuantity: item.recipeQuantity || item.originalQuantity || item.unitCount,
+          originalQuantity: item.originalQuantity || item.unitCount || item.recipeQuantity
+        };
       }
       return item;
     });
@@ -134,14 +143,22 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
     };
   }, [total, retailers.length, selectedRetailerId]);
 
-  // Handle direct quantity input
+  // Handle direct quantity input (shopping multiplier)
   const setQuantity = (itemId, value) => {
-    const qty = parseInt(value) || 1;
-    const finalQty = Math.max(1, qty);
+    const multiplier = parseInt(value) || 1;
+    const finalMultiplier = Math.max(1, multiplier);
 
     const updatedItems = items.map(item => {
       if (item.id === itemId) {
-        return { ...item, quantity: finalQty };
+        // Preserve original recipe quantity while updating shopping multiplier
+        return {
+          ...item,
+          shoppingMultiplier: finalMultiplier,
+          quantity: finalMultiplier,
+          // Preserve original recipe requirements
+          recipeQuantity: item.recipeQuantity || item.originalQuantity || item.unitCount,
+          originalQuantity: item.originalQuantity || item.unitCount || item.recipeQuantity
+        };
       }
       return item;
     });
@@ -178,7 +195,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
     return confidenceMap[item.confidence] || { value: 70, level: 'medium' };
   };
 
-  // Format the unit display for the orange badge
+  // Format the unit display for the orange badge (recipe requirement, not shopping quantity)
   const formatUnitDisplay = (item) => {
     // Safely extract primitive values (avoid objects that cause React Error #31)
     const extractPrimitive = (value, fallback = '') => {
@@ -188,18 +205,18 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
       return fallback;
     };
 
-    const quantity = extractPrimitive(item.unitCount) || extractPrimitive(item.quantity) || 1;
-    // PRESERVE ORIGINAL RECIPE UNITS - prioritize item.unit over Instacart product size data
+    // This shows the RECIPE REQUIREMENT (e.g., "2 cups flour" needed for recipe)
+    // This should NOT change when user adjusts shopping quantity
+    const recipeAmount = extractPrimitive(item.recipeQuantity) || extractPrimitive(item.unitCount) || extractPrimitive(item.originalQuantity) || 1;
     const unit = extractPrimitive(item.unit) || 'each';
 
-    // If unit is "each", don't display it
+    // If unit is "each", show as items
     if (String(unit) === 'each') {
-      const safeQuantity = String(quantity);
-      return `${safeQuantity} item${Number(safeQuantity) > 1 ? 's' : ''}`;
+      return `${recipeAmount} ${Number(recipeAmount) === 1 ? 'item' : 'items'}`;
     }
 
-    // Format as "quantity-unit" (e.g., "1-16 oz bag", "3-cups")
-    return `${String(quantity)}-${String(unit)}`;
+    // Format as "amount unit" (e.g., "2 cups", "1 lb")
+    return `${recipeAmount} ${unit}`;
   };
 
   // Get current retailer info and logo
@@ -614,7 +631,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
 
                   <input
                     type="number"
-                    value={item.quantity || 1}
+                    value={item.shoppingMultiplier || item.quantity || 1}
                     onChange={(e) => {
                       e.stopPropagation();
                       setQuantity(item.id, e.target.value);
