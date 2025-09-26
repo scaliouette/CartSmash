@@ -310,10 +310,11 @@ const RecipeCard = ({
               alignItems: 'center',
               justifyContent: 'center'
             }}
-            title="Add to Cart"
+            title="Add Ingredients to Shopping List"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
-              <path d="M3 3h18v18H3zM12 8v8m-4-4h8"/>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2">
+              <path d="M9 11l3 3L22 4"/>
+              <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
             </svg>
           </button>
 
@@ -333,7 +334,7 @@ const RecipeCard = ({
               alignItems: 'center',
               justifyContent: 'center'
             }}
-            title="Add to Library"
+            title="Save to Recipe Library"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="#ef4444">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
@@ -356,11 +357,14 @@ const RecipeCard = ({
               alignItems: 'center',
               justifyContent: 'center'
             }}
-            title="Save Recipe"
+            title="Add to Meal Plan"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-              <polyline points="17 21 17 13 7 13 7 21"/>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+              <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
             </svg>
           </button>
 

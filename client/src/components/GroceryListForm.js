@@ -3817,10 +3817,16 @@ Return as JSON with this structure:
   };
 
   // Handle recipe checkout with full recipe context
+  // Add recipe ingredients to current shopping list
   const handleRecipeCheckout = (recipe) => {
-    debugService.log('🍽️ Opening recipe checkout with full context:', recipe.title || recipe.name || 'Unnamed Recipe');
+    debugService.log('🍽️ Adding recipe ingredients to shopping list:', recipe.title || recipe.name || 'Unnamed Recipe');
 
-    // Extract and format recipe ingredients for InstacartCheckoutUnified
+    if (!recipe.ingredients || recipe.ingredients.length === 0) {
+      alert('❌ This recipe has no ingredients to add');
+      return;
+    }
+
+    // Extract and format recipe ingredients for shopping list
     const recipeIngredients = recipe.ingredients?.map((ingredient, index) => {
       // Handle both string and object formats
       let ingredientData;
@@ -3834,26 +3840,30 @@ Return as JSON with this structure:
         const name = unitMatch ? unitMatch[2] : rest || ingredient;
 
         ingredientData = {
-          id: `recipe-ingredient-${index}`,
+          id: `recipe-${recipe.id || Date.now()}-ingredient-${index}`,
           name: name,
           productName: name,
           quantity: parseFloat(quantity) || 1,
           unit: unit,
-          price: 2.99, // Default price for estimation
+          price: 0, // Will be enriched later
           category: 'Recipe Ingredient',
-          checked: true
+          source: 'recipe',
+          recipeTitle: recipe.title || recipe.name,
+          checked: false
         };
       } else {
         // Handle object format ingredients
         ingredientData = {
-          id: ingredient.id || `recipe-ingredient-${index}`,
+          id: ingredient.id || `recipe-${recipe.id || Date.now()}-ingredient-${index}`,
           name: ingredient.name || ingredient.productName || 'Unknown Ingredient',
           productName: ingredient.name || ingredient.productName || 'Unknown Ingredient',
           quantity: ingredient.quantity || 1,
           unit: ingredient.unit || '',
-          price: ingredient.price || 2.99,
+          price: ingredient.price || 0,
           category: ingredient.category || 'Recipe Ingredient',
-          checked: true,
+          source: 'recipe',
+          recipeTitle: recipe.title || recipe.name,
+          checked: false,
           // Preserve additional ingredient properties
           brandFilters: ingredient.brandFilters || [],
           healthFilters: ingredient.healthFilters || [],
@@ -3862,20 +3872,24 @@ Return as JSON with this structure:
         };
       }
 
-      debugService.log(`📦 Recipe ingredient ${index + 1}:`, ingredientData);
+      debugService.log(`📦 Adding ingredient ${index + 1}:`, ingredientData.name);
       return ingredientData;
     }) || [];
 
-    debugService.log(`🛒 Extracted ${recipeIngredients.length} ingredients from recipe for checkout`);
+    // Add ingredients to current cart
+    const updatedCart = [...currentCart, ...recipeIngredients];
+    setCurrentCart(updatedCart);
 
-    // Format recipe data to match InstacartCheckoutUnified expectations
-    const formattedRecipeData = {
-      recipes: [recipe]
-    };
+    // Show success message
+    const ingredientCount = recipeIngredients.length;
+    alert(`✅ Added ${ingredientCount} ingredient${ingredientCount > 1 ? 's' : ''} from "${recipe.title || recipe.name}" to your shopping list!`);
 
-    setCurrentRecipeItems(recipeIngredients);
-    setCurrentRecipeContext(formattedRecipeData);
-    setShowInstacartCheckout(true);
+    debugService.log(`🛒 Added ${recipeIngredients.length} ingredients to shopping list`);
+
+    // Enrich the new items with product data
+    if (recipeIngredients.length > 0) {
+      enrichCartWithInstacartData(updatedCart);
+    }
   };
 
   // Handle adding recipe ingredients to cart
