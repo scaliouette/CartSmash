@@ -1187,8 +1187,18 @@ function GroceryListForm({
     debugService.log('✅ Data persistence loading complete');
   }, []); // Run only once on component mount
 
-  // Auto-save cart data when it changes (including empty carts)
+  // Track if component has mounted to prevent saving on initial load
+  const hasMountedRef = useRef(false);
+
+  // Auto-save cart data when it changes (but not on initial mount)
   useEffect(() => {
+    // Skip the first run (component mount) to avoid overwriting loaded data
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      debugService.log('⏭️ Skipping auto-save on initial mount');
+      return;
+    }
+
     if (currentCart !== null && currentCart !== undefined) {
       debugService.log('💾 Auto-saving cart:', currentCart.length, 'items');
       const saved = persistenceService.saveCart(currentCart, 48); // 48-hour expiration

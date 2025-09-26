@@ -86,8 +86,11 @@ class ImageService {
   async preloadImage(url) {
     if (!url || !this.isValidImageUrl(url)) return null;
 
+    // Use proxy for Spoonacular images
+    const finalUrl = this.useProxyIfNeeded(url);
+
     // Check cache first
-    const cached = this.getCachedImage(url);
+    const cached = this.getCachedImage(finalUrl);
     if (cached) return cached;
 
     try {
@@ -118,16 +121,16 @@ class ImageService {
           e.preventDefault && e.preventDefault();
           reject(new Error('Failed to load image'));
         };
-        img.src = url;
+        img.src = finalUrl;
       });
 
       // Cache the result
-      this.setCachedImage(url, imageData);
+      this.setCachedImage(finalUrl, imageData);
       return imageData;
     } catch (error) {
       // Silently handle preload failures (common with external images)
-      debugService.log('🔇 Preload failed (expected for external images):', url);
-      return url; // Return original URL as fallback
+      debugService.log('🔇 Preload failed (expected for external images):', finalUrl);
+      return finalUrl; // Return proxied URL as fallback
     }
   }
 
@@ -178,7 +181,8 @@ class ImageService {
     }
 
     if (recipeImageUrl && this.isValidImageUrl(recipeImageUrl)) {
-      return recipeImageUrl;
+      // Use proxy for Spoonacular images to avoid CORS issues
+      return this.useProxyIfNeeded(recipeImageUrl);
     }
 
     return this.getImageUrl('recipe', options);
@@ -217,7 +221,8 @@ class ImageService {
           });
         }
 
-        return imageUrl;
+        // Use proxy for Spoonacular images to avoid CORS issues
+        return this.useProxyIfNeeded(imageUrl);
       }
     }
 
@@ -351,6 +356,35 @@ class ImageService {
     // Skip URLs that commonly cause 404s - but allow Unsplash for now
     if (url.includes('picsum.photos')) {
       return null;
+    }
+
+    return url;
+  }
+
+  /**
+   * Use proxy for Spoonacular images to avoid CORS issues
+   * @param {string} url - Original image URL
+   * @returns {string} Proxied URL if needed
+   */
+  useProxyIfNeeded(url) {
+    if (!url || typeof url !== 'string') return url;
+
+    // Check if this is a Spoonacular image that needs proxying
+    const spoonacularDomains = [
+      'img.spoonacular.com',
+      'spoonacular.com',
+      'images.spoonacular.com',
+      'cdn.spoonacular.com'
+    ];
+
+    const needsProxy = spoonacularDomains.some(domain => url.includes(domain));
+
+    if (needsProxy) {
+      // Get API URL from environment or use default
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      // Encode the original URL to pass as query parameter
+      const encodedUrl = encodeURIComponent(url);
+      return `${apiUrl}/api/images/proxy?url=${encodedUrl}`;
     }
 
     return url;
