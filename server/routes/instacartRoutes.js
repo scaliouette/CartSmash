@@ -782,7 +782,7 @@ router.post('/search', async (req, res) => {
       logger.info('Creating recipe for product search:', query);
 
       // Use the recipe API to create a shopping list
-      const recipeResponse = await instacartApiCall('/recipes', 'POST', recipePayload, INSTACART_API_KEY);
+      const recipeResponse = await instacartApiCall('/products/recipe', 'POST', recipePayload, INSTACART_API_KEY);
 
       logger.debug('Recipe API response:', {
         success: !!recipeResponse,
