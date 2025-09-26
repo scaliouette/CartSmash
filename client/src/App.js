@@ -5,6 +5,7 @@ import { SmashCartProvider } from './contexts/SmashCartContext';
 import userDataService from './services/userDataService';
 import { db } from './firebase/config';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import './styles/cartsmash.css';
 import Header from './components/Header';
 import GroceryListForm from './components/GroceryListForm';
@@ -43,6 +44,7 @@ function App() {
     <AuthProvider>
       <SmashCartProvider>
         <ErrorBoundary componentName="App">
+          <SpeedInsights />
           <AppContent
             currentView={currentView}
             setCurrentView={setCurrentView}
