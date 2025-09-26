@@ -1091,21 +1091,42 @@ function GroceryListForm({
   // Data persistence hooks - load data on component mount
   useEffect(() => {
     debugService.log('💾 Loading persisted data on component mount...');
-    
-    // Load cart data
-    const persistedCart = persistenceService.loadCart();
-    if (persistedCart && persistedCart.length > 0) {
-      debugService.log('📖 Loading persisted cart:', persistedCart.length, 'items');
-      setCurrentCart(persistedCart);
 
-      // Only enrich if items aren't already enriched
-      const needsEnrichment = persistedCart.some(item => !item.enriched);
-      if (needsEnrichment) {
-        debugService.log('🔄 Some items need enrichment, starting enrichment process');
-        enrichCartWithInstacartData(persistedCart);
+    // Load cart data
+    try {
+      const persistedCart = persistenceService.loadCart();
+      debugService.log('🔍 Persisted cart check:', {
+        exists: !!persistedCart,
+        length: persistedCart?.length || 0,
+        type: typeof persistedCart,
+        isArray: Array.isArray(persistedCart)
+      });
+
+      if (persistedCart && Array.isArray(persistedCart) && persistedCart.length > 0) {
+        debugService.log('📖 Loading persisted cart:', persistedCart.length, 'items');
+        debugService.log('📦 Cart items:', persistedCart.map(item => ({
+          name: item.productName,
+          quantity: item.quantity,
+          hasSpoonacular: item.hasSpoonacularMatch
+        })));
+
+        setCurrentCart(persistedCart);
+        // Force showResults to true when cart has items
+        setShowResults(true);
+
+        // Only enrich if items aren't already enriched
+        const needsEnrichment = persistedCart.some(item => !item.enriched);
+        if (needsEnrichment) {
+          debugService.log('🔄 Some items need enrichment, starting enrichment process');
+          enrichCartWithInstacartData(persistedCart);
+        } else {
+          debugService.log('✅ All items already enriched, skipping enrichment');
+        }
       } else {
-        debugService.log('✅ All items already enriched, skipping enrichment');
+        debugService.log('🛒 No cart data to load on mount');
       }
+    } catch (error) {
+      debugService.logError('❌ Error loading cart data:', error);
     }
     
     // Load saved recipes WITH VALIDATION
@@ -1170,7 +1191,12 @@ function GroceryListForm({
   useEffect(() => {
     if (currentCart !== null && currentCart !== undefined) {
       debugService.log('💾 Auto-saving cart:', currentCart.length, 'items');
-      persistenceService.saveCart(currentCart, 48); // 48-hour expiration
+      const saved = persistenceService.saveCart(currentCart, 48); // 48-hour expiration
+      if (saved) {
+        debugService.log('✅ Cart saved successfully to localStorage');
+      } else {
+        debugService.logError('❌ Failed to save cart to localStorage');
+      }
     }
   }, [currentCart]);
 
