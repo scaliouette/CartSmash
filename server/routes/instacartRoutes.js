@@ -790,87 +790,57 @@ router.post('/search', async (req, res) => {
         url: recipeResponse?.recipe_url,
         hasIngredients: !!recipeResponse?.ingredients,
         ingredientsCount: recipeResponse?.ingredients?.length || 0,
-        fullResponse: JSON.stringify(recipeResponse).substring(0, 500)
+        fullResponse: JSON.stringify(recipeResponse)
       });
 
       if (recipeResponse && (recipeResponse.recipe_url || recipeResponse.id)) {
         logger.info(`Recipe created successfully with ID: ${recipeResponse.id}`);
 
-        // Now fetch the shopping list with products and prices using the Shopping List API
+        // Extract products from the recipe response itself
         const products = [];
 
-        try {
-          // Call the Shopping List API to get products with prices and images
-          const shoppingListUrl = `/products/shopping_list?recipe_id=${recipeResponse.id}`;
-          logger.info(`Fetching shopping list from: ${shoppingListUrl}`);
-
-          const shoppingListResponse = await instacartApiCall(
-            shoppingListUrl,
-            'GET',
-            null,
-            INSTACART_API_KEY
-          );
-
-          logger.info('Shopping List API response:', {
-            success: !!shoppingListResponse,
-            hasProducts: !!shoppingListResponse?.products,
-            productCount: shoppingListResponse?.products?.length || 0,
-            hasIngredients: !!shoppingListResponse?.ingredients,
-            ingredientCount: shoppingListResponse?.ingredients?.length || 0,
-            sampleData: JSON.stringify(shoppingListResponse).substring(0, 500)
-          });
-
-          // Extract products from shopping list response
-          if (shoppingListResponse?.products && Array.isArray(shoppingListResponse.products)) {
-            shoppingListResponse.products.forEach(product => {
-              products.push({
-                id: product.id || `product_${Date.now()}_${Math.random()}`,
-                name: product.name || product.title || query,
-                brand: product.brand || 'Generic',
-                price: parseFloat(product.price) || 0,
-                image_url: product.image_url || product.image || null,
-                package_size: product.package_size || product.size || '1 item',
-                unit: product.unit || 'item',
-                quantity: 1,
-                availability: product.availability || 'in_stock',
-                upc: product.upc || null,
-                retailer_sku: product.retailer_sku || null,
-                confidence: 0.9,
-                source: 'instacart_shopping_list_api'
-              });
+        // The recipe response should contain the ingredients with matched products
+        if (recipeResponse.ingredients && Array.isArray(recipeResponse.ingredients)) {
+          recipeResponse.ingredients.forEach(ingredient => {
+            logger.info(`Processing ingredient: ${ingredient.name}`, {
+              hasMatchedProducts: !!ingredient.matched_products,
+              matchedProductsCount: ingredient.matched_products?.length || 0
             });
-          }
 
-          // Also check ingredients field if products is empty
-          if (products.length === 0 && shoppingListResponse?.ingredients) {
-            shoppingListResponse.ingredients.forEach(ingredient => {
-              if (ingredient.matched_products && Array.isArray(ingredient.matched_products)) {
-                ingredient.matched_products.forEach(product => {
-                  products.push({
-                    id: product.id || `product_${Date.now()}_${Math.random()}`,
-                    name: product.name || ingredient.name || query,
-                    brand: product.brand || 'Generic',
-                    price: parseFloat(product.price) || 0,
-                    image_url: product.image_url || product.image || null,
-                    package_size: product.package_size || product.size || '1 item',
-                    unit: product.unit || 'item',
-                    quantity: 1,
-                    availability: product.availability || 'in_stock',
-                    upc: product.upc || null,
-                    retailer_sku: product.retailer_sku || null,
-                    confidence: 0.9,
-                    source: 'instacart_recipe_api'
-                  });
+            if (ingredient.matched_products && Array.isArray(ingredient.matched_products)) {
+              ingredient.matched_products.forEach(product => {
+                products.push({
+                  id: product.id || `product_${Date.now()}_${Math.random()}`,
+                  name: product.name || ingredient.name || query,
+                  brand: product.brand || 'Generic',
+                  price: parseFloat(product.price) || 0,
+                  image_url: product.image_url || product.image || null,
+                  package_size: product.package_size || product.size || '1 item',
+                  unit: product.unit || 'item',
+                  quantity: 1,
+                  availability: product.availability || 'in_stock',
+                  upc: product.upc || null,
+                  retailer_sku: product.retailer_sku || null,
+                  confidence: 0.9,
+                  source: 'instacart_recipe_api'
                 });
-              }
-            });
-          }
-
-        } catch (shoppingListError) {
-          logger.error('Failed to fetch shopping list:', {
-            message: shoppingListError.message,
-            status: shoppingListError.response?.status,
-            data: shoppingListError.response?.data
+              });
+            } else if (ingredient.name) {
+              // If no matched products, create a basic entry from ingredient
+              products.push({
+                id: `ingredient_${Date.now()}_${Math.random()}`,
+                name: ingredient.name,
+                brand: 'Generic',
+                price: 0,
+                image_url: null,
+                package_size: ingredient.measurements?.[0]?.unit || '1 item',
+                unit: ingredient.measurements?.[0]?.unit || 'item',
+                quantity: ingredient.measurements?.[0]?.quantity || 1,
+                availability: 'unknown',
+                confidence: 0.5,
+                source: 'recipe_ingredient'
+              });
+            }
           });
         }
 
