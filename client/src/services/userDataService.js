@@ -17,6 +17,12 @@ class UserDataService {
   constructor() {
     this.db = null;
     this.userId = null;
+    this.recipeCache = null;
+    this.recipeCacheTime = null;
+    this.cacheTimeout = 5000; // 5 second cache for recipes
+    this.loadingRecipes = false; // Prevent concurrent loads
+    this.parsedRecipeCache = null;
+    this.parsedRecipeCacheTime = null;
   }
 
   async init() {
@@ -133,30 +139,68 @@ class UserDataService {
     }
   }
 
-  // Get all recipes
+  // Get all recipes (with caching)
   async getRecipes() {
     await this.init();
     if (!this.userId) {
       // Return empty array for unauthenticated users
-      console.log('👤 User not authenticated - returning empty recipes array');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('👤 User not authenticated - returning empty recipes array');
+      }
       return [];
     }
+
+    // Check cache first
+    if (this.recipeCache && this.recipeCacheTime) {
+      const cacheAge = Date.now() - this.recipeCacheTime;
+      if (cacheAge < this.cacheTimeout) {
+        // Return cached data silently
+        return this.recipeCache;
+      }
+    }
+
+    // Prevent concurrent loads
+    if (this.loadingRecipes) {
+      // Wait for existing load to complete
+      await new Promise(resolve => {
+        const checkInterval = setInterval(() => {
+          if (!this.loadingRecipes) {
+            clearInterval(checkInterval);
+            resolve();
+          }
+        }, 100);
+      });
+      return this.recipeCache || [];
+    }
+
+    this.loadingRecipes = true;
 
     try {
       const recipesRef = collection(this.db, 'users', this.userId, 'recipes');
       const q = query(recipesRef, orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
-      
+
       const recipes = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
 
-      console.log(`✅ Loaded ${recipes.length} recipes from Firestore`);
+      // Update cache
+      this.recipeCache = recipes;
+      this.recipeCacheTime = Date.now();
+
+      // Only log if data actually changed
+      if (!this.lastRecipeCount || this.lastRecipeCount !== recipes.length) {
+        console.log(`✅ Loaded ${recipes.length} recipes from Firestore`);
+        this.lastRecipeCount = recipes.length;
+      }
+
       return recipes;
     } catch (error) {
       console.error('Error fetching recipes from Firestore:', error);
       throw error; // Don't fall back to localStorage anymore
+    } finally {
+      this.loadingRecipes = false;
     }
   }
 
@@ -390,22 +434,42 @@ class UserDataService {
     }
   }
 
-  // Get parsed recipes (meal plan ideas)
+  // Get parsed recipes (meal plan ideas) with caching
   async getParsedRecipes() {
     await this.init();
     if (!this.userId) {
-      console.log('👤 User not authenticated - returning empty parsed recipes array');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('👤 User not authenticated - returning empty parsed recipes array');
+      }
       return [];
+    }
+
+    // Check cache first
+    if (this.parsedRecipeCache && this.parsedRecipeCacheTime) {
+      const cacheAge = Date.now() - this.parsedRecipeCacheTime;
+      if (cacheAge < this.cacheTimeout) {
+        // Return cached data silently
+        return this.parsedRecipeCache;
+      }
     }
 
     try {
       const parsedRecipesRef = doc(this.db, 'users', this.userId, 'parsedRecipes', 'current');
       const snapshot = await getDoc(parsedRecipesRef);
-      
+
       if (snapshot.exists()) {
         const data = snapshot.data();
         const recipes = data.recipes || [];
-        console.log(`✅ Loaded ${recipes.length} parsed recipes from Firestore`);
+
+        // Update cache
+        this.parsedRecipeCache = recipes;
+        this.parsedRecipeCacheTime = Date.now();
+
+        // Only log if data actually changed
+        if (!this.lastParsedRecipeCount || this.lastParsedRecipeCount !== recipes.length) {
+          console.log(`✅ Loaded ${recipes.length} parsed recipes from Firestore`);
+          this.lastParsedRecipeCount = recipes.length;
+        }
         return recipes;
       }
       

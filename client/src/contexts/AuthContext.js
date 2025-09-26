@@ -63,12 +63,21 @@ const makeAuthenticatedRequest = async (url, options = {}) => {
 
 
 // Auth Provider Component
+// Singleton flag to prevent multiple initializations
+let authInitialized = false;
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  console.log('✅ Firebase Auth loaded successfully');
+  // Only log once on initial load
+  useEffect(() => {
+    if (!authInitialized) {
+      console.log('✅ Firebase Auth loaded successfully');
+      authInitialized = true;
+    }
+  }, []);
 
   // Define admin emails - REPLACE WITH YOUR ACTUAL EMAIL
   const ADMIN_EMAILS = useMemo(() => [
@@ -366,8 +375,13 @@ const value = {
   makeAuthenticatedRequest
 };
 
-  console.log('🔥 Running with Firebase Authentication');
-  console.log('📦 Providing auth functions:', Object.keys(value));
+  // Only log debug info in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && !authInitialized) {
+      console.log('🔥 Running with Firebase Authentication');
+      console.log('📦 Providing auth functions:', Object.keys(value));
+    }
+  }, [value]);
 
   return (
     <AuthContext.Provider value={value}>

@@ -5,11 +5,18 @@ class PersistenceService {
   constructor() {
     this.storagePrefix = 'cartsmash_';
     this.compressionThreshold = 1000; // Compress data if larger than 1KB
-    
+    this.saveTimers = {}; // Track debounce timers for each key
+    this.saveCache = {}; // Cache to detect duplicate saves
+    this.debounceDelay = 500; // 500ms debounce
+
     // Initialize cleanup on load
     this.cleanupExpiredData();
-    
-    console.log('💾 PersistenceService initialized');
+
+    // Only log once
+    if (!window.__persistenceInitialized) {
+      console.log('💾 PersistenceService initialized');
+      window.__persistenceInitialized = true;
+    }
   }
 
   // Generate storage key with prefix
@@ -17,12 +24,40 @@ class PersistenceService {
     return `${this.storagePrefix}${key}`;
   }
 
-  // Save data to localStorage with optional expiration
+  // Save data to localStorage with optional expiration (debounced)
   save(key, data, expirationHours = 24) {
+    // Check if data is identical to cached version
+    const dataString = JSON.stringify(data);
+    if (this.saveCache[key] === dataString) {
+      // Skip duplicate save
+      return true;
+    }
+
+    // Clear existing timer if any
+    if (this.saveTimers[key]) {
+      clearTimeout(this.saveTimers[key]);
+    }
+
+    // Set up debounced save
+    this.saveTimers[key] = setTimeout(() => {
+      this._performSave(key, data, expirationHours);
+      this.saveCache[key] = dataString;
+    }, this.debounceDelay);
+
+    return true;
+  }
+
+  // Immediate save without debouncing
+  saveImmediate(key, data, expirationHours = 24) {
+    return this._performSave(key, data, expirationHours);
+  }
+
+  // Internal save implementation
+  _performSave(key, data, expirationHours = 24) {
     try {
       const storageKey = this.getKey(key);
       const expirationTime = Date.now() + (expirationHours * 60 * 60 * 1000);
-      
+
       const payload = {
         data,
         timestamp: Date.now(),
@@ -31,18 +66,22 @@ class PersistenceService {
       };
 
       const serialized = JSON.stringify(payload);
-      
-      // Compress large data
+
+      // Only log for large data
       if (serialized.length > this.compressionThreshold) {
         console.log(`📦 Compressing large data for key: ${key} (${serialized.length} chars)`);
       }
-      
+
       localStorage.setItem(storageKey, serialized);
-      console.log(`💾 Saved ${key}:`, { 
-        size: `${Math.round(serialized.length / 1024 * 100) / 100}KB`,
-        expires: new Date(expirationTime).toLocaleString()
-      });
-      
+
+      // Reduce logging verbosity - only log significant saves
+      if (process.env.NODE_ENV === 'development' && serialized.length > 100) {
+        console.log(`💾 Saved ${key}:`, {
+          size: `${Math.round(serialized.length / 1024 * 100) / 100}KB`,
+          expires: new Date(expirationTime).toLocaleString()
+        });
+      }
+
       return true;
     } catch (error) {
       console.error(`❌ Error saving ${key}:`, error);
