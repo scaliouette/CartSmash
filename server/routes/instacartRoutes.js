@@ -760,58 +760,72 @@ router.post('/search', async (req, res) => {
     }
 
     try {
-      // Create a recipe to get product data (working approach per CLAUDE.md)
-      const recipePayload = {
+      // Use Shopping List API for product search (not Recipe API which only returns URLs)
+      const shoppingListPayload = {
         title: `Shopping for ${query}`,
-        instructions: [`Add ${query} to cart`],
-        ingredients: [{
+        line_items: [{
           name: query,
           display_text: query,
-          measurements: [{
+          line_item_measurements: [{
             quantity: 1,
             unit: "item"
           }]
         }],
-        author: "CartSmash",
-        servings: 1,
-        cooking_time: "0 minutes",
-        external_reference_id: `search-${Date.now()}-${query.replace(/\s+/g, '-')}`,
+        landing_page_configuration: {
+          partner_linkback_url: 'https://cartsmash.com',
+          enable_pantry_items: false
+        },
         ...(retailerId && { retailer_key: retailerId })
       };
 
-      logger.info('Creating recipe for product search:', query);
+      logger.info('Creating shopping list for product search:', query);
 
-      // Use the recipe API to create a shopping list
-      const recipeResponse = await instacartApiCall('/products/recipe', 'POST', recipePayload, INSTACART_API_KEY);
+      // Use the Shopping List API (products_link) instead of Recipe API
+      const shoppingListResponse = await instacartApiCall('/products/products_link', 'POST', shoppingListPayload, INSTACART_API_KEY);
 
-      logger.info('Recipe API full response:', {
-        success: !!recipeResponse,
-        recipeId: recipeResponse?.id,
-        url: recipeResponse?.recipe_url,
-        hasIngredients: !!recipeResponse?.ingredients,
-        ingredientsCount: recipeResponse?.ingredients?.length || 0,
-        fullResponse: JSON.stringify(recipeResponse)
+      logger.info('Shopping List API response:', {
+        success: !!shoppingListResponse,
+        url: shoppingListResponse?.products_link_url,
+        hasLineItems: !!shoppingListResponse?.line_items,
+        lineItemsCount: shoppingListResponse?.line_items?.length || 0,
+        hasProducts: !!shoppingListResponse?.products,
+        fullResponse: JSON.stringify(shoppingListResponse)
       });
 
-      if (recipeResponse && (recipeResponse.recipe_url || recipeResponse.id)) {
-        logger.info(`Recipe created successfully with ID: ${recipeResponse.id}`);
+      if (shoppingListResponse && (shoppingListResponse.products_link_url || shoppingListResponse.id)) {
+        logger.info(`Shopping list created successfully`);
 
-        // Extract products from the recipe response itself
+        // Extract products from the shopping list response
         const products = [];
 
-        // The recipe response should contain the ingredients with matched products
-        if (recipeResponse.ingredients && Array.isArray(recipeResponse.ingredients)) {
-          recipeResponse.ingredients.forEach(ingredient => {
-            logger.info(`Processing ingredient: ${ingredient.name}`, {
-              hasMatchedProducts: !!ingredient.matched_products,
-              matchedProductsCount: ingredient.matched_products?.length || 0
+        // Check if response contains products or line items with matched products
+        if (shoppingListResponse.products && Array.isArray(shoppingListResponse.products)) {
+          // Direct products in response
+          shoppingListResponse.products.forEach(product => {
+            products.push({
+              id: product.id || `product_${Date.now()}_${Math.random()}`,
+              name: product.name || product.title || query,
+              brand: product.brand || 'Generic',
+              price: parseFloat(product.price) || 0,
+              image_url: product.image_url || product.image || null,
+              package_size: product.package_size || product.size || '1 item',
+              unit: product.unit || 'item',
+              quantity: 1,
+              availability: product.availability || 'in_stock',
+              upc: product.upc || null,
+              retailer_sku: product.retailer_sku || null,
+              confidence: 0.9,
+              source: 'instacart_shopping_list_api'
             });
-
-            if (ingredient.matched_products && Array.isArray(ingredient.matched_products)) {
-              ingredient.matched_products.forEach(product => {
+          });
+        } else if (shoppingListResponse.line_items && Array.isArray(shoppingListResponse.line_items)) {
+          // Line items with matched products
+          shoppingListResponse.line_items.forEach(item => {
+            if (item.matched_products && Array.isArray(item.matched_products)) {
+              item.matched_products.forEach(product => {
                 products.push({
                   id: product.id || `product_${Date.now()}_${Math.random()}`,
-                  name: product.name || ingredient.name || query,
+                  name: product.name || item.name || query,
                   brand: product.brand || 'Generic',
                   price: parseFloat(product.price) || 0,
                   image_url: product.image_url || product.image || null,
@@ -822,23 +836,23 @@ router.post('/search', async (req, res) => {
                   upc: product.upc || null,
                   retailer_sku: product.retailer_sku || null,
                   confidence: 0.9,
-                  source: 'instacart_recipe_api'
+                  source: 'instacart_shopping_list_api'
                 });
               });
-            } else if (ingredient.name) {
-              // If no matched products, create a basic entry from ingredient
+            } else if (item.name) {
+              // If no matched products, create a basic entry from line item
               products.push({
-                id: `ingredient_${Date.now()}_${Math.random()}`,
-                name: ingredient.name,
+                id: `item_${Date.now()}_${Math.random()}`,
+                name: item.name,
                 brand: 'Generic',
                 price: 0,
                 image_url: null,
-                package_size: ingredient.measurements?.[0]?.unit || '1 item',
-                unit: ingredient.measurements?.[0]?.unit || 'item',
-                quantity: ingredient.measurements?.[0]?.quantity || 1,
+                package_size: item.line_item_measurements?.[0]?.unit || '1 item',
+                unit: item.line_item_measurements?.[0]?.unit || 'item',
+                quantity: item.line_item_measurements?.[0]?.quantity || 1,
                 availability: 'unknown',
                 confidence: 0.5,
-                source: 'recipe_ingredient'
+                source: 'shopping_list_item'
               });
             }
           });
@@ -871,13 +885,13 @@ router.post('/search', async (req, res) => {
           retailer: retailerId,
           retailer_name: getRetailerName(retailerId),
           count: products.length,
-          recipe_id: recipeResponse.id,
-          instacart_url: recipeResponse.recipe_url,
-          source: 'instacart_recipe_api'
+          shopping_list_id: shoppingListResponse.id,
+          instacart_url: shoppingListResponse.products_link_url,
+          source: 'instacart_shopping_list_api'
         });
 
       } else {
-        logger.warn('Recipe creation failed, returning empty products');
+        logger.warn('Shopping list creation failed, returning empty products');
         res.json({
           success: true,
           products: [],
@@ -885,8 +899,8 @@ router.post('/search', async (req, res) => {
           retailer: retailerId,
           retailer_name: getRetailerName(retailerId),
           count: 0,
-          message: `Unable to create recipe for product search`,
-          source: 'recipe_api_failed'
+          message: `Unable to create shopping list for product search`,
+          source: 'shopping_list_api_failed'
         });
       }
 
