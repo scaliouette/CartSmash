@@ -1214,6 +1214,23 @@ function GroceryListForm({
     }
   }, [currentCart]);
 
+  // Save cart before page unload/refresh
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (currentCart && currentCart.length > 0) {
+        // Force immediate save on page unload
+        persistenceService.saveCart(currentCart, 48);
+        debugService.log('🚪 Saving cart before page unload');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [currentCart]);
+
   // Monitor currentCart state changes
   useEffect(() => {
     if (currentCart && currentCart.length > 0) {

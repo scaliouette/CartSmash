@@ -74,9 +74,10 @@ class PersistenceService {
 
       localStorage.setItem(storageKey, serialized);
 
-      // Reduce logging verbosity - only log significant saves
-      if (process.env.NODE_ENV === 'development' && serialized.length > 100) {
+      // Always log cart saves for debugging
+      if (key === 'cart' || (process.env.NODE_ENV === 'development' && serialized.length > 100)) {
         console.log(`💾 Saved ${key}:`, {
+          items: key === 'cart' ? JSON.parse(serialized).data?.length || 0 : undefined,
           size: `${Math.round(serialized.length / 1024 * 100) / 100}KB`,
           expires: new Date(expirationTime).toLocaleString()
         });
@@ -122,10 +123,14 @@ class PersistenceService {
         return defaultValue;
       }
       
-      console.log(`📖 Loaded ${key}:`, {
-        age: `${Math.round((Date.now() - payload.timestamp) / 1000 / 60)}min`,
-        version: payload.version || 'legacy'
-      });
+      // Always log cart loads for debugging
+      if (key === 'cart' || process.env.NODE_ENV === 'development') {
+        console.log(`📖 Loaded ${key}:`, {
+          items: key === 'cart' ? payload.data?.length || 0 : undefined,
+          age: `${Math.round((Date.now() - payload.timestamp) / 1000 / 60)}min`,
+          version: payload.version || 'legacy'
+        });
+      }
       
       return payload.data;
     } catch (error) {
@@ -232,7 +237,8 @@ class PersistenceService {
 
   // Cart-specific methods
   saveCart(cartItems, expirationHours = 48) {
-    return this.save('cart', cartItems, expirationHours);
+    // Cart should always save immediately (no debouncing for critical data)
+    return this.saveImmediate('cart', cartItems, expirationHours);
   }
 
   loadCart() {
