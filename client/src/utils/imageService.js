@@ -384,7 +384,9 @@ class ImageService {
       const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       // Encode the original URL to pass as query parameter
       const encodedUrl = encodeURIComponent(url);
-      return `${apiUrl}/api/images/proxy?url=${encodedUrl}`;
+      const proxiedUrl = `${apiUrl}/api/images/proxy?url=${encodedUrl}`;
+      console.log('🖼️ Proxying Spoonacular image:', url, '→', proxiedUrl);
+      return proxiedUrl;
     }
 
     return url;

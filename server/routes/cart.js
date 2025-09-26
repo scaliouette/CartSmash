@@ -295,11 +295,43 @@ router.post('/parse', async (req, res) => {
 
           // Try to match with Spoonacular product data
           let spoonacularData = null;
+          let productPrice = null;
           try {
             const spoonResult = await spoonacularService.searchGroceryProducts(searchQuery, 1);
             if (spoonResult.products && spoonResult.products.length > 0) {
               spoonacularData = spoonResult.products[0];
               logger.info(`✅ Matched "${productName}" with Spoonacular product: ${spoonacularData.name}`);
+
+              // Try to get detailed product info including price
+              if (spoonacularData.spoonacularId) {
+                try {
+                  const detailedInfo = await spoonacularService.getProductInfo(spoonacularData.spoonacularId);
+                  if (detailedInfo && detailedInfo.price) {
+                    productPrice = detailedInfo.price;
+                    logger.info(`💰 Found price for ${productName}: $${productPrice}`);
+                  } else {
+                    // Generate estimated price based on category if not available
+                    // This is a temporary fallback until we get real pricing
+                    const estimatedPrices = {
+                      'produce': 2.99,
+                      'dairy': 3.49,
+                      'meat': 7.99,
+                      'bakery': 3.99,
+                      'pantry': 2.49,
+                      'frozen': 4.99,
+                      'beverages': 2.99,
+                      'snacks': 3.99,
+                      'other': 3.99
+                    };
+                    productPrice = estimatedPrices[product.category] || 3.99;
+                    logger.info(`📊 Using estimated price for ${productName}: $${productPrice}`);
+                  }
+                } catch (priceError) {
+                  logger.debug(`Could not fetch price details:`, priceError.message);
+                  // Use fallback estimated price
+                  productPrice = 3.99;
+                }
+              }
             }
           } catch (spoonError) {
             logger.debug(`Could not match "${productName}" with Spoonacular:`, spoonError.message);
@@ -327,6 +359,8 @@ router.post('/parse', async (req, res) => {
             nutrition: spoonacularData?.nutrition || null,
             aisle: spoonacularData?.aisle || null,
             badges: spoonacularData?.badges || [],
+            // Add price information
+            price: productPrice || spoonacularData?.price || null,
             // Enhanced ingredient data from professional parser
             ingredientData: {
               parsedName: ingredientData.name,

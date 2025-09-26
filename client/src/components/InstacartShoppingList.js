@@ -31,7 +31,13 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
   // Calculate totals
   const total = useMemo(() => {
     return items.reduce((sum, item) => {
-      const itemPrice = parseFloat(item.price) || 0;
+      // Handle different price formats
+      let itemPrice = 0;
+      if (typeof item.price === 'number') {
+        itemPrice = item.price;
+      } else if (typeof item.price === 'string') {
+        itemPrice = parseFloat(item.price) || 0;
+      }
       const itemQuantity = parseInt(item.quantity) || 1;
       return sum + (itemPrice * itemQuantity);
     }, 0);
@@ -600,13 +606,21 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     />
 
                     {/* Price */}
-                    {item.price && (
+                    {(item.price !== null && item.price !== undefined) ? (
                       <span style={{
                         color: '#28a745',
                         fontSize: '14px',
                         fontWeight: '600'
                       }}>
-                        ${parseFloat(item.price).toFixed(2)}
+                        ${typeof item.price === 'number' ? item.price.toFixed(2) : parseFloat(item.price || 0).toFixed(2)}
+                      </span>
+                    ) : (
+                      <span style={{
+                        color: '#999',
+                        fontSize: '14px',
+                        fontStyle: 'italic'
+                      }}>
+                        Price N/A
                       </span>
                     )}
                   </div>

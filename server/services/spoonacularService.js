@@ -4,6 +4,7 @@
 const axios = require('axios');
 const winston = require('winston');
 const cacheService = require('./cacheService');
+const analyticsService = require('./analyticsService');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -76,6 +77,7 @@ class SpoonacularService {
       return cached;
     }
 
+    const startTime = Date.now();
     try {
       const response = await axios.get(`${this.baseURL}/food/products/search`, {
         params: {
@@ -85,6 +87,13 @@ class SpoonacularService {
           ...options // Can include: minCarbs, maxCarbs, minProtein, maxProtein, etc.
         }
       });
+
+      // Track API usage
+      analyticsService.trackApiUsage('spoonacular', 'search', {
+        success: true,
+        responseTime: Date.now() - startTime,
+        metadata: { query, number }
+      }).catch(err => logger.debug('Analytics tracking failed:', err));
 
       const formattedProducts = response.data.products.map(product => ({
         id: `spoonacular_${product.id}`,
@@ -199,10 +208,18 @@ class SpoonacularService {
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
 
+    const startTime = Date.now();
     try {
       const response = await axios.get(`${this.baseURL}/food/products/${id}`, {
         params: { apiKey: this.apiKey }
       });
+
+      // Track API usage
+      analyticsService.trackApiUsage('spoonacular', 'productInfo', {
+        success: true,
+        responseTime: Date.now() - startTime,
+        metadata: { productId: id }
+      }).catch(err => logger.debug('Analytics tracking failed:', err));
 
       const productInfo = {
         id: response.data.id,
