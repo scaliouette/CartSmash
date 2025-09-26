@@ -3,6 +3,7 @@
 
 const axios = require('axios');
 const winston = require('winston');
+const cacheService = require('./cacheService');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -66,9 +67,14 @@ class SpoonacularService {
       return { products: [], totalProducts: 0 };
     }
 
-    const cacheKey = `grocery_${query}_${number}_${JSON.stringify(options)}`;
-    const cached = this.getFromCache(cacheKey);
-    if (cached) return cached;
+    // Check cache first using the new cache service
+    const cached = await cacheService.getCachedSpoonacularResponse('product_search', {
+      query, number, ...options
+    });
+    if (cached) {
+      logger.info(`Cache hit for product search: ${query}`);
+      return cached;
+    }
 
     try {
       const response = await axios.get(`${this.baseURL}/food/products/search`, {
@@ -115,7 +121,11 @@ class SpoonacularService {
         number: response.data.number
       };
 
-      this.saveToCache(cacheKey, result);
+      // Cache using the new cache service
+      await cacheService.cacheSpoonacularResponse('product_search', {
+        query, number, ...options
+      }, result);
+
       logger.info(`Found ${formattedProducts.length} products for query: ${query}`);
 
       return result;
@@ -315,21 +325,151 @@ class SpoonacularService {
     }
   }
 
-  // Clear expired cache entries
-  clearExpiredCache() {
-    const now = Date.now();
-    let cleared = 0;
+  // Classify grocery product into categories
+  async classifyGroceryProduct(productTitle, upc = null) {
+    if (!this.apiKey) {
+      return null;
+    }
 
-    for (const [key, value] of this.cache.entries()) {
-      if (now - value.timestamp > this.cacheExpiry) {
-        this.cache.delete(key);
-        cleared++;
+    // Check cache first
+    const cached = await cacheService.getCachedSpoonacularResponse('classify_product', {
+      productTitle, upc
+    });
+    if (cached) return cached;
+
+    try {
+      const params = {
+        apiKey: this.apiKey
+      };
+
+      // Use title or UPC for classification
+      const url = upc
+        ? `${this.baseURL}/food/products/upc/${upc}/classify`
+        : `${this.baseURL}/food/products/classify`;
+
+      if (!upc) {
+        params.title = productTitle;
       }
+
+      const response = await axios.post(url, null, { params });
+
+      const classification = {
+        cleanTitle: response.data.cleanTitle,
+        category: response.data.category,
+        breadcrumbs: response.data.breadcrumbs || [],
+        usdaNutrientIds: response.data.usdaGradeIds || []
+      };
+
+      // Cache the classification
+      await cacheService.cacheSpoonacularResponse('classify_product', {
+        productTitle, upc
+      }, classification);
+
+      return classification;
+    } catch (error) {
+      logger.error('Product classification error:', error.message);
+      return null;
+    }
+  }
+
+  // Compute nutrition widget for recipe
+  async computeNutritionWidget(ingredientList) {
+    if (!this.apiKey) {
+      return null;
     }
 
-    if (cleared > 0) {
-      logger.info(`Cleared ${cleared} expired cache entries`);
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/recipes/visualizeNutrition`,
+        `ingredientList=${encodeURIComponent(ingredientList)}`,
+        {
+          params: { apiKey: this.apiKey },
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'text/html'
+          }
+        }
+      );
+
+      return response.data; // Returns HTML widget
+    } catch (error) {
+      logger.error('Nutrition widget error:', error.message);
+      return null;
     }
+  }
+
+  // Get ingredient substitutes
+  async getIngredientSubstitutes(ingredientName) {
+    if (!this.apiKey) {
+      return { substitutes: [] };
+    }
+
+    // Check cache
+    const cached = await cacheService.getCachedSpoonacularResponse('ingredient_substitutes', {
+      ingredientName
+    });
+    if (cached) return cached;
+
+    try {
+      const response = await axios.get(`${this.baseURL}/food/ingredients/substitutes`, {
+        params: {
+          apiKey: this.apiKey,
+          ingredientName
+        }
+      });
+
+      const result = {
+        status: response.data.status,
+        ingredient: response.data.ingredient,
+        substitutes: response.data.substitutes || [],
+        message: response.data.message
+      };
+
+      // Cache substitutes
+      await cacheService.cacheSpoonacularResponse('ingredient_substitutes', {
+        ingredientName
+      }, result);
+
+      return result;
+    } catch (error) {
+      logger.error('Get substitutes error:', error.message);
+      return { substitutes: [] };
+    }
+  }
+
+  // Analyze recipe cost breakdown
+  async analyzeRecipeCost(recipeId, servings = 1) {
+    if (!this.apiKey) {
+      return null;
+    }
+
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/recipes/${recipeId}/priceBreakdownWidget.json`,
+        {
+          params: {
+            apiKey: this.apiKey,
+            servings
+          }
+        }
+      );
+
+      return {
+        totalCost: response.data.totalCost,
+        totalCostPerServing: response.data.totalCostPerServing,
+        ingredients: response.data.ingredients,
+        equipment: response.data.equipment || []
+      };
+    } catch (error) {
+      logger.error('Recipe cost analysis error:', error.message);
+      return null;
+    }
+  }
+
+  // Clear expired cache entries (now delegated to cache service)
+  clearExpiredCache() {
+    // This is now handled by cacheService
+    logger.info('Cache cleanup delegated to cacheService');
   }
 }
 
