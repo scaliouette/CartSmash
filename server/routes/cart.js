@@ -5,7 +5,7 @@ const AIProductParser = require('../utils/aiProductParser');
 const { parseIngredientLine, buildSearchQuery } = require('../utils/ingredientParser');
 const { validateUserId, validateQuantity, sanitizeText } = require('../utils/validation');
 const winston = require('winston');
-const SpoonacularService = require('../services/spoonacularService');
+const spoonacularService = require('../services/spoonacularService');
 
 // Configure logger for this route
 const logger = winston.createLogger({
@@ -28,9 +28,6 @@ const logger = winston.createLogger({
 
 // Initialize AI parser
 const productParser = new AIProductParser();
-
-// Initialize Spoonacular service
-const spoonacularService = new SpoonacularService();
 
 // In-memory storage with size limits to prevent memory leaks
 class BoundedMap {
@@ -243,7 +240,13 @@ router.post('/parse', async (req, res) => {
         });
         
         // Convert AI parser results to cart items format with enhanced ingredient parsing
-        parsedItems = await Promise.all(parsingResults.products.map(async (product) => {
+        // Process in batches to avoid overwhelming Spoonacular API
+        const BATCH_SIZE = 5; // Process 5 items at a time
+        parsedItems = [];
+
+        for (let i = 0; i < parsingResults.products.length; i += BATCH_SIZE) {
+          const batch = parsingResults.products.slice(i, i + BATCH_SIZE);
+          const batchResults = await Promise.all(batch.map(async (product) => {
           // CRITICAL FIX: Ensure productName is always a string, never an object
           let productName = '';
           if (typeof product.productName === 'string') {
@@ -335,8 +338,10 @@ router.post('/parse', async (req, res) => {
               originalLine: ingredientData.original
             }
           };
-        }));
-        
+          }));
+          parsedItems.push(...batchResults);
+        }
+
         logger.info(`✅ AI parsed ${parsedItems.length} validated products from ${parsingResults.totalCandidates} candidates`);
         logger.info(`📊 Average confidence: ${(parsingResults.averageConfidence * 100).toFixed(1)}%`);
         

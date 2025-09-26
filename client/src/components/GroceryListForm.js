@@ -21,6 +21,7 @@ import { formatInstructionsToNumberedSteps } from '../utils/recipeFormatter';
 import { FEATURES } from '../config/features';
 import debugService from '../services/debugService';
 import spoonacularService from '../services/spoonacularService';
+import { API_URL, getAIEndpoint, API_ENDPOINTS } from '../config/api';
 
 // MixingBowlLoader Component
 const MixingBowlLoader = ({ text = "CARTSMASH AI is preparing your meal plan..." }) => {
@@ -766,7 +767,7 @@ function GroceryListForm({
         retailerId,
         currentUserExists: !!currentUser,
         preferredRetailer: currentUser?.preferredRetailer,
-        apiBaseUrl: process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com'
+        apiBaseUrl: API_URL
       });
 
       // Process items in batches to avoid overwhelming the API
@@ -867,11 +868,11 @@ function GroceryListForm({
               }
 
               // Item enriched successfully
+              debugService.log('Item enriched', {
                   instacartId: enrichedItem.instacartId,
                   enriched: enrichedItem.enriched,
                   hasValidPrice: !!(enrichedItem.price && enrichedItem.price > 0),
                   hasValidImage: !!(enrichedItem.image && !enrichedItem.image.includes('data:image/svg'))
-                }
               });
 
               return enrichedItem;
@@ -1691,7 +1692,6 @@ function GroceryListForm({
     }
 
     try {
-      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
 
       // Simple, natural recipe prompt without artificial restrictions
       const prompt = `Create a detailed recipe for "${recipeName}".
@@ -1710,7 +1710,7 @@ Return as JSON with this structure:
 
       debugService.log('📝 Sending prompt attempt', retryCount + 1);
 
-      const response = await fetch(`${API_URL}/api/ai/${selectedAI || 'anthropic'}`, {
+      const response = await fetch(getAIEndpoint(selectedAI || 'anthropic'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2191,7 +2191,6 @@ Return as JSON with this structure:
         setParsingProgress(prev => Math.min(prev + 10, 90));
       }, 200);
       
-      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       
       // STEP 1: Generate with AI (first click)
       if (useAI && selectedAI && !waitingForAIResponse) {
@@ -2218,7 +2217,7 @@ Return as JSON with this structure:
           }
 
           const aiStepStart = performance.now(); // Track AI request timing
-          const aiResponse = await fetch(`${API_URL}/api/ai/${selectedAI}`, {
+          const aiResponse = await fetch(getAIEndpoint(selectedAI), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestPayload)
@@ -2414,7 +2413,7 @@ Return as JSON with this structure:
                 endpoint: `${API_URL}/api/cart/parse`
               });
 
-              const response = await fetch(`${API_URL}/api/cart/parse`, {
+              const response = await fetch(API_ENDPOINTS.CART_PARSE, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(parsePayload)
@@ -2570,7 +2569,7 @@ Return as JSON with this structure:
           endpoint: `${API_URL}/api/cart/parse`
         });
 
-        const response = await fetch(`${API_URL}/api/cart/parse`, {
+        const response = await fetch(API_ENDPOINTS.CART_PARSE, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(manualParsePayload)
@@ -2762,8 +2761,7 @@ Return as JSON with this structure:
 
     // Try to save to server if user is logged in
     if (currentUser?.uid) {
-      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-      fetch(`${API_URL}/api/recipes`, {
+      fetch(API_ENDPOINTS.RECIPES, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -3968,7 +3966,6 @@ Return as JSON with this structure:
       }
       
       // Use the same API endpoint as regular grocery list parsing
-      const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${API_URL}/api/cart/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
