@@ -6,6 +6,7 @@ const axios = require('axios');
 const { authenticateUser } = require('../middleware/auth');
 const { validateRequestBody, preventNoSQLInjection, validators, sanitizeInput } = require('../middleware/validation');
 const winston = require('winston');
+const spoonacularService = require('../services/spoonacularService');
 
 // Configure logger for this route
 const logger = winston.createLogger({
@@ -1054,22 +1055,56 @@ router.post('/search', async (req, res) => {
           });
         }
 
-        // If no products found, create a basic product entry
+        // If no products found, try Spoonacular as fallback
         if (products.length === 0) {
-          logger.warn('No products found in shopping list response');
-          products.push({
-            id: `search_${Date.now()}`,
-            name: query,
-            brand: 'Generic',
-            price: 0,
-            image_url: null,
-            package_size: '1 item',
-            unit: 'item',
-            quantity: 1,
-            availability: 'unknown',
-            confidence: 0.5,
-            source: 'basic_search'
-          });
+          logger.warn('No products found in shopping list response, trying Spoonacular');
+
+          try {
+            const spoonacularResult = await spoonacularService.searchGroceryProducts(query, 5);
+
+            if (spoonacularResult.products && spoonacularResult.products.length > 0) {
+              logger.info(`Spoonacular returned ${spoonacularResult.products.length} products for fallback`);
+
+              // Convert Spoonacular products to our format
+              products = spoonacularResult.products.map(sp => ({
+                id: sp.id || `spoonacular_${Date.now()}_${Math.random()}`,
+                name: sp.name,
+                brand: sp.brand || 'Generic',
+                price: 0, // Spoonacular doesn't provide real-time pricing
+                image_url: sp.image_url,
+                package_size: sp.servingSize || '1 item',
+                unit: 'item',
+                quantity: 1,
+                availability: 'check_store', // Unknown from Spoonacular
+                upc: sp.upc || null,
+                aisle: sp.aisle,
+                badges: sp.badges,
+                nutrition: sp.nutrition,
+                confidence: 0.7,
+                source: 'spoonacular_fallback',
+                note: 'Product data from Spoonacular, prices not available'
+              }));
+            }
+          } catch (spoonError) {
+            logger.warn('Spoonacular fallback failed:', spoonError.message);
+          }
+
+          // If still no products, create basic entry
+          if (products.length === 0) {
+            products.push({
+              id: `search_${Date.now()}`,
+              name: query,
+              brand: 'Generic',
+              price: 0,
+              image_url: null,
+              package_size: '1 item',
+              unit: 'item',
+              quantity: 1,
+              availability: 'unknown',
+              confidence: 0.5,
+              source: 'basic_search'
+            });
+          }
         }
 
         logger.info(`Returning ${products.length} products for query: ${query}`);
