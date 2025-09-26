@@ -13,13 +13,32 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Anthropic = require('@anthropic-ai/sdk');
 require('dotenv').config();
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { auditMiddleware, auditLog } = require('./middleware/auditLogger');
+
+// Configure Winston Logger FIRST - before any usage
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'cartsmash-api' },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    })
+  ]
+});
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const config = require('./config');
 
 logger.info(`Configuration loaded for environment: ${process.env.NODE_ENV || 'development'}`);
-
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -41,24 +60,7 @@ if (missingEnvVars.length > 0) {
   }
 }
 
-// Configure Winston Logger for production
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
-    winston.format.json()
-  ),
-  defaultMeta: { service: 'cartsmash-api' },
-  transports: [
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      )
-    })
-  ]
-});
+// Logger is already configured above
 
 // Initialize AI Services
 let openai, genAI, anthropic;
@@ -317,6 +319,8 @@ app.options('*', (req, res) => {
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
+// Audit Logging Middleware - MUST come after body parser
+app.use(auditMiddleware);
 
 // Request Logging
 if (process.env.NODE_ENV === 'production') {

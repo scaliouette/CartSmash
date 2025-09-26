@@ -4089,7 +4089,7 @@ Return as JSON with this structure:
     if (typeof window !== 'undefined') {
       window.debugCart = {
         showItems: () => {
-          console.table(currentCart.map((item, index) => ({
+          debugService.log('Cart contents:', currentCart.map((item, index) => ({
             index: index,
             id: item.id,
             name: item.productName,
