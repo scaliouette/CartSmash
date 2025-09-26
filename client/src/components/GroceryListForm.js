@@ -891,15 +891,15 @@ function GroceryListForm({
                     // Enhance with Spoonacular data where Instacart is lacking
                     enrichedItem = {
                       ...enrichedItem,
-                      image: enrichedItem.image || spoonProduct.image_url,
-                      imageUrl: enrichedItem.imageUrl || spoonProduct.image_url,
-                      image_url: enrichedItem.image_url || spoonProduct.image_url, // Add snake_case for compatibility
+                      image: enrichedItem.image || spoonProduct.image_url || spoonProduct.image,
+                      imageUrl: enrichedItem.imageUrl || spoonProduct.image_url || spoonProduct.image,
+                      image_url: enrichedItem.image_url || spoonProduct.image_url || spoonProduct.image, // Add snake_case for compatibility
                       nutrition: instacartProduct.nutrition || spoonProduct.nutrition,
                       badges: [...(enrichedItem.badges || []), ...(spoonProduct.badges || [])],
                       aisle: enrichedItem.aisle || spoonProduct.aisle,
                       spoonacularData: spoonProduct,
                       enrichmentSource: 'hybrid', // Both Instacart and Spoonacular
-                      hasRealImage: !!(enrichedItem.image || spoonProduct.image_url)
+                      hasRealImage: !!(enrichedItem.image || spoonProduct.image_url || spoonProduct.image)
                     };
 
                     debugService.log(`✅ Enhanced with Spoonacular data for "${searchQuery}"`);
@@ -950,15 +950,15 @@ function GroceryListForm({
                   const spoonEnrichedItem = {
                     ...item,
                     price: 0, // Spoonacular doesn't provide pricing
-                    image: spoonProduct.image_url || item.image,
-                    imageUrl: spoonProduct.image_url || item.imageUrl,
-                    image_url: spoonProduct.image_url, // Add snake_case for compatibility
+                    image: spoonProduct.image_url || spoonProduct.image || item.image,
+                    imageUrl: spoonProduct.image_url || spoonProduct.image || item.imageUrl,
+                    image_url: spoonProduct.image_url || spoonProduct.image, // Add snake_case for compatibility
                     spoonacularId: spoonProduct.spoonacularId || spoonProduct.id,
                     spoonacularData: spoonProduct,
                     enriched: true,
                     enrichmentSource: 'spoonacular',
                     hasRealPrice: false,
-                    hasRealImage: !!spoonProduct.image_url,
+                    hasRealImage: !!(spoonProduct.image_url || spoonProduct.image),
                     // Spoonacular-specific data
                     nutrition: spoonProduct.nutrition,
                     badges: spoonProduct.badges || [],

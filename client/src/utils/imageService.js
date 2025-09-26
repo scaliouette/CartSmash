@@ -1,6 +1,8 @@
 // client/src/utils/imageService.js
 // Centralized image service for reliable image loading across all environments
 
+import debugService from '../services/debugService';
+
 class ImageService {
   constructor() {
     // Image cache for performance improvement
@@ -45,7 +47,7 @@ class ImageService {
   getCachedImage(url) {
     const cached = this.imageCache.get(url);
     if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
-      console.log('📷 Using cached image:', url);
+      debugService.log('📷 Using cached image:', url);
       return cached.data;
     }
     if (cached) {
@@ -66,7 +68,7 @@ class ImageService {
       data,
       timestamp: Date.now()
     });
-    console.log('💾 Cached image:', url, `(${this.imageCache.size}/${this.cacheMaxSize})`);
+    debugService.log('💾 Cached image:', url, `(${this.imageCache.size}/${this.cacheMaxSize})`);
   }
 
   clearExpiredCache() {
@@ -124,7 +126,7 @@ class ImageService {
       return imageData;
     } catch (error) {
       // Silently handle preload failures (common with external images)
-      console.log('🔇 Preload failed (expected for external images):', url);
+      debugService.log('🔇 Preload failed (expected for external images):', url);
       return url; // Return original URL as fallback
     }
   }
@@ -189,6 +191,16 @@ class ImageService {
    * @returns {string} Image URL
    */
   getProductImage(item, options = {}) {
+    debugService.log('🖼️ Getting product image for:', {
+      productName: item.productName || item.name,
+      hasImageUrl: !!item.imageUrl,
+      hasImage_url: !!item.image_url,
+      hasImage: !!item.image,
+      hasSpoonacularData: !!item.spoonacularData,
+      hasInstacartData: !!item.instacartData,
+      spoonacularImage: item.spoonacularData?.image_url,
+      instacartImage: item.instacartData?.image_url
+    });
 
     // First priority: Check all possible image fields (support both camelCase and snake_case)
     const possibleImageUrls = [
@@ -199,10 +211,14 @@ class ImageService {
       item.instacartData?.image_url     // From Instacart data
     ].filter(Boolean);
 
+    debugService.log('📷 Possible image URLs found:', possibleImageUrls);
+
     // Try each possible image URL
     for (const imageUrl of possibleImageUrls) {
       const optimizedUrl = this.optimizeImageUrl(imageUrl);
       if (optimizedUrl) {
+        debugService.log('✅ Using optimized image URL:', optimizedUrl);
+
         // Check cache first for external images
         const cached = this.getCachedImage(imageUrl);
         if (cached) {
@@ -213,7 +229,7 @@ class ImageService {
         if (options.enableCaching !== false) {
           this.preloadImage(imageUrl).catch(error => {
             // Silently handle image loading errors
-            console.log('🔇 Image preload failed (silently handled):', imageUrl);
+            debugService.log('🔇 Image preload failed (silently handled):', imageUrl);
           });
         }
 
@@ -224,6 +240,10 @@ class ImageService {
     // No real image found - provide category-based fallback
     const category = this.getCategoryFromItem(item);
     const fallbackImage = this.getImageUrl(category);
+    debugService.log('⚠️ No real image found, using fallback:', {
+      category,
+      fallbackImage: fallbackImage.substring(0, 100) + '...'
+    });
     return fallbackImage;
   }
 
@@ -268,12 +288,16 @@ class ImageService {
     // Allow HTTPS URLs from trusted domains
     if (url.startsWith('https://')) {
       const trustedDomains = [
-        'cdn.instacart.com',        // Instacart's official CDN
-        'cartsmash.com',            // Our domain
-        'cartsmash.netlify.app',    // Our deployment
-        'cartsmash.vercel.app',     // Our deployment
-        'via.placeholder.com',      // Reliable placeholder service
-        'images.unsplash.com'       // Temporarily allow for mock data (development)
+        'cdn.instacart.com',                // Instacart's official CDN (legacy)
+        'd2lnr5mha7bycj.cloudfront.net',   // Instacart's CloudFront CDN (primary)
+        'images.instacart.com',             // Instacart's image domain
+        'img.instacart.com',                // Instacart's alternative image domain
+        'img.spoonacular.com',              // Spoonacular's image CDN
+        'cartsmash.com',                    // Our domain
+        'cartsmash.netlify.app',            // Our deployment
+        'cartsmash.vercel.app',             // Our deployment
+        'via.placeholder.com',              // Reliable placeholder service
+        'images.unsplash.com'               // Temporarily allow for mock data (development)
       ];
 
       // Note: Temporarily allowing Unsplash for mock data in development
@@ -303,7 +327,7 @@ class ImageService {
         e.preventDefault && e.preventDefault();
 
         if (e.target.src !== fallbackSrc) {
-          console.log('🔄 Image failed, switching to fallback:', e.target.src);
+          debugService.log('🔄 Image failed, switching to fallback:', e.target.src);
           e.target.src = fallbackSrc;
         }
         if (onError) onError(e);
@@ -332,7 +356,7 @@ class ImageService {
    */
   clearCache() {
     this.imageCache.clear();
-    console.log('🧹 Image cache cleared');
+    debugService.log('🧹 Image cache cleared');
   }
 
   /**
@@ -359,7 +383,7 @@ class ImageService {
     const { maxConcurrent = 3, timeout = 10000 } = options;
     const validUrls = urls.filter(url => url && this.isValidImageUrl(url));
 
-    console.log(`📦 Bulk preloading ${validUrls.length} images...`);
+    debugService.log(`📦 Bulk preloading ${validUrls.length} images...`);
 
     const chunks = [];
     for (let i = 0; i < validUrls.length; i += maxConcurrent) {
@@ -382,7 +406,7 @@ class ImageService {
     }
 
     const successful = results.filter(r => !r.error).length;
-    console.log(`✅ Preloaded ${successful}/${validUrls.length} images`);
+    debugService.log(`✅ Preloaded ${successful}/${validUrls.length} images`);
 
     return results;
   }
