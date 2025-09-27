@@ -370,15 +370,28 @@ class ImageService {
   useProxyIfNeeded(url) {
     if (!url || typeof url !== 'string') return url;
 
-    // Check if this is a Spoonacular image that needs proxying
-    const spoonacularDomains = [
+    // Check if this is an external image that needs proxying
+    const domainsNeedingProxy = [
+      // Spoonacular domains
       'img.spoonacular.com',
       'spoonacular.com',
       'images.spoonacular.com',
-      'cdn.spoonacular.com'
+      'cdn.spoonacular.com',
+      // Instacart domains
+      'instacart.com',
+      'cdn.instacart.com',
+      'images.instacart.com',
+      'assets.instacart.com',
+      'd1ralsognjng37.cloudfront.net',
+      'd2lnr5mha7bycj.cloudfront.net',
+      'd2d8wwwkmhfcva.cloudfront.net',
+      'cloudfront.net',
+      // Other domains that might have CORS issues
+      'unsplash.com',
+      'imgur.com'
     ];
 
-    const needsProxy = spoonacularDomains.some(domain => url.includes(domain));
+    const needsProxy = domainsNeedingProxy.some(domain => url.includes(domain));
 
     if (needsProxy) {
       // Get API URL from environment or use default

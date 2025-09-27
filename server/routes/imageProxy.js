@@ -54,7 +54,23 @@ router.get('/proxy', async (req, res) => {
       'img.spoonacular.com',
       'spoonacular.com',
       'images.spoonacular.com',
-      'cdn.spoonacular.com'
+      'cdn.spoonacular.com',
+      // Instacart domains
+      'instacart.com',
+      'cdn.instacart.com',
+      'images.instacart.com',
+      'assets.instacart.com',
+      'd1ralsognjng37.cloudfront.net', // Instacart CDN
+      'd2lnr5mha7bycj.cloudfront.net', // Instacart product images
+      'd2d8wwwkmhfcva.cloudfront.net', // Instacart CDN
+      // Common image CDNs and stock photo sites
+      'images.unsplash.com',
+      'unsplash.com',
+      'cdn.jsdelivr.net',
+      'i.imgur.com',
+      'imgur.com',
+      // Allow any cloudfront.net subdomain for CDN flexibility
+      'cloudfront.net'
     ];
 
     const urlObj = new URL(url);
