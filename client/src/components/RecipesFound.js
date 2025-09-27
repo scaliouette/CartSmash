@@ -440,25 +440,42 @@ const RecipeCard = ({
             }}>
               Instructions:
             </h4>
-            <p style={{
-              fontSize: '13px',
-              color: '#6b7280',
-              lineHeight: '1.5',
-              margin: 0
-            }}>
-              {Array.isArray(recipe.instructions)
-                ? recipe.instructions.map((instruction, idx) => {
-                    if (typeof instruction === 'string') return instruction;
-                    if (typeof instruction === 'object' && instruction !== null) {
-                      return instruction.text || instruction.step || String(instruction);
-                    }
-                    return '';
-                  }).join('. ')
-                : typeof recipe.instructions === 'string'
+            {Array.isArray(recipe.instructions) ? (
+              <ol style={{
+                fontSize: '13px',
+                color: '#6b7280',
+                lineHeight: '1.8',
+                margin: 0,
+                paddingLeft: '20px',
+                listStyleType: 'decimal'
+              }}>
+                {recipe.instructions.map((instruction, idx) => {
+                  let instructionText = '';
+                  if (typeof instruction === 'string') {
+                    instructionText = instruction;
+                  } else if (typeof instruction === 'object' && instruction !== null) {
+                    instructionText = instruction.text || instruction.step || String(instruction);
+                  }
+                  return instructionText ? (
+                    <li key={idx} style={{ marginBottom: '8px' }}>
+                      {instructionText}
+                    </li>
+                  ) : null;
+                })}
+              </ol>
+            ) : (
+              <p style={{
+                fontSize: '13px',
+                color: '#6b7280',
+                lineHeight: '1.5',
+                margin: 0
+              }}>
+                {typeof recipe.instructions === 'string'
                   ? recipe.instructions
                   : 'No instructions available'
-              }
-            </p>
+                }
+              </p>
+            )}
           </div>
         </div>
       )}

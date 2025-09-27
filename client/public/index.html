@@ -151,6 +151,18 @@
     <div id="root"></div>
     
     <script>
+      // Suppress browser extension errors (like shopping/coupon extensions)
+      const originalError = console.error;
+      console.error = function(...args) {
+        // Filter out extension errors
+        if (args[0] && args[0].toString && args[0].toString().includes('checkoutUrls')) return;
+        if (args[0] && args[0].stack && args[0].stack.includes('content.js')) return;
+        if (args[0] && args[0].message && args[0].message.includes('content.js')) return;
+        // Also filter the stack trace that follows
+        if (typeof args[0] === 'string' && args[0].includes('content.js')) return;
+        originalError.apply(console, args);
+      };
+
       // Enhanced debugging for deployment issues
       console.log('🔍 CARTSMASH: Page loading started');
       console.log('🔍 Location:', window.location.href);
