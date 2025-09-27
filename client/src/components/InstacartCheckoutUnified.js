@@ -43,8 +43,15 @@ const InstacartCheckoutUnified = ({
       const processed = {
         id: item.id || Math.random().toString(36).substr(2, 9),
         name: item.productName || item.name,
-        amount: `${item.quantity || 1}${item.unit ? ` ${item.unit}` : ''}`,
-        price: item.price || 2.99,
+        // Separate quantity (count) from size/unit
+        quantity: item.quantity || 1,
+        size: item.size || item.packageSize || '',
+        unit: item.unit || 'count',
+        // Format display: "2 count" or "1 x 16 oz"
+        amount: item.size ?
+          `${item.quantity || 1} x ${item.size}` :
+          `${item.quantity || 1} ${item.unit || 'count'}`,
+        price: item.price || 0,
         category: item.category || 'General',
         checked: true,
         // Brand and health filter support
@@ -374,8 +381,10 @@ const InstacartCheckoutUnified = ({
             const ingredientData = {
               name: ingredient.name,
               measurements: [{
-                quantity: parseFloat(ingredient.amount.split(' ')[0]) || 1,
-                unit: ingredient.amount.split(' ').slice(1).join(' ') || 'each'
+                // Use the actual quantity, not parsed from amount
+                quantity: ingredient.quantity || 1,
+                unit: ingredient.unit || 'each',
+                size: ingredient.size || null
               }]
             };
 
@@ -425,15 +434,13 @@ const InstacartCheckoutUnified = ({
         debugService.log(`🛒 Creating enhanced shopping list for ${checkedIngredients.length} items at ${selectedRetailer.name}`);
 
         const enhancedItems = checkedIngredients.map(ingredient => {
-          const quantityMatch = ingredient.amount.match(/^(\d*\.?\d+)\s*(.*)$/);
-          const quantity = quantityMatch ? parseFloat(quantityMatch[1]) : 1;
-          const unit = quantityMatch ? quantityMatch[2].trim() || 'each' : 'each';
-
+          // Use the actual quantity and unit from the ingredient object
           return {
             name: ingredient.name,
             productName: ingredient.name,
-            quantity: quantity,
-            unit: unit,
+            quantity: ingredient.quantity || 1,
+            unit: ingredient.unit || 'each',
+            size: ingredient.size || null,
             category: ingredient.category || 'General',
             // Enhanced features - could be extended with user preferences
             brand: ingredient.brand || null,
@@ -466,8 +473,9 @@ const InstacartCheckoutUnified = ({
 
         const instacartItems = checkedIngredients.map(ingredient => ({
           name: ingredient.name,
-          quantity: parseFloat(ingredient.amount.split(' ')[0]) || 1,
-          unit: ingredient.amount.split(' ').slice(1).join(' ') || 'each'
+          quantity: ingredient.quantity || 1,
+          unit: ingredient.unit || 'each',
+          size: ingredient.size || null
         }));
 
         result = await instacartCheckoutService.createInstacartCart(

@@ -874,9 +874,10 @@ function GroceryListForm({
                 substitutes: instacartProduct.substitutes || [],
                 alternatives: instacartProduct.alternatives || [],
                 hasSubstitutes: !!(instacartProduct.substitutes?.length > 0 || instacartProduct.alternatives?.length > 0),
-                // Additional product details from Instacart
+                // Additional product details from Spoonacular (not Instacart)
                 brand: instacartProduct.brand,
-                packageSize: instacartProduct.size,
+                // Note: package_size comes from Spoonacular, not Instacart
+                packageSize: instacartProduct.package_size || instacartProduct.size,
                 description: instacartProduct.description,
                 availability: instacartProduct.availability,
                 // Preserve ALL original recipe quantities and units - don't let Instacart data override them

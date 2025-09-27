@@ -704,78 +704,120 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     </div>
                   )}
 
-                  {/* Product Size/Unit Info */}
-                  {(item.size || item.unit || item.packageSize || item.containerType) && (
-                    <div style={{
-                      marginTop: '4px',
-                      fontSize: '11px',
-                      color: '#666',
-                      fontWeight: '500'
-                    }}>
-                      {[
-                        item.size,
-                        item.packageSize,
-                        item.containerType,
-                        item.unit && `per ${item.unit}`
-                      ].filter(Boolean).join(' • ')}
-                    </div>
-                  )}
+                  {/* Product Size and Price Info */}
+                  <div style={{
+                    marginTop: '4px',
+                    fontSize: '12px',
+                    color: '#666',
+                    fontWeight: '500',
+                    display: 'flex',
+                    gap: '8px',
+                    alignItems: 'center'
+                  }}>
+                    {/* Size/Package info */}
+                    {(item.size || item.packageSize) && (
+                      <span>{item.size || item.packageSize}</span>
+                    )}
+                    {/* Price display */}
+                    {item.price && (
+                      <span style={{ color: '#2c7a2c', fontWeight: '600' }}>
+                        ${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}
+                        {item.unit && item.unit !== 'each' ? `/${item.unit}` : ' each'}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {/* Quantity Controls */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateQuantity(item.id, -1);
-                    }}
-                    style={{
-                      backgroundColor: '#f8f9fa',
-                      width: '32px',
-                      height: '32px'
-                    }}
-                  >
-                    <RemoveIcon style={{ fontSize: '16px' }} />
-                  </IconButton>
-
-                  <input
-                    type="number"
-                    value={item.shoppingMultiplier || item.quantity || 1}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      setQuantity(item.id, e.target.value);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    min="1"
-                    style={{
-                      width: '50px',
-                      height: '32px',
-                      textAlign: 'center',
-                      border: '1px solid #dee2e6',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      MozAppearance: 'textfield',
-                      WebkitAppearance: 'none',
-                      appearance: 'textfield'
-                    }}
-                    className="quantity-input"
-                  />
-
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateQuantity(item.id, 1);
-                    }}
-                    style={{
-                      backgroundColor: '#f8f9fa',
-                      width: '32px',
-                      height: '32px'
-                    }}
-                  >
-                    <AddIcon style={{ fontSize: '16px' }} />
-                  </IconButton>
+                {/* Quantity Controls - Vertical Layout for Mobile */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0'
+                  }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateQuantity(item.id, 1);
+                      }}
+                      style={{
+                        padding: '2px 8px',
+                        backgroundColor: '#f8f9fa',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '4px 4px 0 0',
+                        cursor: 'pointer',
+                        fontSize: '10px',
+                        lineHeight: '10px',
+                        height: '18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      ▲
+                    </button>
+                    <input
+                      type="number"
+                      value={item.shoppingMultiplier || item.quantity || 1}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setQuantity(item.id, e.target.value);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      min="1"
+                      style={{
+                        width: '40px',
+                        height: '24px',
+                        textAlign: 'center',
+                        border: '1px solid #dee2e6',
+                        borderLeft: '1px solid #dee2e6',
+                        borderRight: '1px solid #dee2e6',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        backgroundColor: 'white',
+                        margin: '0',
+                        borderRadius: '0',
+                        MozAppearance: 'textfield',
+                        WebkitAppearance: 'none',
+                        appearance: 'textfield'
+                      }}
+                      className="quantity-input"
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateQuantity(item.id, -1);
+                      }}
+                      style={{
+                        padding: '2px 8px',
+                        backgroundColor: '#f8f9fa',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '0 0 4px 4px',
+                        cursor: 'pointer',
+                        fontSize: '10px',
+                        lineHeight: '10px',
+                        height: '18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                  {/* Total price for quantity */}
+                  {item.price && (
+                    <div style={{
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#2c7a2c',
+                      marginLeft: '8px',
+                      minWidth: '50px',
+                      textAlign: 'right'
+                    }}>
+                      ${(parseFloat(item.price) * (item.shoppingMultiplier || item.quantity || 1)).toFixed(2)}
+                    </div>
+                  )}
 
                   {/* Select Product Button - Show when no price or low confidence */}
                   {(item.price === null || item.price === undefined || confidence.level === 'low') && onSelectProduct && (
