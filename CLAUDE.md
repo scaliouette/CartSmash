@@ -549,15 +549,67 @@ Complete API documentation is now available in `API_DOCUMENTATION.md` including:
 
 ## 🔧 Recent Critical Fixes
 
-### Authentication Issues (2025-09-26)
-**Problem**: 401 Unauthorized errors preventing Instacart prices and images from loading
-**Root Cause**: Authentication middleware blocking API calls from frontend
-**Solution**: Temporarily removed authentication from search endpoints
-- `/api/instacart/search` - No auth required
-- `/api/instacart/batch-search` - No auth required
-- `/api/instacart/compare-prices` - No auth required
-- `/api/instacart/direct-product-search` - No auth required
-**TODO**: Re-enable authentication once frontend is updated to send Firebase tokens
+### Instacart Checkout Authentication Fixed (2025-09-27)
+**Problem**: 401 Unauthorized errors preventing Instacart checkout from working
+**Root Cause**: instacartCheckoutService.js was not sending Firebase auth tokens with API requests
+**Solution**: Updated instacartCheckoutService to include authentication
+- Added Firebase auth import: `import { auth } from '../firebase/config'`
+- Created `getAuthHeaders()` helper method to automatically get Firebase tokens
+- Updated all API calls (`createInstacartCart`, `createInstacartRecipe`, etc.) to use auth headers
+- **File Modified**: `client/src/services/instacartCheckoutService.js`
+- **Status**: ✅ FIXED - Checkout now works for authenticated users
+
+### Missing Logger Module Issues (2025-09-27)
+**Problem**: Multiple server routes failing to load due to missing `../utils/logger`
+**Root Cause**: Routes importing non-existent logger utility file
+**Solution Pattern**: Replace logger import with winston configuration:
+```javascript
+// Replace this:
+const logger = require('../utils/logger');
+// With this:
+const winston = require('winston');
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'service-name' },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    })
+  ]
+});
+```
+
+**Fixed Routes**:
+- ✅ `server/routes/imageProxy.js` - Image proxy now working for Spoonacular images
+- ✅ `server/routes/analytics.js` - Analytics routes loading (require admin auth to function)
+
+**Still Broken**:
+- ❌ `server/routes/cart.js` - Needs logger fix (heavily used by client for `/api/cart/parse`)
+- ❌ `server/routes/instacartRoutes.js` - Multiple issues
+- ❌ `server/routes/spoonacularRoutes.js` - Multiple issues
+
+### Route Architecture Analysis (2025-09-27)
+
+**Critical Endpoint**: `/api/cart/parse`
+- Used extensively throughout client code (GroceryListForm, RecipeManager, etc.)
+- Currently failing because cart.js route file won't load
+- **Impact**: Core parsing functionality broken
+- **Priority**: HIGH - This needs to be fixed ASAP
+
+**Alternative Routes**:
+- `/api/smash-cart/*` - User-specific cart management (no parse endpoint)
+- `/api/ai/smart-parse` - Could potentially replace cart/parse but different response format
+- `/api/grocery/parse` - Alternative parsing endpoint (if it loads)
+
+**Recommendation**: Fix cart.js to restore `/api/cart/parse` as changing all client references would be extensive
 
 ### Server Crashes Fixed (2025-09-25)
 1. **Logger Initialization Error**: Fixed by moving winston logger definition before first usage (server.js:19)
@@ -573,8 +625,7 @@ Complete API documentation is now available in `API_DOCUMENTATION.md` including:
 
 ---
 
-*Last Updated: 2025-09-26 15:50 UTC*
-*Status: Awaiting Render Deployment - Auth Temporarily Disabled on Search*
-*Logger Initialization: Fixed and Verified*
-*Security: Temporarily Relaxed for Search Endpoints*
-*Next Step: Monitor deployment and re-enable auth with frontend updates*
+*Last Updated: 2025-09-27 00:10 UTC*
+*Critical Issue: `/api/cart/parse` not working - heavily used by client*
+*Status: imageProxy ✅ | analytics ✅ | cart ❌ | instacart ⚠️*
+*Next Steps: Fix cart.js logger issue to restore parsing functionality*

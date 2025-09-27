@@ -2,9 +2,28 @@
 const express = require('express');
 const router = express.Router();
 const analyticsService = require('../services/analyticsService');
-const logger = require('../utils/logger');
+const winston = require('winston');
 const { authenticateUser } = require('../middleware/auth');
 const { checkAdmin } = require('../middleware/adminAuth');
+
+// Create logger (same configuration as server.js)
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'analytics' },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    })
+  ]
+});
 
 // Admin middleware for analytics endpoints
 const requireAdmin = [authenticateUser, checkAdmin];
