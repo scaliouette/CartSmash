@@ -25,6 +25,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
 
   // Only manage selection state locally - let parent manage items
   const [selectedItems, setSelectedItems] = useState(new Set());
+  const [expandedItems, setExpandedItems] = useState(new Set());
 
   // Use items directly from props instead of local state
 
@@ -181,6 +182,19 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
 
   // Get product image using the centralized image service
   const getProductImage = (item) => {
+    // Priority: Check for Spoonacular data first, then fall back to other sources
+    const imageUrl = item.spoonacularData?.image_url ||
+                     item.spoonacularData?.image ||
+                     item.image_url ||
+                     item.image ||
+                     item.imageUrl;
+
+    if (imageUrl) {
+      // Return the URL directly - imageService will handle proxy if needed
+      return imageUrl;
+    }
+
+    // Fall back to imageService for category-based fallback
     return imageService.getProductImage(item, { width: 64, height: 64 });
   };
 
@@ -519,19 +533,47 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                 cursor: 'pointer'
               }}
               onClick={() => toggleItemSelection(item.id)}
+              onMouseEnter={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.backgroundColor = '#fafafa';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }
+              }}
             >
-                {/* Checkbox */}
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggleItemSelection(item.id)}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    cursor: 'pointer'
+                {/* Custom Checkbox with CartSmash Branding */}
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleItemSelection(item.id);
                   }}
-                />
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    border: `2px solid ${isSelected ? '#FB4F14' : '#dee2e6'}`,
+                    borderRadius: '4px',
+                    backgroundColor: isSelected ? '#FB4F14' : 'white',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                >
+                  {isSelected && (
+                    <CheckIcon
+                      style={{
+                        fontSize: '16px',
+                        color: 'white',
+                        fontWeight: 'bold'
+                      }}
+                    />
+                  )}
+                </div>
 
                 {/* Product Image - Smaller for mobile */}
                 <div style={{
@@ -549,7 +591,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                   }}>
                     {productImage ? (
                       <img
-                        src={productImage}
+                        src={imageService.useProxyIfNeeded(productImage)}
                         alt={item.productName}
                         style={{
                           width: '100%',
@@ -557,8 +599,13 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                           objectFit: 'cover'
                         }}
                         onError={(e) => {
+                          // Hide the failed image
                           e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
+                          // Show the fallback emoji
+                          const fallback = e.target.nextElementSibling;
+                          if (fallback) {
+                            fallback.style.display = 'flex';
+                          }
                         }}
                       />
                     ) : null}
@@ -568,9 +615,10 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                       display: productImage ? 'none' : 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '32px'
+                      backgroundColor: '#f8f9fa',
+                      color: '#6c757d'
                     }}>
-                      📦
+                      <span style={{ fontSize: '28px' }}>🛒</span>
                     </div>
                   </div>
                 </div>
@@ -579,8 +627,9 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '8px',
-                  minWidth: 0 /* Prevent text overflow */
+                  gap: '4px',
+                  minWidth: 0, /* Prevent text overflow */
+                  flex: 1
                 }}>
                   {/* Product Name */}
                   <div style={{
@@ -597,9 +646,97 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     fontSize: '12px',
                     color: '#6c757d'
                   }}>
-                    {[item.brand, item.size || item.packageSize].filter(Boolean).join(' • ')}
+                    {[
+                      item.brand || item.spoonacularData?.brand,
+                      item.size || item.packageSize || item.spoonacularData?.servingSize
+                    ].filter(Boolean).join(' • ')}
                   </div>
 
+
+                  {/* Expandable Details Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newExpanded = new Set(expandedItems);
+                      if (newExpanded.has(item.id)) {
+                        newExpanded.delete(item.id);
+                      } else {
+                        newExpanded.add(item.id);
+                      }
+                      setExpandedItems(newExpanded);
+                    }}
+                    style={{
+                      fontSize: '11px',
+                      color: '#002244',
+                      background: 'none',
+                      border: 'none',
+                      padding: '4px 0',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <span style={{ fontSize: '10px' }}>
+                      {expandedItems.has(item.id) ? '▼' : '▶'}
+                    </span>
+                    {expandedItems.has(item.id) ? 'Hide Details' : 'Show Details'}
+                  </button>
+
+                  {/* Expanded Details Section */}
+                  {expandedItems.has(item.id) && (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px',
+                      backgroundColor: '#f8f9fa',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      lineHeight: '1.5'
+                    }}>
+                      {/* Description */}
+                      {(item.description || item.spoonacularData?.description || item.spoonacularData?.generatedText) && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <strong>Description:</strong><br />
+                          {item.description || item.spoonacularData?.description || item.spoonacularData?.generatedText}
+                        </div>
+                      )}
+
+                      {/* Nutrition Facts */}
+                      {(item.nutrition?.nutrients || item.spoonacularData?.nutrition?.nutrients) && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <strong>Nutrition Facts:</strong><br />
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(2, 1fr)',
+                            gap: '4px',
+                            marginTop: '4px'
+                          }}>
+                            {(item.nutrition?.nutrients || item.spoonacularData?.nutrition?.nutrients || [])
+                              .filter(n => ['Calories', 'Protein', 'Carbohydrates', 'Fat', 'Sugar', 'Sodium'].includes(n.name))
+                              .map((nutrient, idx) => (
+                                <div key={idx} style={{ fontSize: '11px' }}>
+                                  {nutrient.name}: {nutrient.amount}{nutrient.unit}
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Additional Info */}
+                      {(item.spoonacularData?.servings || item.spoonacularData?.creditsText) && (
+                        <div style={{ fontSize: '10px', color: '#6c757d', marginTop: '4px' }}>
+                          {item.spoonacularData?.servings && (
+                            <span>Servings: {item.spoonacularData.servings} • </span>
+                          )}
+                          {item.spoonacularData?.creditsText && (
+                            <span>{item.spoonacularData.creditsText}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Price and Quantity Section */}
