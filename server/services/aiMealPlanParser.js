@@ -70,16 +70,19 @@ class MealPlanParser {
           const mealIndex = recipeCount % 4;
           const currentDay = daysOrder[dayIndex];
           
+          const recipeName = String(item.productName);
+          const mealType = this.detectMealType(mealIndex);
+
           const recipe = {
             id: `ai-recipe-${this.recipeIdCounter++}`,
-            name: String(item.productName),
+            name: recipeName,
             ingredients: this.extractIngredientsFromAI(item),
             instructions: [],
             nutrition: { calories: item.calories || 400 },
-            time: this.generateRealisticCookingTimes(recipe.name, this.detectMealType(mealIndex)),
+            time: this.generateRealisticCookingTimes(recipeName, mealType),
             tags: [],
             dayAssigned: currentDay,
-            mealType: this.detectMealType(mealIndex)
+            mealType: mealType
           };
           
           if (!mealPlan.days[currentDay]) {

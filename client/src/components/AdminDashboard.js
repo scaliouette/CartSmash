@@ -1,5 +1,6 @@
 // client/src/components/AdminDashboard.js - Fixed with proper null checking and dynamic imports
 import React, { useState, useEffect, useCallback } from 'react';
+import ParsingAnalyticsDashboard from './ParsingAnalyticsDashboard';
 
 function AdminDashboard({ onClose, currentUser }) {
   // All hooks must be called before any conditional returns
@@ -13,8 +14,8 @@ function AdminDashboard({ onClose, currentUser }) {
   const [verificationFilter, setVerificationFilter] = useState('verified'); // 'all', 'verified', 'unverified'
 
   // Sub-component states
-  const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   // Revenue and monitoring states
   const [revenueData, setRevenueData] = useState(null);
@@ -507,11 +508,12 @@ function AdminDashboard({ onClose, currentUser }) {
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>🚀 Quick Actions</h3>
         <div style={styles.actionsGrid}>
+
           <button
             onClick={() => setShowAnalytics(true)}
-            style={{...styles.actionButton, backgroundColor: '#FF6B35'}}
+            style={{...styles.actionButton, backgroundColor: '#2196F3'}}
           >
-            📊 View Full Analytics
+            📊 Analytics Dashboard
           </button>
 
           <button
@@ -520,7 +522,6 @@ function AdminDashboard({ onClose, currentUser }) {
           >
             ⚙️ System Settings
           </button>
-
 
           <button
             onClick={() => handleSystemAction('export_data')}
@@ -1123,18 +1124,29 @@ function AdminDashboard({ onClose, currentUser }) {
         <h3 style={styles.sectionTitle}>📋 System Logs</h3>
         
         <div style={styles.logFilters}>
-          <select style={styles.logFilter}>
+          <select
+            style={styles.logFilter}
+            onChange={(e) => console.log('Log level filter changed:', e.target.value)}
+            defaultValue="all"
+          >
             <option value="all">All Levels</option>
             <option value="error">Errors Only</option>
             <option value="warn">Warnings</option>
             <option value="info">Info</option>
           </select>
-          <select style={styles.logFilter}>
+          <select
+            style={styles.logFilter}
+            onChange={(e) => console.log('Time range filter changed:', e.target.value)}
+            defaultValue="24h"
+          >
             <option value="1h">Last Hour</option>
             <option value="24h">Last 24 Hours</option>
             <option value="7d">Last 7 Days</option>
           </select>
-          <button style={styles.logRefresh}>🔄 Refresh</button>
+          <button
+            style={styles.logRefresh}
+            onClick={() => console.log('Refreshing logs...')}
+          >🔄 Refresh</button>
         </div>
 
         <div style={styles.logContainer}>
@@ -1254,26 +1266,8 @@ function AdminDashboard({ onClose, currentUser }) {
 
       {/* Sub-component modals - Using simple placeholders to avoid circular dependencies */}
       {showAnalytics && (
-        <div style={styles.overlay}>
-          <div style={styles.modal}>
-            <div style={styles.header}>
-              <h2 style={styles.title}>📊 Parsing Analytics Dashboard</h2>
-              <button onClick={() => setShowAnalytics(false)} style={styles.closeButton}>×</button>
-            </div>
-            <div style={{padding: '20px', textAlign: 'center'}}>
-              <p>Analytics dashboard temporarily disabled to prevent circular dependencies.</p>
-              <p>This will be restored in a future update.</p>
-              <button 
-                onClick={() => setShowAnalytics(false)}
-                style={{...styles.actionButton, backgroundColor: '#FF6B35'}}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <ParsingAnalyticsDashboard onClose={() => setShowAnalytics(false)} />
       )}
-
 
       {showSettings && (
         <div style={styles.overlay}>
