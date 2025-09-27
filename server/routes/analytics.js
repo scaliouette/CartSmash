@@ -149,6 +149,113 @@ router.get('/api-stats', requireAdmin, async (req, res) => {
   }
 });
 
+// Get user activity
+router.get('/users/activity', async (req, res) => {
+  try {
+    const { limit = 10, hours = 24 } = req.query;
+    const limitNum = parseInt(limit);
+    const hoursNum = parseInt(hours);
+
+    logger.info(`Fetching user activity: limit=${limitNum}, hours=${hoursNum}`);
+
+    // Mock user activity data for now
+    const activities = [
+      {
+        id: `activity_${Date.now()}_1`,
+        userName: 'John Doe',
+        userId: 'user_001',
+        action: 'Created shopping list',
+        type: 'list_created',
+        timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+        metadata: { itemCount: 15, listName: 'Weekly Groceries' }
+      },
+      {
+        id: `activity_${Date.now()}_2`,
+        userName: 'Jane Smith',
+        userId: 'user_002',
+        action: 'Parsed grocery items',
+        type: 'items_parsed',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+        metadata: { itemCount: 8, source: 'AI Assistant' }
+      },
+      {
+        id: `activity_${Date.now()}_3`,
+        userName: 'Bob Johnson',
+        userId: 'user_003',
+        action: 'Generated meal plan',
+        type: 'meal_plan_created',
+        timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+        metadata: { daysCount: 7, recipesCount: 21 }
+      }
+    ].slice(0, limitNum);
+
+    res.json({
+      success: true,
+      activities,
+      stats: {
+        activeUsers: activities.length,
+        totalActivities: activities.length,
+        timeRange: `${hoursNum}h`,
+        lastUpdated: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to fetch user activity:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch user activity'
+    });
+  }
+});
+
+// Get user accounts
+router.get('/users/accounts', async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+    const limitNum = parseInt(limit);
+
+    logger.info(`Fetching user accounts: limit=${limitNum}`);
+
+    // Mock user accounts data for now
+    const users = [
+      {
+        uid: 'user_001',
+        email: 'john.doe@example.com',
+        displayName: 'John Doe',
+        emailVerified: true,
+        creationTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
+        lastSignInTime: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+        providerData: [{ providerId: 'password' }]
+      },
+      {
+        uid: 'user_002',
+        email: 'jane.smith@example.com',
+        displayName: 'Jane Smith',
+        emailVerified: true,
+        creationTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(),
+        lastSignInTime: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+        providerData: [{ providerId: 'google.com' }]
+      }
+    ].slice(0, limitNum);
+
+    res.json({
+      success: true,
+      users,
+      totalUsers: users.length,
+      stats: {
+        verifiedUsers: users.filter(u => u.emailVerified).length,
+        activeToday: users.length
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to fetch user accounts:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch user accounts'
+    });
+  }
+});
+
 // Export analytics data
 router.get('/export', requireAdmin, async (req, res) => {
   try {
