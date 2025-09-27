@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { formatProductName } from '../utils/imageService';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 
@@ -19,8 +19,10 @@ const ShoppingListItem = ({
   onShowPriceHistory
 }) => {
   const { isMobile } = useDeviceDetection();
+  const [showImageModal, setShowImageModal] = useState(false);
   const confidence = getConfidenceDisplay(item);
   const isChecked = isSelected;
+  const imageUrl = getProductImage(item);
 
   // Mobile layout with card-based design
   if (isMobile) {
@@ -89,22 +91,44 @@ const ShoppingListItem = ({
             </div>
           </label>
 
-          {/* Product Image */}
-          <img
-            src={getProductImage(item) || 'data:image/svg+xml;charset=utf-8,%3Csvg width="64" height="64" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="64" height="64" fill="%239E9E9E"/%3E%3Ctext x="32" y="32" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E'}
-            alt={item.productName || item.name}
-            onError={(e) => {
-              e.target.src = 'data:image/svg+xml;charset=utf-8,%3Csvg width="64" height="64" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="64" height="64" fill="%239E9E9E"/%3E%3Ctext x="32" y="32" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E';
+          {/* Product Image with click to enlarge */}
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowImageModal(true);
             }}
             style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '8px',
-              objectFit: 'cover',
-              border: '1px solid #E0E0E0',
+              position: 'relative',
+              cursor: 'zoom-in',
               flexShrink: 0
             }}
-          />
+            title="Click to enlarge"
+          >
+            <img
+              src={imageUrl || 'data:image/svg+xml;charset=utf-8,%3Csvg width="64" height="64" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="64" height="64" fill="%239E9E9E"/%3E%3Ctext x="32" y="32" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E'}
+              alt={item.productName || item.name}
+              onError={(e) => {
+                e.target.src = 'data:image/svg+xml;charset=utf-8,%3Csvg width="64" height="64" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="64" height="64" fill="%239E9E9E"/%3E%3Ctext x="32" y="32" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E';
+              }}
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '8px',
+                objectFit: 'cover',
+                border: '1px solid #E0E0E0'
+              }}
+            />
+            <div style={{
+              position: 'absolute',
+              bottom: '2px',
+              right: '2px',
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              borderRadius: '4px',
+              padding: '2px 4px'
+            }}>
+              <span style={{ fontSize: '10px', color: 'white' }}>🔍</span>
+            </div>
+          </div>
 
           {/* Product Info with proper text handling */}
           <div style={{
@@ -152,6 +176,40 @@ const ShoppingListItem = ({
               {confidence.value}% match
             </span>
           </div>
+          {/* Additional Spoonacular information if available */}
+          {item.spoonacularData && (
+            <div style={{
+              fontSize: '11px',
+              color: '#6B7280',
+              marginTop: '2px'
+            }}>
+              {item.spoonacularData.badges && item.spoonacularData.badges.length > 0 && (
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                  {item.spoonacularData.badges.slice(0, 3).map((badge, idx) => (
+                    <span key={idx} style={{
+                      backgroundColor: '#E6F4EA',
+                      color: '#1E7E34',
+                      padding: '1px 4px',
+                      borderRadius: '3px',
+                      fontSize: '10px'
+                    }}>
+                      {badge}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {item.spoonacularData.nutrition && (
+                <div style={{ marginTop: '2px' }}>
+                  {item.spoonacularData.nutrition.calories && (
+                    <span>Cal: {item.spoonacularData.nutrition.calories}</span>
+                  )}
+                  {item.spoonacularData.nutrition.protein && (
+                    <span> • Protein: {item.spoonacularData.nutrition.protein}g</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Bottom Row: Quantity Controls, Price, and Actions */}
@@ -298,12 +356,115 @@ const ShoppingListItem = ({
           </div>
         </div>
       </div>
+
+      {/* Image Modal for Mobile */}
+      {showImageModal && (
+        <div
+          onClick={() => setShowImageModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '16px',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#002244' }}>
+                {formatProductName(item.productName || item.name)}
+              </h3>
+              <button
+                onClick={() => setShowImageModal(false)}
+                style={{
+                  border: 'none',
+                  backgroundColor: '#F3F4F6',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <img
+              src={imageUrl || 'data:image/svg+xml;charset=utf-8,%3Csvg width="400" height="400" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="400" height="400" fill="%239E9E9E"/%3E%3Ctext x="200" y="200" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="white"%3ENO IMAGE%3C/text%3E%3C/svg%3E'}
+              alt={item.productName || item.name}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '60vh',
+                objectFit: 'contain',
+                borderRadius: '8px'
+              }}
+            />
+            {/* Additional Product Details */}
+            <div style={{
+              fontSize: '14px',
+              color: '#6B7280',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <div><strong>Category:</strong> {getCategory(item)}</div>
+              <div><strong>Brand:</strong> {item.brand || 'Generic'}</div>
+              <div><strong>Price:</strong> ${(parseFloat(item.price) || 0).toFixed(2)}</div>
+              <div><strong>Quantity:</strong> {item.quantity || 1} {formatUnitDisplay(item) || ''}</div>
+              <div><strong>Match Confidence:</strong> {confidence.value}%</div>
+              {item.spoonacularData && (
+                <>
+                  {item.spoonacularData.badges && item.spoonacularData.badges.length > 0 && (
+                    <div>
+                      <strong>Badges:</strong> {item.spoonacularData.badges.join(', ')}
+                    </div>
+                  )}
+                  {item.spoonacularData.nutrition && (
+                    <div>
+                      <strong>Nutrition:</strong>
+                      {item.spoonacularData.nutrition.calories && ` Calories: ${item.spoonacularData.nutrition.calories}`}
+                      {item.spoonacularData.nutrition.protein && `, Protein: ${item.spoonacularData.nutrition.protein}g`}
+                      {item.spoonacularData.nutrition.fat && `, Fat: ${item.spoonacularData.nutrition.fat}g`}
+                      {item.spoonacularData.nutrition.carbs && `, Carbs: ${item.spoonacularData.nutrition.carbs}g`}
+                    </div>
+                  )}
+                  {item.spoonacularData.aisle && (
+                    <div><strong>Store Aisle:</strong> {item.spoonacularData.aisle}</div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     );
   }
 
   // Desktop layout (original design)
 
   return (
+    <>
     <div style={{
       display: 'flex',
       gap: '16px',
@@ -313,7 +474,6 @@ const ShoppingListItem = ({
       borderLeft: isChecked ? '4px solid #FB4F14' : '4px solid transparent',
       alignItems: 'center',
       transition: 'all 0.2s ease',
-      cursor: 'pointer',
       minHeight: '80px'
     }}>
       {/* Left section: Checkbox */}
@@ -370,14 +530,23 @@ const ShoppingListItem = ({
         </label>
       </div>
 
-      {/* Product Image with improved styling */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
+      {/* Product Image with click to enlarge */}
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowImageModal(true);
+        }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          cursor: 'zoom-in'
+        }}
+        title="Click to enlarge"
+      >
         <img
-          src={getProductImage(item) || 'data:image/svg+xml;charset=utf-8,%3Csvg width="56" height="56" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="56" height="56" fill="%239E9E9E"/%3E%3Ctext x="28" y="28" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E'}
+          src={imageUrl || 'data:image/svg+xml;charset=utf-8,%3Csvg width="56" height="56" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="56" height="56" fill="%239E9E9E"/%3E%3Ctext x="28" y="28" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E'}
           alt={item.productName || item.name}
           onError={(e) => {
             e.target.src = 'data:image/svg+xml;charset=utf-8,%3Csvg width="56" height="56" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="56" height="56" fill="%239E9E9E"/%3E%3Ctext x="28" y="28" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="white"%3EI%3C/text%3E%3C/svg%3E';
@@ -393,6 +562,16 @@ const ShoppingListItem = ({
             flexShrink: 0
           }}
         />
+        <div style={{
+          position: 'absolute',
+          bottom: '2px',
+          right: '2px',
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          borderRadius: '4px',
+          padding: '2px 4px'
+        }}>
+          <span style={{ fontSize: '10px', color: 'white' }}>🔍</span>
+        </div>
       </div>
 
       {/* Product Info - Improved typography hierarchy */}
@@ -454,6 +633,56 @@ const ShoppingListItem = ({
           }}>
             {formatUnitDisplay(item)}
           </span>
+        )}
+        {/* Additional Spoonacular information if available */}
+        {item.spoonacularData && (
+          <div style={{
+            fontSize: '11px',
+            color: '#6B7280',
+            marginTop: '4px',
+            display: 'flex',
+            gap: '8px',
+            flexWrap: 'wrap'
+          }}>
+            {item.spoonacularData.badges && item.spoonacularData.badges.length > 0 && (
+              item.spoonacularData.badges.slice(0, 3).map((badge, idx) => (
+                <span key={idx} style={{
+                  backgroundColor: '#E6F4EA',
+                  color: '#1E7E34',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontWeight: '500'
+                }}>
+                  {badge}
+                </span>
+              ))
+            )}
+            {item.spoonacularData.nutrition && item.spoonacularData.nutrition.calories && (
+              <span style={{
+                backgroundColor: '#FEF3C7',
+                color: '#92400E',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontWeight: '500'
+              }}>
+                {item.spoonacularData.nutrition.calories} cal
+              </span>
+            )}
+            {item.spoonacularData.aisle && (
+              <span style={{
+                backgroundColor: '#E0E7FF',
+                color: '#3730A3',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontWeight: '500'
+              }}>
+                Aisle: {item.spoonacularData.aisle}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -619,6 +848,240 @@ const ShoppingListItem = ({
         </button>
       </div>
     </div>
+
+    {/* Image Modal for Desktop */}
+    {showImageModal && (
+      <div
+        onClick={() => setShowImageModal(false)}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.9)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '40px'
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            maxWidth: '800px',
+            maxHeight: '90vh',
+            display: 'flex',
+            gap: '24px',
+            overflow: 'auto'
+          }}
+        >
+          <div style={{ flex: '1 1 50%' }}>
+            <img
+              src={imageUrl || 'data:image/svg+xml;charset=utf-8,%3Csvg width="400" height="400" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="400" height="400" fill="%239E9E9E"/%3E%3Ctext x="200" y="200" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="white"%3ENO IMAGE%3C/text%3E%3C/svg%3E'}
+              alt={item.productName || item.name}
+              style={{
+                width: '100%',
+                height: 'auto',
+                maxHeight: '400px',
+                objectFit: 'contain',
+                borderRadius: '12px',
+                border: '1px solid #E0E0E0'
+              }}
+            />
+          </div>
+          <div style={{ flex: '1 1 50%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'start'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '24px', color: '#002244', flex: 1 }}>
+                {formatProductName(item.productName || item.name)}
+              </h2>
+              <button
+                onClick={() => setShowImageModal(false)}
+                style={{
+                  border: 'none',
+                  backgroundColor: '#F3F4F6',
+                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: '500'
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Product Details Grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'auto 1fr',
+              gap: '12px',
+              fontSize: '15px',
+              color: '#374151'
+            }}>
+              <strong>Category:</strong>
+              <span>{getCategory(item)}</span>
+
+              <strong>Brand:</strong>
+              <span>{item.brand || 'Generic'}</span>
+
+              <strong>Price:</strong>
+              <span>${(parseFloat(item.price) || 0).toFixed(2)} each</span>
+
+              <strong>Quantity:</strong>
+              <span>{item.quantity || 1} {formatUnitDisplay(item) || 'units'}</span>
+
+              <strong>Total:</strong>
+              <span style={{ fontSize: '18px', color: '#002244', fontWeight: '600' }}>
+                ${((parseFloat(item.price) || 0) * (item.quantity || 1)).toFixed(2)}
+              </span>
+
+              <strong>Match:</strong>
+              <span>
+                <span style={{
+                  backgroundColor: confidence.value > 80 ? '#E6F4EA' : '#FEF2F2',
+                  color: confidence.value > 80 ? '#1E7E34' : '#DC2626',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontWeight: '600'
+                }}>
+                  {confidence.value}% Confidence
+                </span>
+              </span>
+            </div>
+
+            {/* Spoonacular Data if available */}
+            {item.spoonacularData && (
+              <div style={{
+                borderTop: '1px solid #E5E7EB',
+                paddingTop: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#002244' }}>
+                  Additional Information
+                </h3>
+
+                {item.spoonacularData.badges && item.spoonacularData.badges.length > 0 && (
+                  <div>
+                    <strong style={{ fontSize: '14px', color: '#6B7280' }}>Product Badges:</strong>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+                      {item.spoonacularData.badges.map((badge, idx) => (
+                        <span key={idx} style={{
+                          backgroundColor: '#E6F4EA',
+                          color: '#1E7E34',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          fontSize: '13px',
+                          fontWeight: '500'
+                        }}>
+                          ✓ {badge}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {item.spoonacularData.nutrition && (
+                  <div>
+                    <strong style={{ fontSize: '14px', color: '#6B7280' }}>Nutritional Information:</strong>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '8px',
+                      marginTop: '6px'
+                    }}>
+                      {item.spoonacularData.nutrition.calories && (
+                        <div style={{
+                          backgroundColor: '#FEF3C7',
+                          padding: '8px',
+                          borderRadius: '6px',
+                          fontSize: '13px'
+                        }}>
+                          <strong>Calories:</strong> {item.spoonacularData.nutrition.calories}
+                        </div>
+                      )}
+                      {item.spoonacularData.nutrition.protein && (
+                        <div style={{
+                          backgroundColor: '#DBEAFE',
+                          padding: '8px',
+                          borderRadius: '6px',
+                          fontSize: '13px'
+                        }}>
+                          <strong>Protein:</strong> {item.spoonacularData.nutrition.protein}g
+                        </div>
+                      )}
+                      {item.spoonacularData.nutrition.fat && (
+                        <div style={{
+                          backgroundColor: '#FEE2E2',
+                          padding: '8px',
+                          borderRadius: '6px',
+                          fontSize: '13px'
+                        }}>
+                          <strong>Fat:</strong> {item.spoonacularData.nutrition.fat}g
+                        </div>
+                      )}
+                      {item.spoonacularData.nutrition.carbs && (
+                        <div style={{
+                          backgroundColor: '#F3E8FF',
+                          padding: '8px',
+                          borderRadius: '6px',
+                          fontSize: '13px'
+                        }}>
+                          <strong>Carbs:</strong> {item.spoonacularData.nutrition.carbs}g
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {item.spoonacularData.aisle && (
+                  <div>
+                    <strong style={{ fontSize: '14px', color: '#6B7280' }}>Store Location:</strong>
+                    <div style={{
+                      backgroundColor: '#E0E7FF',
+                      color: '#3730A3',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      marginTop: '6px',
+                      display: 'inline-block'
+                    }}>
+                      📍 {item.spoonacularData.aisle}
+                    </div>
+                  </div>
+                )}
+
+                {item.spoonacularData.description && (
+                  <div>
+                    <strong style={{ fontSize: '14px', color: '#6B7280' }}>Description:</strong>
+                    <p style={{
+                      fontSize: '13px',
+                      color: '#4B5563',
+                      lineHeight: '1.5',
+                      marginTop: '6px'
+                    }}>
+                      {item.spoonacularData.description}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 
