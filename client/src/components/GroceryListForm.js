@@ -806,12 +806,15 @@ function GroceryListForm({
               const instacartPrice = parseFloat(instacartProduct.price) || 0;
               const instacartImage = instacartProduct.image_url || instacartProduct.imageUrl || instacartProduct.image;
 
+              // IMPORTANT: Only use Instacart image if it exists, otherwise keep existing Spoonacular image
+              const finalImage = instacartImage || item.image || item.image_url || item.imageUrl;
+
               let enrichedItem = {
                 ...item,
                 price: instacartPrice,
-                image: instacartImage,
-                imageUrl: instacartImage,
-                image_url: instacartImage, // Add for compatibility
+                image: finalImage,
+                imageUrl: finalImage,
+                image_url: finalImage, // Add for compatibility
                 instacartId: instacartProduct.id,
                 instacartData: instacartProduct,
                 enriched: true,
