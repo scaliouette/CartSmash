@@ -116,11 +116,47 @@ function AppContent({
 
   const loadLocalData = useCallback(() => {
     try {
-      // Using session state only for unauthenticated users
-      setCurrentCartWithTracking([], true); // System action - initial load
-      setSavedLists([]);
+      debugService.log('📋 Loading data from localStorage...');
+
+      // Load saved lists from localStorage
+      const savedListsData = localStorage.getItem('cartsmash_lists');
+      if (savedListsData) {
+        try {
+          const lists = JSON.parse(savedListsData);
+          if (Array.isArray(lists)) {
+            setSavedLists(lists);
+            debugService.log(`✅ Loaded ${lists.length} saved lists from localStorage`);
+          }
+        } catch (parseError) {
+          debugService.logError('Failed to parse saved lists:', parseError);
+          setSavedLists([]);
+        }
+      } else {
+        setSavedLists([]);
+        debugService.log('ℹ️ No saved lists found in localStorage');
+      }
+
+      // Load cart from localStorage
+      const savedCart = localStorage.getItem('cartsmash_cart');
+      if (savedCart) {
+        try {
+          const cart = JSON.parse(savedCart);
+          if (Array.isArray(cart)) {
+            setCurrentCartWithTracking(cart, true); // System action - initial load
+            debugService.log(`✅ Loaded ${cart.length} cart items from localStorage`);
+          }
+        } catch (parseError) {
+          debugService.logError('Failed to parse cart:', parseError);
+          setCurrentCartWithTracking([], true);
+        }
+      } else {
+        setCurrentCartWithTracking([], true); // System action - initial load
+        debugService.log('ℹ️ No cart found in localStorage');
+      }
     } catch (error) {
       debugService.logError('Error loading from localStorage:', error);
+      setCurrentCartWithTracking([], true);
+      setSavedLists([]);
     }
   }, [setCurrentCartWithTracking, setSavedLists, CART_AUTHORITY]);
 
@@ -300,6 +336,18 @@ function AppContent({
     loadRecipesFromFirestore();
   }, [loadAllData, hydrateCartFromFirestore, loadRecipesFromFirestore]);
 
+  // Auto-save cart to localStorage whenever it changes
+  useEffect(() => {
+    if (currentCart.length > 0) {
+      try {
+        localStorage.setItem('cartsmash_cart', JSON.stringify(currentCart));
+        debugService.log(`💾 Auto-saved ${currentCart.length} cart items to localStorage`);
+      } catch (error) {
+        debugService.logError('Failed to save cart to localStorage:', error);
+      }
+    }
+  }, [currentCart]);
+
   // ✅ NEW: Ensure data consistency when switching views
   useEffect(() => {
     debugService.log(`📍 View changed to: ${currentView}`);
@@ -440,12 +488,20 @@ function AppContent({
   
   const saveCartAsList = async (name, items = null) => {
     const itemsToSave = items || currentCart;
-    
+
+    debugService.log('🔍 saveCartAsList called with:', {
+      name,
+      itemsCount: itemsToSave?.length,
+      hasItems: items !== null,
+      currentUser: currentUser?.uid || 'not authenticated'
+    });
+
     if (!itemsToSave || itemsToSave.length === 0) {
+      debugService.log('❌ No items to save');
       alert('No items to save!');
       return null;
     }
-    
+
     const newList = {
       id: `list_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name: name || `Shopping List ${new Date().toLocaleDateString()}`,
@@ -455,25 +511,53 @@ function AppContent({
       updatedAt: new Date().toISOString(),
       userId: currentUser?.uid || 'guest'
     };
-    
+
+    debugService.log('📝 Created new list object:', {
+      id: newList.id,
+      name: newList.name,
+      itemCount: newList.itemCount,
+      userId: newList.userId
+    });
+
     try {
       // Save to Firebase if user is authenticated
       if (currentUser) {
+        debugService.log('🔥 Attempting to save to Firebase...');
         await userDataService.saveParsedList(newList);
-        debugService.log('✅ List saved to Firebase');
+        debugService.log('✅ List saved to Firebase successfully');
+      } else {
+        debugService.log('⚠️ User not authenticated - saving to local state only');
       }
-      
+
       // Also save locally
       const updatedLists = [...savedLists, newList];
       setSavedLists(updatedLists);
-      
-      debugService.log('💾 List saved:', newList.name);
+      localStorage.setItem('cartsmash_lists', JSON.stringify(updatedLists));
+
+      debugService.log('💾 List saved successfully:', newList.name);
+      alert(`✅ List "${newList.name}" saved successfully!`);
       return newList;
-      
+
     } catch (error) {
-      debugService.logError('Error saving list:', error);
-      alert('Failed to save list to cloud, but saved locally');
-      return newList;
+      debugService.logError('❌ Failed to save list:', error);
+      debugService.logError('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        currentUser: currentUser?.uid
+      });
+
+      // Still save locally even if Firebase fails
+      try {
+        const updatedLists = [...savedLists, newList];
+        setSavedLists(updatedLists);
+        localStorage.setItem('cartsmash_lists', JSON.stringify(updatedLists));
+        alert(`⚠️ List saved locally only (not synced to cloud). Error: ${error.message}`);
+        return newList;
+      } catch (localError) {
+        debugService.logError('❌ Failed to save even locally:', localError);
+        alert(`Failed to save list: ${error.message}`);
+        return null;
+      }
     }
   };
   
@@ -527,10 +611,15 @@ function AppContent({
       if (currentUser) {
         await userDataService.deleteShoppingList(listId);
       }
-      
-      // Update local state
-      setSavedLists(prev => prev.filter(l => l.id !== listId));
-      
+
+      // Update local state and localStorage
+      setSavedLists(prev => {
+        const updatedLists = prev.filter(l => l.id !== listId);
+        localStorage.setItem('cartsmash_lists', JSON.stringify(updatedLists));
+        debugService.log('🗑️ List deleted and localStorage updated');
+        return updatedLists;
+      });
+
     } catch (error) {
       debugService.logError('Error deleting list:', error);
     }
@@ -558,16 +647,17 @@ function AppContent({
         await userDataService.updateShoppingList(updatedList.id, updatedList);
         debugService.log('✅ List updated in Firebase');
       }
-      
-      // Update local state
-      const updatedLists = savedLists.map(list => 
+
+      // Update local state and localStorage
+      const updatedLists = savedLists.map(list =>
         list.id === updatedList.id ? updatedList : list
       );
       setSavedLists(updatedLists);
-      
-      debugService.log('✅ List updated locally');
+      localStorage.setItem('cartsmash_lists', JSON.stringify(updatedLists));
+
+      debugService.log('✅ List updated locally and in localStorage');
       return updatedList;
-      
+
     } catch (error) {
       debugService.logError('Error updating list:', error);
       throw error;
