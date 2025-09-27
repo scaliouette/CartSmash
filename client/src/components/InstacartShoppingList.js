@@ -704,14 +704,20 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     </div>
                   )}
 
-                  {/* Data Source */}
-                  {item.enrichmentSource && (
+                  {/* Product Size/Unit Info */}
+                  {(item.size || item.unit || item.packageSize || item.containerType) && (
                     <div style={{
                       marginTop: '4px',
-                      fontSize: '10px',
-                      color: '#999'
+                      fontSize: '11px',
+                      color: '#666',
+                      fontWeight: '500'
                     }}>
-                      Data from: {item.enrichmentSource}
+                      {[
+                        item.size,
+                        item.packageSize,
+                        item.containerType,
+                        item.unit && `per ${item.unit}`
+                      ].filter(Boolean).join(' • ')}
                     </div>
                   )}
                 </div>

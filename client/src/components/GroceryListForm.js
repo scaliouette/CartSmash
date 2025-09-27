@@ -886,7 +886,7 @@ function GroceryListForm({
                 unitCount: item.unitCount, // Alternative field
                 unit: item.unit,         // Force preserve original unit
                 size: item.size,         // Force preserve original size if it exists
-                enrichmentSource: 'instacart'
+                enrichmentSource: instacartProduct.source || 'api' // Use actual source from response
               };
 
               // If Instacart data is missing image or nutrition, try Spoonacular to enhance

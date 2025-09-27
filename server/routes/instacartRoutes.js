@@ -115,7 +115,14 @@ const getOAuthToken = async () => {
 };
 
 // Helper function to search products using Partner API with multiple endpoint attempts
+// NOTE: OAuth is ONLY for cart creation/checkout, NOT for product search
+// Product search should use Recipe API with simple API key authentication
 const searchProductsPartnerAPI = async (query, retailerId = 'safeway') => {
+  // DISABLED: OAuth should not be used for product search
+  // Instacart's OAuth is only for cart management and checkout flows
+  return null;
+
+  /* Original OAuth implementation - kept for reference but should not be used
   try {
     const token = await getOAuthToken();
     if (!token) {

@@ -87,7 +87,7 @@ function AdminDashboard({ onClose, currentUser }) {
           'Content-Type': 'application/json',
         },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('✅ User accounts loaded:', data);
@@ -100,6 +100,105 @@ function AdminDashboard({ onClose, currentUser }) {
       console.error('❌ Error loading user accounts:', error);
       // Set empty state instead of null to show "No data found"
       setUserAccounts({ users: [], totalUsers: 0 });
+    }
+  }, []);
+
+  const loadRevenueData = useCallback(async () => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const endDate = new Date();
+      let startDate = new Date();
+
+      switch (dateRange) {
+        case '7d': startDate.setDate(startDate.getDate() - 7); break;
+        case '30d': startDate.setDate(startDate.getDate() - 30); break;
+        case '90d': startDate.setDate(startDate.getDate() - 90); break;
+        case '6m': startDate.setMonth(startDate.getMonth() - 6); break;
+        case '1y': startDate.setFullYear(startDate.getFullYear() - 1); break;
+        default: startDate.setDate(startDate.getDate() - 30); break;
+      }
+
+      const [summary, mrr, growth] = await Promise.all([
+        fetch(`${apiUrl}/api/revenue/summary?start=${startDate.toISOString()}&end=${endDate.toISOString()}`).then(r => r.json()),
+        fetch(`${apiUrl}/api/revenue/mrr`).then(r => r.json()),
+        fetch(`${apiUrl}/api/revenue/growth`).then(r => r.json())
+      ]);
+
+      setRevenueData({ summary, mrr, growth });
+    } catch (error) {
+      console.error('Failed to load revenue data:', error);
+      // Use mock data if API fails
+      setRevenueData({
+        summary: {
+          totalRevenue: 12847.52,
+          totalCosts: 3214.38,
+          netProfit: 9633.14,
+          profitMargin: 75.0,
+          revenueByType: [
+            { _id: 'instacart_commission', total: 8432.12, count: 1245 },
+            { _id: 'subscription', total: 3999.60, count: 400 },
+            { _id: 'api_usage', total: 415.80, count: 892 }
+          ],
+          dailyRevenue: Array.from({ length: 30 }, (_, i) => ({
+            _id: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            revenue: 350 + Math.random() * 200
+          }))
+        },
+        mrr: {
+          totalMRR: 3999.60,
+          subscriberCount: 400,
+          byTier: [
+            { _id: 'pro', count: 350, revenue: 3496.50 },
+            { _id: 'enterprise', count: 50, revenue: 4999.50 }
+          ]
+        },
+        growth: {
+          revenueGrowth: { current: 12847.52, previous: 9824.33, growthRate: 30.8, trend: 'up' },
+          subscriberMetrics: { newSubscribers: 45, churnedSubscribers: 12, netGrowth: 33, churnRate: 26.7 }
+        }
+      });
+    }
+  }, [dateRange]);
+
+  const loadExternalServices = useCallback(async () => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const [health, usage, costs] = await Promise.all([
+        fetch(`${apiUrl}/api/monitoring/health`).then(r => r.json()),
+        fetch(`${apiUrl}/api/monitoring/usage/30d`).then(r => r.json()),
+        fetch(`${apiUrl}/api/monitoring/costs/current`).then(r => r.json())
+      ]);
+
+      setExternalServices({ health, usage, costs });
+    } catch (error) {
+      console.error('Failed to load external services:', error);
+      // Use mock data if API fails
+      setExternalServices({
+        health: {
+          vercel: { status: 'operational', responseTime: 142, uptime: 99.9 },
+          render: { status: 'operational', responseTime: 286, uptime: 99.7 },
+          mongodb: { status: 'operational', connections: 18, storage: '2.4GB' },
+          firebase: { status: 'operational', activeUsers: 847, requests: 12453 }
+        },
+        usage: {
+          openai: { requests: 3421, tokens: 2845632, cost: 142.28 },
+          anthropic: { requests: 892, tokens: 723451, cost: 36.17 },
+          spoonacular: { requests: 1245, cost: 24.90 },
+          instacart: { requests: 8934, cost: 0 }
+        },
+        costs: {
+          totalCosts: 324.85,
+          projectedMonthly: 649.70,
+          byService: [
+            { service: 'OpenAI', cost: 142.28, percentage: 43.8 },
+            { service: 'Render', cost: 84.00, percentage: 25.9 },
+            { service: 'Anthropic', cost: 36.17, percentage: 11.1 },
+            { service: 'MongoDB', cost: 25.00, percentage: 7.7 },
+            { service: 'Spoonacular', cost: 24.90, percentage: 7.7 },
+            { service: 'Vercel', cost: 12.50, percentage: 3.8 }
+          ]
+        }
+      });
     }
   }, []);
 
@@ -609,103 +708,6 @@ function AdminDashboard({ onClose, currentUser }) {
     </div>
   );
 
-  const loadRevenueData = useCallback(async () => {
-    try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-      const endDate = new Date();
-      let startDate = new Date();
-
-      switch (dateRange) {
-        case '7d': startDate.setDate(startDate.getDate() - 7); break;
-        case '30d': startDate.setDate(startDate.getDate() - 30); break;
-        case '90d': startDate.setDate(startDate.getDate() - 90); break;
-        case '6m': startDate.setMonth(startDate.getMonth() - 6); break;
-        case '1y': startDate.setFullYear(startDate.getFullYear() - 1); break;
-      }
-
-      const [summary, mrr, growth] = await Promise.all([
-        fetch(`${apiUrl}/api/revenue/summary?start=${startDate.toISOString()}&end=${endDate.toISOString()}`).then(r => r.json()),
-        fetch(`${apiUrl}/api/revenue/mrr`).then(r => r.json()),
-        fetch(`${apiUrl}/api/revenue/growth`).then(r => r.json())
-      ]);
-
-      setRevenueData({ summary, mrr, growth });
-    } catch (error) {
-      console.error('Failed to load revenue data:', error);
-      // Use mock data if API fails
-      setRevenueData({
-        summary: {
-          totalRevenue: 12847.52,
-          totalCosts: 3214.38,
-          netProfit: 9633.14,
-          profitMargin: 75.0,
-          revenueByType: [
-            { _id: 'instacart_commission', total: 8432.12, count: 1245 },
-            { _id: 'subscription', total: 3999.60, count: 400 },
-            { _id: 'api_usage', total: 415.80, count: 892 }
-          ],
-          dailyRevenue: Array.from({ length: 30 }, (_, i) => ({
-            _id: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            revenue: 350 + Math.random() * 200
-          }))
-        },
-        mrr: {
-          totalMRR: 3999.60,
-          subscriberCount: 400,
-          byTier: [
-            { _id: 'pro', count: 350, revenue: 3496.50 },
-            { _id: 'enterprise', count: 50, revenue: 4999.50 }
-          ]
-        },
-        growth: {
-          revenueGrowth: { current: 12847.52, previous: 9824.33, growthRate: 30.8, trend: 'up' },
-          subscriberMetrics: { newSubscribers: 45, churnedSubscribers: 12, netGrowth: 33, churnRate: 26.7 }
-        }
-      });
-    }
-  }, [dateRange]);
-
-  const loadExternalServices = useCallback(async () => {
-    try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-      const [health, usage, costs] = await Promise.all([
-        fetch(`${apiUrl}/api/monitoring/health`).then(r => r.json()),
-        fetch(`${apiUrl}/api/monitoring/usage/30d`).then(r => r.json()),
-        fetch(`${apiUrl}/api/monitoring/costs/current`).then(r => r.json())
-      ]);
-
-      setExternalServices({ health, usage, costs });
-    } catch (error) {
-      console.error('Failed to load external services:', error);
-      // Use mock data if API fails
-      setExternalServices({
-        health: {
-          vercel: { status: 'operational', responseTime: 142, uptime: 99.9 },
-          render: { status: 'operational', responseTime: 286, uptime: 99.7 },
-          mongodb: { status: 'operational', connections: 18, storage: '2.4GB' },
-          firebase: { status: 'operational', activeUsers: 847, requests: 12453 }
-        },
-        usage: {
-          openai: { requests: 3421, tokens: 2845632, cost: 142.28 },
-          anthropic: { requests: 892, tokens: 723451, cost: 36.17 },
-          spoonacular: { requests: 1245, cost: 24.90 },
-          instacart: { requests: 8934, cost: 0 }
-        },
-        costs: {
-          totalCosts: 324.85,
-          projectedMonthly: 649.70,
-          byService: [
-            { service: 'OpenAI', cost: 142.28, percentage: 43.8 },
-            { service: 'Render', cost: 84.00, percentage: 25.9 },
-            { service: 'Anthropic', cost: 36.17, percentage: 11.1 },
-            { service: 'MongoDB', cost: 25.00, percentage: 7.7 },
-            { service: 'Spoonacular', cost: 24.90, percentage: 7.7 },
-            { service: 'Vercel', cost: 12.50, percentage: 3.8 }
-          ]
-        }
-      });
-    }
-  }, []);
 
   const renderRevenueTab = () => (
     <div style={styles.tabContent}>
