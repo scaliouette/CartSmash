@@ -2,7 +2,7 @@
 const axios = require('axios');
 
 async function testMarinaraSauce() {
-  const apiUrl = process.env.API_URL || 'http://localhost:3059';
+  const apiUrl = process.env.API_URL || 'http://localhost:3001';
 
   const marinaraInput = `Marinara Sauce:
 - 2 cans (28 oz each) crushed tomatoes
@@ -19,20 +19,18 @@ async function testMarinaraSauce() {
     console.log('🍝 Testing Marinara Sauce parsing...\n');
     console.log('Input text:\n', marinaraInput, '\n');
 
-    const response = await axios.post(`${apiUrl}/api/cart/parse`, {
-      listText: marinaraInput,
-      action: 'merge',
-      useAI: true,
+    const response = await axios.post(`${apiUrl}/api/ai/smart-parse`, {
+      text: marinaraInput,
       options: {
-        mergeDuplicates: true,
-        strictMode: true
+        strictMode: true,
+        context: 'recipe_parse'
       }
     });
 
     if (response.data.success) {
       console.log('✅ Parsing successful!\n');
       console.log('Parsed items:');
-      response.data.parsedItems.forEach((item, index) => {
+      response.data.products.forEach((item, index) => {
         console.log(`\n${index + 1}. ${item.productName}`);
         console.log(`   Quantity: ${item.quantity} ${item.unit}`);
         console.log(`   Category: ${item.category}`);
@@ -47,10 +45,10 @@ async function testMarinaraSauce() {
       });
 
       console.log('\n📊 Parsing Statistics:');
-      console.log(`   Total items: ${response.data.parsedItems.length}`);
-      console.log(`   Items with Spoonacular data: ${response.data.parsedItems.filter(i => i.hasSpoonacularMatch).length}`);
-      console.log(`   Items with prices: ${response.data.parsedItems.filter(i => i.price).length}`);
-      console.log(`   Items with images: ${response.data.parsedItems.filter(i => i.image_url).length}`);
+      console.log(`   Total items: ${response.data.products.length}`);
+      console.log(`   Items with Spoonacular data: ${response.data.products.filter(i => i.hasSpoonacularMatch).length}`);
+      console.log(`   Items with prices: ${response.data.products.filter(i => i.price).length}`);
+      console.log(`   Items with images: ${response.data.products.filter(i => i.image_url).length}`);
 
     } else {
       console.error('❌ Parsing failed:', response.data.error);
