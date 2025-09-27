@@ -3119,7 +3119,7 @@ Return as JSON with this structure:
   const RecipeManagerModal = ({ recipe, onClose }) => {
     const [selectedDay, setSelectedDay] = useState('Monday');
     const [selectedMealType, setSelectedMealType] = useState(recipe.mealType || 'Dinner');
-    const [saveToLibrary, setSaveToLibrary] = useState(true);
+    const [saveToLibrary, setSaveToLibrary] = useState(false);
     const [quickAddMode, setQuickAddMode] = useState(false);
     const [customName, setCustomName] = useState(recipe.title || recipe.name || '');
     

@@ -443,7 +443,44 @@ router.post('/parse', async (req, res) => {
         logger.error('🔍 [DEBUG] Error stack:', aiError.stack?.substring(0, 500));
         logger.error('🔍 [DEBUG] Full error object:', JSON.stringify(aiError, null, 2));
         
-        // AI-only mode: No emergency fallback available
+        // EMERGENCY FALLBACK: Use basic parser when AI fails
+        logger.warn('⚠️ ALL AI SERVICES FAILED - Activating emergency basic parser');
+
+        try {
+          const basicParser = require('../utils/basicParser');
+          const basicResults = basicParser.parseGroceryList(listText);
+
+          if (basicResults.products && basicResults.products.length > 0) {
+            logger.info(`✅ Basic parser extracted ${basicResults.products.length} items`);
+
+            // Convert basic parser results to cart items format
+            parsedItems = basicResults.products.map((product, index) => ({
+              id: `item_${Date.now()}_${index}`,
+              productName: product.productName,
+              quantity: product.quantity || 1,
+              unit: product.unit || 'each',
+              category: product.category || 'Other',
+              confidence: product.confidence || 0.5,
+              needsReview: true, // Flag for manual review since no AI
+              source: 'basic_parser_fallback',
+              originalText: product.productName
+            }));
+
+            logger.info('📦 Basic parser fallback successful - continuing with parsed items');
+          } else {
+            // Even basic parser couldn't extract anything
+            logger.error('❌ Basic parser found no items');
+            return res.status(400).json({
+              success: false,
+              error: 'Unable to parse list',
+              message: 'Could not extract any items from your input. Please try formatting your list with one item per line.',
+              helpText: 'Example:\n2 apples\n1 gallon milk\n3 lbs chicken'
+            });
+          }
+        } catch (basicParserError) {
+          logger.error('❌ Basic parser also failed:', basicParserError);
+          // Continue to credit check below
+        }
         
         // Check if it's a credit/billing issue
         if (aiError.message && aiError.message.includes('credit balance is too low')) {
@@ -467,12 +504,30 @@ router.post('/parse', async (req, res) => {
         });
       }
     } else {
-      // AI-only mode - cannot disable AI
-      return res.status(400).json({
-        success: false,
-        error: 'AI processing required',
-        message: 'System is configured for AI-only processing - useAI cannot be disabled'
-      });
+      // Fallback to basic parser when AI is disabled
+      logger.info('📦 Using basic parser (AI disabled)');
+      const basicParser = require('../utils/basicParser');
+      const basicResults = basicParser.parseGroceryList(listText);
+
+      if (basicResults.products && basicResults.products.length > 0) {
+        parsedItems = basicResults.products.map((product, index) => ({
+          id: `item_${Date.now()}_${index}`,
+          productName: product.productName,
+          quantity: product.quantity || 1,
+          unit: product.unit || 'each',
+          category: product.category || 'Other',
+          confidence: product.confidence || 0.5,
+          source: 'basic_parser',
+          originalText: product.productName
+        }));
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: 'No items found',
+          message: 'Could not extract any items from your input.',
+          helpText: 'Try formatting with one item per line'
+        });
+      }
     }
 
     // Apply deduplication if enabled

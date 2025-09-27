@@ -158,25 +158,20 @@ const ShoppingListItem = ({
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap'
             }}>
-              {getCategory(item)} • {item.brand ? formatProductName(item.brand) : 'Generic'}
-              {item.aisle && ` • Aisle: ${item.aisle}`}
+              {item.brand && formatProductName(item.brand)}
               {item.price && ` • $${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}`}
             </p>
-            {/* Confidence Badge */}
-            <span style={{
-              display: 'inline-block',
-              fontSize: '11px',
-              color: confidence.value > 80 ? '#002244' : '#FB4F14',
-              fontWeight: '600',
-              backgroundColor: confidence.value > 80 ? '#E6EBF2' : '#FFF5F0',
-              border: `1px solid ${confidence.value > 80 ? '#7B9AC8' : '#FFD4C4'}`,
-              padding: '2px 6px',
-              borderRadius: '4px',
-              lineHeight: '1',
-              marginTop: '4px'
-            }}>
-              {confidence.value}% match
-            </span>
+            {/* Size/Package info */}
+            {(item.package_size || item.size || item.servingSize || item.containerType) && (
+              <p style={{
+                margin: '2px 0',
+                fontSize: '12px',
+                color: '#6B7280',
+                fontStyle: 'italic'
+              }}>
+                {item.package_size || item.size || item.servingSize || item.containerType}
+              </p>
+            )}
           </div>
           {/* Additional Spoonacular information if available */}
           {item.spoonacularData && (
@@ -185,21 +180,6 @@ const ShoppingListItem = ({
               color: '#6B7280',
               marginTop: '2px'
             }}>
-              {item.spoonacularData.badges && item.spoonacularData.badges.length > 0 && (
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                  {item.spoonacularData.badges.slice(0, 3).map((badge, idx) => (
-                    <span key={idx} style={{
-                      backgroundColor: '#E6F4EA',
-                      color: '#1E7E34',
-                      padding: '1px 4px',
-                      borderRadius: '3px',
-                      fontSize: '10px'
-                    }}>
-                      {badge}
-                    </span>
-                  ))}
-                </div>
-              )}
               {item.spoonacularData.nutrition && (
                 <div style={{ marginTop: '2px' }}>
                   {item.spoonacularData.nutrition.calories && (
@@ -221,29 +201,30 @@ const ShoppingListItem = ({
           alignItems: 'center',
           gap: '12px'
         }}>
-          {/* Quantity Controls with larger touch targets */}
+          {/* Quantity Controls - Compact */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             backgroundColor: '#F8F9FA',
-            borderRadius: '8px',
-            padding: '4px',
-            gap: '8px'
+            borderRadius: '6px',
+            padding: '2px',
+            gap: '4px',
+            border: '1px solid #E5E7EB'
           }}>
             <button
               onClick={() => updateQuantity(item.id, -1)}
               disabled={(item.quantity || 1) <= 1}
               style={{
-                minWidth: '40px',
-                minHeight: '40px',
+                minWidth: '28px',
+                minHeight: '28px',
                 border: 'none',
                 backgroundColor: (item.quantity || 1) > 1 ? 'white' : 'transparent',
-                borderRadius: '6px',
+                borderRadius: '4px',
                 cursor: (item.quantity || 1) > 1 ? 'pointer' : 'not-allowed',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '20px',
+                fontSize: '16px',
                 fontWeight: '600',
                 color: (item.quantity || 1) > 1 ? '#374151' : '#9CA3AF',
                 transition: 'all 0.2s'
@@ -253,9 +234,9 @@ const ShoppingListItem = ({
             </button>
 
             <span style={{
-              minWidth: '24px',
+              minWidth: '20px',
               textAlign: 'center',
-              fontSize: '16px',
+              fontSize: '14px',
               fontWeight: '600',
               color: '#1F2937'
             }}>
@@ -265,11 +246,11 @@ const ShoppingListItem = ({
             <button
               onClick={() => updateQuantity(item.id, 1)}
               style={{
-                minWidth: '40px',
-                minHeight: '40px',
+                minWidth: '28px',
+                minHeight: '28px',
                 border: 'none',
                 backgroundColor: 'white',
-                borderRadius: '6px',
+                borderRadius: '4px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -437,11 +418,6 @@ const ShoppingListItem = ({
               <div><strong>Match Confidence:</strong> {confidence.value}%</div>
               {item.spoonacularData && (
                 <>
-                  {item.spoonacularData.badges && item.spoonacularData.badges.length > 0 && (
-                    <div>
-                      <strong>Badges:</strong> {item.spoonacularData.badges.join(', ')}
-                    </div>
-                  )}
                   {item.spoonacularData.nutrition && (
                     <div>
                       <strong>Nutrition:</strong>
@@ -450,9 +426,6 @@ const ShoppingListItem = ({
                       {item.spoonacularData.nutrition.fat && `, Fat: ${item.spoonacularData.nutrition.fat}g`}
                       {item.spoonacularData.nutrition.carbs && `, Carbs: ${item.spoonacularData.nutrition.carbs}g`}
                     </div>
-                  )}
-                  {item.spoonacularData.aisle && (
-                    <div><strong>Store Aisle:</strong> {item.spoonacularData.aisle}</div>
                   )}
                 </>
               )}
@@ -620,6 +593,10 @@ const ShoppingListItem = ({
           lineHeight: '1.2'
         }}>
           {getCategory(item)} • {item.brand ? formatProductName(item.brand) : 'Generic'}
+          {/* Show size/package inline for desktop */}
+          {(item.package_size || item.size || item.servingSize || item.containerType) && (
+            <span> • {item.package_size || item.size || item.servingSize || item.containerType}</span>
+          )}
         </div>
         {formatUnitDisplay(item) && (
           <span style={{
@@ -646,71 +623,33 @@ const ShoppingListItem = ({
             gap: '8px',
             flexWrap: 'wrap'
           }}>
-            {item.spoonacularData.badges && item.spoonacularData.badges.length > 0 && (
-              item.spoonacularData.badges.slice(0, 3).map((badge, idx) => (
-                <span key={idx} style={{
-                  backgroundColor: '#E6F4EA',
-                  color: '#1E7E34',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontWeight: '500'
-                }}>
-                  {badge}
-                </span>
-              ))
-            )}
-            {item.spoonacularData.nutrition && item.spoonacularData.nutrition.calories && (
-              <span style={{
-                backgroundColor: '#FEF3C7',
-                color: '#92400E',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: '10px',
-                fontWeight: '500'
-              }}>
-                {item.spoonacularData.nutrition.calories} cal
-              </span>
-            )}
-            {item.spoonacularData.aisle && (
-              <span style={{
-                backgroundColor: '#E0E7FF',
-                color: '#3730A3',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: '10px',
-                fontWeight: '500'
-              }}>
-                Aisle: {item.spoonacularData.aisle}
-              </span>
-            )}
           </div>
         )}
       </div>
 
-      {/* Quantity Controls - Horizontal layout */}
+      {/* Quantity Controls - Compact for desktop */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         backgroundColor: '#F8F9FA',
         border: '1px solid #E5E7EB',
-        borderRadius: '8px',
+        borderRadius: '6px',
         padding: '2px'
       }}>
         <button
           onClick={() => updateQuantity(item.id, -1)}
           disabled={(item.quantity || 1) <= 1}
           style={{
-            width: '32px',
-            height: '32px',
+            width: '28px',
+            height: '28px',
             border: 'none',
             backgroundColor: (item.quantity || 1) > 1 ? 'white' : 'transparent',
-            borderRadius: '6px',
+            borderRadius: '4px',
             cursor: (item.quantity || 1) > 1 ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '18px',
+            fontSize: '16px',
             fontWeight: '600',
             color: (item.quantity || 1) > 1 ? '#374151' : '#9CA3AF',
             transition: 'all 0.2s'
@@ -727,11 +666,11 @@ const ShoppingListItem = ({
             setQuantity(item.id, val);
           }}
           style={{
-            width: '44px',
+            width: '32px',
             textAlign: 'center',
             border: 'none',
             backgroundColor: 'transparent',
-            fontSize: '15px',
+            fontSize: '13px',
             fontWeight: '600',
             color: '#1F2937',
             outline: 'none'
@@ -741,16 +680,16 @@ const ShoppingListItem = ({
         <button
           onClick={() => updateQuantity(item.id, 1)}
           style={{
-            width: '32px',
-            height: '32px',
+            width: '28px',
+            height: '28px',
             border: 'none',
             backgroundColor: 'white',
-            borderRadius: '6px',
+            borderRadius: '4px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '18px',
+            fontSize: '16px',
             fontWeight: '600',
             color: '#374151',
             transition: 'all 0.2s',
@@ -973,25 +912,6 @@ const ShoppingListItem = ({
                   Additional Information
                 </h3>
 
-                {item.spoonacularData.badges && item.spoonacularData.badges.length > 0 && (
-                  <div>
-                    <strong style={{ fontSize: '14px', color: '#6B7280' }}>Product Badges:</strong>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
-                      {item.spoonacularData.badges.map((badge, idx) => (
-                        <span key={idx} style={{
-                          backgroundColor: '#E6F4EA',
-                          color: '#1E7E34',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          fontSize: '13px',
-                          fontWeight: '500'
-                        }}>
-                          ✓ {badge}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {item.spoonacularData.nutrition && (
                   <div>

@@ -338,13 +338,11 @@ function AppContent({
 
   // Auto-save cart to localStorage whenever it changes
   useEffect(() => {
-    if (currentCart.length > 0) {
-      try {
-        localStorage.setItem('cartsmash_cart', JSON.stringify(currentCart));
-        debugService.log(`💾 Auto-saved ${currentCart.length} cart items to localStorage`);
-      } catch (error) {
-        debugService.logError('Failed to save cart to localStorage:', error);
-      }
+    try {
+      localStorage.setItem('cartsmash_cart', JSON.stringify(currentCart));
+      debugService.log(`💾 Auto-saved ${currentCart.length} cart items to localStorage`);
+    } catch (error) {
+      debugService.logError('Failed to save cart to localStorage:', error);
     }
   }, [currentCart]);
 
