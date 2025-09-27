@@ -84,6 +84,7 @@ class SpoonacularService {
           apiKey: this.apiKey,
           query,
           number,
+          addProductInformation: true,  // Get full product data including image URLs
           ...options // Can include: minCarbs, maxCarbs, minProtein, maxProtein, etc.
         }
       });
@@ -100,7 +101,9 @@ class SpoonacularService {
         spoonacularId: product.id,
         name: product.title,
         brand: product.brand || 'Generic',
-        image_url: product.image || null,  // Use the full URL provided by Spoonacular API
+        // Use provided image URL, or construct it from ID and imageType
+        image_url: product.image || (product.id && product.imageType ?
+          `https://img.spoonacular.com/products/${product.id}-312x231.${product.imageType}` : null),
         imageType: product.imageType,
         // Spoonacular doesn't provide real-time pricing
         price: null,
