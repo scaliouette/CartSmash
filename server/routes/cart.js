@@ -390,7 +390,6 @@ router.post('/parse', async (req, res) => {
                   productPrice = 3.99;
                 }
               }
-            }
           } catch (spoonError) {
             logger.debug(`Could not match "${productName}" with Spoonacular:`, spoonError.message);
           }
