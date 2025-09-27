@@ -100,7 +100,7 @@ class SpoonacularService {
         spoonacularId: product.id,
         name: product.title,
         brand: product.brand || 'Generic',
-        image_url: product.image,
+        image_url: product.image ? `https://spoonacular.com/productImages/${product.id}-${product.imageType || 'jpg'}` : null,
         imageType: product.imageType,
         // Spoonacular doesn't provide real-time pricing
         price: null,

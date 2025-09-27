@@ -345,13 +345,23 @@ router.post('/parse', async (req, res) => {
           let spoonacularData = null;
           let productPrice = null;
           try {
+            // First try product search
             const spoonResult = await spoonacularService.searchGroceryProducts(searchQuery, 1);
             if (spoonResult.products && spoonResult.products.length > 0) {
               spoonacularData = spoonResult.products[0];
               logger.info(`✅ Matched "${productName}" with Spoonacular product: ${spoonacularData.name}`);
+            } else {
+              // Fallback to ingredient search for simple produce items
+              logger.debug(`No product found for "${searchQuery}", trying ingredient search...`);
+              const ingredientResult = await spoonacularService.searchIngredients(searchQuery, 1);
+              if (ingredientResult.results && ingredientResult.results.length > 0) {
+                spoonacularData = ingredientResult.results[0];
+                logger.info(`✅ Matched "${productName}" with Spoonacular ingredient: ${spoonacularData.name}`);
+              }
+            }
 
-              // Try to get detailed product info including price
-              if (spoonacularData.spoonacularId) {
+            // Try to get detailed product info including price if we have a product (not ingredient)
+            if (spoonacularData && spoonacularData.spoonacularId) {
                 try {
                   const detailedInfo = await spoonacularService.getProductInfo(spoonacularData.spoonacularId);
                   if (detailedInfo && detailedInfo.price) {
