@@ -500,7 +500,6 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
           const isSelected = selectedItems.has(item.id);
           const confidence = getConfidenceDisplay(item);
           const productImage = getProductImage(item);
-          const unitDisplay = formatUnitDisplay(item);
 
           return (
             <div
@@ -613,6 +612,17 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     {formatProductName(item.productName)}
                   </h3>
 
+                  {/* Brand */}
+                  {item.brand && (
+                    <div style={{
+                      color: '#6c757d',
+                      fontSize: '13px',
+                      marginTop: '-4px'
+                    }}>
+                      {item.brand}
+                    </div>
+                  )}
+
                   {/* Product Meta Info */}
                   <div style={{
                     display: 'flex',
@@ -620,34 +630,6 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     gap: '8px',
                     flexWrap: 'wrap'
                   }}>
-                    {/* Size/Package */}
-                    {(item.size || item.packageSize) && (
-                      <span style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: '500',
-                        backgroundColor: '#fff3cd',
-                        color: '#856404',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {item.size || item.packageSize}
-                      </span>
-                    )}
-
-                    {/* Unit Display */}
-                    <span style={{
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      fontWeight: '500',
-                      backgroundColor: '#ff8c00',
-                      color: 'white',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {unitDisplay}
-                    </span>
-
                     {/* Category */}
                     <span style={{
                       padding: '4px 8px',
@@ -662,17 +644,6 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                       {getCategory(item)}
                     </span>
 
-                    {/* Brand */}
-                    {item.brand && (
-                      <span style={{
-                        color: '#6c757d',
-                        fontSize: '11px',
-                        fontStyle: 'italic'
-                      }}>
-                        {item.brand}
-                      </span>
-                    )}
-
                     {/* Aisle */}
                     {item.aisle && (
                       <span style={{
@@ -685,6 +656,21 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                         whiteSpace: 'nowrap'
                       }}>
                         Aisle {item.aisle}
+                      </span>
+                    )}
+
+                    {/* Size/Package - moved to bottom */}
+                    {(item.size || item.packageSize) && (
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: '500',
+                        backgroundColor: '#ff8c00',
+                        color: 'white',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {item.size || item.packageSize}
                       </span>
                     )}
                   </div>
@@ -734,19 +720,9 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                       minWidth: '60px',
                       textAlign: 'right'
                     }}>
-                      ${typeof item.price === 'number' ? item.price.toFixed(2) : parseFloat(item.price || 0).toFixed(2)}
+                      ${typeof item.price === 'number' ? item.price.toFixed(2) : item.price ? parseFloat(item.price).toFixed(2) : ''}
                     </div>
-                  ) : (
-                    <div style={{
-                      fontSize: '14px',
-                      color: '#999',
-                      fontStyle: 'italic',
-                      minWidth: '60px',
-                      textAlign: 'right'
-                    }}>
-                      No price
-                    </div>
-                  )}
+                  ) : null}
 
                   {/* Simplified Quantity Input */}
                   <input
@@ -802,27 +778,6 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     </div>
                   )}
 
-                  {/* Select Product Button - Always available for product selection */}
-                  {onSelectProduct && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectProduct(item);
-                      }}
-                      style={{
-                        marginLeft: '8px',
-                        borderColor: '#002244',
-                        color: '#002244',
-                        fontSize: '12px',
-                        padding: '4px 8px',
-                        minWidth: 'auto'
-                      }}
-                    >
-                      Select
-                    </Button>
-                  )}
 
                   <IconButton
                     size="small"
