@@ -2,6 +2,7 @@
 // Enhanced Product Matching with Instacart API Confidence Scoring
 
 import React, { useState, useEffect, useCallback } from 'react';
+import imageService from '../utils/imageService';
 
 const InstacartProductMatcher = ({ initialSearchTerm, searchTerm, retailerId, onProductSelect, onClose }) => {
   const [products, setProducts] = useState([]);
@@ -201,10 +202,16 @@ const InstacartProductMatcher = ({ initialSearchTerm, searchTerm, retailerId, on
                   <div className="product-info">
                     <div className="product-image">
                       {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} />
-                      ) : (
-                        <div className="no-image">📦</div>
-                      )}
+                        <img
+                          src={imageService.useProxyIfNeeded(product.image_url)}
+                          alt={product.name}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div className="no-image" style={{display: product.image_url ? 'none' : 'flex'}}>📦</div>
                     </div>
 
                     <div className="product-details">
