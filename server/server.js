@@ -1105,7 +1105,6 @@ const routes = [
   { path: '/api/images', module: './routes/imageProxy' },  // Image proxy for CORS issues
   { path: '/api/product-validation', module: './routes/productValidationRoutes' },  // Enhanced product validation
   { path: '/api/smash-cart', module: './routes/smash-cart' },  // New comprehensive cart service
-  { path: '/api/cart', module: './routes/cart' },  // Cart parsing and management
   { path: '/api/grocery', module: './routes/grocery' },
   { path: '/api/account', module: './routes/account' },
   { path: '/api/stores', module: './routes/stores' },
