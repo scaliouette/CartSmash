@@ -240,19 +240,20 @@ class ImageService {
   getCategoryFromItem(item) {
     if (!item) return 'default';
 
+    // Trust the AI-assigned category first
     const category = (item.category || '').toLowerCase();
-    const name = (item.productName || item.name || '').toLowerCase();
 
-    // Category mapping
-    if (category.includes('produce') || name.includes('fruit') || name.includes('vegetable')) return 'produce';
-    if (category.includes('dairy') || name.includes('milk') || name.includes('cheese')) return 'dairy';
-    if (category.includes('meat') || name.includes('beef') || name.includes('chicken')) return 'meat';
-    if (category.includes('bakery') || name.includes('bread') || name.includes('baked')) return 'bakery';
-    if (category.includes('beverage') || name.includes('drink') || name.includes('juice')) return 'beverages';
-    if (category.includes('frozen') || name.includes('frozen')) return 'frozen';
-    if (category.includes('snack') || name.includes('chip') || name.includes('cookie')) return 'snacks';
-    if (category.includes('pantry') || name.includes('canned') || name.includes('pasta')) return 'pantry';
+    // Map AI categories to our image categories
+    if (category.includes('produce')) return 'produce';
+    if (category.includes('dairy')) return 'dairy';
+    if (category.includes('meat') || category.includes('poultry')) return 'meat';
+    if (category.includes('bakery')) return 'bakery';
+    if (category.includes('beverage')) return 'beverages';
+    if (category.includes('frozen')) return 'frozen';
+    if (category.includes('snack')) return 'snacks';
+    if (category.includes('pantry')) return 'pantry';
 
+    // Default fallback - let AI handle categorization
     return 'default';
   }
 
@@ -385,7 +386,7 @@ class ImageService {
       // Encode the original URL to pass as query parameter
       const encodedUrl = encodeURIComponent(url);
       const proxiedUrl = `${apiUrl}/api/images/proxy?url=${encodedUrl}`;
-      console.log('🖼️ Proxying Spoonacular image:', url, '→', proxiedUrl);
+      // Removed verbose logging for cleaner console
       return proxiedUrl;
     }
 
