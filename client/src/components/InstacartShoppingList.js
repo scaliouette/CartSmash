@@ -506,62 +506,26 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
               key={item.id}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '24px 80px 1fr auto',
-                gap: '16px',
+                gridTemplateColumns: '60px 1fr 80px',
+                gap: '12px',
                 alignItems: 'center',
                 backgroundColor: 'white',
-                borderRadius: '8px',
-                padding: '16px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                border: isSelected ? '2px solid #FB4F14' : '1px solid #e0e0e0',
-                transition: 'all 0.2s ease',
-                marginBottom: '12px'
+                padding: '12px',
+                borderBottom: '1px solid #e0e0e0'
               }}
             >
-                {/* Selection Checkbox - Now clickable! */}
-                <div
-                  onClick={() => toggleItemSelection(item.id)}
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '4px',
-                    border: isSelected ? 'none' : '2px solid #dee2e6',
-                    backgroundColor: isSelected ? '#FB4F14' : 'transparent',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.borderColor = '#FB4F14';
-                      e.currentTarget.style.backgroundColor = '#FFF5F0';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.borderColor = '#dee2e6';
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                    }
-                  }}
-                >
-                  {isSelected && <CheckIcon style={{ color: 'white', fontSize: '16px' }} />}
-                </div>
-
-                {/* Product Image Container - Fixed size */}
+                {/* Product Image - Smaller for mobile */}
                 <div style={{
-                  width: '80px',
-                  height: '80px',
+                  width: '60px',
+                  height: '60px',
                   position: 'relative',
                   flexShrink: 0
                 }}>
                   <div style={{
                     width: '100%',
                     height: '100%',
-                    borderRadius: '8px',
+                    borderRadius: '4px',
                     overflow: 'hidden',
-                    border: '1px solid #e0e0e0',
                     backgroundColor: '#f8f9fa'
                   }}>
                     {productImage ? (
@@ -600,131 +564,44 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                   minWidth: 0 /* Prevent text overflow */
                 }}>
                   {/* Product Name */}
-                  <h3 style={{
-                    margin: '0',
-                    fontSize: '16px',
+                  <div style={{
+                    fontSize: '14px',
                     fontWeight: '600',
                     color: '#1a1a1a',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
+                    marginBottom: '2px'
                   }}>
                     {formatProductName(item.productName)}
-                  </h3>
-
-                  {/* Brand */}
-                  {item.brand && (
-                    <div style={{
-                      color: '#6c757d',
-                      fontSize: '13px',
-                      marginTop: '-4px'
-                    }}>
-                      {item.brand}
-                    </div>
-                  )}
-
-                  {/* Product Meta Info */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    flexWrap: 'wrap'
-                  }}>
-                    {/* Category */}
-                    <span style={{
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      fontWeight: '500',
-                      backgroundColor: '#e9ecef',
-                      color: '#495057',
-                      textTransform: 'capitalize',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {getCategory(item)}
-                    </span>
-
-                    {/* Aisle */}
-                    {item.aisle && (
-                      <span style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: '500',
-                        backgroundColor: '#d1ecf1',
-                        color: '#0c5460',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        Aisle {item.aisle}
-                      </span>
-                    )}
-
-                    {/* Size/Package - moved to bottom */}
-                    {(item.size || item.packageSize) && (
-                      <span style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: '500',
-                        backgroundColor: '#ff8c00',
-                        color: 'white',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {item.size || item.packageSize}
-                      </span>
-                    )}
                   </div>
 
-                  {/* Badges Row */}
-                  {item.badges && item.badges.length > 0 && (
-                    <div style={{
-                      display: 'flex',
-                      gap: '6px',
-                      flexWrap: 'wrap'
-                    }}>
-                      {item.badges.slice(0, 3).map((badge, idx) => (
-                        <span
-                          key={idx}
-                          style={{
-                            fontSize: '10px',
-                            backgroundColor: badge.includes('organic') ? '#4caf50' :
-                                          badge.includes('gluten') ? '#ff9800' :
-                                          badge.includes('vegan') ? '#8bc34a' : '#9e9e9e',
-                            color: 'white',
-                            padding: '2px 6px',
-                            borderRadius: '3px',
-                            textTransform: 'capitalize',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          {badge.replace(/_/g, ' ')}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {/* Size/Brand as subtle text */}
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#6c757d'
+                  }}>
+                    {[item.brand, item.size || item.packageSize].filter(Boolean).join(' • ')}
+                  </div>
+
                 </div>
 
-                {/* Controls Section */}
+                {/* Price and Quantity Section */}
                 <div style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  flexShrink: 0
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  gap: '4px'
                 }}>
-                  {/* Price Display */}
-                  {(item.price !== null && item.price !== undefined) ? (
+                  {/* Price */}
+                  {(item.price !== null && item.price !== undefined) && (
                     <div style={{
-                      fontSize: '16px',
+                      fontSize: '14px',
                       fontWeight: '600',
-                      color: '#FB4F14',
-                      minWidth: '60px',
-                      textAlign: 'right'
+                      color: '#212529'
                     }}>
                       ${typeof item.price === 'number' ? item.price.toFixed(2) : item.price ? parseFloat(item.price).toFixed(2) : ''}
                     </div>
-                  ) : null}
+                  )}
 
-                  {/* Simplified Quantity Input */}
+                  {/* Quantity Input */}
                   <input
                     type="number"
                     value={item.shoppingMultiplier || item.quantity || 1}
@@ -740,58 +617,22 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     min="1"
                     max="99"
                     style={{
-                      width: '40px',
-                      height: '28px',
+                      width: '50px',
+                      height: '32px',
                       textAlign: 'center',
                       fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#212529',
                       border: '1px solid #dee2e6',
                       borderRadius: '4px',
                       backgroundColor: 'white',
-                      outline: 'none',
-                      transition: 'all 0.2s ease',
-                      MozAppearance: 'textfield',
-                      WebkitAppearance: 'none',
-                      appearance: 'textfield'
+                      outline: 'none'
                     }}
                     onFocus={(e) => {
                       e.target.style.borderColor = '#FB4F14';
-                      e.target.style.boxShadow = '0 0 0 3px #FFD4C4';
                     }}
                     onBlur={(e) => {
                       e.target.style.borderColor = '#dee2e6';
-                      e.target.style.boxShadow = 'none';
                     }}
                   />
-                  {/* Total price for quantity */}
-                  {item.price && (
-                    <div style={{
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#FB4F14',
-                      marginLeft: '8px',
-                      minWidth: '50px',
-                      textAlign: 'right'
-                    }}>
-                      ${(parseFloat(item.price) * (item.shoppingMultiplier || item.quantity || 1)).toFixed(2)}
-                    </div>
-                  )}
-
-
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteSingleItem(item.id);
-                    }}
-                    style={{
-                      color: '#dc3545',
-                      marginLeft: '8px'
-                    }}
-                  >
-                    <DeleteIcon style={{ fontSize: '18px' }} />
-                  </IconButton>
                 </div>
             </div>
           );

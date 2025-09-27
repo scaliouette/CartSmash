@@ -973,29 +973,7 @@ const InstacartCheckoutUnified = ({
             onLearnMore={() => window.setCurrentView?.('affiliate-disclosure')}
           />
 
-          <div className="checkout-actions">
-            <button
-              onClick={handleProceedToCheckout}
-              className="proceed-button instacart-primary-button"
-              style={{
-                backgroundColor: '#003D29',
-                color: 'white',
-                height: '46px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '0 24px',
-                width: '100%',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s ease'
-              }}
-              onMouseOver={(e) => e.target.style.backgroundColor = '#002D1F'}
-              onMouseOut={(e) => e.target.style.backgroundColor = '#003D29'}
-            >
-              {checkoutUrl ? '🛒 Shop on Instacart' : '🔄 Processing...'}
-            </button>
-          </div>
+          {/* Button removed - using footer button instead to avoid duplication */}
         </div>
       </div>
     );
