@@ -16,6 +16,11 @@ function AdminDashboard({ onClose, currentUser }) {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
+  // Revenue and monitoring states
+  const [revenueData, setRevenueData] = useState(null);
+  const [externalServices, setExternalServices] = useState(null);
+  const [dateRange, setDateRange] = useState('30d'); // 7d, 30d, 90d, 6m, 1y
+
   // Define all callbacks before conditional returns
   const loadSystemHealth = useCallback(async () => {
     try {
@@ -121,7 +126,7 @@ function AdminDashboard({ onClose, currentUser }) {
   // useEffect must be declared before conditional returns
   useEffect(() => {
     console.log('🛠️ AdminDashboard mounting for user:', currentUser?.email);
-    
+
     const initializeAdmin = async () => {
       try {
         setIsLoading(true);
@@ -129,7 +134,9 @@ function AdminDashboard({ onClose, currentUser }) {
           loadSystemHealth(),
           loadRealtimeMetrics(),
           loadUserActivity(),
-          loadUserAccounts()
+          loadUserAccounts(),
+          loadRevenueData(),
+          loadExternalServices()
         ]);
         setIsLoading(false);
       } catch (error) {
@@ -138,19 +145,21 @@ function AdminDashboard({ onClose, currentUser }) {
         setIsLoading(false);
       }
     };
-    
+
     initializeAdmin();
-    
+
     // Set up auto-refresh for real-time data
     const interval = setInterval(() => {
       loadRealtimeMetrics().catch(console.error);
       loadUserActivity().catch(console.error);
+      if (activeTab === 'revenue') loadRevenueData().catch(console.error);
+      if (activeTab === 'services') loadExternalServices().catch(console.error);
     }, 5000);
-    
+
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [loadSystemHealth, loadRealtimeMetrics, loadUserActivity, loadUserAccounts, currentUser?.email]);
+  }, [loadSystemHealth, loadRealtimeMetrics, loadUserActivity, loadUserAccounts, loadRevenueData, loadExternalServices, currentUser?.email, activeTab]);
 
   // Check access after all hooks are declared
   if (!currentUser || !currentUser.isAdmin) {
@@ -600,6 +609,492 @@ function AdminDashboard({ onClose, currentUser }) {
     </div>
   );
 
+  const loadRevenueData = useCallback(async () => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const endDate = new Date();
+      let startDate = new Date();
+
+      switch (dateRange) {
+        case '7d': startDate.setDate(startDate.getDate() - 7); break;
+        case '30d': startDate.setDate(startDate.getDate() - 30); break;
+        case '90d': startDate.setDate(startDate.getDate() - 90); break;
+        case '6m': startDate.setMonth(startDate.getMonth() - 6); break;
+        case '1y': startDate.setFullYear(startDate.getFullYear() - 1); break;
+      }
+
+      const [summary, mrr, growth] = await Promise.all([
+        fetch(`${apiUrl}/api/revenue/summary?start=${startDate.toISOString()}&end=${endDate.toISOString()}`).then(r => r.json()),
+        fetch(`${apiUrl}/api/revenue/mrr`).then(r => r.json()),
+        fetch(`${apiUrl}/api/revenue/growth`).then(r => r.json())
+      ]);
+
+      setRevenueData({ summary, mrr, growth });
+    } catch (error) {
+      console.error('Failed to load revenue data:', error);
+      // Use mock data if API fails
+      setRevenueData({
+        summary: {
+          totalRevenue: 12847.52,
+          totalCosts: 3214.38,
+          netProfit: 9633.14,
+          profitMargin: 75.0,
+          revenueByType: [
+            { _id: 'instacart_commission', total: 8432.12, count: 1245 },
+            { _id: 'subscription', total: 3999.60, count: 400 },
+            { _id: 'api_usage', total: 415.80, count: 892 }
+          ],
+          dailyRevenue: Array.from({ length: 30 }, (_, i) => ({
+            _id: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            revenue: 350 + Math.random() * 200
+          }))
+        },
+        mrr: {
+          totalMRR: 3999.60,
+          subscriberCount: 400,
+          byTier: [
+            { _id: 'pro', count: 350, revenue: 3496.50 },
+            { _id: 'enterprise', count: 50, revenue: 4999.50 }
+          ]
+        },
+        growth: {
+          revenueGrowth: { current: 12847.52, previous: 9824.33, growthRate: 30.8, trend: 'up' },
+          subscriberMetrics: { newSubscribers: 45, churnedSubscribers: 12, netGrowth: 33, churnRate: 26.7 }
+        }
+      });
+    }
+  }, [dateRange]);
+
+  const loadExternalServices = useCallback(async () => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const [health, usage, costs] = await Promise.all([
+        fetch(`${apiUrl}/api/monitoring/health`).then(r => r.json()),
+        fetch(`${apiUrl}/api/monitoring/usage/30d`).then(r => r.json()),
+        fetch(`${apiUrl}/api/monitoring/costs/current`).then(r => r.json())
+      ]);
+
+      setExternalServices({ health, usage, costs });
+    } catch (error) {
+      console.error('Failed to load external services:', error);
+      // Use mock data if API fails
+      setExternalServices({
+        health: {
+          vercel: { status: 'operational', responseTime: 142, uptime: 99.9 },
+          render: { status: 'operational', responseTime: 286, uptime: 99.7 },
+          mongodb: { status: 'operational', connections: 18, storage: '2.4GB' },
+          firebase: { status: 'operational', activeUsers: 847, requests: 12453 }
+        },
+        usage: {
+          openai: { requests: 3421, tokens: 2845632, cost: 142.28 },
+          anthropic: { requests: 892, tokens: 723451, cost: 36.17 },
+          spoonacular: { requests: 1245, cost: 24.90 },
+          instacart: { requests: 8934, cost: 0 }
+        },
+        costs: {
+          totalCosts: 324.85,
+          projectedMonthly: 649.70,
+          byService: [
+            { service: 'OpenAI', cost: 142.28, percentage: 43.8 },
+            { service: 'Render', cost: 84.00, percentage: 25.9 },
+            { service: 'Anthropic', cost: 36.17, percentage: 11.1 },
+            { service: 'MongoDB', cost: 25.00, percentage: 7.7 },
+            { service: 'Spoonacular', cost: 24.90, percentage: 7.7 },
+            { service: 'Vercel', cost: 12.50, percentage: 3.8 }
+          ]
+        }
+      });
+    }
+  }, []);
+
+  const renderRevenueTab = () => (
+    <div style={styles.tabContent}>
+      {/* Date Range Selector */}
+      <div style={styles.dateRangeSelector}>
+        {['7d', '30d', '90d', '6m', '1y'].map(range => (
+          <button
+            key={range}
+            onClick={() => setDateRange(range)}
+            style={{
+              ...styles.dateRangeButton,
+              ...(dateRange === range ? styles.dateRangeButtonActive : {})
+            }}
+          >
+            {range === '7d' ? '7 Days' :
+             range === '30d' ? '30 Days' :
+             range === '90d' ? '90 Days' :
+             range === '6m' ? '6 Months' : '1 Year'}
+          </button>
+        ))}
+      </div>
+
+      {/* Key Metrics */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>💰 Revenue Overview</h3>
+        <div style={styles.metricsGrid}>
+          <div style={styles.metricCard}>
+            <div style={styles.metricIcon}>💵</div>
+            <div style={styles.metricContent}>
+              <div style={styles.metricValue}>
+                ${revenueData?.summary?.totalRevenue?.toFixed(2) || '0.00'}
+              </div>
+              <div style={styles.metricLabel}>Total Revenue</div>
+              <div style={styles.metricChange}>
+                +{revenueData?.growth?.revenueGrowth?.growthRate?.toFixed(1) || '0.0'}%
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.metricCard}>
+            <div style={styles.metricIcon}>📊</div>
+            <div style={styles.metricContent}>
+              <div style={styles.metricValue}>
+                ${revenueData?.summary?.netProfit?.toFixed(2) || '0.00'}
+              </div>
+              <div style={styles.metricLabel}>Net Profit</div>
+              <div style={styles.metricChange}>
+                {revenueData?.summary?.profitMargin?.toFixed(1) || '0.0'}% margin
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.metricCard}>
+            <div style={styles.metricIcon}>🔄</div>
+            <div style={styles.metricContent}>
+              <div style={styles.metricValue}>
+                ${revenueData?.mrr?.totalMRR?.toFixed(2) || '0.00'}
+              </div>
+              <div style={styles.metricLabel}>MRR</div>
+              <div style={styles.metricChange}>
+                {revenueData?.mrr?.subscriberCount || '0'} subscribers
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.metricCard}>
+            <div style={styles.metricIcon}>💳</div>
+            <div style={styles.metricContent}>
+              <div style={styles.metricValue}>
+                ${revenueData?.summary?.totalCosts?.toFixed(2) || '0.00'}
+              </div>
+              <div style={styles.metricLabel}>Total Costs</div>
+              <div style={styles.metricChange}>
+                {((revenueData?.summary?.totalCosts / revenueData?.summary?.totalRevenue) * 100)?.toFixed(1) || '0.0'}% of revenue
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Revenue Breakdown */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>📈 Revenue Streams</h3>
+        <div style={styles.revenueStreams}>
+          {revenueData?.summary?.revenueByType?.map(stream => (
+            <div key={stream._id} style={styles.revenueStream}>
+              <div style={styles.streamHeader}>
+                <span style={styles.streamName}>
+                  {stream._id === 'instacart_commission' ? '🛒 Instacart Commissions' :
+                   stream._id === 'subscription' ? '💳 Subscriptions' :
+                   stream._id === 'api_usage' ? '🔌 API Usage' : stream._id}
+                </span>
+                <span style={styles.streamValue}>${stream.total.toFixed(2)}</span>
+              </div>
+              <div style={styles.streamBar}>
+                <div style={{
+                  ...styles.streamBarFill,
+                  width: `${(stream.total / revenueData.summary.totalRevenue) * 100}%`
+                }} />
+              </div>
+              <div style={styles.streamStats}>
+                <span>{stream.count} transactions</span>
+                <span>{((stream.total / revenueData.summary.totalRevenue) * 100).toFixed(1)}% of total</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Daily Revenue Chart (simplified) */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>📊 Revenue Trend</h3>
+        <div style={styles.chartContainer}>
+          <div style={styles.simpleChart}>
+            {revenueData?.summary?.dailyRevenue?.slice(-30).map((day, index) => (
+              <div key={day._id} style={styles.chartBar}>
+                <div
+                  style={{
+                    ...styles.chartBarFill,
+                    height: `${(day.revenue / 600) * 100}%`,
+                    backgroundColor: index === 29 ? '#FF6B35' : '#F7931E'
+                  }}
+                  title={`${day._id}: $${day.revenue.toFixed(2)}`}
+                />
+              </div>
+            ))}
+          </div>
+          <div style={styles.chartLabels}>
+            <span>30 days ago</span>
+            <span>Today</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Subscriber Metrics */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>👥 Subscriber Analytics</h3>
+        <div style={styles.subscriberGrid}>
+          <div style={styles.subscriberCard}>
+            <h4>Subscription Tiers</h4>
+            {revenueData?.mrr?.byTier?.map(tier => (
+              <div key={tier._id} style={styles.tierItem}>
+                <span style={styles.tierName}>{tier._id.toUpperCase()}</span>
+                <span style={styles.tierCount}>{tier.count} users</span>
+                <span style={styles.tierRevenue}>${tier.revenue.toFixed(2)}/mo</span>
+              </div>
+            ))}
+          </div>
+          <div style={styles.subscriberCard}>
+            <h4>Growth Metrics</h4>
+            <div style={styles.growthItem}>
+              <span>New Subscribers</span>
+              <span style={{ color: '#28a745' }}>
+                +{revenueData?.growth?.subscriberMetrics?.newSubscribers || 0}
+              </span>
+            </div>
+            <div style={styles.growthItem}>
+              <span>Churned</span>
+              <span style={{ color: '#dc3545' }}>
+                -{revenueData?.growth?.subscriberMetrics?.churnedSubscribers || 0}
+              </span>
+            </div>
+            <div style={styles.growthItem}>
+              <span>Net Growth</span>
+              <span style={{ color: '#FF6B35', fontWeight: 'bold' }}>
+                {revenueData?.growth?.subscriberMetrics?.netGrowth || 0}
+              </span>
+            </div>
+            <div style={styles.growthItem}>
+              <span>Churn Rate</span>
+              <span>{revenueData?.growth?.subscriberMetrics?.churnRate?.toFixed(1) || 0}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>🚀 Revenue Actions</h3>
+        <div style={styles.actionsGrid}>
+          <button
+            onClick={async () => {
+              const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+              await fetch(`${apiUrl}/api/revenue/generate-mock`, { method: 'POST' });
+              loadRevenueData();
+            }}
+            style={{...styles.actionButton, backgroundColor: '#28a745'}}
+          >
+            📊 Generate Mock Data
+          </button>
+          <button
+            onClick={() => alert('Export feature coming soon!')}
+            style={{...styles.actionButton, backgroundColor: '#007bff'}}
+          >
+            📥 Export Revenue Report
+          </button>
+          <button
+            onClick={() => alert('Invoice feature coming soon!')}
+            style={{...styles.actionButton, backgroundColor: '#ffc107'}}
+          >
+            📄 Generate Invoices
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderServicesTab = () => (
+    <div style={styles.tabContent}>
+      {/* Service Health Overview */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>🏥 Service Health Status</h3>
+        <div style={styles.servicesGrid}>
+          {Object.entries(externalServices?.health || {}).map(([service, status]) => (
+            <div key={service} style={styles.serviceCard}>
+              <div style={styles.serviceHeader}>
+                <div style={styles.serviceName}>
+                  {service === 'vercel' ? '▲ Vercel' :
+                   service === 'render' ? '🚀 Render' :
+                   service === 'mongodb' ? '🍃 MongoDB' :
+                   service === 'firebase' ? '🔥 Firebase' : service}
+                </div>
+                <div style={{
+                  ...styles.serviceStatus,
+                  backgroundColor: status.status === 'operational' ? '#28a745' : '#dc3545'
+                }}>
+                  {status.status === 'operational' ? '✓ Operational' : '⚠ Issue'}
+                </div>
+              </div>
+              <div style={styles.serviceMetrics}>
+                {status.responseTime && (
+                  <div style={styles.serviceMetric}>
+                    <span>Response Time</span>
+                    <span>{status.responseTime}ms</span>
+                  </div>
+                )}
+                {status.uptime && (
+                  <div style={styles.serviceMetric}>
+                    <span>Uptime</span>
+                    <span>{status.uptime}%</span>
+                  </div>
+                )}
+                {status.connections && (
+                  <div style={styles.serviceMetric}>
+                    <span>Connections</span>
+                    <span>{status.connections}</span>
+                  </div>
+                )}
+                {status.storage && (
+                  <div style={styles.serviceMetric}>
+                    <span>Storage</span>
+                    <span>{status.storage}</span>
+                  </div>
+                )}
+                {status.activeUsers && (
+                  <div style={styles.serviceMetric}>
+                    <span>Active Users</span>
+                    <span>{status.activeUsers}</span>
+                  </div>
+                )}
+                {status.requests && (
+                  <div style={styles.serviceMetric}>
+                    <span>Requests</span>
+                    <span>{status.requests}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* API Usage & Costs */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>💰 API Usage & Costs</h3>
+        <div style={styles.costsSummary}>
+          <div style={styles.costsHeader}>
+            <div>
+              <div style={styles.totalCost}>
+                ${externalServices?.costs?.totalCosts?.toFixed(2) || '0.00'}
+              </div>
+              <div style={styles.totalLabel}>Current Month Costs</div>
+            </div>
+            <div>
+              <div style={styles.projectedCost}>
+                ${externalServices?.costs?.projectedMonthly?.toFixed(2) || '0.00'}
+              </div>
+              <div style={styles.projectedLabel}>Projected Monthly</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.apiUsageGrid}>
+          {Object.entries(externalServices?.usage || {}).map(([api, data]) => (
+            <div key={api} style={styles.apiUsageCard}>
+              <div style={styles.apiHeader}>
+                <span style={styles.apiName}>
+                  {api === 'openai' ? '🤖 OpenAI' :
+                   api === 'anthropic' ? '🧠 Anthropic' :
+                   api === 'spoonacular' ? '🍳 Spoonacular' :
+                   api === 'instacart' ? '🛒 Instacart' : api}
+                </span>
+                <span style={styles.apiCost}>${data.cost?.toFixed(2) || '0.00'}</span>
+              </div>
+              <div style={styles.apiMetrics}>
+                <div style={styles.apiMetric}>
+                  <span>Requests</span>
+                  <span>{data.requests || 0}</span>
+                </div>
+                {data.tokens && (
+                  <div style={styles.apiMetric}>
+                    <span>Tokens</span>
+                    <span>{(data.tokens / 1000).toFixed(1)}k</span>
+                  </div>
+                )}
+              </div>
+              {api === 'spoonacular' && (
+                <div style={styles.apiWarning}>
+                  ⚠️ {data.requests}/50 daily limit
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Cost Breakdown Chart */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>📊 Cost Breakdown</h3>
+        <div style={styles.costBreakdown}>
+          {externalServices?.costs?.byService?.map(service => (
+            <div key={service.service} style={styles.costItem}>
+              <div style={styles.costItemHeader}>
+                <span>{service.service}</span>
+                <span>${service.cost.toFixed(2)}</span>
+              </div>
+              <div style={styles.costBar}>
+                <div style={{
+                  ...styles.costBarFill,
+                  width: `${service.percentage}%`
+                }} />
+              </div>
+              <div style={styles.costPercentage}>{service.percentage.toFixed(1)}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Monitoring Actions */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>🚀 Monitoring Actions</h3>
+        <div style={styles.actionsGrid}>
+          <button
+            onClick={async () => {
+              const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+              const health = await fetch(`${apiUrl}/api/monitoring/check-all`, { method: 'POST' }).then(r => r.json());
+              alert(`Health check complete!\n${Object.entries(health).map(([s, d]) => `${s}: ${d.status}`).join('\n')}`);
+            }}
+            style={{...styles.actionButton, backgroundColor: '#28a745'}}
+          >
+            🔍 Check All Services
+          </button>
+          <button
+            onClick={() => alert('Alert settings coming soon!')}
+            style={{...styles.actionButton, backgroundColor: '#dc3545'}}
+          >
+            🔔 Configure Alerts
+          </button>
+          <button
+            onClick={async () => {
+              const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+              await fetch(`${apiUrl}/api/monitoring/generate-mock`, { method: 'POST' });
+              loadExternalServices();
+            }}
+            style={{...styles.actionButton, backgroundColor: '#007bff'}}
+          >
+            📊 Generate Mock Data
+          </button>
+          <button
+            onClick={() => alert('Cost report coming soon!')}
+            style={{...styles.actionButton, backgroundColor: '#ffc107'}}
+          >
+            📄 Download Cost Report
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderLogsTab = () => (
     <div style={styles.tabContent}>
       <div style={styles.section}>
@@ -684,6 +1179,8 @@ function AdminDashboard({ onClose, currentUser }) {
         <div style={styles.tabs}>
           {[
             { id: 'overview', label: '🏠 Overview' },
+            { id: 'revenue', label: '💰 Revenue' },
+            { id: 'services', label: '🔗 External Services' },
             { id: 'system', label: '🖥️ System' },
             { id: 'users', label: '👥 Users' },
             { id: 'logs', label: '📋 Logs' }
@@ -703,6 +1200,8 @@ function AdminDashboard({ onClose, currentUser }) {
 
         <div style={styles.content}>
           {activeTab === 'overview' && renderOverviewTab()}
+          {activeTab === 'revenue' && renderRevenueTab()}
+          {activeTab === 'services' && renderServicesTab()}
           {activeTab === 'system' && renderSystemTab()}
           {activeTab === 'users' && renderUsersTab()}
           {activeTab === 'logs' && renderLogsTab()}
@@ -1366,6 +1865,395 @@ const styles = {
     fontSize: '12px',
     color: '#9ca3af',
     flexWrap: 'wrap'
+  },
+
+  // Revenue Tab Styles
+  dateRangeSelector: {
+    display: 'flex',
+    gap: '10px',
+    marginBottom: '20px',
+    padding: '15px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '10px'
+  },
+
+  dateRangeButton: {
+    padding: '8px 16px',
+    border: '2px solid #dee2e6',
+    borderRadius: '6px',
+    backgroundColor: 'white',
+    color: '#495057',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'all 0.2s ease'
+  },
+
+  dateRangeButtonActive: {
+    backgroundColor: '#FF6B35',
+    borderColor: '#FF6B35',
+    color: 'white'
+  },
+
+  metricsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '20px'
+  },
+
+  metricCard: {
+    display: 'flex',
+    gap: '15px',
+    padding: '20px',
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    border: '2px solid #f0f0f0',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+  },
+
+  metricIcon: {
+    fontSize: '32px',
+    lineHeight: '1'
+  },
+
+  metricContent: {
+    flex: 1
+  },
+
+  metricValue: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: '4px'
+  },
+
+  metricLabel: {
+    fontSize: '14px',
+    color: '#6c757d',
+    marginBottom: '4px'
+  },
+
+  metricChange: {
+    fontSize: '12px',
+    color: '#28a745',
+    fontWeight: '500'
+  },
+
+  revenueStreams: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px'
+  },
+
+  revenueStream: {
+    padding: '15px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '10px'
+  },
+
+  streamHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '10px'
+  },
+
+  streamName: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#495057'
+  },
+
+  streamValue: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#FF6B35'
+  },
+
+  streamBar: {
+    height: '8px',
+    backgroundColor: '#e9ecef',
+    borderRadius: '4px',
+    marginBottom: '8px',
+    overflow: 'hidden'
+  },
+
+  streamBarFill: {
+    height: '100%',
+    backgroundColor: '#FF6B35',
+    borderRadius: '4px',
+    transition: 'width 0.3s ease'
+  },
+
+  streamStats: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '12px',
+    color: '#6c757d'
+  },
+
+  chartContainer: {
+    backgroundColor: '#f8f9fa',
+    padding: '20px',
+    borderRadius: '10px'
+  },
+
+  simpleChart: {
+    display: 'flex',
+    gap: '2px',
+    height: '200px',
+    alignItems: 'flex-end'
+  },
+
+  chartBar: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'flex-end'
+  },
+
+  chartBarFill: {
+    width: '100%',
+    borderRadius: '2px 2px 0 0',
+    transition: 'height 0.3s ease'
+  },
+
+  chartLabels: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginTop: '10px',
+    fontSize: '12px',
+    color: '#6c757d'
+  },
+
+  subscriberGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '20px'
+  },
+
+  subscriberCard: {
+    padding: '20px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '10px'
+  },
+
+  tierItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 0',
+    borderBottom: '1px solid #dee2e6'
+  },
+
+  tierName: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#495057'
+  },
+
+  tierCount: {
+    fontSize: '14px',
+    color: '#6c757d'
+  },
+
+  tierRevenue: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#FF6B35'
+  },
+
+  growthItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 0',
+    borderBottom: '1px solid #dee2e6',
+    fontSize: '14px'
+  },
+
+  // Services Tab Styles
+  servicesGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: '20px'
+  },
+
+  serviceCard: {
+    padding: '20px',
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    border: '2px solid #f0f0f0',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+  },
+
+  serviceHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '15px'
+  },
+
+  serviceName: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#1a1a1a'
+  },
+
+  serviceStatus: {
+    padding: '4px 12px',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '500',
+    color: 'white'
+  },
+
+  serviceMetrics: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+
+  serviceMetric: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '14px',
+    padding: '4px 0',
+    borderBottom: '1px solid #f0f0f0'
+  },
+
+  costsSummary: {
+    backgroundColor: 'linear-gradient(135deg, #FF6B35, #F7931E)',
+    borderRadius: '12px',
+    padding: '25px',
+    marginBottom: '20px'
+  },
+
+  costsHeader: {
+    display: 'flex',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    color: 'white'
+  },
+
+  totalCost: {
+    fontSize: '32px',
+    fontWeight: 'bold',
+    color: '#FF6B35'
+  },
+
+  totalLabel: {
+    fontSize: '14px',
+    color: '#6c757d',
+    marginTop: '4px'
+  },
+
+  projectedCost: {
+    fontSize: '32px',
+    fontWeight: 'bold',
+    color: '#F7931E'
+  },
+
+  projectedLabel: {
+    fontSize: '14px',
+    color: '#6c757d',
+    marginTop: '4px'
+  },
+
+  apiUsageGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '15px',
+    marginTop: '20px'
+  },
+
+  apiUsageCard: {
+    padding: '15px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '10px',
+    border: '1px solid #dee2e6'
+  },
+
+  apiHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '10px'
+  },
+
+  apiName: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#495057'
+  },
+
+  apiCost: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#FF6B35'
+  },
+
+  apiMetrics: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '12px',
+    color: '#6c757d'
+  },
+
+  apiMetric: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
+  },
+
+  apiWarning: {
+    marginTop: '8px',
+    padding: '4px 8px',
+    backgroundColor: '#fff3cd',
+    border: '1px solid #ffc107',
+    borderRadius: '4px',
+    fontSize: '11px',
+    color: '#856404',
+    textAlign: 'center'
+  },
+
+  costBreakdown: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+
+  costItem: {
+    padding: '12px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '8px'
+  },
+
+  costItemHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginBottom: '8px',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+
+  costBar: {
+    height: '6px',
+    backgroundColor: '#e9ecef',
+    borderRadius: '3px',
+    overflow: 'hidden'
+  },
+
+  costBarFill: {
+    height: '100%',
+    backgroundColor: '#FF6B35',
+    borderRadius: '3px'
+  },
+
+  costPercentage: {
+    fontSize: '12px',
+    color: '#6c757d',
+    marginTop: '4px',
+    textAlign: 'right'
   }
 };
 

@@ -1116,7 +1116,9 @@ const routes = [
   { path: '/api/recipes', module: './routes/unifiedRoutes' },  // Unified recipe management system
   { path: '/api/unified', module: './routes/unifiedRoutes' },  // Unified recipe system (also at /unified)
   { path: '/api/debug', module: './routes/debugRoutes' },  // Debug and error tracking system
-  { path: '/api/cache', module: './routes/cacheManagement' }  // Product cache management
+  { path: '/api/cache', module: './routes/cacheManagement' },  // Product cache management
+  { path: '/api/revenue', module: './routes/revenue' },  // Revenue tracking and analytics
+  { path: '/api/monitoring', module: './routes/monitoring' }  // External service monitoring
 ];
 
 routes.forEach(route => {
