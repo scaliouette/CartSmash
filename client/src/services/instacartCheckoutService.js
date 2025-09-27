@@ -1,6 +1,8 @@
 // client/src/services/instacartCheckoutService.js
 // Dedicated Instacart Checkout Service - Separate from existing cart system
 
+import { auth } from '../firebase/config';
+
 class InstacartCheckoutService {
   constructor() {
     this.apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
@@ -12,6 +14,27 @@ class InstacartCheckoutService {
     this.cacheExpiry = 30 * 60 * 1000; // 30 minutes
 
     console.log('🛒 InstacartCheckoutService initialized');
+  }
+
+  /**
+   * Helper method to get headers with authentication
+   */
+  async getAuthHeaders() {
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    // Try to get Firebase auth token
+    if (auth.currentUser) {
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        headers['Authorization'] = `Bearer ${idToken}`;
+      } catch (error) {
+        console.error('⚠️ Error getting Firebase ID token:', error);
+      }
+    }
+
+    return headers;
   }
 
   // ============ RETAILER MANAGEMENT ============
@@ -228,9 +251,7 @@ class InstacartCheckoutService {
 
       const response = await fetch(`${this.apiUrl}/api/instacart/cart/create`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: await this.getAuthHeaders(),
         body: JSON.stringify(requestBody)
       });
 
@@ -274,9 +295,7 @@ class InstacartCheckoutService {
     try {
       const response = await fetch(`${this.apiUrl}/api/instacart/cart/${cartId}/status`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        headers: await this.getAuthHeaders()
       });
 
       if (!response.ok) {
@@ -320,9 +339,7 @@ class InstacartCheckoutService {
 
       const response = await fetch(`${this.apiUrl}/api/instacart/recipe/create`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: await this.getAuthHeaders(),
         body: JSON.stringify(requestBody)
       });
 
@@ -365,9 +382,7 @@ class InstacartCheckoutService {
 
       const response = await fetch(`${this.apiUrl}/api/instacart/shopping-list/create`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: await this.getAuthHeaders(),
         body: JSON.stringify(requestBody)
       });
 
