@@ -100,7 +100,7 @@ class SpoonacularService {
         spoonacularId: product.id,
         name: product.title,
         brand: product.brand || 'Generic',
-        image_url: product.image ? `https://spoonacular.com/productImages/${product.id}-${product.imageType || 'jpg'}` : null,
+        image_url: product.image || null,  // Use the full URL provided by Spoonacular API
         imageType: product.imageType,
         // Spoonacular doesn't provide real-time pricing
         price: null,
@@ -174,7 +174,7 @@ class SpoonacularService {
         id: `ingredient_${ingredient.id}`,
         spoonacularId: ingredient.id,
         name: ingredient.name,
-        image_url: `https://spoonacular.com/cdn/ingredients_500x500/${ingredient.image}`,
+        image_url: `https://img.spoonacular.com/ingredients_500x500/${ingredient.image}`,  // Use img subdomain
         image: ingredient.image,
         aisle: ingredient.aisle,
         possibleUnits: ingredient.possibleUnits || [],
