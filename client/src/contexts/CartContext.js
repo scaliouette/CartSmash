@@ -58,22 +58,70 @@ export const CartProvider = ({ children }) => {
   };
 
   const loadLocalData = () => {
-    // ✅ REMOVED: No localStorage persistence - session state only for unauthenticated users
-    console.log('📋 Using session state only (no localStorage persistence)');
-    setCurrentCart([]);
-    setSavedLists([]);
-    setMealPlans([]);
+    // Load from localStorage for persistence across sessions
+    console.log('📋 Loading cart data from localStorage');
+    try {
+      const savedCart = localStorage.getItem('cartsmash_cart');
+      const savedListsData = localStorage.getItem('cartsmash_lists');
+      const savedRecipesData = localStorage.getItem('cartsmash_recipes');
+      const savedMealPlansData = localStorage.getItem('cartsmash_mealplans');
+
+      if (savedCart) {
+        const parsed = JSON.parse(savedCart);
+        setCurrentCart(Array.isArray(parsed) ? parsed : []);
+      } else {
+        setCurrentCart([]);
+      }
+
+      if (savedListsData) {
+        const parsed = JSON.parse(savedListsData);
+        setSavedLists(Array.isArray(parsed) ? parsed : []);
+      } else {
+        setSavedLists([]);
+      }
+
+      if (savedRecipesData) {
+        const parsed = JSON.parse(savedRecipesData);
+        setSavedRecipes(Array.isArray(parsed) ? parsed : []);
+      } else {
+        setSavedRecipes([]);
+      }
+
+      if (savedMealPlansData) {
+        const parsed = JSON.parse(savedMealPlansData);
+        setMealPlans(Array.isArray(parsed) ? parsed : []);
+      } else {
+        setMealPlans([]);
+      }
+    } catch (error) {
+      console.error('Failed to load from localStorage:', error);
+      // Initialize with empty arrays if localStorage fails
+      setCurrentCart([]);
+      setSavedLists([]);
+      setSavedRecipes([]);
+      setMealPlans([]);
+    }
   };
 
-  // ✅ REMOVED: localStorage backup - using Firestore for authenticated users, session state for unauthenticated
+  // Save data to localStorage for persistence
   const saveToLocal = useCallback(() => {
-    // No localStorage persistence - handled by proper data service layer
-    console.log('📊 Cart state updated:', {
-      cartItems: currentCart.length,
-      lists: savedLists.length,
-      mealPlans: mealPlans.length
-    });
-  }, [currentCart, savedLists, mealPlans]);
+    try {
+      // Save cart data to localStorage
+      localStorage.setItem('cartsmash_cart', JSON.stringify(currentCart));
+      localStorage.setItem('cartsmash_lists', JSON.stringify(savedLists));
+      localStorage.setItem('cartsmash_recipes', JSON.stringify(savedRecipes));
+      localStorage.setItem('cartsmash_mealplans', JSON.stringify(mealPlans));
+
+      console.log('💾 Saved to localStorage:', {
+        cartItems: currentCart.length,
+        lists: savedLists.length,
+        recipes: savedRecipes.length,
+        mealPlans: mealPlans.length
+      });
+    } catch (error) {
+      console.error('Failed to save to localStorage:', error);
+    }
+  }, [currentCart, savedLists, savedRecipes, mealPlans]);
 
   // Auto-save to local storage
   useEffect(() => {
