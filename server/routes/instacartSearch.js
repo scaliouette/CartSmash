@@ -140,27 +140,28 @@ router.post('/search', async (req, res) => {
       if (spoonacularResult.products && spoonacularResult.products.length > 0) {
         logger.info(`Spoonacular returned ${spoonacularResult.products.length} products`);
 
-        // Convert Spoonacular products to our format with estimated pricing
-        products = spoonacularResult.products.map(sp => ({
-          id: sp.id || `spoonacular_${Date.now()}_${Math.random()}`,
-          name: sp.name,
-          brand: sp.brand || 'Generic',
-          price: estimatePrice(sp.name, sp.aisle, sp.brand), // Use estimated pricing
+        // Only take the FIRST (best match) product to avoid duplicates
+        const bestMatch = spoonacularResult.products[0];
+        products = [{
+          id: bestMatch.id || `spoonacular_${Date.now()}_${Math.random()}`,
+          name: bestMatch.name,
+          brand: bestMatch.brand || 'Generic',
+          price: estimatePrice(bestMatch.name, bestMatch.aisle, bestMatch.brand), // Use estimated pricing
           estimated_price: true, // Flag that this is an estimate
-          image_url: sp.image_url,
-          package_size: sp.servingSize || sp.size || '1 item',
-          unit: sp.unit || 'item',
+          image_url: bestMatch.image_url,
+          package_size: bestMatch.servingSize || bestMatch.size || '1 item',
+          unit: bestMatch.unit || 'item',
           quantity: 1,
           availability: 'check_store',
-          upc: sp.upc || null,
-          aisle: sp.aisle,
-          badges: sp.badges,
-          nutrition: sp.nutrition,
+          upc: bestMatch.upc || null,
+          aisle: bestMatch.aisle,
+          badges: bestMatch.badges,
+          nutrition: bestMatch.nutrition,
           confidence: 0.8,
           source: 'spoonacular',
-          size: sp.servingSize,
-          containerType: sp.containerType
-        }));
+          size: bestMatch.servingSize,
+          containerType: bestMatch.containerType
+        }];
       }
     } catch (spoonError) {
       logger.warn('Spoonacular search failed:', spoonError.message);
@@ -174,26 +175,27 @@ router.post('/search', async (req, res) => {
         const cachedProducts = await productCacheBuilder.searchCachedProducts(query, 10);
 
         if (cachedProducts && cachedProducts.length > 0) {
-          logger.info(`Found ${cachedProducts.length} cached products`);
-          products = cachedProducts.map(cp => ({
-            id: cp._id || `cached_${Date.now()}_${Math.random()}`,
-            name: cp.name,
-            brand: cp.brand || 'Generic',
-            price: estimatePrice(cp.name, cp.aisle, cp.brand), // Use estimated pricing
+          logger.info(`Found ${cachedProducts.length} cached products, using best match only`);
+          const bestCached = cachedProducts[0];
+          products = [{
+            id: bestCached._id || `cached_${Date.now()}_${Math.random()}`,
+            name: bestCached.name,
+            brand: bestCached.brand || 'Generic',
+            price: estimatePrice(bestCached.name, bestCached.aisle, bestCached.brand), // Use estimated pricing
             estimated_price: true,
-            image_url: cp.imageUrl,
-            package_size: cp.servingSize || '1 item',
+            image_url: bestCached.imageUrl,
+            package_size: bestCached.servingSize || '1 item',
             unit: 'item',
             quantity: 1,
             availability: 'check_store',
-            badges: cp.badges,
-            aisle: cp.aisle,
-            nutrition: cp.nutrition,
+            badges: bestCached.badges,
+            aisle: bestCached.aisle,
+            nutrition: bestCached.nutrition,
             confidence: 0.75,
             source: 'cache',
-            size: cp.servingSize,
-            containerType: cp.containerType
-          }));
+            size: bestCached.servingSize,
+            containerType: bestCached.containerType
+          }];
         }
       } catch (cacheError) {
         logger.warn('Cache fallback failed:', cacheError.message);

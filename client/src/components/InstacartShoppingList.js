@@ -363,12 +363,16 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                   Shopping List
                 </h2>
                 <p style={{
-                  color: 'rgba(255,255,255,0.8)',
-                  margin: '0',
-                  fontSize: '14px',
-                  fontWeight: '400'
+                  color: 'white',
+                  margin: '2px 0 0 0',
+                  fontSize: '16px',
+                  fontWeight: '500',
+                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  display: 'inline-block'
                 }}>
-                  {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
+                  {items.length} {items.length === 1 ? 'item' : 'items'}
                 </p>
               </div>
             </div>
@@ -506,14 +510,29 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
               key={item.id}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '60px 1fr 80px',
+                gridTemplateColumns: '32px 60px 1fr 80px',
                 gap: '12px',
                 alignItems: 'center',
-                backgroundColor: 'white',
+                backgroundColor: isSelected ? '#f0f7ff' : 'white',
                 padding: '12px',
-                borderBottom: '1px solid #e0e0e0'
+                borderBottom: '1px solid #e0e0e0',
+                cursor: 'pointer'
               }}
+              onClick={() => toggleItemSelection(item.id)}
             >
+                {/* Checkbox */}
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleItemSelection(item.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    cursor: 'pointer'
+                  }}
+                />
+
                 {/* Product Image - Smaller for mobile */}
                 <div style={{
                   width: '60px',

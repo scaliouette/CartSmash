@@ -400,7 +400,7 @@ class ImageService {
 
       // For local development, use local server
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const proxyBase = isLocal ? 'http://localhost:3001' : apiUrl;
+      const proxyBase = isLocal ? 'http://localhost:3059' : apiUrl;
 
       // Encode the original URL to pass as query parameter
       const encodedUrl = encodeURIComponent(url);
