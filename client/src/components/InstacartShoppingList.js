@@ -499,10 +499,8 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                 padding: '16px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                 border: isSelected ? '2px solid #007bff' : '1px solid #e9ecef',
-                cursor: 'pointer',
                 transition: 'all 0.2s ease'
               }}
-              onClick={() => toggleItemSelection(item.id)}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 {/* Selection Checkbox */}

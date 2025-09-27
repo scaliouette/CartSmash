@@ -159,6 +159,8 @@ const ShoppingListItem = ({
               whiteSpace: 'nowrap'
             }}>
               {getCategory(item)} • {item.brand ? formatProductName(item.brand) : 'Generic'}
+              {item.aisle && ` • Aisle: ${item.aisle}`}
+              {item.price && ` • $${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}`}
             </p>
             {/* Confidence Badge */}
             <span style={{

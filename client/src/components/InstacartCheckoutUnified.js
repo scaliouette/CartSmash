@@ -7,12 +7,12 @@ import instacartCheckoutService from '../services/instacartCheckoutService';
 import instacartShoppingListService from '../services/instacartShoppingListService';
 import AffiliateDisclosureNotice from './AffiliateDisclosureNotice';
 import debugService from '../services/debugService';
+import '../styles/InstacartCheckoutUnified.css';
 // No-op debug stubs (cleaned up for production)
 const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
 const createTimer = () => ({ start: () => {}, mark: () => {}, end: () => {} });
 const conditionalLog = { apiCall: () => {}, componentLifecycle: () => {}, stateChange: () => {}, performance: () => {} };
 const componentId = 'InstacartCheckoutUnified';
-// CSS styles now integrated with main application styles
 
 const InstacartCheckoutUnified = ({
   items = [],
