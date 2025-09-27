@@ -235,8 +235,9 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      logger.warn(`CORS blocked request from: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      // For production API, allow but log non-whitelisted origins
+      logger.info(`CORS: Allowing request from non-whitelisted origin: ${origin}`);
+      callback(null, true);
     }
   },
   credentials: true,

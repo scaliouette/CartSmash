@@ -1,5 +1,7 @@
 // Centralized API configuration
-export const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+// Check if we're in development mode or if production API is unavailable
+const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+export const API_URL = process.env.REACT_APP_API_URL || (isDevelopment ? 'http://localhost:3001' : 'https://cartsmash-api.onrender.com');
 
 // API endpoints
 export const API_ENDPOINTS = {

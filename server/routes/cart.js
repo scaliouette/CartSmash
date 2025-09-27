@@ -132,6 +132,54 @@ function mergeDuplicates(items) {
   return merged;
 }
 
+// Function to determine category based on product name
+function determineCategory(productName) {
+  if (!productName) return 'other';
+
+  const name = productName.toLowerCase();
+
+  // Produce items (fruits and vegetables)
+  const produceItems = [
+    'avocado', 'tomato', 'lettuce', 'spinach', 'kale', 'carrot', 'onion',
+    'potato', 'pepper', 'cucumber', 'broccoli', 'cauliflower', 'zucchini',
+    'apple', 'banana', 'orange', 'strawberry', 'blueberry', 'grape',
+    'watermelon', 'pineapple', 'mango', 'peach', 'pear', 'plum',
+    'celery', 'asparagus', 'corn', 'mushroom', 'garlic', 'ginger'
+  ];
+
+  // Dairy items
+  const dairyItems = [
+    'milk', 'cheese', 'yogurt', 'butter', 'cream', 'sour cream',
+    'cottage cheese', 'ice cream', 'whipped cream'
+  ];
+
+  // Meat items
+  const meatItems = [
+    'chicken', 'beef', 'pork', 'turkey', 'lamb', 'fish', 'salmon',
+    'tuna', 'shrimp', 'bacon', 'sausage', 'ham', 'steak'
+  ];
+
+  // Bakery items
+  const bakeryItems = [
+    'bread', 'bagel', 'muffin', 'croissant', 'donut', 'cake', 'pie',
+    'roll', 'bun', 'tortilla', 'pita'
+  ];
+
+  // Check categories
+  if (produceItems.some(item => name.includes(item))) return 'produce';
+  if (dairyItems.some(item => name.includes(item))) return 'dairy';
+  if (meatItems.some(item => name.includes(item))) return 'meat';
+  if (bakeryItems.some(item => name.includes(item))) return 'bakery';
+
+  // Check for common category keywords
+  if (name.includes('fruit') || name.includes('vegetable')) return 'produce';
+  if (name.includes('frozen')) return 'frozen';
+  if (name.includes('snack') || name.includes('chip') || name.includes('cookie')) return 'snacks';
+  if (name.includes('beverage') || name.includes('drink') || name.includes('soda') || name.includes('juice')) return 'beverages';
+
+  return 'pantry'; // Default to pantry instead of 'other'
+}
+
 // Middleware to get user ID with validation
 const getUserId = (req) => {
   const userId = req.headers['user-id'] || req.body?.userId || 'default-user';
@@ -342,7 +390,7 @@ router.post('/parse', async (req, res) => {
             productName: productName, // GUARANTEED to be a string
             quantity: product.quantity || ingredientData.qty || 1,
             unit: product.unit || ingredientData.unit || 'each',
-            category: product.category || 'other',
+            category: product.category || determineCategory(productName),
             confidence: product.confidence || 0.8,
             needsReview: product.confidence < 0.6,
             original: product.original || productName,
