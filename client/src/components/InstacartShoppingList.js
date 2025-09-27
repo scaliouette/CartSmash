@@ -896,7 +896,6 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     <DeleteIcon style={{ fontSize: '18px' }} />
                   </IconButton>
                 </div>
-              </div>
             </div>
           );
         })}
