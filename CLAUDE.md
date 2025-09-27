@@ -2,16 +2,50 @@
 
 This file contains essential information for Claude Code and future development work.
 
-## 🚨 CRITICAL PRODUCTION ISSUES FIXED (2025-09-25)
+## 🎨 Brand Colors (Updated 2025-09-27)
 
-### Logger Initialization Error - FIXED
+### Official CartSmash Color Palette
+- **Primary Orange**: `#FB4F14` (vibrant orange)
+- **Primary Navy**: `#002244` (deep navy)
+- **Light Orange**: `#FFD4C4` (soft peach for backgrounds)
+- **Light Blue**: `#7B9AC8` (soft blue accent)
+- **Orange Tint**: `#FFF5F0` (barely orange for backgrounds)
+- **Blue Tint**: `#E6EBF2` (barely blue for backgrounds)
+
+## 🚨 CRITICAL PRODUCTION ISSUES FIXED (2025-09-27)
+
+### JSX Syntax Error in Shopping List - FIXED
+- **Issue**: Build failed with "Adjacent JSX elements must be wrapped" error at line 900
+- **Cause**: Extra closing `</div>` tag creating invalid JSX structure
+- **Fix**: Removed duplicate closing div tag
+- **File**: `client/src/components/InstacartShoppingList.js`
+- **Status**: ✅ FIXED - Build now succeeds
+
+### Pricing Display Issue - RESOLVED
+- **Issue**: All products showing price: 0 or no price
+- **Root Cause**: Spoonacular API doesn't provide real-time pricing data
+- **Solution**: Implemented intelligent price estimation based on product categories
+- **Implementation**: `server/routes/instacartSearch.js` - estimatePrice() function
+- **Status**: ✅ Products now show realistic estimated prices ($0.99-$29.99)
+
+### Shopping List UI Overhaul - COMPLETE
+- **Issue**: Cluttered interface with oversized controls and misaligned elements
+- **Changes**:
+  - Replaced large circular increment buttons with single editable input box
+  - Applied CSS Grid layout for proper alignment
+  - Fixed checkbox selection functionality with onClick handler
+  - Applied CartSmash brand colors throughout
+- **Files**: `client/src/components/InstacartShoppingList.js`
+- **Status**: ✅ Clean, minimal "less is more" design implemented
+
+### Logger Initialization Error - FIXED (2025-09-25)
 - **Issue**: Server crashed with `ReferenceError: Cannot access 'logger' before initialization`
 - **Cause**: Logger was being used on line 21 before being defined on line 45
 - **Fix**: Moved logger initialization to line 19, before first usage
 - **File**: `server/server.js`
 - **Status**: ✅ FIXED and deployed
 
-### Security & Production Readiness - COMPLETE
+### Security & Production Readiness - COMPLETE (2025-09-25)
 - **Authentication**: Added to ALL sensitive endpoints
 - **Input Validation**: Created `middleware/validation.js` with XSS/SQL injection protection
 - **Error Handling**: Global error handler in `middleware/errorHandler.js`

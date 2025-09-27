@@ -514,7 +514,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                 borderRadius: '8px',
                 padding: '16px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                border: isSelected ? '2px solid #007bff' : '1px solid #e0e0e0',
+                border: isSelected ? '2px solid #FB4F14' : '1px solid #e0e0e0',
                 transition: 'all 0.2s ease',
                 marginBottom: '12px'
               }}
@@ -527,7 +527,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     height: '24px',
                     borderRadius: '4px',
                     border: isSelected ? 'none' : '2px solid #dee2e6',
-                    backgroundColor: isSelected ? '#007bff' : 'transparent',
+                    backgroundColor: isSelected ? '#FB4F14' : 'transparent',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -536,8 +536,8 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected) {
-                      e.currentTarget.style.borderColor = '#007bff';
-                      e.currentTarget.style.backgroundColor = 'rgba(0, 123, 255, 0.1)';
+                      e.currentTarget.style.borderColor = '#FB4F14';
+                      e.currentTarget.style.backgroundColor = '#FFF5F0';
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -728,9 +728,9 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                   {/* Price Display */}
                   {(item.price !== null && item.price !== undefined) ? (
                     <div style={{
-                      fontSize: '18px',
-                      fontWeight: '700',
-                      color: '#28a745',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: '#FB4F14',
                       minWidth: '60px',
                       textAlign: 'right'
                     }}>
@@ -748,110 +748,52 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     </div>
                   )}
 
-                  {/* Quantity Controls */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateQuantity(item.id, 1);
-                      }}
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '50%',
-                        backgroundColor: '#28a745',
-                        color: 'white',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s ease',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#218838';
-                        e.currentTarget.style.transform = 'scale(1.1)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#28a745';
-                        e.currentTarget.style.transform = 'scale(1)';
-                      }}
-                    >
-                      +
-                    </button>
-                    <input
-                      type="number"
-                      value={item.shoppingMultiplier || item.quantity || 1}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        setQuantity(item.id, e.target.value);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      min="1"
-                      style={{
-                        width: '40px',
-                        height: '24px',
-                        textAlign: 'center',
-                        border: '1px solid #dee2e6',
-                        borderLeft: '1px solid #dee2e6',
-                        borderRight: '1px solid #dee2e6',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        backgroundColor: 'white',
-                        margin: '0',
-                        borderRadius: '0',
-                        MozAppearance: 'textfield',
-                        WebkitAppearance: 'none',
-                        appearance: 'textfield'
-                      }}
-                      className="quantity-input"
-                    />
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateQuantity(item.id, -1);
-                      }}
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '50%',
-                        backgroundColor: '#dc3545',
-                        color: 'white',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s ease',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#c82333';
-                        e.currentTarget.style.transform = 'scale(1.1)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#dc3545';
-                        e.currentTarget.style.transform = 'scale(1)';
-                      }}
-                    >
-                      -
-                    </button>
-                  </div>
+                  {/* Simplified Quantity Input */}
+                  <input
+                    type="number"
+                    value={item.shoppingMultiplier || item.quantity || 1}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      const value = parseInt(e.target.value) || 1;
+                      setQuantity(item.id, value);
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.target.select();
+                    }}
+                    min="1"
+                    max="99"
+                    style={{
+                      width: '40px',
+                      height: '28px',
+                      textAlign: 'center',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#212529',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '4px',
+                      backgroundColor: 'white',
+                      outline: 'none',
+                      transition: 'all 0.2s ease',
+                      MozAppearance: 'textfield',
+                      WebkitAppearance: 'none',
+                      appearance: 'textfield'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#FB4F14';
+                      e.target.style.boxShadow = '0 0 0 3px #FFD4C4';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#dee2e6';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
                   {/* Total price for quantity */}
                   {item.price && (
                     <div style={{
                       fontSize: '13px',
                       fontWeight: '600',
-                      color: '#2c7a2c',
+                      color: '#FB4F14',
                       marginLeft: '8px',
                       minWidth: '50px',
                       textAlign: 'right'
@@ -871,8 +813,8 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                       }}
                       style={{
                         marginLeft: '8px',
-                        borderColor: '#007bff',
-                        color: '#007bff',
+                        borderColor: '#002244',
+                        color: '#002244',
                         fontSize: '12px',
                         padding: '4px 8px',
                         minWidth: 'auto'
