@@ -1,6 +1,7 @@
 // client/src/services/instacartService.js
 // Instacart Developer Platform API integration
 import debugService from './debugService';
+import { auth } from '../firebase/config';
 
 class InstacartService {
   constructor() {
@@ -57,17 +58,29 @@ class InstacartService {
   // Find nearby retailers using backend API
   async getNearbyRetailers(zipCode = '95670') {
     debugService.log('🏪 InstacartService: Getting nearby retailers for', zipCode);
-    
+
     try {
+      // Get auth token if user is logged in
+      let authHeaders = {};
+      if (auth.currentUser) {
+        try {
+          const token = await auth.currentUser.getIdToken();
+          authHeaders['Authorization'] = `Bearer ${token}`;
+        } catch (authError) {
+          debugService.log('⚠️ Could not get auth token:', authError.message);
+        }
+      }
+
       // Always try backend API first (regardless of client API key configuration)
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       debugService.log('📡 Calling backend retailer API:', `${API_URL}/api/instacart/retailers?postalCode=${zipCode}`);
-      
+
       const response = await fetch(`${API_URL}/api/instacart/retailers?postalCode=${zipCode}&countryCode=US`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          ...authHeaders
         }
       });
 
@@ -179,6 +192,18 @@ class InstacartService {
     debugService.log('🔍 InstacartService: Searching for products:', query);
 
     try {
+      // Get auth token if user is logged in
+      let authHeaders = {};
+      if (auth.currentUser) {
+        try {
+          const token = await auth.currentUser.getIdToken();
+          authHeaders['Authorization'] = `Bearer ${token}`;
+          debugService.log('✅ Auth token added to request');
+        } catch (authError) {
+          debugService.log('⚠️ Could not get auth token:', authError.message);
+        }
+      }
+
       // Always try backend API first (backend handles all Instacart API complexities)
       const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       debugService.log('📡 Calling backend search API:', `${API_URL}/api/instacart/search`);
@@ -193,7 +218,8 @@ class InstacartService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          ...authHeaders
         },
         body: JSON.stringify(requestBody)
       });

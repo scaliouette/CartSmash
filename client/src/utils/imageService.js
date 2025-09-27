@@ -364,6 +364,7 @@ class ImageService {
 
   /**
    * Use proxy for Spoonacular images to avoid CORS issues
+   * Enhanced with direct loading fallback
    * @param {string} url - Original image URL
    * @returns {string} Proxied URL if needed
    */
@@ -372,12 +373,12 @@ class ImageService {
 
     // Check if this is an external image that needs proxying
     const domainsNeedingProxy = [
-      // Spoonacular domains
+      // Spoonacular domains - Always proxy these due to consistent CORS issues
       'img.spoonacular.com',
       'spoonacular.com',
       'images.spoonacular.com',
       'cdn.spoonacular.com',
-      // Instacart domains
+      // Instacart domains - May need proxy
       'instacart.com',
       'cdn.instacart.com',
       'images.instacart.com',
@@ -396,14 +397,69 @@ class ImageService {
     if (needsProxy) {
       // Get API URL from environment or use default
       const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+
+      // For local development, use local server
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const proxyBase = isLocal ? 'http://localhost:3001' : apiUrl;
+
       // Encode the original URL to pass as query parameter
       const encodedUrl = encodeURIComponent(url);
-      const proxiedUrl = `${apiUrl}/api/images/proxy?url=${encodedUrl}`;
-      // Removed verbose logging for cleaner console
+      const proxiedUrl = `${proxyBase}/api/images/proxy?url=${encodedUrl}`;
       return proxiedUrl;
     }
 
     return url;
+  }
+
+  /**
+   * Try loading image with multiple fallback strategies
+   * @param {string} originalUrl - Original image URL
+   * @param {string} fallbackCategory - Category for fallback image
+   * @returns {Promise<string>} Working image URL
+   */
+  async getImageWithFallbacks(originalUrl, fallbackCategory = 'default') {
+    if (!originalUrl) {
+      return this.getImageUrl(fallbackCategory);
+    }
+
+    // Strategy 1: Try direct loading (may work for some domains)
+    try {
+      await this.testImageLoad(originalUrl);
+      return originalUrl;
+    } catch {
+      // Direct loading failed, continue to next strategy
+    }
+
+    // Strategy 2: Try with proxy
+    const proxiedUrl = this.useProxyIfNeeded(originalUrl);
+    if (proxiedUrl !== originalUrl) {
+      try {
+        await this.testImageLoad(proxiedUrl);
+        return proxiedUrl;
+      } catch {
+        // Proxy failed, continue to fallback
+      }
+    }
+
+    // Strategy 3: Return SVG fallback
+    return this.getImageUrl(fallbackCategory);
+  }
+
+  /**
+   * Test if an image URL loads successfully
+   * @param {string} url - Image URL to test
+   * @returns {Promise<void>}
+   */
+  testImageLoad(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Image load failed'));
+      img.src = url;
+
+      // Timeout after 5 seconds
+      setTimeout(() => reject(new Error('Image load timeout')), 5000);
+    });
   }
 
   /**

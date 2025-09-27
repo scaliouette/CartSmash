@@ -600,6 +600,7 @@ function GroceryListForm({
   // Product matcher state variables
   const [showProductMatcher, setShowProductMatcher] = useState(false);
   const [productMatcherTerm, setProductMatcherTerm] = useState('');
+  const [itemBeingReplaced, setItemBeingReplaced] = useState(null);
   const [waitingForAIResponse, setWaitingForAIResponse] = useState(false);
   // eslint-disable-next-line no-unused-vars
   // eslint-disable-next-line no-unused-vars
@@ -713,6 +714,32 @@ function GroceryListForm({
     
     // Run cleanup on mount
     cleanupCorruptedData();
+
+    // Initialize offline cache
+    const initOfflineCache = async () => {
+      try {
+        const offlineCache = (await import('../services/offlineProductCache')).default;
+        await offlineCache.init();
+
+        // Sync with server in background
+        offlineCache.syncWithServer().then(count => {
+          if (count > 0) {
+            debugService.log(`✅ Synced ${count} products for offline use`);
+          }
+        }).catch(err => {
+          debugService.log('Offline sync failed:', err);
+        });
+
+        // Clean old cache entries
+        offlineCache.clearOldCache(30).catch(err => {
+          debugService.log('Cache cleanup failed:', err);
+        });
+      } catch (error) {
+        debugService.log('Failed to initialize offline cache:', error);
+      }
+    };
+
+    initOfflineCache();
   }, []);
   const textareaRef = useRef(null);
 
@@ -787,13 +814,36 @@ function GroceryListForm({
           // Processing item (removed verbose logging for performance)
 
           try {
-            // Making API call (logging disabled for performance)
-            const startTime = Date.now();
+            // First try offline cache for faster response
+            const offlineCache = (await import('../services/offlineProductCache')).default;
+            let searchResults = null;
+            let fromCache = false;
 
-            const searchResults = await instacartService.searchProducts(searchQuery, retailerId);
-            const apiCallDuration = Date.now() - startTime;
+            // Try offline cache first
+            const cachedProducts = await offlineCache.searchProducts(searchQuery, 5);
+            if (cachedProducts && cachedProducts.length > 0) {
+              debugService.log(`📦 Found ${cachedProducts.length} products in offline cache`);
+              searchResults = {
+                success: true,
+                products: cachedProducts,
+                source: 'offline_cache'
+              };
+              fromCache = true;
+            }
 
-            // API call completed in ${apiCallDuration}ms
+            // If no cached results, try API
+            if (!searchResults || searchResults.products.length === 0) {
+              const startTime = Date.now();
+              searchResults = await instacartService.searchProducts(searchQuery, retailerId);
+              const apiCallDuration = Date.now() - startTime;
+
+              // Cache successful API results for offline use
+              if (searchResults.success && searchResults.products && searchResults.products.length > 0) {
+                offlineCache.cacheProducts(searchResults.products.slice(0, 10)).catch(err => {
+                  debugService.log('Failed to cache products offline:', err);
+                });
+              }
+            }
 
             if (searchResults.success && searchResults.products && searchResults.products.length > 0) {
               // Use the first (best) match
@@ -4163,6 +4213,25 @@ Return as JSON with this structure:
     }
   };
 
+  // Handle selecting a product for replacement
+  const handleSelectProduct = useCallback((item) => {
+    debugService.log('🔍 handleSelectProduct called for item:', {
+      id: item.id,
+      name: item.productName || item.name,
+      price: item.price,
+      confidence: item.confidence
+    });
+
+    // Store which item we're replacing
+    setItemBeingReplaced(item);
+
+    // Set the search term to the item's name
+    setProductMatcherTerm(item.productName || item.name || '');
+
+    // Show the product matcher
+    setShowProductMatcher(true);
+  }, []);
+
   const handleItemsChange = (updatedItems) => {
     debugService.log('🔄 Updating cart items:', {
       before: currentCart.length,
@@ -4942,6 +5011,7 @@ Or paste any grocery list directly!"
             filterBy={filterBy}
             onItemsChange={handleItemsChange}
             onDeleteItem={handleDeleteItem}
+            onSelectProduct={handleSelectProduct}
             onCheckout={() => setShowInstacartCheckout(true)}
             onSaveList={() => saveCartAsList('Quick Save', currentCart)}
             onValidateItems={() => setShowValidator(true)}
@@ -5021,35 +5091,75 @@ Or paste any grocery list directly!"
         <InstacartProductMatcher
           searchTerm={productMatcherTerm}
           retailerId={currentUser?.preferredRetailer || currentUser?.selectedRetailer || 'default'}
+          replacingItem={itemBeingReplaced}
           onProductSelect={(product) => {
-            // Add selected product to cart with confidence score
-            const newItem = {
-              id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              productName: product.name,
-              quantity: 1,
-              unit: 'each',
-              category: product.category || 'other',
-              price: product.price,
-              brand: product.brand,
-              confidence: product.confidence,
-              instacartId: product.id,
-              retailerSku: product.sku,
-              availability: product.availability,
-              imageUrl: product.image_url,
-              size: product.size || product.package_size || null
-            };
+            if (itemBeingReplaced) {
+              // Replace the existing item with the selected product
+              debugService.log('🔄 Replacing item:', {
+                oldItem: itemBeingReplaced.productName || itemBeingReplaced.name,
+                newItem: product.name,
+                confidence: product.confidence
+              });
 
-            setCurrentCart(prev => [...prev, newItem]);
-            setShowProductMatcher(false);
-            setProductMatcherTerm('');
+              const updatedCart = currentCart.map(item => {
+                if (item.id === itemBeingReplaced.id) {
+                  // Keep the original quantity and unit, but update product details
+                  return {
+                    ...item,
+                    productName: product.name,
+                    price: product.price,
+                    brand: product.brand,
+                    confidence: product.confidence,
+                    instacartId: product.id,
+                    retailerSku: product.sku,
+                    availability: product.availability,
+                    imageUrl: product.image_url,
+                    size: product.size || product.package_size || null,
+                    category: product.category || item.category || 'other'
+                  };
+                }
+                return item;
+              });
 
-            // Show success message
-            setSuccessMessage(`Added ${product.name} to cart with ${Math.round(product.confidence * 100)}% confidence`);
-            setTimeout(() => setSuccessMessage(''), 3000);
+              setCurrentCart(updatedCart);
+              setItemBeingReplaced(null);
+              setShowProductMatcher(false);
+              setProductMatcherTerm('');
+
+              // Show success message
+              setSuccessMessage(`Replaced with ${product.name} (${Math.round(product.confidence * 100)}% match)`);
+              setTimeout(() => setSuccessMessage(''), 3000);
+            } else {
+              // Add selected product to cart with confidence score (original behavior)
+              const newItem = {
+                id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                productName: product.name,
+                quantity: 1,
+                unit: 'each',
+                category: product.category || 'other',
+                price: product.price,
+                brand: product.brand,
+                confidence: product.confidence,
+                instacartId: product.id,
+                retailerSku: product.sku,
+                availability: product.availability,
+                imageUrl: product.image_url,
+                size: product.size || product.package_size || null
+              };
+
+              setCurrentCart(prev => [...prev, newItem]);
+              setShowProductMatcher(false);
+              setProductMatcherTerm('');
+
+              // Show success message
+              setSuccessMessage(`Added ${product.name} to cart with ${Math.round(product.confidence * 100)}% confidence`);
+              setTimeout(() => setSuccessMessage(''), 3000);
+            }
           }}
           onClose={() => {
             setShowProductMatcher(false);
             setProductMatcherTerm('');
+            setItemBeingReplaced(null); // Clear the item being replaced on close
           }}
         />
       )}

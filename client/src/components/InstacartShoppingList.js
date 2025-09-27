@@ -19,7 +19,7 @@ const conditionalLog = {
   apiSuccess: () => {}
 };
 
-function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, onDeleteItem, retailers = [], selectedRetailerId }) {
+function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, onDeleteItem, onSelectProduct, retailers = [], selectedRetailerId }) {
   // Generate a unique component ID for debugging
   const componentId = useMemo(() => `InstacartShoppingList_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`, []);
 
@@ -298,6 +298,18 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
       maxWidth: '100%',
       boxSizing: 'border-box'
     }}>
+      <style>{`
+        /* Hide number input spinners across all browsers */
+        .quantity-input::-webkit-inner-spin-button,
+        .quantity-input::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .quantity-input[type="number"] {
+          -moz-appearance: textfield;
+          appearance: textfield;
+        }
+      `}</style>
       {/* Modern Header */}
       <div style={{
         backgroundColor: 'white',
@@ -590,6 +602,30 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                       {getCategory(item)}
                     </span>
 
+                    {/* Brand */}
+                    {item.brand && (
+                      <span style={{
+                        color: '#6c757d',
+                        fontSize: '12px',
+                        fontStyle: 'italic'
+                      }}>
+                        {item.brand}
+                      </span>
+                    )}
+
+                    {/* Aisle */}
+                    {item.aisle && (
+                      <span style={{
+                        color: '#17a2b8',
+                        fontSize: '11px',
+                        backgroundColor: '#e7f3f5',
+                        padding: '2px 6px',
+                        borderRadius: '4px'
+                      }}>
+                        Aisle {item.aisle}
+                      </span>
+                    )}
+
                     {/* Confidence */}
                     <Chip
                       label={`${confidence.value}%`}
@@ -622,6 +658,62 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                       </span>
                     )}
                   </div>
+
+                  {/* Badges Row */}
+                  {item.badges && item.badges.length > 0 && (
+                    <div style={{
+                      display: 'flex',
+                      gap: '4px',
+                      marginTop: '6px',
+                      flexWrap: 'wrap'
+                    }}>
+                      {item.badges.slice(0, 4).map((badge, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            fontSize: '10px',
+                            backgroundColor: badge.includes('organic') ? '#4caf50' :
+                                          badge.includes('gluten') ? '#ff9800' :
+                                          badge.includes('vegan') ? '#8bc34a' : '#9e9e9e',
+                            color: 'white',
+                            padding: '2px 6px',
+                            borderRadius: '3px',
+                            textTransform: 'capitalize'
+                          }}
+                        >
+                          {badge.replace(/_/g, ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Nutrition Info */}
+                  {item.nutrition && item.nutrition.nutrients && item.nutrition.nutrients.length > 0 && (
+                    <div style={{
+                      display: 'flex',
+                      gap: '8px',
+                      marginTop: '4px',
+                      fontSize: '11px',
+                      color: '#666'
+                    }}>
+                      {item.nutrition.nutrients.slice(0, 3).map((nutrient, idx) => (
+                        <span key={idx}>
+                          {nutrient.name}: <strong>{nutrient.amount}{nutrient.unit}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Data Source */}
+                  {item.enrichmentSource && (
+                    <div style={{
+                      marginTop: '4px',
+                      fontSize: '10px',
+                      color: '#999'
+                    }}>
+                      Data from: {item.enrichmentSource}
+                    </div>
+                  )}
                 </div>
 
                 {/* Quantity Controls */}
@@ -656,8 +748,12 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                       textAlign: 'center',
                       border: '1px solid #dee2e6',
                       borderRadius: '4px',
-                      fontSize: '14px'
+                      fontSize: '14px',
+                      MozAppearance: 'textfield',
+                      WebkitAppearance: 'none',
+                      appearance: 'textfield'
                     }}
+                    className="quantity-input"
                   />
 
                   <IconButton
@@ -674,6 +770,28 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                   >
                     <AddIcon style={{ fontSize: '16px' }} />
                   </IconButton>
+
+                  {/* Select Product Button - Show when no price or low confidence */}
+                  {(item.price === null || item.price === undefined || confidence.level === 'low') && onSelectProduct && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectProduct(item);
+                      }}
+                      style={{
+                        marginLeft: '8px',
+                        borderColor: '#007bff',
+                        color: '#007bff',
+                        fontSize: '12px',
+                        padding: '4px 8px',
+                        minWidth: 'auto'
+                      }}
+                    >
+                      Select
+                    </Button>
+                  )}
 
                   <IconButton
                     size="small"

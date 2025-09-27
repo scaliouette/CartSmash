@@ -90,6 +90,9 @@ router.get('/proxy', async (req, res) => {
       res.set('Content-Type', cached.contentType);
       res.set('Cache-Control', 'public, max-age=3600');
       res.set('X-Proxy-Cache', 'HIT');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
       return res.send(cached.data);
     }
 
@@ -113,10 +116,13 @@ router.get('/proxy', async (req, res) => {
       timestamp: Date.now()
     });
 
-    // Send the image
+    // Send the image with CORS headers
     res.set('Content-Type', contentType);
     res.set('Cache-Control', 'public, max-age=3600');
     res.set('X-Proxy-Cache', 'MISS');
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
     res.send(imageBuffer);
 
   } catch (error) {
@@ -129,9 +135,15 @@ router.get('/proxy', async (req, res) => {
       );
       res.set('Content-Type', 'image/png');
       res.set('Cache-Control', 'public, max-age=86400');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
       res.send(transparentPixel);
     } else {
       logger.error('Image proxy error:', error.message);
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
       res.status(500).json({
         error: 'Failed to fetch image',
         message: error.message

@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import imageService from '../utils/imageService';
 
-const InstacartProductMatcher = ({ initialSearchTerm, searchTerm, retailerId, onProductSelect, onClose }) => {
+const InstacartProductMatcher = ({ initialSearchTerm, searchTerm, retailerId, onProductSelect, onClose, replacingItem }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -178,7 +178,19 @@ const InstacartProductMatcher = ({ initialSearchTerm, searchTerm, retailerId, on
     <div className="product-matcher-overlay">
       <div className="product-matcher-modal">
         <div className="matcher-header">
-          <h3>🔍 Product Matches for "{searchTerm}"</h3>
+          <div>
+            <h3>🔍 Product Matches for "{searchTerm}"</h3>
+            {replacingItem && (
+              <p style={{
+                margin: '0.5rem 0 0 0',
+                color: '#6b7280',
+                fontSize: '0.875rem'
+              }}>
+                Replacing: {replacingItem.productName || replacingItem.name}
+                {replacingItem.price === null || replacingItem.price === undefined ? ' (No price available)' : ''}
+              </p>
+            )}
+          </div>
           <button onClick={onClose} className="close-btn">×</button>
         </div>
 

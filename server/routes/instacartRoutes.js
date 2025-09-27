@@ -993,7 +993,7 @@ router.post('/search', async (req, res) => {
         logger.info(`Shopping list created successfully`);
 
         // Extract products from the shopping list response
-        const products = [];
+        let products = [];
 
         // Check if response contains products or line items with matched products
         if (shoppingListResponse.products && Array.isArray(shoppingListResponse.products)) {
@@ -1087,6 +1087,39 @@ router.post('/search', async (req, res) => {
             }
           } catch (spoonError) {
             logger.warn('Spoonacular fallback failed:', spoonError.message);
+          }
+
+          // Try cached products as last resort
+          if (products.length === 0) {
+            logger.info('Trying cached products as final fallback');
+            try {
+              const productCacheBuilder = require('../services/productCacheBuilder');
+              const cachedProducts = await productCacheBuilder.searchCachedProducts(query, 10);
+
+              if (cachedProducts && cachedProducts.length > 0) {
+                logger.info(`Found ${cachedProducts.length} cached products`);
+                products = cachedProducts.map(cp => ({
+                  id: cp._id || `cached_${Date.now()}_${Math.random()}`,
+                  name: cp.name,
+                  brand: cp.brand || 'Generic',
+                  price: 0, // Cached products don't have real-time pricing
+                  image_url: cp.imageUrl,
+                  package_size: cp.servingSize || '1 item',
+                  unit: 'item',
+                  quantity: 1,
+                  availability: 'check_store',
+                  badges: cp.badges,
+                  aisle: cp.aisle,
+                  nutrition: cp.nutrition,
+                  confidence: 0.75,
+                  source: 'cached_products',
+                  enrichmentSource: 'cache',
+                  note: 'Product from local cache, prices not available'
+                }));
+              }
+            } catch (cacheError) {
+              logger.warn('Cache fallback failed:', cacheError.message);
+            }
           }
 
           // If still no products, create basic entry
