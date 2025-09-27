@@ -2973,11 +2973,85 @@ Return as JSON with this structure:
   };
 
   // Handle adding recipe to meal plan
-  const handleAddToMealPlan = (recipe) => {
-    // For now, just add to recipe library instead of opening complex meal plan modal
-    // This prevents crashes and provides useful functionality
-    handleAddToRecipeLibrary(recipe);
-    debugService.log('Recipe added to library:', recipe.title || recipe.name);
+  const handleAddToMealPlan = async (recipe) => {
+    try {
+      if (!currentUser) {
+        alert('Please sign in to add recipes to your meal plan');
+        return;
+      }
+
+      // Get or create current week's meal plan
+      const { getUserMealPlans, createMealPlan } = await import('../services/mealPlanService');
+      const existingPlans = await getUserMealPlans(currentUser.uid);
+
+      let currentPlan = existingPlans.find(plan => {
+        const startDate = new Date(plan.startDate);
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 7);
+        const now = new Date();
+        return now >= startDate && now <= endDate;
+      });
+
+      // If no current plan exists, create one for this week
+      if (!currentPlan) {
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - dayOfWeek); // Start on Sunday
+
+        currentPlan = await createMealPlan({
+          uid: currentUser.uid,
+          name: `Week of ${startOfWeek.toLocaleDateString()}`,
+          startDate: startOfWeek.toISOString(),
+          familySize: 4,
+          description: 'Auto-created weekly meal plan'
+        });
+      }
+
+      // First save recipe to library to get an ID
+      const { saveRecipeToLibrary } = await import('../services/userDataService');
+      const savedRecipe = await saveRecipeToLibrary(currentUser.uid, recipe);
+
+      // Now assign to meal plan - find next available slot
+      const { assignRecipeToMeal, getMealAssignments } = await import('../services/mealPlanService');
+      const assignments = await getMealAssignments(currentUser.uid, currentPlan.id);
+
+      // Find first available dinner slot
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const today = new Date();
+      const currentDay = today.getDay();
+
+      let assigned = false;
+      for (let i = currentDay; i < days.length; i++) {
+        const day = days[i];
+        const dinnerAssignment = assignments.find(a => a.day === day && a.slot === 'dinner');
+        if (!dinnerAssignment) {
+          await assignRecipeToMeal({
+            uid: currentUser.uid,
+            planId: currentPlan.id,
+            day: day,
+            slot: 'dinner',
+            servings: 4,
+            recipeId: savedRecipe.id
+          });
+          assigned = true;
+          setSuccessMessage(`Recipe added to meal plan for ${day} dinner!`);
+          break;
+        }
+      }
+
+      if (!assigned) {
+        // If all dinner slots are taken, just add to library
+        setSuccessMessage('All dinner slots are full this week. Recipe saved to library instead.');
+      }
+
+      debugService.log('Recipe added to meal plan:', recipe.title || recipe.name);
+    } catch (error) {
+      debugService.logError('Failed to add recipe to meal plan:', error);
+      // Fallback to recipe library
+      handleAddToRecipeLibrary(recipe);
+      setSuccessMessage('Recipe saved to library (meal plan unavailable)');
+    }
   };
 
   // Helper function to get current day of week
