@@ -6,8 +6,14 @@ const authenticateUser = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
-        success: false, 
+      // Add CORS headers to allow frontend to read the error
+      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+      res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization');
+
+      return res.status(401).json({
+        success: false,
         error: 'No valid auth token provided',
         code: 'AUTH_TOKEN_MISSING'
       });
@@ -19,8 +25,14 @@ const authenticateUser = async (req, res, next) => {
       // Verify with Firebase Admin SDK
       if (admin.apps.length === 0) {
         console.error('Firebase Admin not initialized');
-        return res.status(503).json({ 
-          success: false, 
+        // Add CORS headers to allow frontend to read the error
+        res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+        res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization');
+
+        return res.status(503).json({
+          success: false,
           error: 'Authentication service unavailable',
           code: 'AUTH_SERVICE_UNAVAILABLE'
         });
@@ -45,29 +57,53 @@ const authenticateUser = async (req, res, next) => {
       console.error('Token verification failed:', error.code);
       
       if (error.code === 'auth/id-token-expired') {
-        return res.status(401).json({ 
-          success: false, 
+        // Add CORS headers to allow frontend to read the error
+        res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+        res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization');
+
+        return res.status(401).json({
+          success: false,
           error: 'Token expired',
           code: 'AUTH_TOKEN_EXPIRED'
         });
       } else if (error.code === 'auth/id-token-revoked') {
-        return res.status(401).json({ 
-          success: false, 
+        // Add CORS headers to allow frontend to read the error
+        res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+        res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization');
+
+        return res.status(401).json({
+          success: false,
           error: 'Token has been revoked',
           code: 'AUTH_TOKEN_REVOKED'
         });
       }
-      
-      return res.status(401).json({ 
-        success: false, 
+
+      // Add CORS headers to allow frontend to read the error
+      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+      res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization');
+
+      return res.status(401).json({
+        success: false,
         error: 'Invalid or expired token',
         code: 'AUTH_TOKEN_INVALID'
       });
     }
   } catch (error) {
     console.error('Auth middleware error:', error);
-    return res.status(500).json({ 
-      success: false, 
+    // Add CORS headers to allow frontend to read the error
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+    res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization');
+
+    return res.status(500).json({
+      success: false,
       error: 'Authentication failed',
       code: 'AUTH_ERROR'
     });

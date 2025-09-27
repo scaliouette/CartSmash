@@ -19,12 +19,20 @@ import {
 export async function generateAIMealPlan(preferences, currentUser = null) {
   try {
     const API_URL = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-    
+
     // Get auth token if user is provided
     const headers = { 'Content-Type': 'application/json' };
     if (currentUser && typeof currentUser.getIdToken === 'function') {
-      const token = await currentUser.getIdToken();
-      headers.Authorization = `Bearer ${token}`;
+      try {
+        const token = await currentUser.getIdToken();
+        headers.Authorization = `Bearer ${token}`;
+        console.log('✅ Auth token added to meal plan request');
+      } catch (tokenError) {
+        console.error('Failed to get auth token:', tokenError);
+        // Continue without auth token
+      }
+    } else {
+      console.warn('⚠️ No currentUser provided for meal plan generation');
     }
     
     const response = await fetch(`${API_URL}/api/meal-plans/generate-meal-plan`, {
@@ -40,6 +48,12 @@ export async function generateAIMealPlan(preferences, currentUser = null) {
         daysCount: preferences.daysCount || 7
       })
     });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Meal plan API error:', response.status, errorData);
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
 
     const data = await response.json();
     return data;

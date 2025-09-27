@@ -9,6 +9,17 @@ const { generateWithAI } = require('../services/aiService');
 const { saveMealPlanToUser, getMealPlan } = require('../services/databaseService');
 
 /**
+ * OPTIONS handler for CORS preflight requests
+ */
+router.options('/generate-meal-plan', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+  res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization');
+  res.sendStatus(204);
+});
+
+/**
  * POST /api/ai/generate-meal-plan
  * Generate a new meal plan using AI
  */
