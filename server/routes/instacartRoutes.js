@@ -208,6 +208,7 @@ const searchProductsPartnerAPI = async (query, retailerId = 'safeway') => {
     logger.error('Partner API search error:', error.message);
     return null;
   }
+  */
 };
 
 // Helper function to get retailer display names
@@ -406,7 +407,7 @@ async function parseRealProductsFromRecipe(recipeUrl, query, originalItem, retai
       const response = await axios.get(recipeUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9'
         },
         timeout: 10000,
         maxContentLength: PERFORMANCE_CONFIG.MAX_HTML_SIZE,
@@ -3081,7 +3082,7 @@ async function parseRecipePageWithDynamicContent(recipeUrl, query, originalItem 
       timeout: 10000,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
         'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',

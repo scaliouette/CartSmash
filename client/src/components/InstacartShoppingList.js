@@ -626,18 +626,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                       </span>
                     )}
 
-                    {/* Confidence */}
-                    <Chip
-                      label={`${confidence.value}%`}
-                      size="small"
-                      style={{
-                        backgroundColor: confidence.level === 'high' ? '#28a745' :
-                                        confidence.level === 'medium' ? '#ffc107' : '#dc3545',
-                        color: confidence.level === 'medium' ? '#000' : '#fff',
-                        fontSize: '10px',
-                        height: '20px'
-                      }}
-                    />
+                    {/* Confidence badge removed per user request */}
 
                     {/* Price */}
                     {(item.price !== null && item.price !== undefined) ? (
@@ -687,22 +676,6 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     </div>
                   )}
 
-                  {/* Nutrition Info */}
-                  {item.nutrition && item.nutrition.nutrients && item.nutrition.nutrients.length > 0 && (
-                    <div style={{
-                      display: 'flex',
-                      gap: '8px',
-                      marginTop: '4px',
-                      fontSize: '11px',
-                      color: '#666'
-                    }}>
-                      {item.nutrition.nutrients.slice(0, 3).map((nutrient, idx) => (
-                        <span key={idx}>
-                          {nutrient.name}: <strong>{nutrient.amount}{nutrient.unit}</strong>
-                        </span>
-                      ))}
-                    </div>
-                  )}
 
                   {/* Product Size and Price Info */}
                   <div style={{
@@ -718,13 +691,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     {(item.size || item.packageSize) && (
                       <span>{item.size || item.packageSize}</span>
                     )}
-                    {/* Price display */}
-                    {item.price && (
-                      <span style={{ color: '#2c7a2c', fontWeight: '600' }}>
-                        ${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}
-                        {item.unit && item.unit !== 'each' ? `/${item.unit}` : ' each'}
-                      </span>
-                    )}
+                    {/* Duplicate price display removed */}
                   </div>
                 </div>
 
@@ -741,20 +708,31 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                         updateQuantity(item.id, 1);
                       }}
                       style={{
-                        padding: '2px 8px',
-                        backgroundColor: '#f8f9fa',
-                        border: '1px solid #dee2e6',
-                        borderRadius: '4px 4px 0 0',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        border: 'none',
                         cursor: 'pointer',
-                        fontSize: '10px',
-                        lineHeight: '10px',
-                        height: '18px',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#218838';
+                        e.currentTarget.style.transform = 'scale(1.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#28a745';
+                        e.currentTarget.style.transform = 'scale(1)';
                       }}
                     >
-                      ▲
+                      +
                     </button>
                     <input
                       type="number"
@@ -789,20 +767,31 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                         updateQuantity(item.id, -1);
                       }}
                       style={{
-                        padding: '2px 8px',
-                        backgroundColor: '#f8f9fa',
-                        border: '1px solid #dee2e6',
-                        borderRadius: '0 0 4px 4px',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        backgroundColor: '#dc3545',
+                        color: 'white',
+                        border: 'none',
                         cursor: 'pointer',
-                        fontSize: '10px',
-                        lineHeight: '10px',
-                        height: '18px',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#c82333';
+                        e.currentTarget.style.transform = 'scale(1.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#dc3545';
+                        e.currentTarget.style.transform = 'scale(1)';
                       }}
                     >
-                      ▼
+                      -
                     </button>
                   </div>
                   {/* Total price for quantity */}
@@ -819,8 +808,8 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     </div>
                   )}
 
-                  {/* Select Product Button - Show when no price or low confidence */}
-                  {(item.price === null || item.price === undefined || confidence.level === 'low') && onSelectProduct && (
+                  {/* Select Product Button - Always available for product selection */}
+                  {onSelectProduct && (
                     <Button
                       size="small"
                       variant="outlined"

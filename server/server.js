@@ -1127,7 +1127,11 @@ routes.forEach(route => {
     app.use(route.path, routeModule);
     logger.info(`${route.module} routes loaded`);
   } catch (error) {
-    logger.error(`Failed to load ${route.module}:`, error.message);
+    logger.error(`Failed to load ${route.module}:`, {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
   }
 });
 
