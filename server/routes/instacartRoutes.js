@@ -889,9 +889,14 @@ router.get('/retailers', async (req, res) => {
 });
 
 // POST /api/instacart/search - Direct Instacart Catalog API search with substitutes
-// TEMPORARILY DISABLED: Authentication disabled until frontend sends Firebase tokens
-// TODO: Re-enable authentication once frontend is updated
-router.post('/search', async (req, res) => {
+// SEARCH ENDPOINT - Now using simplified Spoonacular-based search
+// IMPORTANT: Instacart APIs don't return product data, only checkout links
+const searchRouter = require('./instacartSearch');
+router.use('', searchRouter); // Mount the new search endpoint
+
+// OLD SEARCH ENDPOINT - DISABLED (kept for reference)
+// This attempted to use Instacart APIs but they don't return product data
+router.post('/search-old-disabled', async (req, res) => {
   try {
     const { query, retailerId = 'safeway' } = req.body;
 

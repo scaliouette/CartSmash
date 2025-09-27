@@ -38,6 +38,16 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 
 /**
+ * Handle CORS preflight for proxy endpoint
+ */
+router.options('/proxy', (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.sendStatus(204);
+});
+
+/**
  * Proxy endpoint for external images (primarily Spoonacular)
  * Solves CORS issues by fetching images server-side
  */

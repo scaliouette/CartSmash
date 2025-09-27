@@ -57,8 +57,21 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// Handle CORS preflight for search endpoint
+router.options('/search', (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.sendStatus(204);
+});
+
 // Search cached products (public endpoint)
 router.get('/search', async (req, res) => {
+  // Add CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+
   try {
     const { query, limit = 20 } = req.query;
 

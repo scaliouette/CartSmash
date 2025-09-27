@@ -486,12 +486,39 @@ IMPORTANT: Return ONLY the JSON object with specific, measurable items and quant
     
     // Fallback only if API is truly unavailable (no client or API error)
     if (!responseText) {
-      logger.info('❌ Claude API unavailable - no fallback data allowed');
-      return res.status(503).json({
+      logger.info('❌ Claude API unavailable - attempting graceful fallback');
+
+      // Return a structured empty response that won't break the UI
+      return res.json({
         success: false,
         error: 'AI service temporarily unavailable',
-        message: 'Claude API is currently unavailable. Please try again later.',
-        source: 'ai_service_unavailable'
+        message: 'Claude API is currently unavailable. Please try again later or use manual entry.',
+        source: 'ai_service_unavailable',
+
+        // Provide empty but structured data to prevent UI crashes
+        response: '',
+        structuredData: {
+          type: 'fallback',
+          error: 'Service unavailable',
+          items: []
+        },
+        recipes: [],
+        products: [],
+        groceryList: [],
+
+        // Metadata
+        model: 'fallback',
+        usage: null,
+        fallback: true,
+        timestamp: new Date().toISOString(),
+
+        // Intelligence metrics
+        intelligence: {
+          totalCandidates: 0,
+          validProducts: 0,
+          averageConfidence: 0,
+          structuredParsing: false
+        }
       });
     }
     
@@ -1201,12 +1228,46 @@ Focus on specific, measurable grocery items that can be easily found in a store.
     
     // Fallback only if API is truly unavailable (no client or API error)
     if (!responseText) {
-      logger.info('❌ OpenAI API unavailable - no fallback data allowed');
-      return res.status(503).json({
+      logger.info('❌ OpenAI API unavailable - attempting graceful fallback');
+
+      // Return a structured empty response that won't break the UI
+      return res.json({
         success: false,
         error: 'AI service temporarily unavailable',
-        message: 'OpenAI API is currently unavailable. Please try again later.',
-        source: 'ai_service_unavailable'
+        message: 'OpenAI API is currently unavailable. Please try again later or use manual entry.',
+        source: 'ai_service_unavailable',
+
+        // Provide empty but structured data to prevent UI crashes
+        response: '',
+        products: [],
+        parsingStats: {
+          totalProducts: 0,
+          highConfidence: 0,
+          mediumConfidence: 0,
+          lowConfidence: 0,
+          categoriesFound: [],
+          averageConfidence: 0,
+          processingMetrics: {
+            candidateItems: 0,
+            validProducts: 0,
+            filteringEfficiency: '0%'
+          }
+        },
+        groceryList: [],
+
+        // Metadata
+        model: 'fallback',
+        usage: null,
+        fallback: true,
+        timestamp: new Date().toISOString(),
+
+        // Intelligence metrics
+        intelligence: {
+          totalCandidates: 0,
+          validProducts: 0,
+          averageConfidence: 0,
+          filteringEfficiency: '0%'
+        }
       });
     }
     

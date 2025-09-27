@@ -204,23 +204,34 @@ function AdminDashboard({ onClose, currentUser }) {
 
   const loadRealtimeMetrics = useCallback(async () => {
     try {
+      // Get Firebase auth token
+      const token = currentUser ? await currentUser.getIdToken() : null;
+      if (!token) {
+        console.warn('No auth token available for realtime metrics');
+        return;
+      }
+
       const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
-      const response = await fetch(`${apiUrl}/api/analytics/realtime`);
+      const response = await fetch(`${apiUrl}/api/analytics/realtime`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setRealtimeMetrics(data.realtime);
         setError(null); // Clear any previous errors
       } else {
-        throw new Error(`HTTP ${response.status}: Failed to load metrics`);
+        console.warn(`Realtime metrics returned ${response.status}`);
       }
     } catch (error) {
       console.error('Failed to load realtime metrics:', error);
-      setError(`Failed to load metrics: ${error.message}`);
-      setRealtimeMetrics(null);
+      // Don't set error state for realtime metrics to avoid interrupting other operations
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentUser]);
 
   // useEffect must be declared before conditional returns
   useEffect(() => {
@@ -251,14 +262,23 @@ function AdminDashboard({ onClose, currentUser }) {
     const interval = setInterval(() => {
       loadRealtimeMetrics().catch(console.error);
       loadUserActivity().catch(console.error);
-      if (activeTab === 'revenue') loadRevenueData().catch(console.error);
-      if (activeTab === 'services') loadExternalServices().catch(console.error);
-    }, 5000);
+    }, 30000); // Reduced frequency to 30 seconds
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [loadSystemHealth, loadRealtimeMetrics, loadUserActivity, loadUserAccounts, loadRevenueData, loadExternalServices, currentUser?.email, activeTab]);
+  }, [currentUser?.email]); // Only re-run when user changes
+
+  // Load tab-specific data when active tab changes
+  useEffect(() => {
+    if (!currentUser?.isAdmin) return;
+
+    if (activeTab === 'revenue') {
+      loadRevenueData().catch(console.error);
+    } else if (activeTab === 'services') {
+      loadExternalServices().catch(console.error);
+    }
+  }, [activeTab, currentUser?.isAdmin]); // Only depends on tab change
 
   // Check access after all hooks are declared
   if (!currentUser || !currentUser.isAdmin) {

@@ -235,7 +235,15 @@ class ExternalMonitoringService {
   // Collect MongoDB metrics
   async collectMongoDBMetrics() {
     try {
-      const dbStats = await mongoose.connection.db.stats();
+      // Check if MongoDB is connected before trying to get stats
+      let dbStats = null;
+      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+        try {
+          dbStats = await mongoose.connection.db.stats();
+        } catch (statsError) {
+          logger.debug('Could not get MongoDB stats:', statsError.message);
+        }
+      }
 
       const metrics = new ServiceMetrics({
         service: 'mongodb',
@@ -247,7 +255,7 @@ class ExternalMonitoringService {
             read: Math.floor(Math.random() * 1000),
             write: Math.floor(Math.random() * 500)
           },
-          storage: dbStats.dataSize / (1024 * 1024 * 1024) // Convert to GB
+          storage: dbStats ? dbStats.dataSize / (1024 * 1024 * 1024) : 0 // Convert to GB
         }
       });
 
