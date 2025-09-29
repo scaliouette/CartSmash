@@ -6,7 +6,8 @@ class DebugService {
     this.errors = [];
     this.warnings = [];
     this.logs = [];
-    this.isEnabled = process.env.NODE_ENV === 'development';
+    // Disable all logging in production
+    this.isEnabled = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEBUG === 'true';
     this.maxLogs = 1000; // Prevent memory leaks
 
     // Setup global error handlers
@@ -52,8 +53,7 @@ class DebugService {
   }
 
   logError(type, details) {
-    if (!this.isEnabled) return;
-
+    // Always capture errors, even in production
     const errorEntry = {
       id: this.generateId(),
       type,
@@ -69,12 +69,14 @@ class DebugService {
     // Send to server for persistence
     this.sendToServer('error', errorEntry);
 
-    // Log to console for immediate visibility
-    console.group(`🔴 DEBUG ERROR [${type}]`);
-    console.error('Error Details:', details);
-    console.error('Timestamp:', errorEntry.timestamp);
-    console.error('Full Entry:', errorEntry);
-    console.groupEnd();
+    // Log to console only in development
+    if (this.isEnabled && process.env.NODE_ENV === 'development') {
+      console.group(`🔴 DEBUG ERROR [${type}]`);
+      console.error('Error Details:', details);
+      console.error('Timestamp:', errorEntry.timestamp);
+      console.error('Full Entry:', errorEntry);
+      console.groupEnd();
+    }
   }
 
   logWarning(type, details) {
@@ -91,10 +93,12 @@ class DebugService {
     this.warnings.push(warningEntry);
     this.trimLogs('warnings');
 
-    console.group(`🟡 DEBUG WARNING [${type}]`);
-    console.warn('Warning Details:', details);
-    console.warn('Timestamp:', warningEntry.timestamp);
-    console.groupEnd();
+    if (process.env.NODE_ENV === 'development') {
+      console.group(`🟡 DEBUG WARNING [${type}]`);
+      console.warn('Warning Details:', details);
+      console.warn('Timestamp:', warningEntry.timestamp);
+      console.groupEnd();
+    }
   }
 
   logInfo(type, details) {
@@ -111,10 +115,12 @@ class DebugService {
     this.logs.push(logEntry);
     this.trimLogs('logs');
 
-    console.group(`ℹ️ DEBUG INFO [${type}]`);
-    console.log('Info Details:', details);
-    console.log('Timestamp:', logEntry.timestamp);
-    console.groupEnd();
+    if (process.env.NODE_ENV === 'development') {
+      console.group(`ℹ️ DEBUG INFO [${type}]`);
+      console.log('Info Details:', details);
+      console.log('Timestamp:', logEntry.timestamp);
+      console.groupEnd();
+    }
   }
 
   // Simple log method for compatibility with console.log replacement

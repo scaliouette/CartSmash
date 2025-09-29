@@ -4,9 +4,9 @@ import App from './App';
 import './index.css';
 import ErrorBoundary from './components/ErrorBoundary';
 import { setupServiceWorkerErrorHandling } from './utils/serviceWorkerHandler';
+import './utils/replaceConsoleLogs'; // Apply console overrides
 
-console.log('🌟 Starting CartSmash application...');
-console.log('✅ All modules imported successfully');
+// Application startup - logging disabled in production
 
 // Setup service worker error handling early
 setupServiceWorkerErrorHandling();
@@ -15,29 +15,22 @@ setupServiceWorkerErrorHandling();
 window.addEventListener('error', (event) => {
   // Handle image loading errors gracefully
   if (event.target && event.target.tagName === 'IMG') {
-    console.log('🖼️ Image load error handled:', event.target.src);
+    // Image load error handled silently
     event.preventDefault(); // Prevent the error from being logged as unhandled
     return;
   }
 
-  console.error('🚨 Global error:', event.error);
-  console.error('Error details:', {
-    message: event.message,
-    filename: event.filename,
-    lineno: event.lineno,
-    colno: event.colno,
-    stack: event.error?.stack
-  });
+  // Global error captured - details logged to error tracking service
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  console.error('🚨 Unhandled promise rejection:', event.reason);
+  // Unhandled promise rejection captured
 
   // Handle common service worker errors gracefully
   if (event.reason && event.reason.message) {
     const message = event.reason.message.toLowerCase();
     if (message.includes('service worker') || message.includes('cache') || message.includes('registration')) {
-      console.warn('Service worker error caught and handled:', event.reason.message);
+      // Service worker error caught and handled
       // Prevent the error from being logged as unhandled
       event.preventDefault();
       return;
@@ -48,19 +41,17 @@ window.addEventListener('unhandledrejection', (event) => {
   // For now, we'll just log them
 });
 
-console.log('🎯 Creating React root...');
 const rootElement = document.getElementById('root');
-console.log('Root element found:', rootElement ? 'Yes' : 'No');
 
 if (!rootElement) {
-  console.error('❌ Root element not found!');
+  // Root element not found - display error
   // Safe error display without innerHTML
   const errorHeading = document.createElement('h1');
   errorHeading.textContent = 'Error: Root element not found';
   document.body.appendChild(errorHeading);
 } else {
   const root = ReactDOM.createRoot(rootElement);
-  console.log('🎨 Rendering app...');
+  // Rendering app
 
   try {
     root.render(
@@ -68,14 +59,14 @@ if (!rootElement) {
         <App />
       </ErrorBoundary>
     );
-    console.log('✅ App rendered successfully');
+    // App rendered successfully
 
     // Mark React as loaded for the loading screen
     if (window.markReactLoaded) {
       window.markReactLoaded();
     }
   } catch (error) {
-    console.error('❌ Failed to render app:', error);
+    // Failed to render app - display error message
     // Safe error display without innerHTML
     const errorHeading = document.createElement('h1');
     // Sanitize error message to prevent XSS

@@ -1,6 +1,7 @@
 // client/src/components/AdminDashboard.js - Fixed with proper null checking and dynamic imports
 import React, { useState, useEffect, useCallback } from 'react';
 import ParsingAnalyticsDashboard from './ParsingAnalyticsDashboard';
+import ErrorLogViewer from './ErrorLogViewer';
 
 function AdminDashboard({ onClose, currentUser }) {
   // All hooks must be called before any conditional returns
@@ -25,7 +26,7 @@ function AdminDashboard({ onClose, currentUser }) {
   // Define all callbacks before conditional returns
   const loadSystemHealth = useCallback(async () => {
     try {
-      console.log('🩺 Loading system health...');
+      // Loading system health
       const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${apiUrl}/api/settings/health/check`);
       if (response.ok) {
@@ -34,7 +35,7 @@ function AdminDashboard({ onClose, currentUser }) {
         if (error && data.success) setError(null);
       } else if (response.status === 404) {
         // Health check endpoint doesn't exist - use mock data
-        console.log('⚠️ Health check endpoint not found, using mock data');
+        // Health check endpoint not found, using mock data
         setSystemHealth({
           status: 'operational',
           uptime: '99.9%',
@@ -46,7 +47,7 @@ function AdminDashboard({ onClose, currentUser }) {
         throw new Error(`HTTP ${response.status}: Health check failed`);
       }
     } catch (error) {
-      console.error('Failed to load system health:', error);
+      // Failed to load system health
       setError(error.message);
       setSystemHealth(null);
     }
@@ -54,7 +55,7 @@ function AdminDashboard({ onClose, currentUser }) {
 
   const loadUserActivity = useCallback(async () => {
     try {
-      console.log('🔄 Loading user activity...');
+      // Loading user activity
       const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${apiUrl}/api/analytics/users/activity?limit=10&hours=24`, {
         method: 'GET',
@@ -65,14 +66,14 @@ function AdminDashboard({ onClose, currentUser }) {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ User activity loaded:', data);
+        // User activity loaded
         setUserActivity(data);
       } else {
-        console.error('❌ Failed to load user activity:', response.status, response.statusText);
+        // Failed to load user activity
         throw new Error(`HTTP ${response.status}: Failed to load user activity`);
       }
     } catch (error) {
-      console.error('❌ Error loading user activity:', error);
+      // Error loading user activity
       // Set empty state instead of null to show "No data found" instead of "Loading..."
       setUserActivity({ activities: [], stats: { activeUsers: 0, totalActivities: 0 } });
     }
@@ -80,7 +81,7 @@ function AdminDashboard({ onClose, currentUser }) {
 
   const loadUserAccounts = useCallback(async () => {
     try {
-      console.log('🔄 Loading Firebase user accounts...');
+      // Loading Firebase user accounts
       const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
       const response = await fetch(`${apiUrl}/api/analytics/users/accounts?limit=20`, {
         method: 'GET',
@@ -91,10 +92,10 @@ function AdminDashboard({ onClose, currentUser }) {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ User accounts loaded:', data);
+        // User accounts loaded
         setUserAccounts(data);
       } else {
-        console.error('❌ Failed to load user accounts:', response.status, response.statusText);
+        // Failed to load user accounts
         throw new Error(`HTTP ${response.status}: Failed to load user accounts`);
       }
     } catch (error) {
@@ -236,7 +237,7 @@ function AdminDashboard({ onClose, currentUser }) {
 
   // useEffect must be declared before conditional returns
   useEffect(() => {
-    console.log('🛠️ AdminDashboard mounting for user:', currentUser?.email);
+    // AdminDashboard mounting for user
 
     const initializeAdmin = async () => {
       try {
@@ -1119,6 +1120,13 @@ function AdminDashboard({ onClose, currentUser }) {
   );
 
   const renderLogsTab = () => (
+    <div style={styles.tabContent}>
+      <ErrorLogViewer />
+    </div>
+  );
+
+  // Old renderLogsTab backup (to be removed)
+  const renderLogsTabOld = () => (
     <div style={styles.tabContent}>
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>📋 System Logs</h3>
