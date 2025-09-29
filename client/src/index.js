@@ -54,11 +54,14 @@ console.log('Root element found:', rootElement ? 'Yes' : 'No');
 
 if (!rootElement) {
   console.error('❌ Root element not found!');
-  document.body.innerHTML = '<h1>Error: Root element not found</h1>';
+  // Safe error display without innerHTML
+  const errorHeading = document.createElement('h1');
+  errorHeading.textContent = 'Error: Root element not found';
+  document.body.appendChild(errorHeading);
 } else {
   const root = ReactDOM.createRoot(rootElement);
   console.log('🎨 Rendering app...');
-  
+
   try {
     root.render(
       <ErrorBoundary>
@@ -66,13 +69,17 @@ if (!rootElement) {
       </ErrorBoundary>
     );
     console.log('✅ App rendered successfully');
-    
+
     // Mark React as loaded for the loading screen
     if (window.markReactLoaded) {
       window.markReactLoaded();
     }
   } catch (error) {
     console.error('❌ Failed to render app:', error);
-    rootElement.innerHTML = `<h1>Error loading app: ${error.message}</h1>`;
+    // Safe error display without innerHTML
+    const errorHeading = document.createElement('h1');
+    // Sanitize error message to prevent XSS
+    errorHeading.textContent = `Error loading app: ${error.message || 'Unknown error'}`;
+    rootElement.appendChild(errorHeading);
   }
 }

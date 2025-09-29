@@ -22,6 +22,7 @@ import { FEATURES } from '../config/features';
 import debugService from '../services/debugService';
 import spoonacularService from '../services/spoonacularService';
 import { API_URL, getAIEndpoint, API_ENDPOINTS } from '../config/api';
+import DOMPurify from 'dompurify';
 
 // MixingBowlLoader Component
 const MixingBowlLoader = ({ text = "CARTSMASH AI is preparing your meal plan..." }) => {
@@ -3898,10 +3899,14 @@ Return as JSON with this structure:
                     highlighted = highlighted.replace(/(\d+\s*(?:minutes?|hours?|seconds?))/g, '<strong style="color: #002244;">$1</strong>');
                     // Highlight visual cues
                     highlighted = highlighted.replace(/(until\s+[^,.]+)/g, '<em style="color: #666;">$1</em>');
-                    
-                    return highlighted;
+
+                    // Sanitize HTML to prevent XSS attacks
+                    return DOMPurify.sanitize(highlighted, {
+                      ALLOWED_TAGS: ['strong', 'em'],
+                      ALLOWED_ATTR: ['style']
+                    });
                   };
-                  
+
                   return (
                     <li key={idx} style={styles.detailedInstructionItem}>
                       <div dangerouslySetInnerHTML={{ __html: highlightKeyInfo(step) }} />

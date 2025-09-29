@@ -131,20 +131,40 @@ Total: ~$150`,
   const copyPromptWithAI = (prompt, recommendedAI) => {
     const aiInfo = aiAssistants[recommendedAI];
     const fullPrompt = `${prompt}\n\n[Best results with ${aiInfo.name} - ${aiInfo.bestFor}]`;
-    
+
     navigator.clipboard.writeText(fullPrompt);
-    
-    // Enhanced notification
+
+    // Enhanced notification - Using safe DOM manipulation instead of innerHTML
     const toast = document.createElement('div');
-    toast.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span>${aiInfo.icon}</span>
-        <div>
-          <strong>Copied for ${aiInfo.name}!</strong>
-          <br/><small>Open ${aiInfo.name} and paste this prompt</small>
-        </div>
-      </div>
-    `;
+
+    // Create the container div
+    const container = document.createElement('div');
+    container.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+
+    // Create the icon span
+    const iconSpan = document.createElement('span');
+    iconSpan.textContent = aiInfo.icon;
+
+    // Create the text container div
+    const textDiv = document.createElement('div');
+
+    // Create the strong element
+    const strongEl = document.createElement('strong');
+    strongEl.textContent = `Copied for ${aiInfo.name}!`;
+
+    // Create the small element
+    const smallEl = document.createElement('small');
+    smallEl.textContent = `Open ${aiInfo.name} and paste this prompt`;
+
+    // Assemble the DOM structure
+    textDiv.appendChild(strongEl);
+    textDiv.appendChild(document.createElement('br'));
+    textDiv.appendChild(smallEl);
+
+    container.appendChild(iconSpan);
+    container.appendChild(textDiv);
+    toast.appendChild(container);
+
     toast.style.cssText = `
       position: fixed;
       top: 20px;
@@ -160,9 +180,9 @@ Total: ~$150`,
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
       min-width: 250px;
     `;
-    
+
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
       if (document.body.contains(toast)) {
         document.body.removeChild(toast);
