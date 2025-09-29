@@ -590,7 +590,6 @@ function GroceryListForm({
   const [enrichmentProgress, setEnrichmentProgress] = useState(0);
   const [enrichmentTotal, setEnrichmentTotal] = useState(0);
   const [showEnrichmentStatus, setShowEnrichmentStatus] = useState(false);
-  const [cartPopulated, setCartPopulated] = useState(false);
   const [ingredientStyle, setIngredientStyle] = useState('basic');
   const [selectedAI] = useState('claude');
   const [mealPlanExpanded, setMealPlanExpanded] = useState(false);
@@ -1075,8 +1074,7 @@ function GroceryListForm({
 
       setCurrentCart(enrichedItems);
 
-      // Mark cart as populated and visible to user
-      setCartPopulated(true);
+      // Cart enrichment complete
 
       // Hide enrichment status after completion (no delay - main loading will handle timing)
       setShowEnrichmentStatus(false);
@@ -1590,7 +1588,6 @@ function GroceryListForm({
     setError('');
     setIsLoading(true);
     setShowProgress(true);
-    setCartPopulated(false);
     setParsingProgress(0);
 
     try {
@@ -2224,6 +2221,9 @@ Return as JSON with this structure:
   }, [generateDetailedRecipeWithAI]);
 
   const submitGroceryList = useCallback(async (listText, useAI = true) => {
+    // Temp variable to store processed text without updating UI
+    let tempProcessedText = '';
+
     // Debounce: prevent submissions within 500ms
     const now = Date.now();
     if (now - lastSubmitTime < 500) {
@@ -2251,7 +2251,6 @@ Return as JSON with this structure:
     setError('');
     setShowProgress(true);
     setParsingProgress(0);
-    setCartPopulated(false);
 
     // Defer heavy operations to next event loop tick
     setTimeout(async () => {
@@ -2379,11 +2378,8 @@ Return as JSON with this structure:
                 });
 
                 const groceryListText = groceryItems.join('\n');
-                setInputText(groceryListText);
-
-                if (textareaRef.current) {
-                  textareaRef.current.value = groceryListText;
-                }
+                // Store in temp variable instead of updating UI
+                tempProcessedText = groceryListText;
 
                 groceryListProcessed = true;
               } else {
@@ -2410,11 +2406,8 @@ Return as JSON with this structure:
                 cleanedLength: cleanGroceryList.length
               });
 
-              setInputText(cleanGroceryList);
-
-              if (textareaRef.current) {
-                textareaRef.current.value = cleanGroceryList;
-              }
+              // Store in temp variable instead of updating UI
+              tempProcessedText = cleanGroceryList;
 
               // Parse and display recipes from AI response  WHERE THE MAGIC HAPPENS FOR RECIPES
               try {
@@ -2455,12 +2448,7 @@ Return as JSON with this structure:
           if (groceryListProcessed) {
             debugService.log(`🎯 [${sessionId}] STEP 1.5: Post-processing AI results`);
 
-            // Expand textarea
-            setTimeout(() => {
-              expandTextarea();
-            }, 50);
-
-            // Set flag and continue to parsing step without requiring second click
+            // Set flag and continue to parsing step immediately
             setWaitingForAIResponse(true);
             debugService.log(`✅ [${sessionId}] AI processing complete, proceeding to cart parsing`, {
               elapsedMs: Math.round(performance.now() - startTime)
@@ -2474,8 +2462,8 @@ Return as JSON with this structure:
               const cartParseStart = performance.now();
               debugService.log(`📦 [${sessionId}] STEP 2: Cart Parsing - Starting`);
 
-              // Use the processed grocery list text, not the original prompt
-              const currentListText = textareaRef.current?.value || inputText || listText;
+              // Use the processed grocery list text from temp variable
+              const currentListText = tempProcessedText || inputText || listText;
               debugService.log(`📝 [${sessionId}] Text sources analysis:`, {
                 textareaLength: textareaRef.current?.value?.length || 0,
                 inputTextLength: inputText?.length || 0,
@@ -2561,14 +2549,7 @@ Return as JSON with this structure:
                 const cleanupStart = performance.now();
                 debugService.log(`🧹 [${sessionId}] STEP 2.2: Preparing for enrichment - keeping parsing active`);
 
-                // Clear the input for next use
-                setInputText('');
-                if (textareaRef.current) {
-                  textareaRef.current.value = '';
-                }
-
-                // Clear draft
-                clearDraft();
+                // Don't clear input yet - will be cleared after enrichment completes
 
                 const cleanupDuration = Math.round(performance.now() - cleanupStart);
                 const totalWorkflowDuration = Math.round(performance.now() - startTime);
@@ -2592,6 +2573,13 @@ Return as JSON with this structure:
                   setShowProgress(false);
                   setParsingProgress(0);
                   setWaitingForAIResponse(false); // NOW clear the parsing indicator
+
+                  // Clear inputs after everything is complete
+                  setInputText('');
+                  if (textareaRef.current) {
+                    textareaRef.current.value = '';
+                  }
+                  clearDraft();
 
                   debugService.log(`✅ [${sessionId}] Complete workflow finished - UI ready with full content`);
                 }).catch(() => {
@@ -4501,13 +4489,13 @@ Return as JSON with this structure:
     <div className="container" style={{ paddingTop: '20px' }}>
       {/* Fixed container to prevent layout shift */}
       <div style={{
-        minHeight: (isLoading || showProgress || (waitingForAIResponse && !cartPopulated)) ? '200px' : '0px',
+        minHeight: (isLoading || showProgress || waitingForAIResponse) ? '200px' : '0px',
         transition: 'min-height 0.3s ease-in-out',
         overflow: 'hidden'
       }}>
-        {(isLoading || showProgress || (waitingForAIResponse && !cartPopulated)) && (
+        {(isLoading || showProgress || waitingForAIResponse) && (
           <MixingBowlLoader text={
-            waitingForAIResponse && !cartPopulated ? "Organizing your list and adding to cart..." :
+            waitingForAIResponse ? "Organizing your list and adding to cart..." :
             showProgress ? "Creating your complete shopping list with recipes and prices..." :
             "Processing your list..."
           } />

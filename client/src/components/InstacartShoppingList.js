@@ -1,31 +1,13 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Box, Chip, Button, IconButton, Tooltip, Accordion, AccordionSummary, AccordionDetails, Typography } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import React, { useState, useCallback, useMemo } from 'react';
+import { Button } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
-import RemoveIcon from '@mui/icons-material/Remove';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import CheckIcon from '@mui/icons-material/Check';
 import imageService from '../utils/imageService';
 
-// Stub functions to prevent build errors
-const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {}, trace: () => {} };
-const createTimer = () => ({ start: () => {}, mark: () => {}, end: () => {} });
-const conditionalLog = {
-  apiCall: () => {},
-  componentLifecycle: () => {},
-  stateChange: () => {},
-  performance: () => {},
-  apiSuccess: () => {}
-};
-
 function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, onDeleteItem, onSelectProduct, retailers = [], selectedRetailerId }) {
-  // Generate a unique component ID for debugging
-  const componentId = useMemo(() => `InstacartShoppingList_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`, []);
-
   // Only manage selection state locally - let parent manage items
   const [selectedItems, setSelectedItems] = useState(new Set());
-  const [expandedItems, setExpandedItems] = useState(new Set());
 
   // Use items directly from props instead of local state
 
@@ -149,19 +131,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
 
   // Get product image using the centralized image service
   const getProductImage = (item) => {
-    // Priority: Check for Spoonacular data first, then fall back to other sources
-    const imageUrl = item.spoonacularData?.image_url ||
-                     item.spoonacularData?.image ||
-                     item.image_url ||
-                     item.image ||
-                     item.imageUrl;
-
-    if (imageUrl) {
-      // Return the URL directly - imageService will handle proxy if needed
-      return imageUrl;
-    }
-
-    // Fall back to imageService for category-based fallback
+    // Use imageService which handles proxy and fallbacks
     return imageService.getProductImage(item, { width: 64, height: 64 });
   };
 
@@ -351,10 +321,10 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                   padding: '6px 12px'
                 }}
               >
-                {allItemsSelected ? 'Deselect All' : 'Select All'}
+                {items.length > 0 && selectedItems.size === items.length ? 'Deselect All' : 'Select All'}
               </Button>
 
-              {someItemsSelected && (
+              {selectedItems.size > 0 && (
                 <Button
                   variant="contained"
                   size="small"
@@ -452,36 +422,58 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                   e.currentTarget.style.backgroundColor = 'white';
                 }
               }}>
-                {/* Custom Checkbox with CartSmash Branding */}
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleItemSelection(item.id);
-                  }}
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    border: `2px solid ${isSelected ? '#FB4F14' : '#dee2e6'}`,
-                    borderRadius: '4px',
-                    backgroundColor: isSelected ? '#FB4F14' : 'white',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s ease',
-                    flexShrink: 0,
-                    marginTop: '2px'
-                  }}
-                >
-                  {isSelected && (
-                    <CheckIcon
-                      style={{
-                        fontSize: '16px',
-                        color: 'white',
-                        fontWeight: 'bold'
-                      }}
-                    />
-                  )}
+                {/* Left side: Checkbox and Image */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                  {/* Custom Checkbox with CartSmash Branding */}
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleItemSelection(item.id);
+                    }}
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      border: `2px solid ${isSelected ? '#FB4F14' : '#dee2e6'}`,
+                      borderRadius: '4px',
+                      backgroundColor: isSelected ? '#FB4F14' : 'white',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease',
+                      flexShrink: 0,
+                      marginTop: '2px'
+                    }}
+                  >
+                    {isSelected && (
+                      <CheckIcon
+                        style={{
+                          fontSize: '16px',
+                          color: 'white',
+                          fontWeight: 'bold'
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Product Image */}
+                  <img
+                    src={productImage}
+                    alt={formatProductName(item.productName)}
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      objectFit: 'cover',
+                      borderRadius: '4px',
+                      border: '1px solid #e0e0e0'
+                    }}
+                    onError={(e) => {
+                      // Fallback to category-based SVG if image fails
+                      e.target.src = imageService.getImageUrl(
+                        imageService.getCategoryFromItem(item)
+                      );
+                    }}
+                  />
                 </div>
 
                 {/* Product Info Container */}
@@ -640,9 +632,5 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
     </div>
   );
 }
-
-// Some state checks
-const allItemsSelected = items.length > 0 && selectedItems.size === items.length;
-const someItemsSelected = selectedItems.size > 0;
 
 export default InstacartShoppingList;
