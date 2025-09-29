@@ -99,21 +99,15 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
     };
   }, [total, retailers.length, selectedRetailerId]);
 
-  // Handle direct quantity input (shopping multiplier)
+  // Handle direct quantity input
   const setQuantity = (itemId, value) => {
-    const multiplier = parseInt(value) || 1;
-    const finalMultiplier = Math.max(1, multiplier);
+    const newQuantity = Math.max(1, parseInt(value) || 1);
 
     const updatedItems = items.map(item => {
       if (item.id === itemId) {
-        // Preserve original recipe quantity while updating shopping multiplier
         return {
           ...item,
-          shoppingMultiplier: finalMultiplier,
-          quantity: finalMultiplier,
-          // Preserve original recipe requirements
-          recipeQuantity: item.recipeQuantity || item.originalQuantity || item.unitCount,
-          originalQuantity: item.originalQuantity || item.unitCount || item.recipeQuantity
+          quantity: newQuantity
         };
       }
       return item;
@@ -507,7 +501,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const currentQty = item.shoppingMultiplier || item.quantity || 1;
+                          const currentQty = item.quantity || 1;
                           setQuantity(item.id, Math.max(1, currentQty - 1));
                         }}
                         style={{
@@ -531,7 +525,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
 
                       <input
                         type="number"
-                        value={item.shoppingMultiplier || item.quantity || 1}
+                        value={item.quantity || 1}
                         onChange={(e) => {
                           e.stopPropagation();
                           const value = parseInt(e.target.value) || 1;
@@ -564,7 +558,7 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const currentQty = item.shoppingMultiplier || item.quantity || 1;
+                          const currentQty = item.quantity || 1;
                           setQuantity(item.id, Math.min(99, currentQty + 1));
                         }}
                         style={{
@@ -598,14 +592,14 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     </div>
                   )}
 
-                  {/* Third Row: Size */}
-                  {(item.size || item.packageSize || item.spoonacularData?.servingSize) && (
+                  {/* Third Row: Size - Check all possible fields for product specifications */}
+                  {(item.size || item.packageSize || item.servingSize || item.spoonacularData?.servingSize || item.spoonacular?.servingSize) && (
                     <div style={{
                       fontSize: '12px',
                       color: '#495057',
                       fontWeight: '500'
                     }}>
-                      {item.size || item.packageSize || item.spoonacularData?.servingSize}
+                      {item.size || item.packageSize || item.servingSize || item.spoonacularData?.servingSize || item.spoonacular?.servingSize}
                     </div>
                   )}
                 </div>

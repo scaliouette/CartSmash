@@ -281,6 +281,10 @@ class SpoonacularService {
         enrichedProduct.spoonacularId = productDetails.spoonacularId || productDetails.id;
         enrichedProduct.brand = enrichedProduct.brand || productDetails.brand;
         enrichedProduct.servingSize = productDetails.servingSize;
+        // Also set size field for compatibility
+        if (productDetails.servingSize && !enrichedProduct.size) {
+          enrichedProduct.size = productDetails.servingSize;
+        }
       }
 
       return enrichedProduct;

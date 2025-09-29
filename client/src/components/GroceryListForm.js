@@ -877,6 +877,7 @@ function GroceryListForm({
                 brand: instacartProduct.brand,
                 // Note: package_size comes from Spoonacular, not Instacart
                 packageSize: instacartProduct.package_size || instacartProduct.size,
+                servingSize: instacartProduct.servingSize || instacartProduct.size,
                 description: instacartProduct.description,
                 availability: instacartProduct.availability,
                 // Preserve ALL original recipe quantities and units - don't let Instacart data override them
@@ -908,6 +909,8 @@ function GroceryListForm({
                       nutrition: instacartProduct.nutrition || spoonProduct.nutrition,
                       badges: [...(enrichedItem.badges || []), ...(spoonProduct.badges || [])],
                       aisle: enrichedItem.aisle || spoonProduct.aisle,
+                      servingSize: spoonProduct.servingSize || enrichedItem.servingSize,
+                      size: enrichedItem.size || spoonProduct.servingSize || spoonProduct.size,
                       spoonacularData: spoonProduct,
                       enrichmentSource: 'hybrid', // Both Instacart and Spoonacular
                       hasRealImage: !!(enrichedItem.image || spoonProduct.image_url || spoonProduct.image)
@@ -968,13 +971,14 @@ function GroceryListForm({
                     badges: spoonProduct.badges || [],
                     aisle: spoonProduct.aisle,
                     brand: spoonProduct.brand || 'Generic',
+                    servingSize: spoonProduct.servingSize,
+                    size: item.size || spoonProduct.servingSize || spoonProduct.size,
                     // Preserve original recipe quantities
                     quantity: item.quantity,
                     recipeQuantity: item.recipeQuantity,
                     originalQuantity: item.originalQuantity,
                     unitCount: item.unitCount,
-                    unit: item.unit,
-                    size: item.size
+                    unit: item.unit
                   };
 
                   debugService.log(`🥄 SPOONACULAR ENRICHED ITEM for "${searchQuery}":`, spoonEnrichedItem);
