@@ -83,10 +83,15 @@ function AdminDashboard({ onClose, currentUser }) {
     try {
       // Loading Firebase user accounts
       const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+
+      // Get auth token from currentUser
+      const token = currentUser ? await currentUser.getIdToken() : null;
+
       const response = await fetch(`${apiUrl}/api/analytics/users/accounts?limit=20`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
 
@@ -103,7 +108,7 @@ function AdminDashboard({ onClose, currentUser }) {
       // Set empty state instead of null to show "No data found"
       setUserAccounts({ users: [], totalUsers: 0 });
     }
-  }, []);
+  }, [currentUser]);
 
   const loadRevenueData = useCallback(async () => {
     try {

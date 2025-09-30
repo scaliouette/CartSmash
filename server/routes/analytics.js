@@ -208,35 +208,46 @@ router.get('/users/activity', async (req, res) => {
   }
 });
 
-// Get user accounts
-router.get('/users/accounts', async (req, res) => {
+// Get user accounts - Fetch real Firebase users (requires admin)
+router.get('/users/accounts', requireAdmin, async (req, res) => {
   try {
     const { limit = 20 } = req.query;
     const limitNum = parseInt(limit);
+    const admin = require('firebase-admin');
 
-    logger.info(`Fetching user accounts: limit=${limitNum}`);
+    logger.info(`Fetching Firebase user accounts: limit=${limitNum}`);
 
-    // Mock user accounts data for now
-    const users = [
-      {
-        uid: 'user_001',
-        email: 'john.doe@example.com',
-        displayName: 'John Doe',
-        emailVerified: true,
-        creationTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
-        lastSignInTime: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-        providerData: [{ providerId: 'password' }]
-      },
-      {
-        uid: 'user_002',
-        email: 'jane.smith@example.com',
-        displayName: 'Jane Smith',
-        emailVerified: true,
-        creationTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(),
-        lastSignInTime: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-        providerData: [{ providerId: 'google.com' }]
-      }
-    ].slice(0, limitNum);
+    // Check if Firebase Admin is initialized
+    if (!admin.apps.length) {
+      throw new Error('Firebase Admin SDK not initialized');
+    }
+
+    // Fetch users from Firebase Auth
+    const listUsersResult = await admin.auth().listUsers(limitNum);
+
+    // Transform Firebase user records to match expected format
+    const users = listUsersResult.users.map(userRecord => ({
+      uid: userRecord.uid,
+      email: userRecord.email || 'No email',
+      displayName: userRecord.displayName || 'No name',
+      emailVerified: userRecord.emailVerified || false,
+      creationTime: userRecord.metadata.creationTime,
+      lastSignInTime: userRecord.metadata.lastSignInTime || userRecord.metadata.creationTime,
+      providerData: userRecord.providerData || [],
+      disabled: userRecord.disabled || false,
+      photoURL: userRecord.photoURL || null,
+      phoneNumber: userRecord.phoneNumber || null
+    }));
+
+    // Calculate stats
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const activeToday = users.filter(user => {
+      const lastSignIn = new Date(user.lastSignInTime);
+      return lastSignIn >= todayStart;
+    }).length;
+
+    logger.info(`Successfully fetched ${users.length} Firebase users`);
 
     res.json({
       success: true,
@@ -244,14 +255,17 @@ router.get('/users/accounts', async (req, res) => {
       totalUsers: users.length,
       stats: {
         verifiedUsers: users.filter(u => u.emailVerified).length,
-        activeToday: users.length
+        unverifiedUsers: users.filter(u => !u.emailVerified).length,
+        activeToday,
+        disabledUsers: users.filter(u => u.disabled).length
       }
     });
   } catch (error) {
-    logger.error('Failed to fetch user accounts:', error);
+    logger.error('Failed to fetch Firebase user accounts:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch user accounts'
+      error: 'Failed to fetch user accounts',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
