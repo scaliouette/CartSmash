@@ -164,7 +164,7 @@ class AgentTaskQueue extends EventEmitter {
    */
   getNextTask(agentId, agentCapabilities = []) {
     // Check if agent is already working on something
-    if (this.activeT asks.has(agentId)) {
+    if (this.activeTasks.has(agentId)) {
       const activeTask = this.activeTasks.get(agentId);
       if (activeTask.status === 'IN_PROGRESS') {
         return null; // Agent is busy

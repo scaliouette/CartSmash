@@ -54,7 +54,7 @@ import {
 } from 'lucide-react';
 import agentMonitoringService from '../services/agentMonitoringService';
 
-const WorkReviewDashboard = () => {
+const WorkReviewDashboard = ({ currentUser }) => {
   // State management
   const [pendingReviews, setPendingReviews] = useState([]);
   const [reviewedWork, setReviewedWork] = useState([]);
@@ -341,24 +341,96 @@ const WorkReviewDashboard = () => {
   const loadReviews = useCallback(async () => {
     setIsLoading(true);
     try {
-      // In production, fetch from API
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const token = currentUser ? await currentUser.getIdToken() : null;
+
+      // Fetch pending reviews from real API
+      const pendingResponse = await fetch(`${apiUrl}/api/agent/work/pending-reviews`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (pendingResponse.ok) {
+        const pendingData = await pendingResponse.json();
+        setPendingReviews(pendingData.reviews || []);
+      } else {
+        // Fall back to sample data if API fails
+        setPendingReviews(samplePendingReviews);
+      }
+
+      // Fetch reviewed work
+      const reviewedResponse = await fetch(`${apiUrl}/api/agent/work/journal?reviewRequired=true&limit=50`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (reviewedResponse.ok) {
+        const reviewedData = await reviewedResponse.json();
+        const reviewed = reviewedData.entries?.filter(e =>
+          e.approvalStatus === 'APPROVED' || e.approvalStatus === 'REJECTED'
+        ) || [];
+        setReviewedWork(reviewed);
+      } else {
+        // Fall back to sample data if API fails
+        setReviewedWork(sampleReviewedWork);
+      }
+
+      // Set auto-approval rules (these could come from API in the future)
+      setAutoApproveRules(defaultAutoApprovalRules);
+
+      // Calculate stats based on real data
+      const pending = pendingReviews.length;
+      const approved = reviewedWork.filter(r => r.approvalStatus === 'APPROVED').length;
+      const rejected = reviewedWork.filter(r => r.approvalStatus === 'REJECTED').length;
+
+      setReviewStats({
+        pending,
+        approved,
+        rejected,
+        avgReviewTime: calculateAvgReviewTime(reviewedWork)
+      });
+    } catch (error) {
+      console.error('Failed to load reviews:', error);
+      // Fall back to sample data on error
       setPendingReviews(samplePendingReviews);
       setReviewedWork(sampleReviewedWork);
       setAutoApproveRules(defaultAutoApprovalRules);
 
-      // Calculate stats
       setReviewStats({
         pending: samplePendingReviews.length,
         approved: sampleReviewedWork.filter(r => r.status === 'APPROVED').length,
         rejected: sampleReviewedWork.filter(r => r.status === 'REJECTED').length,
         avgReviewTime: '4h'
       });
-    } catch (error) {
-      console.error('Failed to load reviews:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [filters]);
+  }, [filters, currentUser]);
+
+  // Helper function to calculate average review time
+  const calculateAvgReviewTime = (reviews) => {
+    if (!reviews || reviews.length === 0) return 'N/A';
+
+    const times = reviews
+      .filter(r => r.reviewedAt && r.timestamp)
+      .map(r => new Date(r.reviewedAt) - new Date(r.timestamp));
+
+    if (times.length === 0) return 'N/A';
+
+    const avgMs = times.reduce((a, b) => a + b, 0) / times.length;
+    const hours = Math.floor(avgMs / (1000 * 60 * 60));
+    const minutes = Math.floor((avgMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hours > 24) {
+      const days = Math.floor(hours / 24);
+      return `${days}d ${hours % 24}h`;
+    }
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  };
 
   // Filter reviews
   const filteredReviews = useMemo(() => {
@@ -382,13 +454,33 @@ const WorkReviewDashboard = () => {
   // Handle review approval
   const approveReview = async (reviewId, comment = '') => {
     try {
-      // In production, send to API
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const token = currentUser ? await currentUser.getIdToken() : null;
       const review = pendingReviews.find(r => r.id === reviewId);
-      if (review) {
+
+      if (!review) return;
+
+      // Send approval to backend API
+      const response = await fetch(`${apiUrl}/api/agent/work/review`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          workId: review.workId || review.id,
+          approvalStatus: 'APPROVED',
+          reviewComment: comment || 'Approved via Admin Dashboard'
+        })
+      });
+
+      if (response.ok) {
+        // Update local state
         const approvedReview = {
           ...review,
           status: 'APPROVED',
-          reviewedBy: 'admin',
+          approvalStatus: 'APPROVED',
+          reviewedBy: currentUser?.email || 'admin',
           reviewedAt: new Date(),
           reviewComment: comment,
           deploymentStatus: 'PENDING_DEPLOYMENT'
@@ -399,25 +491,53 @@ const WorkReviewDashboard = () => {
 
         // Log to monitoring service
         agentMonitoringService.logActivity(review.agentId, 'Work Approved', {
-          workId: review.workId,
-          reviewer: 'admin',
+          workId: review.workId || review.id,
+          reviewer: currentUser?.email || 'admin',
           comment
         });
+
+        // Reload to get fresh data
+        setTimeout(loadReviews, 1000);
+      } else {
+        const errorData = await response.text();
+        throw new Error(`Failed to approve: ${errorData}`);
       }
     } catch (error) {
       console.error('Failed to approve review:', error);
+      alert(`Failed to approve review: ${error.message}`);
     }
   };
 
   // Handle review rejection
   const rejectReview = async (reviewId, reason, comment = '') => {
     try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const token = currentUser ? await currentUser.getIdToken() : null;
       const review = pendingReviews.find(r => r.id === reviewId);
-      if (review) {
+
+      if (!review) return;
+
+      // Send rejection to backend API
+      const response = await fetch(`${apiUrl}/api/agent/work/review`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          workId: review.workId || review.id,
+          approvalStatus: 'REJECTED',
+          reviewComment: `${reason}: ${comment}`
+        })
+      });
+
+      if (response.ok) {
+        // Update local state
         const rejectedReview = {
           ...review,
           status: 'REJECTED',
-          reviewedBy: 'admin',
+          approvalStatus: 'REJECTED',
+          reviewedBy: currentUser?.email || 'admin',
           reviewedAt: new Date(),
           reviewComment: comment,
           rejectionReason: reason,
@@ -429,14 +549,21 @@ const WorkReviewDashboard = () => {
 
         // Log to monitoring service
         agentMonitoringService.logActivity(review.agentId, 'Work Rejected', {
-          workId: review.workId,
-          reviewer: 'admin',
+          workId: review.workId || review.id,
+          reviewer: currentUser?.email || 'admin',
           reason,
           comment
         });
+
+        // Reload to get fresh data
+        setTimeout(loadReviews, 1000);
+      } else {
+        const errorData = await response.text();
+        throw new Error(`Failed to reject: ${errorData}`);
       }
     } catch (error) {
       console.error('Failed to reject review:', error);
+      alert(`Failed to reject review: ${error.message}`);
     }
   };
 

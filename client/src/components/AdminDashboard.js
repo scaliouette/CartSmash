@@ -1,7 +1,6 @@
 // client/src/components/AdminDashboard.js - Fixed with proper null checking and dynamic imports
 import React, { useState, useEffect, useCallback } from 'react';
 import ParsingAnalyticsDashboard from './ParsingAnalyticsDashboard';
-import ErrorLogViewer from './ErrorLogViewer';
 import agentMonitoringService from '../services/agentMonitoringService';
 // New agent components
 import AgentChatInterface from './AgentChatInterface';
@@ -1701,7 +1700,7 @@ function AdminDashboard({ onClose, currentUser }) {
       return (
         <div style={styles.tabContent}>
           {renderAgentSubNav()}
-          <WorkReviewDashboard />
+          <WorkReviewDashboard currentUser={currentUser} />
         </div>
       );
     }
@@ -1872,74 +1871,10 @@ function AdminDashboard({ onClose, currentUser }) {
 
   const renderLogsTab = () => (
     <div style={styles.tabContent}>
-      <ErrorLogViewer />
+      <EnhancedErrorLogViewer currentUser={currentUser} />
     </div>
   );
 
-  // Old renderLogsTab backup (to be removed)
-  const renderLogsTabOld = () => (
-    <div style={styles.tabContent}>
-      <div style={styles.section}>
-        <h3 style={styles.sectionTitle}>📋 System Logs</h3>
-        
-        <div style={styles.logFilters}>
-          <select
-            style={styles.logFilter}
-            onChange={(e) => console.log('Log level filter changed:', e.target.value)}
-            defaultValue="all"
-          >
-            <option value="all">All Levels</option>
-            <option value="error">Errors Only</option>
-            <option value="warn">Warnings</option>
-            <option value="info">Info</option>
-          </select>
-          <select
-            style={styles.logFilter}
-            onChange={(e) => console.log('Time range filter changed:', e.target.value)}
-            defaultValue="24h"
-          >
-            <option value="1h">Last Hour</option>
-            <option value="24h">Last 24 Hours</option>
-            <option value="7d">Last 7 Days</option>
-          </select>
-          <button
-            style={styles.logRefresh}
-            onClick={() => console.log('Refreshing logs...')}
-          >🔄 Refresh</button>
-        </div>
-
-        <div style={styles.logContainer}>
-          {[
-            { level: 'info', time: '14:23:45', message: 'Smart processing completed successfully', details: '12 items extracted, 95% confidence' },
-            { level: 'warn', time: '14:22:33', message: 'AI API rate limit approaching', details: 'Claude API: 85/100 requests used' },
-            { level: 'info', time: '14:21:12', message: 'Product validation completed', details: '8/8 products validated successfully' },
-            { level: 'error', time: '14:19:07', message: 'Database connection timeout', details: 'Connection to PostgreSQL failed after 5s' },
-            { level: 'info', time: '14:18:45', message: 'Cache cleared by admin', details: 'All cached processing results removed' },
-            { level: 'info', time: '14:17:23', message: 'New user registered', details: 'user@example.com signed up' }
-          ].map((log, index) => (
-            <div key={index} style={{
-              ...styles.logEntry,
-              borderLeftColor: log.level === 'error' ? '#dc3545' : 
-                               log.level === 'warn' ? '#ffc107' : '#28a745'
-            }}>
-              <div style={styles.logHeader}>
-                <span style={{
-                  ...styles.logLevel,
-                  color: log.level === 'error' ? '#dc3545' : 
-                         log.level === 'warn' ? '#f57c00' : '#28a745'
-                }}>
-                  {log.level.toUpperCase()}
-                </span>
-                <span style={styles.logTime}>{log.time}</span>
-              </div>
-              <div style={styles.logMessage}>{log.message}</div>
-              <div style={styles.logDetails}>{log.details}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
 
   if (isLoading) {
     return (
