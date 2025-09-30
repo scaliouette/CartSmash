@@ -17,6 +17,7 @@ const EnhancedErrorLogViewer = ({ currentUser }) => {
   const [groupBy, setGroupBy] = useState('time'); // time, severity, agent, component
   const [timeRange, setTimeRange] = useState('24h');
   const [showCopySuccess, setShowCopySuccess] = useState(false);
+  const [copyMessage, setCopyMessage] = useState('');
 
   // Load logs
   useEffect(() => {
@@ -29,6 +30,20 @@ const EnhancedErrorLogViewer = ({ currentUser }) => {
   useEffect(() => {
     applyFilters();
   }, [logs, filter, searchTerm, timeRange]);
+
+  // Add keyboard shortcut for copy all
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl+Shift+C or Cmd+Shift+C for copy all
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
+        e.preventDefault();
+        copyAll();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [filteredLogs, copyFormat]);
 
   const loadLogs = () => {
     // Combine all log sources
@@ -113,6 +128,7 @@ const EnhancedErrorLogViewer = ({ currentUser }) => {
   const copyLog = (log, format = copyFormat) => {
     const text = formatLogForCopy(log, format);
     navigator.clipboard.writeText(text).then(() => {
+      setCopyMessage(`✅ Copied 1 log as ${format.toUpperCase()} format!`);
       setShowCopySuccess(true);
       setTimeout(() => setShowCopySuccess(false), 2000);
     });
@@ -130,6 +146,7 @@ const EnhancedErrorLogViewer = ({ currentUser }) => {
       .join('\n\n---\n\n');
 
     navigator.clipboard.writeText(text).then(() => {
+      setCopyMessage(`✅ Copied ${selectedLogsList.length} selected logs as ${copyFormat.toUpperCase()} format!`);
       setShowCopySuccess(true);
       setTimeout(() => setShowCopySuccess(false), 2000);
     });
@@ -270,6 +287,38 @@ ${JSON.stringify(log.context, null, 2)}
     debugService.clearDebugData();
     setLogs([]);
     setFilteredLogs([]);
+  };
+
+  const copyAll = () => {
+    if (filteredLogs.length === 0) return;
+
+    const text = filteredLogs
+      .map(log => formatLogForCopy(log, copyFormat))
+      .join('\n\n---\n\n');
+
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyMessage(`✅ Copied ${filteredLogs.length} logs as ${copyFormat.toUpperCase()} format!`);
+      setShowCopySuccess(true);
+      setTimeout(() => setShowCopySuccess(false), 3000);
+    }).catch(err => {
+      console.error('Failed to copy logs:', err);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopyMessage(`✅ Copied ${filteredLogs.length} logs as ${copyFormat.toUpperCase()} format!`);
+        setShowCopySuccess(true);
+        setTimeout(() => setShowCopySuccess(false), 3000);
+      } catch (err) {
+        alert('Failed to copy logs. Please try again.');
+      }
+      document.body.removeChild(textArea);
+    });
   };
 
   const exportLogs = () => {
@@ -473,6 +522,15 @@ ${JSON.stringify(log.context, null, 2)}
           </button>
 
           <button
+            onClick={copyAll}
+            style={{ ...styles.button, ...styles.primaryButton }}
+            disabled={filteredLogs.length === 0}
+            title={`Copy all logs as ${copyFormat.toUpperCase()} format (Ctrl+Shift+C)`}
+          >
+            📋 Copy All ({filteredLogs.length})
+          </button>
+
+          <button
             onClick={() => setShowAnalytics(!showAnalytics)}
             style={styles.button}
           >
@@ -499,7 +557,7 @@ ${JSON.stringify(log.context, null, 2)}
       {/* Copy Success Notification */}
       {showCopySuccess && (
         <div style={styles.notification}>
-          ✅ Copied to clipboard!
+          {copyMessage || '✅ Copied to clipboard!'}
         </div>
       )}
 
