@@ -487,9 +487,22 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                       fontSize: '14px',
                       fontWeight: '600',
                       color: '#1a1a1a',
-                      flex: 1
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
                     }}>
-                      {formatProductName(item.productName)}
+                      <span>{formatProductName(item.productName)}</span>
+                      {/* Shopping Quantity × Size Display */}
+                      {(item.quantity > 1 || item.size) && (
+                        <span style={{
+                          fontSize: '12px',
+                          color: '#6c757d',
+                          fontWeight: '500'
+                        }}>
+                          ({item.quantity || 1} × {item.size || item.packageSize || 'item'})
+                        </span>
+                      )}
                     </div>
 
                     {/* Quantity Controls: - [number] + */}
@@ -592,16 +605,57 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     </div>
                   )}
 
-                  {/* Third Row: Size - Check all possible fields for product specifications */}
-                  {(item.size || item.packageSize || item.servingSize || item.spoonacularData?.servingSize || item.spoonacular?.servingSize) && (
+                  {/* Third Row: Size, Recipe Requirement, and Price */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    gap: '8px'
+                  }}>
                     <div style={{
-                      fontSize: '12px',
-                      color: '#495057',
-                      fontWeight: '500'
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      flex: 1
                     }}>
-                      {item.size || item.packageSize || item.servingSize || item.spoonacularData?.servingSize || item.spoonacular?.servingSize}
+                      {/* Product Size/Package Info */}
+                      {(item.size || item.packageSize || item.servingSize || item.spoonacularData?.servingSize || item.spoonacular?.servingSize) && (
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#495057',
+                          fontWeight: '500'
+                        }}>
+                          Package: {item.size || item.packageSize || item.servingSize || item.spoonacularData?.servingSize || item.spoonacular?.servingSize}
+                        </div>
+                      )}
+
                     </div>
-                  )}
+
+                    {/* Price Display */}
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-end',
+                      gap: '2px'
+                    }}>
+                      {/* Unit Price */}
+                      <div style={{
+                        fontSize: '12px',
+                        color: '#6c757d'
+                      }}>
+                        ${(item.price || 0).toFixed(2)} {item.unit === 'lb' ? '/lb' : item.unit === 'oz' ? '/oz' : 'each'}
+                      </div>
+
+                      {/* Total Price (quantity × unit price) */}
+                      <div style={{
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: '#28a745'
+                      }}>
+                        ${((item.price || 0) * (item.quantity || 1)).toFixed(2)} total
+                      </div>
+                    </div>
+                  </div>
                 </div>
             </div>
           );
