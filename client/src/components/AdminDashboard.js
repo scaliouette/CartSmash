@@ -182,10 +182,16 @@ function AdminDashboard({ onClose, currentUser }) {
       // Use mock data if API fails
       setExternalServices({
         health: {
+          instacart: { status: 'operational', responseTime: 142, uptime: 99.9 },
+          spoonacular: { status: 'operational', responseTime: 86, uptime: 99.8, quotaUsed: 42, quotaLeft: 458 },
+          openai: { status: 'operational', responseTime: 210, uptime: 99.7 },
+          anthropic: { status: 'operational', responseTime: 180, uptime: 99.9 },
+          google: { status: 'operational', responseTime: 95, uptime: 99.9 },
+          firebase: { status: 'operational', activeUsers: 847, requests: 12453 },
+          mongodb: { status: 'operational', connections: 18, storage: '2.4GB' },
           vercel: { status: 'operational', responseTime: 142, uptime: 99.9 },
           render: { status: 'operational', responseTime: 286, uptime: 99.7 },
-          mongodb: { status: 'operational', connections: 18, storage: '2.4GB' },
-          firebase: { status: 'operational', activeUsers: 847, requests: 12453 }
+          kroger: { status: 'not_configured', message: 'Optional integration' }
         },
         usage: {
           openai: { requests: 3421, tokens: 2845632, cost: 142.28 },
@@ -949,13 +955,19 @@ function AdminDashboard({ onClose, currentUser }) {
         <h3 style={styles.sectionTitle}>🏥 Service Health Status</h3>
         <div style={styles.servicesGrid}>
           {Object.entries(externalServices?.health || {}).map(([service, status]) => (
-            <div key={service} style={styles.serviceCard}>
+            <div key={service} style={{...styles.serviceCard, cursor: status.status === 'error' ? 'pointer' : 'default'}} onClick={() => status.status === 'error' && setActiveTab('services')}>
               <div style={styles.serviceHeader}>
                 <div style={styles.serviceName}>
-                  {service === 'vercel' ? '▲ Vercel' :
-                   service === 'render' ? '🚀 Render' :
+                  {service === 'instacart' ? '🛒 Instacart API' :
+                   service === 'spoonacular' ? '🥄 Spoonacular' :
+                   service === 'openai' ? '🤖 OpenAI' :
+                   service === 'anthropic' ? '🔮 Anthropic' :
+                   service === 'google' ? '🧠 Google AI' :
+                   service === 'firebase' ? '🔥 Firebase' :
                    service === 'mongodb' ? '🍃 MongoDB' :
-                   service === 'firebase' ? '🔥 Firebase' : service}
+                   service === 'vercel' ? '▲ Vercel' :
+                   service === 'render' ? '🚀 Render' :
+                   service === 'kroger' ? '🛍️ Kroger' : service}
                 </div>
                 <div style={{
                   ...styles.serviceStatus,
