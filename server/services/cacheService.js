@@ -57,37 +57,61 @@ class CacheService {
 
   // Try to connect to Redis if available
   async initializeRedis() {
-    if (process.env.REDIS_URL) {
-      try {
-        const Redis = require('redis');
-        this.redis = Redis.createClient({
-          url: process.env.REDIS_URL,
-          socket: {
-            connectTimeout: 5000,
-            reconnectStrategy: (retries) => {
-              if (retries > 3) {
-                logger.warn('Redis connection failed after 3 retries, falling back to memory cache');
-                return false;
-              }
-              return Math.min(retries * 100, 3000);
+    // Skip Redis in production if no URL is provided
+    if (!process.env.REDIS_URL) {
+      logger.info('Redis URL not configured, using memory cache');
+      return;
+    }
+
+    try {
+      const Redis = require('redis');
+      this.redis = Redis.createClient({
+        url: process.env.REDIS_URL,
+        socket: {
+          connectTimeout: 2000, // Reduced timeout for faster failover
+          reconnectStrategy: (retries) => {
+            // Fail fast - don't retry in production
+            if (retries > 1) {
+              logger.info('Redis not available, using memory cache instead');
+              return false;
             }
+            return 100; // Single retry after 100ms
           }
-        });
+        },
+        // Disable command retry to fail fast
+        commandsQueueMaxLength: 0
+      });
 
-        this.redis.on('error', (err) => {
-          logger.error('Redis client error:', err);
-          this.redis = null; // Fall back to memory cache
-        });
+      // Suppress error logs after initial failure
+      let errorLogged = false;
+      this.redis.on('error', (err) => {
+        if (!errorLogged) {
+          logger.debug('Redis connection failed, using memory cache');
+          errorLogged = true;
+        }
+        this.redis = null; // Fall back to memory cache
+      });
 
-        this.redis.on('connect', () => {
-          logger.info('Connected to Redis cache');
-        });
+      this.redis.on('connect', () => {
+        logger.info('Connected to Redis cache successfully');
+      });
 
-        await this.redis.connect();
-      } catch (error) {
-        logger.warn('Redis not available, using memory cache:', error.message);
-        this.redis = null;
-      }
+      // Set a timeout for connection attempt
+      const connectTimeout = setTimeout(() => {
+        if (this.redis && !this.redis.isReady) {
+          logger.info('Redis connection timeout, using memory cache');
+          this.redis.disconnect();
+          this.redis = null;
+        }
+      }, 3000);
+
+      await this.redis.connect();
+      clearTimeout(connectTimeout);
+
+    } catch (error) {
+      // Quietly fall back to memory cache without error spam
+      logger.info('Redis unavailable, using memory cache for this session');
+      this.redis = null;
     }
   }
 

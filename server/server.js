@@ -44,23 +44,35 @@ const config = require('./config');
 
 logger.info(`Configuration loaded for environment: ${process.env.NODE_ENV || 'development'}`);
 
-// Validate required environment variables
+// Validate required environment variables (minimal set)
 const requiredEnvVars = [
   'MONGODB_URI',
-  'FIREBASE_PROJECT_ID',
-  'FIREBASE_PRIVATE_KEY',
-  'FIREBASE_CLIENT_EMAIL',
-  'JWT_SECRET',
-  'KROGER_CLIENT_ID',
-  'KROGER_CLIENT_SECRET',
-  'KROGER_REDIRECT_URI'
+  'JWT_SECRET'
 ];
+
+// Optional services that enhance functionality but aren't critical
+const optionalEnvVars = {
+  firebase: ['FIREBASE_PROJECT_ID', 'FIREBASE_PRIVATE_KEY', 'FIREBASE_CLIENT_EMAIL'],
+  kroger: ['KROGER_CLIENT_ID', 'KROGER_CLIENT_SECRET', 'KROGER_REDIRECT_URI'],
+  redis: ['REDIS_URL']
+};
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 if (missingEnvVars.length > 0) {
-  logger.error('Missing required environment variables:', missingEnvVars);
-  if (process.env.NODE_ENV === 'production') {
-    process.exit(1);
+  logger.error('Missing CRITICAL environment variables:', missingEnvVars);
+  logger.error('Server cannot start without these variables');
+  process.exit(1);
+}
+
+// Check optional services
+for (const [service, vars] of Object.entries(optionalEnvVars)) {
+  const missing = vars.filter(v => !process.env[v]);
+  if (missing.length > 0 && missing.length < vars.length) {
+    logger.warn(`Partial ${service} configuration - missing: ${missing.join(', ')}`);
+  } else if (missing.length === vars.length) {
+    logger.info(`${service} service not configured (optional)`);
+  } else {
+    logger.info(`${service} service fully configured`);
   }
 }
 
@@ -129,8 +141,17 @@ mongoose.connection.on('disconnected', () => {
   logger.warn('MongoDB disconnected');
 });
 
-// Initialize Firebase Admin SDK
+// Initialize Firebase Admin SDK (optional)
 const initializeFirebase = () => {
+  // Check if Firebase configuration is available
+  if (!process.env.FIREBASE_PROJECT_ID ||
+      !process.env.FIREBASE_CLIENT_EMAIL ||
+      !process.env.FIREBASE_PRIVATE_KEY) {
+    logger.info('Firebase Admin SDK not configured - using fallback authentication');
+    global.firebaseAvailable = false;
+    return;
+  }
+
   try {
     if (admin.apps.length === 0) {
       admin.initializeApp({
@@ -142,12 +163,11 @@ const initializeFirebase = () => {
         databaseURL: process.env.FIREBASE_DATABASE_URL
       });
       logger.info('Firebase Admin SDK initialized successfully');
+      global.firebaseAvailable = true;
     }
   } catch (error) {
-    logger.error('Firebase initialization failed:', error);
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
-    }
+    logger.warn('Firebase initialization failed, using fallback:', error.message);
+    global.firebaseAvailable = false;
   }
 };
 
@@ -294,28 +314,89 @@ if (process.env.NODE_ENV === 'production') {
 // Health Check Endpoints
 app.get('/health', async (req, res) => {
   const stats = await tokenStore.getStats();
-  
+
+  // Determine Redis status
+  let redisStatus = 'not_configured';
+  let cacheMode = 'memory';
+  const cacheService = require('./services/cacheService');
+  if (process.env.REDIS_URL) {
+    if (cacheService.redis && cacheService.redis.isReady) {
+      redisStatus = 'connected';
+      cacheMode = 'redis';
+    } else {
+      redisStatus = 'fallback_to_memory';
+      cacheMode = 'memory';
+    }
+  }
+
   const healthStatus = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
+    environment: process.env.NODE_ENV || 'development',
     config: {
       loaded: true,
-      environment: config.get('system.environment')
+      environment: config.get('system.environment'),
+      note: 'Running in development mode for Instacart API compatibility'
     },
     services: {
-      firebase: admin.apps.length > 0,
-      mongodb: mongoose.connection.readyState === 1,
-      kroger: !!(process.env.KROGER_CLIENT_ID && process.env.KROGER_CLIENT_SECRET),
-      openai: !!openai,
-      anthropic: !!anthropic,
-      googleai: !!genAI
+      // Core services
+      mongodb: {
+        status: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        required: true
+      },
+      cache: {
+        status: redisStatus,
+        mode: cacheMode,
+        required: false
+      },
+
+      // Authentication
+      firebase: {
+        status: global.firebaseAvailable ? 'initialized' : 'using_fallback',
+        configured: !!(process.env.FIREBASE_PROJECT_ID),
+        required: false
+      },
+
+      // AI Services
+      openai: {
+        status: !!openai ? 'configured' : 'not_configured',
+        required: false
+      },
+      anthropic: {
+        status: !!anthropic ? 'configured' : 'not_configured',
+        required: false
+      },
+      googleai: {
+        status: !!genAI ? 'configured' : 'not_configured',
+        required: false
+      },
+
+      // External APIs
+      kroger: {
+        status: !!(process.env.KROGER_CLIENT_ID && process.env.KROGER_CLIENT_SECRET) ? 'configured' : 'not_configured',
+        required: false
+      },
+      instacart: {
+        status: !!process.env.INSTACART_API_KEY ? 'configured' : 'not_configured',
+        mode: 'development_api',
+        required: false
+      },
+      spoonacular: {
+        status: !!process.env.SPOONACULAR_API_KEY ? 'configured' : 'not_configured',
+        required: false
+      }
     },
-    tokenStore: stats
+    tokenStore: stats,
+    uptime: process.uptime(),
+    memory: process.memoryUsage()
   };
   
-  const isHealthy = healthStatus.services.firebase && healthStatus.services.mongodb;
-  res.status(isHealthy ? 200 : 503).json(healthStatus);
+  // Only check required services for health status
+  const requiredServicesHealthy = healthStatus.services.mongodb.status === 'connected';
+  const overallStatus = requiredServicesHealthy ? 'healthy' : 'degraded';
+  healthStatus.status = overallStatus;
+
+  res.status(requiredServicesHealthy ? 200 : 503).json(healthStatus);
 });
 
 // Kroger Azure B2C service archived - no longer active
@@ -1177,43 +1258,30 @@ if (require.main === module) {
   }
 
   const server = httpServer.listen(PORT, () => {
-    const allowedOrigins = [
-      'https://www.cartsmash.com',
-      'https://cartsmash.com',
-      'https://cart-smash.vercel.app',
-      'https://cartsmash.vercel.app',
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:3085',
-      process.env.CLIENT_URL
-    ].filter(Boolean);
+    // Simplified startup message for production
+    logger.info('========================================');
+    logger.info(`🚀 CARTSMASH Server Started`);
+    logger.info(`Environment: ${process.env.NODE_ENV || 'development'} (Instacart API compatibility mode)`);
+    logger.info(`Port: ${PORT}`);
+    logger.info(`URL: ${process.env.NODE_ENV === 'production' ? 'https://cartsmash-api.onrender.com' : `http://localhost:${PORT}`}`);
 
-    logger.info(`
-    ========================================
-    🚀 CARTSMASH Server Started
-    ========================================
-    Environment: ${process.env.NODE_ENV}
-    Port: ${PORT}
-    URL: https://cartsmash-api.onrender.com
-    Client URL Env: ${process.env.CLIENT_URL}
+    // Service status summary
+    const serviceStatuses = [];
+    if (mongoose.connection.readyState === 1) serviceStatuses.push('MongoDB ✓');
+    if (global.firebaseAvailable) serviceStatuses.push('Firebase ✓');
+    else serviceStatuses.push('Firebase (fallback)');
+    if (process.env.REDIS_URL) serviceStatuses.push('Redis (configured)');
+    else serviceStatuses.push('Cache (memory)');
+    if (openai) serviceStatuses.push('OpenAI ✓');
+    if (anthropic) serviceStatuses.push('Anthropic ✓');
+    if (process.env.INSTACART_API_KEY) serviceStatuses.push('Instacart ✓');
 
-    🌐 CORS Configuration:
-    - Allowed Origins: ${JSON.stringify(allowedOrigins, null, 6)}
-    - Vercel Pattern: /^https:\/\/[a-z0-9-]+\.vercel\.app$/i
-    - Credentials: true
-    - Methods: GET,POST,PUT,DELETE,OPTIONS,PATCH
+    logger.info(`Services: ${serviceStatuses.join(', ')}`);
+    logger.info('========================================');
 
-    🔧 Environment Variables Status:
-    - NODE_ENV: ${process.env.NODE_ENV}
-    - CLIENT_URL: ${process.env.CLIENT_URL ? '✅ Set' : '❌ Not Set'}
-    - ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? '✅ Set' : '❌ Not Set'}
-    - OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Not Set'}
-    - INSTACART_API_KEY: ${process.env.INSTACART_API_KEY ? '✅ Set' : '❌ Not Set'}
-    ========================================
-    `);
-
-    logger.info('CORS Debug Mode: ENABLED');
-    logger.info('All requests will be logged with detailed CORS information');
+    if (process.env.DEBUG_CORS) {
+      logger.info('CORS Debug Mode: ENABLED');
+    }
   });
   
   app.set('server', server);
