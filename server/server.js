@@ -79,43 +79,49 @@ for (const [service, vars] of Object.entries(optionalEnvVars)) {
 
 // Logger is already configured above
 
+// API BILLING DISABLED - ALL AI SERVICES DISABLED
 // Initialize AI Services
 let openai, genAI, anthropic;
 
-if (process.env.OPENAI_API_KEY) {
-  try {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
-    // Assign to global for AIProductParser
-    global.openai = openai;
-    logger.info('OpenAI service initialized');
-  } catch (error) {
-    logger.warn('OpenAI initialization failed:', error.message);
-  }
-}
+// DISABLED TO STOP BILLING
+// if (process.env.OPENAI_API_KEY) {
+//   try {
+//     openai = new OpenAI({
+//       apiKey: process.env.OPENAI_API_KEY
+//     });
+//     // Assign to global for AIProductParser
+//     global.openai = openai;
+//     logger.info('OpenAI service initialized');
+//   } catch (error) {
+//     logger.warn('OpenAI initialization failed:', error.message);
+//   }
+// }
 
-if (process.env.ANTHROPIC_API_KEY) {
-  try {
-    anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY
-    });
-    // Assign to global for AIProductParser
-    global.anthropic = anthropic;
-    logger.info('Anthropic service initialized');
-  } catch (error) {
-    logger.warn('Anthropic initialization failed:', error.message);
-  }
-}
+// DISABLED TO STOP BILLING
+// if (process.env.ANTHROPIC_API_KEY) {
+//   try {
+//     anthropic = new Anthropic({
+//       apiKey: process.env.ANTHROPIC_API_KEY
+//     });
+//     // Assign to global for AIProductParser
+//     global.anthropic = anthropic;
+//     logger.info('Anthropic service initialized');
+//   } catch (error) {
+//     logger.warn('Anthropic initialization failed:', error.message);
+//   }
+// }
 
-if (process.env.GOOGLE_AI_API_KEY) {
-  try {
-    genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
-    logger.info('Google Generative AI service initialized');
-  } catch (error) {
-    logger.warn('Google AI initialization failed:', error.message);
-  }
-}
+// DISABLED TO STOP BILLING
+// if (process.env.GOOGLE_AI_API_KEY) {
+//   try {
+//     genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+//     logger.info('Google Generative AI service initialized');
+//   } catch (error) {
+//     logger.warn('Google AI initialization failed:', error.message);
+//   }
+// }
+
+logger.info('⚠️ ALL AI SERVICES DISABLED - No API billing active');
 
 // MongoDB Connection with proper configuration for production
 mongoose.connect(process.env.MONGODB_URI, {
@@ -1134,14 +1140,16 @@ app.post('/api/cache/clear', (req, res) => {
 // Load route modules
 const routes = [
   { path: '/api/cart', module: './routes/cart' },
-  { path: '/api/ai', module: './routes/ai' },
-  { path: '/api/ai-simple', module: './routes/aiSimplified' },  // Simplified AI system
+  // AI ROUTES DISABLED TO STOP BILLING
+  // { path: '/api/ai', module: './routes/ai' },
+  // { path: '/api/ai-simple', module: './routes/aiSimplified' },  // Simplified AI system
   // { path: '/api/kroger', module: './routes/kroger' },  // ARCHIVED - Kroger integration disabled
   // { path: '/api/kroger-orders', module: './routes/kroger-orders' },  // ARCHIVED - Kroger integration disabled
-  { path: '/api/instacart', module: './routes/instacartRoutes' },  // Instacart integration
-  { path: '/api/spoonacular', module: './routes/spoonacularRoutes' },  // Spoonacular API integration
+  // INSTACART/SPOONACULAR DISABLED TO STOP BILLING
+  // { path: '/api/instacart', module: './routes/instacartRoutes' },  // Instacart integration
+  // { path: '/api/spoonacular', module: './routes/spoonacularRoutes' },  // Spoonacular API integration
   { path: '/api/images', module: './routes/imageProxy' },  // Image proxy for CORS issues
-  { path: '/api/product-validation', module: './routes/productValidationRoutes' },  // Enhanced product validation
+  // { path: '/api/product-validation', module: './routes/productValidationRoutes' },  // Enhanced product validation
   { path: '/api/smash-cart', module: './routes/smash-cart' },  // New comprehensive cart service
   { path: '/api/grocery', module: './routes/grocery' },
   { path: '/api/account', module: './routes/account' },
@@ -1149,7 +1157,8 @@ const routes = [
   { path: '/api/settings', module: './routes/settings' },  // Admin settings management
   { path: '/api/analytics', module: './routes/analytics' },  // Admin dashboard analytics
   { path: '/api/monitoring', module: './routes/monitoring' },  // External service monitoring
-  { path: '/api/meal-plans', module: './routes/aiMealPlanRoutes' },  // AI meal plan generation
+  // AI MEAL PLANS DISABLED TO STOP BILLING
+  // { path: '/api/meal-plans', module: './routes/aiMealPlanRoutes' },  // AI meal plan generation
   { path: '/api/price-history', module: './routes/priceHistoryRoutes' },  // Multi-vendor price history
   { path: '/api/recipes', module: './routes/recipeImportRoutes' },  // Recipe import functionality
   { path: '/api/recipes', module: './routes/unifiedRoutes' },  // Unified recipe management system
