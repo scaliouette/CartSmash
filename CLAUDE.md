@@ -747,7 +747,60 @@ User Input → Parse → Spoonacular Search → Enrich Data → Send to Instacar
 - Multiple items: "3 count × 16 oz - $14.97"
 - Items without size: "5 count - $2.99 each"
 
-### ⚠️ CRITICAL SECURITY STATUS (2025-09-27)
+### Recent Critical Fixes (2025-09-30)
+
+#### Admin Dashboard Fixes
+1. **Shopping List Quantity Display** - Fixed overlapping controls and missing quantity numbers
+   - Added CSS to hide browser number input spinners
+   - Fixed size display to filter out unhelpful "1 item" text
+   - Files: `client/src/components/InstacartShoppingList.js`
+
+2. **ErrorLogViewer TypeError** - Fixed recursive 12k+ line error logging
+   - Added missing getErrors(), getWarnings(), getLogs() methods to debugService
+   - Added defensive checks in ErrorLogViewer
+   - Files: `client/src/services/debugService.js`, `client/src/components/ErrorLogViewer.js`
+
+3. **Firebase User Integration** - Replaced mock data with real Firebase users
+   - Updated /users/accounts endpoint to use admin.auth().listUsers()
+   - Added proper authentication headers to AdminDashboard
+   - Files: `server/routes/analytics.js`, `client/src/components/AdminDashboard.js`
+
+4. **Memory Usage Display** - Fixed permanent "Loading..." in System tab
+   - Added process.memoryUsage() to server's getRealtimeMetrics
+   - Fixed client accessing wrong data field (data.metrics not data.realtime)
+   - Files: `server/services/analyticsService.js`, `client/src/components/AdminDashboard.js`
+
+5. **External Services toFixed Error** - Fixed TypeError on financial displays
+   - Replaced all direct .toFixed() calls with safeToFixed() helper
+   - Handles undefined/null values gracefully
+   - File: `client/src/components/AdminDashboard.js`
+
+### ⚠️ CRITICAL DEVELOPMENT REQUIREMENTS
+
+#### CORS Verification Required
+**IMPORTANT**: CORS must be verified with EVERY addition of connectivity or API endpoints
+- Always test cross-origin requests from production domain
+- Verify OPTIONS preflight requests are handled
+- Check Access-Control-Allow-Origin headers are present
+- Test with authentication headers included
+- Common CORS issues:
+  - Missing CORS middleware on new routes
+  - Incorrect origin whitelist configuration
+  - Missing preflight OPTIONS handlers
+  - Authentication middleware blocking CORS headers
+
+#### Current CORS Configuration
+```javascript
+// server/server.js
+const corsOptions = {
+  origin: ['https://www.cartsmash.com', 'https://cartsmash.com', 'http://localhost:3000'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+```
+
+### ⚠️ CRITICAL SECURITY STATUS (2025-09-30)
 
 **Authentication Security Issue - Search Endpoints**
 
@@ -766,6 +819,6 @@ User Input → Parse → Spoonacular Search → Enrich Data → Send to Instacar
 
 ---
 
-*Last Updated: 2025-09-27 06:00 UTC*
-*Recent Fixes: AI Meal Plans ✅ | Analytics Dashboard ✅ | Cart Display ✅ | CORS ✅ | Data Source Clarification ✅*
-*Status: All critical systems operational*
+*Last Updated: 2025-09-30 02:00 UTC*
+*Recent Fixes: Shopping List Display ✅ | ErrorLogViewer ✅ | Firebase Users ✅ | Memory Display ✅ | External Services ✅*
+*Status: All critical systems operational - CORS verification required for new endpoints*
