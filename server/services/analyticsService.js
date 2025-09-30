@@ -286,12 +286,28 @@ class AnalyticsService {
       };
     });
 
+    // Get system memory usage
+    const memoryUsage = process.memoryUsage();
+
     return {
       activeUsers: this.realtimeStats.activeUsers.size,
       requestsPerMinute: currentRPM,
       errorsPerMinute: recentErrors,
       apiCostPerMinute,
-      lastUpdated: this.realtimeStats.lastUpdated
+      lastUpdated: this.realtimeStats.lastUpdated,
+      system: {
+        memoryUsage: {
+          heapUsed: memoryUsage.heapUsed,
+          heapTotal: memoryUsage.heapTotal,
+          external: memoryUsage.external,
+          rss: memoryUsage.rss,
+          arrayBuffers: memoryUsage.arrayBuffers
+        },
+        uptime: process.uptime(),
+        platform: process.platform,
+        nodeVersion: process.version,
+        pid: process.pid
+      }
     };
   }
 

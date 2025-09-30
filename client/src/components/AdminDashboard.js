@@ -227,7 +227,7 @@ function AdminDashboard({ onClose, currentUser }) {
       });
       if (response.ok) {
         const data = await response.json();
-        setRealtimeMetrics(data.realtime);
+        setRealtimeMetrics(data.metrics);
         setError(null); // Clear any previous errors
       } else {
         console.warn(`Realtime metrics returned ${response.status}`);
