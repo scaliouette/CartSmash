@@ -217,27 +217,95 @@ router.get('/users/accounts', requireAdmin, async (req, res) => {
 
     logger.info(`Fetching Firebase user accounts: limit=${limitNum}`);
 
-    // Check if Firebase Admin is initialized
-    if (!admin.apps.length) {
-      throw new Error('Firebase Admin SDK not initialized');
+    let users = [];
+    let isRealData = false;
+    let statusMessage = '';
+
+    try {
+      // Check if Firebase Admin is initialized
+      if (!admin.apps.length) {
+        throw new Error('Firebase Admin SDK not initialized - using sample data');
+      }
+
+      // Fetch users from Firebase Auth
+      const listUsersResult = await admin.auth().listUsers(limitNum);
+
+      // Transform Firebase user records to match expected format
+      users = listUsersResult.users.map(userRecord => ({
+        uid: userRecord.uid,
+        email: userRecord.email || 'No email',
+        displayName: userRecord.displayName || 'No name',
+        emailVerified: userRecord.emailVerified || false,
+        creationTime: userRecord.metadata.creationTime,
+        lastSignInTime: userRecord.metadata.lastSignInTime || userRecord.metadata.creationTime,
+        providerData: userRecord.providerData || [],
+        disabled: userRecord.disabled || false,
+        photoURL: userRecord.photoURL || null,
+        phoneNumber: userRecord.phoneNumber || null
+      }));
+
+      isRealData = true;
+      statusMessage = `Showing ${users.length} real Firebase users`;
+      logger.info(`Successfully fetched ${users.length} Firebase users`);
+
+    } catch (firebaseError) {
+      // Fallback to sample data for demonstration
+      logger.warn('Firebase connection failed, using sample data:', firebaseError.message);
+
+      users = [
+        {
+          uid: 'user_001',
+          email: 'scaliouette@gmail.com',
+          displayName: 'Admin User',
+          emailVerified: true,
+          creationTime: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+          lastSignInTime: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          providerData: [{ providerId: 'password' }],
+          disabled: false,
+          photoURL: null,
+          phoneNumber: null
+        },
+        {
+          uid: 'user_002',
+          email: 'john.doe@example.com',
+          displayName: 'John Doe',
+          emailVerified: true,
+          creationTime: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+          lastSignInTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          providerData: [{ providerId: 'google.com' }],
+          disabled: false,
+          photoURL: 'https://ui-avatars.com/api/?name=John+Doe',
+          phoneNumber: null
+        },
+        {
+          uid: 'user_003',
+          email: 'jane.smith@example.com',
+          displayName: 'Jane Smith',
+          emailVerified: true,
+          creationTime: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+          lastSignInTime: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+          providerData: [{ providerId: 'password' }],
+          disabled: false,
+          photoURL: null,
+          phoneNumber: '+1234567890'
+        },
+        {
+          uid: 'user_004',
+          email: 'bob.wilson@example.com',
+          displayName: 'Bob Wilson',
+          emailVerified: false,
+          creationTime: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+          lastSignInTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          providerData: [{ providerId: 'password' }],
+          disabled: false,
+          photoURL: null,
+          phoneNumber: null
+        }
+      ];
+
+      isRealData = false;
+      statusMessage = 'Showing sample data (Firebase not configured)';
     }
-
-    // Fetch users from Firebase Auth
-    const listUsersResult = await admin.auth().listUsers(limitNum);
-
-    // Transform Firebase user records to match expected format
-    const users = listUsersResult.users.map(userRecord => ({
-      uid: userRecord.uid,
-      email: userRecord.email || 'No email',
-      displayName: userRecord.displayName || 'No name',
-      emailVerified: userRecord.emailVerified || false,
-      creationTime: userRecord.metadata.creationTime,
-      lastSignInTime: userRecord.metadata.lastSignInTime || userRecord.metadata.creationTime,
-      providerData: userRecord.providerData || [],
-      disabled: userRecord.disabled || false,
-      photoURL: userRecord.photoURL || null,
-      phoneNumber: userRecord.phoneNumber || null
-    }));
 
     // Calculate stats
     const now = new Date();
@@ -247,12 +315,12 @@ router.get('/users/accounts', requireAdmin, async (req, res) => {
       return lastSignIn >= todayStart;
     }).length;
 
-    logger.info(`Successfully fetched ${users.length} Firebase users`);
-
     res.json({
       success: true,
       users,
       totalUsers: users.length,
+      isRealData,
+      statusMessage,
       stats: {
         verifiedUsers: users.filter(u => u.emailVerified).length,
         unverifiedUsers: users.filter(u => !u.emailVerified).length,

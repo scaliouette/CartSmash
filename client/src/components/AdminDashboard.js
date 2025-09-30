@@ -677,7 +677,22 @@ function AdminDashboard({ onClose, currentUser }) {
 
         <div style={styles.section}>
           <div style={styles.sectionHeader}>
-            <h4 style={styles.sectionTitle}>Firebase User Accounts</h4>
+            <h4 style={styles.sectionTitle}>
+              Firebase User Accounts
+              {userAccounts?.statusMessage && (
+                <span style={{
+                  fontSize: '12px',
+                  fontWeight: 'normal',
+                  marginLeft: '12px',
+                  color: userAccounts.isRealData ? '#22c55e' : '#f59e0b',
+                  backgroundColor: userAccounts.isRealData ? '#dcfce7' : '#fef3c7',
+                  padding: '2px 8px',
+                  borderRadius: '4px'
+                }}>
+                  {userAccounts.statusMessage}
+                </span>
+              )}
+            </h4>
             <div style={styles.verificationToggle}>
               <button
                 style={{
