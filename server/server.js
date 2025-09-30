@@ -16,8 +16,9 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { auditMiddleware, auditLog } = require('./middleware/auditLogger');
-const AgentWebSocketServer = require('./websocket/agentWebSocketServer');
-const agentAuditService = require('./services/agentAuditService');
+// AGENTS DISABLED
+// const AgentWebSocketServer = require('./websocket/agentWebSocketServer');
+// const agentAuditService = require('./services/agentAuditService');
 
 // Configure Winston Logger FIRST - before any usage
 const logger = winston.createLogger({
@@ -1156,8 +1157,9 @@ const routes = [
   { path: '/api/debug', module: './routes/debugRoutes' },  // Debug and error tracking system
   { path: '/api/cache', module: './routes/cacheManagement' },  // Product cache management
   { path: '/api/revenue', module: './routes/revenue' },  // Revenue tracking and analytics
-  { path: '/api/monitoring', module: './routes/monitoring' },  // External service monitoring
-  { path: '/api/agent', module: './routes/agentRoutes' }  // Agent system routes (work review, chat, audit)
+  { path: '/api/monitoring', module: './routes/monitoring' }  // External service monitoring
+  // AGENTS DISABLED
+  // { path: '/api/agent', module: './routes/agentRoutes' }  // Agent system routes (work review, chat, audit)
 ];
 
 routes.forEach(route => {
@@ -1176,7 +1178,8 @@ routes.forEach(route => {
 
 // Validate critical routes are registered
 const criticalRoutes = [
-  { path: '/api/agent', name: 'Agent System' },
+  // AGENTS DISABLED - removed from critical routes
+  // { path: '/api/agent', name: 'Agent System' },
   { path: '/api/cart', name: 'Cart Processing' },
   { path: '/api/analytics', name: 'Analytics' }
 ];
@@ -1243,19 +1246,20 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 if (require.main === module) {
   const httpServer = createServer(app);
 
+  // AGENTS DISABLED - WebSocket server initialization commented out
   // Initialize WebSocket server with error handling
-  let wsServer;
-  try {
-    wsServer = new AgentWebSocketServer(httpServer);
-    logger.info('✅ WebSocket server initialized successfully');
-  } catch (error) {
-    logger.error('WebSocket server initialization failed:', {
-      message: error.message,
-      stack: error.stack
-    });
-    logger.warn('⚠️ Server will continue without WebSocket support');
-    // Continue without WebSocket - agent system can still work via REST API
-  }
+  // let wsServer;
+  // try {
+  //   wsServer = new AgentWebSocketServer(httpServer);
+  //   logger.info('✅ WebSocket server initialized successfully');
+  // } catch (error) {
+  //   logger.error('WebSocket server initialization failed:', {
+  //     message: error.message,
+  //     stack: error.stack
+  //   });
+  //   logger.warn('⚠️ Server will continue without WebSocket support');
+  //   // Continue without WebSocket - agent system can still work via REST API
+  // }
 
   const server = httpServer.listen(PORT, () => {
     // Simplified startup message for production
