@@ -48,6 +48,12 @@ class AgentTaskQueue extends EventEmitter {
     this.agentCosts = new Map();
     this.initializeAgentCosts();
 
+    // Emergency kill switch for all agents
+    this.AGENTS_DISABLED = process.env.DISABLE_ALL_AGENTS === 'true';
+    if (this.AGENTS_DISABLED) {
+      logger.warn('⚠️ ALL AGENTS ARE DISABLED via DISABLE_ALL_AGENTS environment variable');
+    }
+
     // Initialize system
     this.initialize();
   }
@@ -143,6 +149,11 @@ class AgentTaskQueue extends EventEmitter {
     approvalRequired = false,
     metadata = {}
   }) {
+    // Check if agents are disabled
+    if (this.AGENTS_DISABLED) {
+      logger.warn('Cannot create task - all agents are disabled');
+      return null;
+    }
     const task = {
       id: `TASK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       title,
@@ -282,6 +293,12 @@ class AgentTaskQueue extends EventEmitter {
    * Assign task to agent
    */
   assignTaskToAgent(taskId, agentId) {
+    // Check if agents are disabled globally
+    if (this.AGENTS_DISABLED) {
+      logger.warn('Cannot assign task - all agents are disabled');
+      return null;
+    }
+
     // Check if agent is paused
     if (this.isAgentPaused(agentId)) {
       logger.warn(`Cannot assign task ${taskId} to paused agent ${agentId}`);
@@ -461,7 +478,8 @@ class AgentTaskQueue extends EventEmitter {
     // Check if there are queued tasks for this agent
     const queue = this.agentQueues.get(agentId) || [];
     if (queue.length > 0) {
-      this.processAgentQueue(agentId);
+      // TODO: Implement processAgentQueue to handle queued tasks
+      logger.warn(`Agent ${agentId} has ${queue.length} queued tasks pending implementation`);
     }
 
     return { success: true, message: 'Agent resumed successfully', pauseDuration };
