@@ -54,7 +54,7 @@ const AgentChatInterface = ({ currentUser }) => {
     setAgents(agentList);
   };
 
-  const loadMessages = () => {
+  const loadMessages = async () => {
     // Initialize with welcome messages
     const initialMessages = {
       general: [
@@ -105,6 +105,34 @@ const AgentChatInterface = ({ currentUser }) => {
     };
 
     setMessages(initialMessages);
+
+    // Load chat history from server for each channel
+    try {
+      for (const channel of channels) {
+        await loadChatHistory(channel.id);
+      }
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+    }
+  };
+
+  const loadChatHistory = async (channel) => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const response = await fetch(`${apiUrl}/api/agent/chat/history/${channel}?limit=50`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.messages && data.messages.length > 0) {
+          setMessages(prev => ({
+            ...prev,
+            [channel]: data.messages
+          }));
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to load history for ${channel}:`, error);
+    }
   };
 
   const setupWebSocket = () => {
@@ -121,7 +149,7 @@ const AgentChatInterface = ({ currentUser }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!inputMessage.trim()) return;
 
     const newMessage = {
@@ -149,18 +177,44 @@ const AgentChatInterface = ({ currentUser }) => {
       return;
     }
 
-    // Add message to channel
+    // Add message to channel immediately for better UX
     setMessages(prev => ({
       ...prev,
       [activeChannel]: [...(prev[activeChannel] || []), newMessage]
     }));
 
-    // Simulate agent response
-    if (mentions && mentions.includes('@Dash')) {
-      setTimeout(() => {
-        simulateAgentResponse('dashboard-improvement-agent', 'Dash', '📈',
-          'On it! I\'ll analyze that component and provide optimization suggestions.');
-      }, 1500);
+    // Send to server
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const response = await fetch(`${apiUrl}/api/agent/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          channel: activeChannel,
+          message: inputMessage,
+          mentions: newMessage.mentions
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // If agents were mentioned, show typing indicator
+        if (data.pendingResponses > 0) {
+          setTypingAgents(newMessage.mentions || []);
+
+          // Poll for responses or wait for WebSocket
+          setTimeout(async () => {
+            await loadChatHistory(activeChannel);
+            setTypingAgents([]);
+          }, 2500);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // Message is already shown, so just log the error
     }
 
     setInputMessage('');

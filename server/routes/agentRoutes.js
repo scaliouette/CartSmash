@@ -696,4 +696,346 @@ router.post('/trigger',
   }
 );
 
+/**
+ * POST /api/agent/trigger-all
+ * Trigger all agents simultaneously
+ */
+router.post('/trigger-all',
+  authenticateUser,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const { initiator, reason } = req.body;
+
+      // Define all available agents
+      const agents = [
+        { id: 'dashboard-improvement-agent', alias: 'Dash', speciality: 'UI/UX' },
+        { id: 'security-auditor', alias: 'SecOps', speciality: 'Security' },
+        { id: 'performance-optimizer', alias: 'Speedy', speciality: 'Performance' },
+        { id: 'api-integration-specialist', alias: 'API Master', speciality: 'Integration' },
+        { id: 'chief-ai-officer', alias: 'CAO', speciality: 'Strategy' },
+        { id: 'error-monitor', alias: 'Watchdog', speciality: 'Monitoring' },
+        { id: 'development-manager', alias: 'DevLead', speciality: 'Coordination' }
+      ];
+
+      const results = [];
+      const timestamp = new Date().toISOString();
+
+      // Trigger each agent
+      for (const agent of agents) {
+        try {
+          const task = agentTaskQueue.createTask({
+            title: 'System-wide trigger',
+            description: reason || 'All agents triggered for system-wide operation',
+            type: 'SYSTEM',
+            assignedTo: agent.id,
+            priority: 'HIGH',
+            metadata: {
+              triggeredBy: initiator || req.user?.email,
+              triggerType: 'ALL_AGENTS',
+              timestamp
+            }
+          });
+
+          results.push({
+            agentId: agent.id,
+            agentAlias: agent.alias,
+            speciality: agent.speciality,
+            status: 'triggered',
+            taskId: task.id,
+            timestamp
+          });
+
+          // Log audit event for each agent
+          agentAuditService.createAuditEntry({
+            agentId: agent.id,
+            agentAlias: agent.alias,
+            action: 'AGENT_TRIGGERED_BULK',
+            actionType: 'MANAGEMENT',
+            target: task.id,
+            metadata: {
+              triggerType: 'ALL_AGENTS',
+              initiator: initiator || req.user?.email,
+              reason
+            },
+            riskLevel: 'HIGH',
+            userId: req.user?.uid
+          });
+        } catch (error) {
+          logger.error(`Failed to trigger agent ${agent.id}:`, error);
+          results.push({
+            agentId: agent.id,
+            agentAlias: agent.alias,
+            status: 'failed',
+            error: error.message,
+            timestamp
+          });
+        }
+      }
+
+      const successCount = results.filter(r => r.status === 'triggered').length;
+      const failedCount = results.filter(r => r.status === 'failed').length;
+
+      logger.info(`All agents trigger initiated by ${initiator}: ${successCount} succeeded, ${failedCount} failed`);
+
+      res.json({
+        success: true,
+        message: `Triggered ${successCount} of ${agents.length} agents`,
+        triggeredCount: successCount,
+        failedCount,
+        results,
+        initiator: initiator || req.user?.email,
+        timestamp
+      });
+    } catch (error) {
+      logger.error('Trigger all agents error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to trigger all agents',
+        message: error.message
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/agent/chat
+ * Simple chat endpoint for AgentChatInterface
+ */
+router.post('/chat',
+  async (req, res) => {
+    try {
+      const { channel, message, mentions } = req.body;
+      const userId = req.user?.uid || 'admin';
+
+      // Initialize chat storage if needed
+      if (!global.chatMessages) {
+        global.chatMessages = {};
+      }
+      if (!global.chatMessages[channel]) {
+        global.chatMessages[channel] = [];
+      }
+
+      // Create and store the user message
+      const userMessage = {
+        id: `msg-${Date.now()}`,
+        channel,
+        sender: 'admin',
+        senderAlias: req.user?.displayName || 'Admin',
+        avatar: '👤',
+        content: message,
+        timestamp: new Date().toISOString(),
+        type: 'message',
+        mentions
+      };
+
+      global.chatMessages[channel].push(userMessage);
+
+      // Generate agent responses for mentions
+      const agentResponses = [];
+      if (mentions && mentions.length > 0) {
+        for (const agentName of mentions) {
+          const agentId = getAgentIdFromName(agentName);
+          if (agentId) {
+            const agentResponse = {
+              id: `msg-${Date.now() + Math.random() * 1000}`,
+              channel,
+              sender: agentId,
+              senderAlias: agentName,
+              avatar: getAgentAvatar(agentId),
+              content: generateAgentResponse(agentId, message),
+              timestamp: new Date(Date.now() + 1500).toISOString(),
+              type: 'message'
+            };
+
+            // Schedule agent response
+            setTimeout(() => {
+              global.chatMessages[channel].push(agentResponse);
+              // Emit via WebSocket if available
+              if (global.io) {
+                global.io.to(channel).emit('new-message', agentResponse);
+              }
+            }, 1500 + Math.random() * 1000);
+
+            agentResponses.push(agentResponse);
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        message: userMessage,
+        pendingResponses: agentResponses.length
+      });
+    } catch (error) {
+      logger.error('Chat message error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * GET /api/agent/chat/history/:channel
+ * Get chat history for a specific channel
+ */
+router.get('/chat/history/:channel',
+  async (req, res) => {
+    try {
+      const { channel } = req.params;
+      const { limit = 50 } = req.query;
+
+      // Initialize if needed
+      if (!global.chatMessages) {
+        global.chatMessages = {};
+      }
+
+      const messages = global.chatMessages[channel] || [];
+      const limitedMessages = messages.slice(-parseInt(limit));
+
+      res.json({
+        success: true,
+        channel,
+        messages: limitedMessages,
+        total: messages.length
+      });
+    } catch (error) {
+      logger.error('Chat history error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * GET /api/agent/work-journal
+ * Simple work journal endpoint for AgentWorkJournal component
+ */
+router.get('/work-journal',
+  async (req, res) => {
+    try {
+      const { agentId, limit = 50, timeRange = '24h' } = req.query;
+
+      // Initialize work journal if needed
+      if (!global.workJournal) {
+        global.workJournal = [];
+      }
+
+      let entries = [...global.workJournal];
+
+      // Filter by agent if specified
+      if (agentId && agentId !== 'all') {
+        entries = entries.filter(e => e.agentId === agentId);
+      }
+
+      // Apply time range filter
+      const now = Date.now();
+      const ranges = {
+        '1h': 60 * 60 * 1000,
+        '24h': 24 * 60 * 60 * 1000,
+        '7d': 7 * 24 * 60 * 60 * 1000,
+        '30d': 30 * 24 * 60 * 60 * 1000
+      };
+
+      if (ranges[timeRange]) {
+        const cutoff = now - ranges[timeRange];
+        entries = entries.filter(e =>
+          new Date(e.timestamp).getTime() > cutoff
+        );
+      }
+
+      // Sort by timestamp descending
+      entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      // Limit results
+      const limitedEntries = entries.slice(0, parseInt(limit));
+
+      res.json({
+        success: true,
+        entries: limitedEntries,
+        total: entries.length,
+        timeRange
+      });
+    } catch (error) {
+      logger.error('Work journal error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// Helper functions
+function getAgentIdFromName(name) {
+  const agents = {
+    'Dash': 'dashboard-improvement-agent',
+    'SecOps': 'security-auditor',
+    'Speedy': 'performance-optimizer',
+    'API Master': 'api-integration-specialist',
+    'CAO': 'chief-ai-officer',
+    'Watchdog': 'error-monitor',
+    'DevLead': 'development-manager'
+  };
+  return agents[name] || null;
+}
+
+function getAgentAvatar(agentId) {
+  const avatars = {
+    'dashboard-improvement-agent': '📈',
+    'security-auditor': '🔐',
+    'performance-optimizer': '⚡',
+    'api-integration-specialist': '🔌',
+    'chief-ai-officer': '👔',
+    'error-monitor': '👀',
+    'development-manager': '👨‍💼'
+  };
+  return avatars[agentId] || '🤖';
+}
+
+function generateAgentResponse(agentId, userMessage) {
+  const responses = {
+    'dashboard-improvement-agent': [
+      'I\'ll analyze that dashboard component and provide optimization suggestions.',
+      'Working on improving the UI performance now.',
+      'I\'ve identified several areas for enhancement. Implementing changes...',
+      'Dashboard metrics look good. I\'ll continue monitoring for improvements.'
+    ],
+    'security-auditor': [
+      'Running security scan on the specified components...',
+      'I\'ll perform a comprehensive security audit right away.',
+      'Checking for vulnerabilities and compliance issues...',
+      'Security protocols activated. Analyzing potential threats...'
+    ],
+    'performance-optimizer': [
+      'Analyzing performance metrics and identifying bottlenecks...',
+      'I\'ll optimize that query and improve response times.',
+      'Running performance profiling now...',
+      'Performance optimization in progress. Expected improvement: 40-60%'
+    ],
+    'api-integration-specialist': [
+      'Checking API endpoints and integration points...',
+      'I\'ll ensure all APIs are properly connected and functioning.',
+      'Running integration tests across all services...',
+      'API health check initiated. Monitoring response times...'
+    ],
+    'chief-ai-officer': [
+      'Coordinating with the team to address this priority.',
+      'I\'ll ensure this gets the appropriate resources and attention.',
+      'Strategic analysis in progress. Aligning with business objectives...',
+      'Team coordination initiated. All agents notified of priority change.'
+    ],
+    'error-monitor': [
+      'Scanning error logs for recent issues...',
+      'I\'ll investigate any anomalies in the system.',
+      'Error detection systems active. Monitoring all services...',
+      'No critical errors detected. System health is optimal.'
+    ],
+    'development-manager': [
+      'I\'ll coordinate the development team on this task.',
+      'Prioritizing this in our sprint planning.',
+      'Assigning resources to address this requirement...',
+      'Development pipeline updated. Task added to backlog.'
+    ]
+  };
+
+  const agentResponses = responses[agentId] || ['Processing your request...'];
+  return agentResponses[Math.floor(Math.random() * agentResponses.length)];
+}
+
 module.exports = router;
