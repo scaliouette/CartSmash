@@ -423,6 +423,18 @@ class ExternalMonitoringService {
         const latestMetric = await ServiceMetrics.findOne({ service })
           .sort({ timestamp: -1 });
 
+        // For API services, always do real-time check regardless of stored metrics
+        if (service === 'instacart' || service === 'spoonacular' || service === 'openai' ||
+            service === 'anthropic' || service === 'google' || service === 'google-ai') {
+          const realHealth = await this.checkServiceHealthRealtime(service);
+          health[service] = {
+            ...realHealth,
+            lastChecked: latestMetric ? latestMetric.timestamp : new Date(),
+            alerts: latestMetric ? latestMetric.alerts.slice(-5) : [] // Last 5 alerts
+          };
+          continue;
+        }
+
         if (!latestMetric) {
           health[service] = { status: 'unknown', uptime: 0 };
           continue;
@@ -445,24 +457,14 @@ class ExternalMonitoringService {
 
         if (criticalAlerts.length > 0) status = 'critical';
 
-        // Add real-time health check for critical services
-        if (service === 'instacart' || service === 'spoonacular' || service === 'openai') {
-          const realHealth = await this.checkServiceHealthRealtime(service);
-          health[service] = {
-            ...realHealth,
-            lastChecked: latestMetric.timestamp,
-            alerts: latestMetric.alerts.slice(-5) // Last 5 alerts
-          };
-        } else {
-          health[service] = {
-            status,
-            uptime: metrics.uptime,
-            responseTime: metrics.responseTime,
-            errorRate: metrics.errorRate,
-            lastChecked: latestMetric.timestamp,
-            alerts: latestMetric.alerts.slice(-5) // Last 5 alerts
-          };
-        }
+        health[service] = {
+          status,
+          uptime: metrics.uptime,
+          responseTime: metrics.responseTime,
+          errorRate: metrics.errorRate,
+          lastChecked: latestMetric.timestamp,
+          alerts: latestMetric.alerts.slice(-5) // Last 5 alerts
+        };
       }
 
       return health;
@@ -781,6 +783,61 @@ class ExternalMonitoringService {
             const responseTime = Date.now() - startTime;
             return { status: 'operational', uptime: 99.9, responseTime };
           } catch (err) {
+            return { status: 'error', uptime: 0, error: err.message };
+          }
+
+        case 'anthropic':
+          if (!process.env.ANTHROPIC_API_KEY) {
+            return { status: 'not_configured', uptime: 0 };
+          }
+          try {
+            // Test Anthropic API with a minimal request
+            const response = await axios.post('https://api.anthropic.com/v1/messages',
+              {
+                model: 'claude-3-haiku-20240307',
+                max_tokens: 1,
+                messages: [{ role: 'user', content: 'test' }]
+              },
+              {
+                headers: {
+                  'x-api-key': process.env.ANTHROPIC_API_KEY,
+                  'anthropic-version': '2023-06-01',
+                  'content-type': 'application/json'
+                },
+                timeout: 3000
+              }
+            );
+            const responseTime = Date.now() - startTime;
+            return { status: 'operational', uptime: 99.9, responseTime };
+          } catch (err) {
+            // If it's a 401, the API key is invalid
+            if (err.response?.status === 401) {
+              return { status: 'error', uptime: 0, error: 'Invalid API key' };
+            }
+            // For other errors, still consider it operational if we got a response
+            if (err.response) {
+              const responseTime = Date.now() - startTime;
+              return { status: 'operational', uptime: 99.9, responseTime };
+            }
+            return { status: 'error', uptime: 0, error: err.message };
+          }
+
+        case 'google':
+        case 'google-ai':
+          if (!process.env.GOOGLE_AI_API_KEY) {
+            return { status: 'not_configured', uptime: 0 };
+          }
+          try {
+            // Test Google AI (Gemini) API
+            const response = await axios.get(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GOOGLE_AI_API_KEY}`, {
+              timeout: 3000
+            });
+            const responseTime = Date.now() - startTime;
+            return { status: 'operational', uptime: 99.9, responseTime };
+          } catch (err) {
+            if (err.response?.status === 403 || err.response?.status === 401) {
+              return { status: 'error', uptime: 0, error: 'Invalid API key' };
+            }
             return { status: 'error', uptime: 0, error: err.message };
           }
 

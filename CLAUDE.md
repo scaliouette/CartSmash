@@ -23,6 +23,9 @@ Essential information for Claude Code and future development work.
 - **Admin Dashboard**: `client/src/components/AdminDashboard.js`
 - **AI Integration**: `client/src/services/aiMealPlanService.js`
 - **Cart Parser**: `server/routes/cart.js` → `/api/cart/parse`
+- **Agent System**: `server/services/agentAuditService.js`
+- **Agent Chat**: `client/src/components/AgentChatInterface.js`
+- **Work Journal**: `client/src/components/AgentWorkJournal.js`
 
 ---
 
@@ -167,6 +170,54 @@ CLIENT_URL=https://www.cartsmash.com
 
 ---
 
+## 🤖 AI Agent System
+
+### Agent Hierarchy
+```
+Chief AI Officer (CAO)
+├── Development Manager (DevLead)
+│   ├── Dashboard Improvement Agent (Dash)
+│   ├── API Integration Specialist (API Master)
+│   └── Grocery Parser (Parser)
+├── Security Manager
+│   ├── Security Auditor (SecOps)
+│   └── CORS Validator (CORS Guard)
+└── Performance Manager
+    ├── Performance Optimizer (Speedy)
+    ├── Error Monitor (Watchdog)
+    └── Cache Manager (Cache Master)
+```
+
+### Agent Features
+- **Real-time Chat**: Slack-style communication between agents
+- **Work Journal**: Complete audit trail of all agent actions
+- **Work Review**: Approval workflows for critical changes
+- **Enhanced Logging**: Multi-format copy (GitHub, JSON, CSV, Markdown)
+- **Audit Service**: Blockchain-style immutable audit trail
+
+### Agent API Endpoints
+```bash
+POST /api/agent/chat/message       # Send chat message
+GET  /api/agent/chat/history       # Get chat history
+GET  /api/agent/work/journal       # Get work entries
+POST /api/agent/work/review        # Submit work review
+GET  /api/agent/audit/trail        # Get audit trail
+POST /api/agent/audit/export       # Export audit reports
+```
+
+### WebSocket Events
+- `agent:chat:message` - Real-time messaging
+- `agent:status:update` - Live status updates
+- `agent:work:entry` - Work notifications
+- `agent:audit:event` - Audit events
+
+### Agent Documentation
+- **Setup Guide**: `.claude/agents/environment-setup.md`
+- **Agent Configs**: `.claude/agents/[agent-name].md`
+- **API Reference**: `/api/agent/docs`
+
+---
+
 ## 📊 Current Status
 
 ### System Health
@@ -220,5 +271,5 @@ Located in `client/src/config/features.js`
 
 ---
 
-*Last Updated: 2025-09-30*
-*Status: Production Ready with Minor Enhancements Needed*
+*Last Updated: 2025-09-29*
+*Status: Production Ready with Advanced Agent System Integrated*

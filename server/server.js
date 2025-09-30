@@ -11,9 +11,14 @@ const axios = require('axios');
 const { OpenAI } = require('openai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Anthropic = require('@anthropic-ai/sdk');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { auditMiddleware, auditLog } = require('./middleware/auditLogger');
+const AgentWebSocketServer = require('./websocket/agentWebSocketServer');
+const agentRoutes = require('./routes/agentRoutes');
+const agentAuditService = require('./services/agentAuditService');
 
 // Configure Winston Logger FIRST - before any usage
 const logger = winston.createLogger({
@@ -1129,9 +1134,17 @@ const gracefulShutdown = async (signal) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Start Server
+// Add agent routes
+app.use('/api/agent', agentRoutes);
+
+// Start Server with WebSocket support
 if (require.main === module) {
-  const server = app.listen(PORT, () => {
+  const httpServer = createServer(app);
+
+  // Initialize WebSocket server
+  const wsServer = new AgentWebSocketServer(httpServer);
+
+  const server = httpServer.listen(PORT, () => {
     const allowedOrigins = [
       'https://www.cartsmash.com',
       'https://cartsmash.com',

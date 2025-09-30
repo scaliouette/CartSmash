@@ -2,6 +2,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ParsingAnalyticsDashboard from './ParsingAnalyticsDashboard';
 import ErrorLogViewer from './ErrorLogViewer';
+import agentMonitoringService from '../services/agentMonitoringService';
+// New agent components
+import AgentChatInterface from './AgentChatInterface';
+import EnhancedErrorLogViewer from './EnhancedErrorLogViewer';
+import AgentWorkJournal from './AgentWorkJournal';
+import WorkReviewDashboard from './WorkReviewDashboard';
 
 function AdminDashboard({ onClose, currentUser }) {
   // All hooks must be called before any conditional returns
@@ -22,6 +28,12 @@ function AdminDashboard({ onClose, currentUser }) {
   const [revenueData, setRevenueData] = useState(null);
   const [externalServices, setExternalServices] = useState(null);
   const [dateRange, setDateRange] = useState('30d'); // 7d, 30d, 90d, 6m, 1y
+
+  // Agent monitoring states
+  const [agents, setAgents] = useState([]);
+  const [agentActivities, setAgentActivities] = useState([]);
+  const [agentOverview, setAgentOverview] = useState(null);
+  const [agentSubTab, setAgentSubTab] = useState('overview'); // Sub-tab for agent section
 
   // Define all callbacks before conditional returns
   const loadSystemHealth = useCallback(async () => {
@@ -167,6 +179,20 @@ function AdminDashboard({ onClose, currentUser }) {
     }
   }, [dateRange]);
 
+  const loadAgentData = useCallback(() => {
+    try {
+      const agentsList = agentMonitoringService.getAllAgents();
+      const activities = agentMonitoringService.getRecentActivities(50);
+      const overview = agentMonitoringService.getSystemOverview();
+
+      setAgents(agentsList);
+      setAgentActivities(activities);
+      setAgentOverview(overview);
+    } catch (error) {
+      console.error('Error loading agent data:', error);
+    }
+  }, []);
+
   const loadExternalServices = useCallback(async () => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
@@ -290,8 +316,12 @@ function AdminDashboard({ onClose, currentUser }) {
       loadRevenueData().catch(console.error);
     } else if (activeTab === 'services') {
       loadExternalServices().catch(console.error);
+    } else if (activeTab === 'agents') {
+      loadAgentData();
+      const interval = setInterval(loadAgentData, 5000);
+      return () => clearInterval(interval);
     }
-  }, [activeTab, currentUser?.isAdmin]); // Only depends on tab change
+  }, [activeTab, currentUser?.isAdmin, loadAgentData]); // Only depends on tab change
 
   // Check access after all hooks are declared
   if (!currentUser || !currentUser.isAdmin) {
@@ -1156,6 +1186,245 @@ function AdminDashboard({ onClose, currentUser }) {
     </div>
   );
 
+  const renderAgentsTab = () => {
+    const triggerAgent = (agentId) => {
+      try {
+        const result = agentMonitoringService.triggerAgent(agentId, 'Manual diagnostic run');
+        alert(`Agent ${result.agentId} triggered successfully`);
+        loadAgentData();
+      } catch (error) {
+        alert(`Failed to trigger agent: ${error.message}`);
+      }
+    };
+
+    // Sub-navigation for agent features
+    const renderAgentSubNav = () => (
+      <div style={{
+        display: 'flex',
+        gap: '10px',
+        marginBottom: '20px',
+        borderBottom: '2px solid #e5e7eb',
+        paddingBottom: '10px'
+      }}>
+        {[
+          { id: 'overview', label: '📊 Overview', icon: '📊' },
+          { id: 'chat', label: '💬 Agent Chat', icon: '💬' },
+          { id: 'journal', label: '📝 Work Journal', icon: '📝' },
+          { id: 'review', label: '✅ Work Review', icon: '✅' },
+          { id: 'logs', label: '📋 Enhanced Logs', icon: '📋' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setAgentSubTab(tab.id)}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: agentSubTab === tab.id ? '#FB4F14' : 'transparent',
+              color: agentSubTab === tab.id ? 'white' : '#374151',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: agentSubTab === tab.id ? '600' : '400',
+              transition: 'all 0.2s'
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    );
+
+    // Render different sub-tabs
+    if (agentSubTab === 'chat') {
+      return (
+        <div style={styles.tabContent}>
+          {renderAgentSubNav()}
+          <AgentChatInterface />
+        </div>
+      );
+    }
+
+    if (agentSubTab === 'journal') {
+      return (
+        <div style={styles.tabContent}>
+          {renderAgentSubNav()}
+          <AgentWorkJournal />
+        </div>
+      );
+    }
+
+    if (agentSubTab === 'review') {
+      return (
+        <div style={styles.tabContent}>
+          {renderAgentSubNav()}
+          <WorkReviewDashboard />
+        </div>
+      );
+    }
+
+    if (agentSubTab === 'logs') {
+      return (
+        <div style={styles.tabContent}>
+          {renderAgentSubNav()}
+          <EnhancedErrorLogViewer />
+        </div>
+      );
+    }
+
+    // Default: Overview tab
+    return (
+      <div style={styles.tabContent}>
+        {renderAgentSubNav()}
+        {/* System Overview */}
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>🤖 AI Agent Management</h3>
+          {agentOverview && (
+            <div style={styles.agentOverview}>
+              <div style={styles.overviewCard}>
+                <span style={styles.overviewLabel}>Total Agents</span>
+                <span style={styles.overviewValue}>{agentOverview.totalAgents}</span>
+              </div>
+              <div style={styles.overviewCard}>
+                <span style={styles.overviewLabel}>Active Now</span>
+                <span style={{ ...styles.overviewValue, color: '#10b981' }}>
+                  {agentOverview.activeAgents}
+                </span>
+              </div>
+              <div style={styles.overviewCard}>
+                <span style={styles.overviewLabel}>Tasks Today</span>
+                <span style={styles.overviewValue}>{agentOverview.totalTasksToday}</span>
+              </div>
+              <div style={styles.overviewCard}>
+                <span style={styles.overviewLabel}>System Health</span>
+                <span style={{
+                  ...styles.overviewValue,
+                  color: agentOverview.systemHealth === 'Healthy' ? '#10b981' : '#ef4444'
+                }}>
+                  {agentOverview.systemHealth}
+                </span>
+              </div>
+              <div style={styles.overviewCard}>
+                <span style={styles.overviewLabel}>Uptime</span>
+                <span style={styles.overviewValue}>{agentOverview.uptime}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Agent Grid */}
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>👥 Agent Team</h3>
+          <div style={styles.agentGrid}>
+            {agents.map(agent => (
+              <div key={agent.id} style={styles.agentCard}>
+                <div style={styles.agentHeader}>
+                  <span style={styles.agentAvatar}>{agent.avatar}</span>
+                  <div style={styles.agentTitle}>
+                    <h4 style={styles.agentName}>{agent.name}</h4>
+                    <span style={styles.agentRole}>{agent.role}</span>
+                  </div>
+                  <span style={{
+                    ...styles.agentStatus,
+                    backgroundColor:
+                      agent.status === 'active' ? '#10b981' :
+                      agent.status === 'idle' ? '#6b7280' :
+                      agent.status === 'error' ? '#ef4444' : '#f59e0b'
+                  }}>
+                    {agent.status}
+                  </span>
+                </div>
+
+                <p style={styles.agentDescription}>{agent.description}</p>
+
+                <div style={styles.agentStats}>
+                  <div style={styles.agentStat}>
+                    <span style={styles.statLabel}>Tasks Today</span>
+                    <span style={styles.statValue}>{agent.stats.tasksToday}</span>
+                  </div>
+                  {agent.stats.accuracy && (
+                    <div style={styles.agentStat}>
+                      <span style={styles.statLabel}>Accuracy</span>
+                      <span style={styles.statValue}>{agent.stats.accuracy}</span>
+                    </div>
+                  )}
+                  {agent.stats.errorsDetected !== undefined && (
+                    <div style={styles.agentStat}>
+                      <span style={styles.statLabel}>Errors Found</span>
+                      <span style={styles.statValue}>{agent.stats.errorsDetected}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div style={styles.agentTools}>
+                  <span style={styles.toolsLabel}>Tools:</span>
+                  {agent.tools.map(tool => (
+                    <span key={tool} style={styles.toolBadge}>{tool}</span>
+                  ))}
+                </div>
+
+                <div style={styles.agentActions}>
+                  <button
+                    style={styles.agentButton}
+                    onClick={() => triggerAgent(agent.id)}
+                    disabled={agent.status === 'active'}
+                  >
+                    {agent.status === 'active' ? 'Running...' : 'Trigger'}
+                  </button>
+                  <span style={styles.lastActivity}>
+                    Last: {agent.stats.lastActivity ?
+                      new Date(agent.stats.lastActivity).toLocaleTimeString() : 'Never'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent Activities */}
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>📊 Recent Agent Activity</h3>
+          <div style={styles.activityTable}>
+            <div style={styles.activityHeader}>
+              <span>Time</span>
+              <span>Agent</span>
+              <span>Action</span>
+              <span>Status</span>
+            </div>
+            {agentActivities.slice(0, 20).map(activity => (
+              <div key={activity.id} style={styles.activityRow}>
+                <span style={styles.activityTime}>
+                  {new Date(activity.timestamp).toLocaleTimeString()}
+                </span>
+                <span style={styles.activityAgent}>{activity.agentName}</span>
+                <span style={styles.activityAction}>{activity.action}</span>
+                <span style={{
+                  ...styles.activityStatus,
+                  color: activity.success ? '#10b981' : '#ef4444'
+                }}>
+                  {activity.success ? '✓ Success' : '✗ Failed'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recommendations */}
+        {agentMonitoringService.getRecommendations().length > 0 && (
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>💡 Recommendations</h3>
+            <div style={styles.recommendations}>
+              {agentMonitoringService.getRecommendations().map((rec, idx) => (
+                <div key={idx} style={styles.recommendation}>
+                  <span style={styles.recIcon}>ℹ️</span>
+                  <span>{rec.message}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderLogsTab = () => (
     <div style={styles.tabContent}>
       <ErrorLogViewer />
@@ -1260,6 +1529,7 @@ function AdminDashboard({ onClose, currentUser }) {
             { id: 'overview', label: '🏠 Overview' },
             { id: 'revenue', label: '💰 Revenue' },
             { id: 'services', label: '🔗 External Services' },
+            { id: 'agents', label: '🤖 AI Agents' },
             { id: 'system', label: '🖥️ System' },
             { id: 'users', label: '👥 Users' },
             { id: 'logs', label: '📋 Logs' }
@@ -1281,6 +1551,7 @@ function AdminDashboard({ onClose, currentUser }) {
           {activeTab === 'overview' && renderOverviewTab()}
           {activeTab === 'revenue' && renderRevenueTab()}
           {activeTab === 'services' && renderServicesTab()}
+          {activeTab === 'agents' && renderAgentsTab()}
           {activeTab === 'system' && renderSystemTab()}
           {activeTab === 'users' && renderUsersTab()}
           {activeTab === 'logs' && renderLogsTab()}
@@ -2315,6 +2586,242 @@ const styles = {
     color: '#6c757d',
     marginTop: '4px',
     textAlign: 'right'
+  },
+
+  // Agent Management Styles
+  agentOverview: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+    gap: '15px',
+    marginTop: '20px'
+  },
+
+  overviewCard: {
+    background: 'white',
+    padding: '15px',
+    borderRadius: '10px',
+    border: '1px solid #e5e7eb',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '5px'
+  },
+
+  overviewLabel: {
+    fontSize: '12px',
+    color: '#6b7280',
+    fontWeight: '500'
+  },
+
+  overviewValue: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#111827'
+  },
+
+  agentGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gap: '20px',
+    marginTop: '20px'
+  },
+
+  agentCard: {
+    background: 'white',
+    border: '1px solid #e5e7eb',
+    borderRadius: '12px',
+    padding: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px',
+    transition: 'box-shadow 0.3s'
+  },
+
+  agentHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+
+  agentAvatar: {
+    fontSize: '32px',
+    width: '50px',
+    height: '50px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#f3f4f6',
+    borderRadius: '10px'
+  },
+
+  agentTitle: {
+    flex: 1
+  },
+
+  agentName: {
+    margin: 0,
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#111827'
+  },
+
+  agentRole: {
+    fontSize: '12px',
+    color: '#6b7280'
+  },
+
+  agentStatus: {
+    padding: '4px 10px',
+    borderRadius: '20px',
+    fontSize: '11px',
+    fontWeight: '600',
+    color: 'white',
+    textTransform: 'uppercase'
+  },
+
+  agentDescription: {
+    fontSize: '13px',
+    color: '#4b5563',
+    lineHeight: '1.5',
+    margin: 0
+  },
+
+  agentStats: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
+    gap: '10px'
+  },
+
+  agentStat: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px'
+  },
+
+  statLabel: {
+    fontSize: '11px',
+    color: '#9ca3af',
+    textTransform: 'uppercase'
+  },
+
+  statValue: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#111827'
+  },
+
+  agentTools: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap'
+  },
+
+  toolsLabel: {
+    fontSize: '12px',
+    color: '#6b7280',
+    fontWeight: '500'
+  },
+
+  toolBadge: {
+    padding: '2px 8px',
+    background: '#eff6ff',
+    color: '#2563eb',
+    borderRadius: '12px',
+    fontSize: '11px',
+    fontWeight: '500'
+  },
+
+  agentActions: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: '10px',
+    borderTop: '1px solid #f3f4f6'
+  },
+
+  agentButton: {
+    padding: '6px 16px',
+    background: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'background 0.2s'
+  },
+
+  lastActivity: {
+    fontSize: '11px',
+    color: '#9ca3af'
+  },
+
+  activityTable: {
+    marginTop: '20px',
+    background: 'white',
+    borderRadius: '10px',
+    overflow: 'hidden',
+    border: '1px solid #e5e7eb'
+  },
+
+  activityHeader: {
+    display: 'grid',
+    gridTemplateColumns: '100px 1fr 2fr 120px',
+    padding: '12px 20px',
+    background: '#f9fafb',
+    fontWeight: '600',
+    fontSize: '12px',
+    color: '#6b7280',
+    textTransform: 'uppercase'
+  },
+
+  activityRow: {
+    display: 'grid',
+    gridTemplateColumns: '100px 1fr 2fr 120px',
+    padding: '12px 20px',
+    borderTop: '1px solid #f3f4f6',
+    fontSize: '13px',
+    alignItems: 'center'
+  },
+
+  activityTime: {
+    color: '#6b7280'
+  },
+
+  activityAgent: {
+    fontWeight: '500',
+    color: '#111827'
+  },
+
+  activityAction: {
+    color: '#4b5563'
+  },
+
+  activityStatus: {
+    fontSize: '12px',
+    fontWeight: '500'
+  },
+
+  recommendations: {
+    marginTop: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px'
+  },
+
+  recommendation: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '10px',
+    padding: '12px',
+    background: '#fef3c7',
+    borderRadius: '8px',
+    border: '1px solid #fde68a'
+  },
+
+  recIcon: {
+    fontSize: '16px',
+    flexShrink: 0
   }
 };
 
