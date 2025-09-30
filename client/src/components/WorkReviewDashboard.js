@@ -5,53 +5,6 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  CheckCircle,
-  XCircle,
-  Clock,
-  GitBranch,
-  GitCommit,
-  GitPullRequest,
-  FileText,
-  Code,
-  Shield,
-  Zap,
-  AlertTriangle,
-  ChevronRight,
-  ThumbsUp,
-  ThumbsDown,
-  MessageSquare,
-  RotateCcw,
-  Play,
-  Pause,
-  Flag,
-  Star,
-  Award,
-  TrendingUp,
-  BarChart3,
-  Users,
-  Eye,
-  Download,
-  Filter,
-  Calendar,
-  Package,
-  Database,
-  Settings,
-  RefreshCw,
-  ArrowUpRight,
-  ArrowDownRight,
-  Hash,
-  CheckSquare,
-  Square,
-  MinusSquare,
-  Info,
-  Send,
-  Edit3,
-  Trash2,
-  Archive,
-  Bookmark,
-  ChevronDown
-} from 'lucide-react';
 import agentMonitoringService from '../services/agentMonitoringService';
 
 const WorkReviewDashboard = ({ currentUser }) => {
@@ -64,62 +17,61 @@ const WorkReviewDashboard = ({ currentUser }) => {
     agentId: 'all',
     priority: 'all',
     type: 'all',
-    dateRange: '7d'
+    dateRange: '24h'
   });
   const [bulkSelection, setBulkSelection] = useState(new Set());
   const [reviewComment, setReviewComment] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [autoApproveRules, setAutoApproveRules] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [reviewStats, setReviewStats] = useState({
     pending: 0,
     approved: 0,
     rejected: 0,
-    avgReviewTime: '0h'
+    avgReviewTime: 'N/A'
   });
 
-  // Sample pending reviews with comprehensive details
+  // Sample data for demonstration
   const samplePendingReviews = [
     {
       id: 'REVIEW-001',
       workId: 'WORK-001',
       agentId: 'dashboard-improvement-agent',
       agentAlias: 'Dash',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      type: 'CODE_CHANGE',
+      title: 'Enhanced Admin Dashboard Analytics',
+      description: 'Added real-time analytics and performance monitoring to admin dashboard',
+      type: 'FEATURE',
       priority: 'HIGH',
-      title: 'Real-time Dashboard Metrics Implementation',
-      description: 'Added WebSocket-based real-time updates to Admin Dashboard for live metrics',
+      confidence: 92,
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      status: 'PENDING_REVIEW',
       changes: {
+        summary: 'Added 3 new components and updated 5 existing files',
         files: [
-          { path: 'client/src/components/AdminDashboard.js', additions: 145, deletions: 32 },
-          { path: 'client/src/components/MetricsWidget.js', additions: 89, deletions: 12 }
+          { path: 'src/components/Analytics.js', additions: 145, deletions: 12 },
+          { path: 'src/components/Dashboard.js', additions: 78, deletions: 23 },
+          { path: 'src/services/metrics.js', additions: 234, deletions: 0 }
         ],
-        summary: '+234 lines, -44 lines across 2 files'
+        commits: ['a1b2c3d', 'e4f5g6h'],
+        pullRequest: '#PR-123'
       },
       testing: {
-        automated: { passed: 15, failed: 0, coverage: '87%' },
-        manual: 'Tested on Chrome, Firefox, Safari',
-        performance: { before: '2.3s load', after: '1.1s load' }
+        automated: { passed: 45, failed: 0, coverage: '89%' },
+        manual: { completed: true, notes: 'All features tested successfully' },
+        performance: { before: '2.3s', after: '1.8s', improvement: '22%' },
+        vulnerabilities: { before: 3, after: 0, fixed: 3 }
       },
       impact: {
-        level: 'HIGH',
+        level: 'MEDIUM',
         users: 'All admin users',
-        systems: ['Dashboard', 'WebSocket', 'Metrics'],
-        risk: 'LOW',
-        benefits: ['52% performance improvement', 'Real-time data', 'Better UX']
+        components: ['Dashboard', 'Analytics', 'Reporting'],
+        risk: 'Low - backward compatible',
+        benefits: ['Improved performance', 'Better insights', 'Real-time updates']
       },
-      commits: ['abc123', 'def456'],
-      pullRequest: 'PR #234',
-      requiresApproval: true,
-      autoApprovalEligible: false,
-      approvalReason: 'Significant UI changes require manual review',
-      status: 'PENDING_REVIEW',
-      confidence: 92,
       aiAnalysis: {
         codeQuality: 'Excellent - follows best practices',
         security: 'No vulnerabilities detected',
-        performance: 'Significant improvement measured',
-        recommendation: 'APPROVE - Low risk, high benefit'
+        performance: 'Optimized - 22% faster load time',
+        recommendation: 'APPROVE - High quality implementation with good test coverage'
       }
     },
     {
@@ -127,211 +79,86 @@ const WorkReviewDashboard = ({ currentUser }) => {
       workId: 'WORK-002',
       agentId: 'security-auditor',
       agentAlias: 'SecOps',
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+      title: 'Critical Security Patch - XSS Prevention',
+      description: 'Fixed potential XSS vulnerability in user input handling',
       type: 'SECURITY_FIX',
       priority: 'CRITICAL',
-      title: 'Critical Authentication Vulnerability Patch',
-      description: 'Fixed JWT signature verification bypass vulnerability',
+      confidence: 98,
+      timestamp: new Date(Date.now() - 30 * 60 * 1000),
+      status: 'AUTO_APPROVED',
       changes: {
+        summary: 'Updated input sanitization in 8 components',
         files: [
-          { path: 'server/middleware/auth.js', additions: 67, deletions: 23 },
-          { path: 'server/config/security.js', additions: 45, deletions: 8 }
+          { path: 'src/utils/sanitize.js', additions: 67, deletions: 12 },
+          { path: 'src/components/UserInput.js', additions: 23, deletions: 18 }
         ],
-        summary: '+112 lines, -31 lines across 2 files'
+        commits: ['s3c4r5e'],
+        pullRequest: '#PR-124'
       },
       testing: {
-        automated: { passed: 25, failed: 0, coverage: '100%' },
-        penetration: 'Passed external audit',
-        vulnerabilities: { before: 3, after: 0 }
+        automated: { passed: 112, failed: 0, coverage: '94%' },
+        security: { scan: 'PASSED', vulnerabilities: 0 },
+        manual: { completed: true }
       },
       impact: {
         level: 'CRITICAL',
         users: 'All users',
-        systems: ['Authentication', 'API Gateway'],
-        risk: 'NONE',
-        benefits: ['Prevents auth bypass', 'SOC2 compliance', 'Security hardening']
+        components: ['Input handling', 'Forms'],
+        risk: 'None - security improvement',
+        benefits: ['Prevents XSS attacks', 'Improved input validation']
       },
-      commits: ['sec789'],
-      pullRequest: 'PR #235',
-      requiresApproval: true,
-      autoApprovalEligible: false,
-      approvalReason: 'Security changes always require manual review',
-      status: 'PENDING_REVIEW',
-      confidence: 98,
       aiAnalysis: {
-        codeQuality: 'Good - security-focused implementation',
-        security: 'Vulnerability successfully patched',
-        performance: 'Negligible impact',
-        recommendation: 'APPROVE IMMEDIATELY - Critical security fix'
-      }
-    },
-    {
-      id: 'REVIEW-003',
-      workId: 'WORK-003',
-      agentId: 'performance-optimizer',
-      agentAlias: 'Speedy',
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-      type: 'OPTIMIZATION',
-      priority: 'MEDIUM',
-      title: 'Database Query Optimization',
-      description: 'Added compound indexes and caching for cart queries',
-      changes: {
-        files: [
-          { path: 'server/models/Cart.js', additions: 34, deletions: 12 },
-          { path: 'server/services/cartService.js', additions: 56, deletions: 28 }
-        ],
-        summary: '+90 lines, -40 lines across 2 files'
-      },
-      testing: {
-        automated: { passed: 18, failed: 0, coverage: '92%' },
-        loadTest: '1000 concurrent users handled',
-        benchmarks: { p95: '0.5s', p99: '0.8s' }
-      },
-      impact: {
-        level: 'MEDIUM',
-        users: 'All users using cart features',
-        systems: ['Database', 'Cart Service'],
-        risk: 'LOW',
-        benefits: ['10x query speed', '-45% server load', 'Better scalability']
-      },
-      commits: ['perf012'],
-      pullRequest: 'PR #236',
-      requiresApproval: true,
-      autoApprovalEligible: true,
-      approvalReason: 'Meets auto-approval criteria',
-      status: 'PENDING_REVIEW',
-      confidence: 88,
-      aiAnalysis: {
-        codeQuality: 'Good - efficient implementation',
-        security: 'No issues',
-        performance: 'Major improvement verified',
-        recommendation: 'APPROVE - Significant performance gains'
-      }
-    },
-    {
-      id: 'REVIEW-004',
-      workId: 'WORK-004',
-      agentId: 'api-integration-specialist',
-      agentAlias: 'API Master',
-      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-      type: 'INTEGRATION',
-      priority: 'LOW',
-      title: 'Spoonacular Rate Limiting Implementation',
-      description: 'Added intelligent rate limiting to stay within API limits',
-      changes: {
-        files: [
-          { path: 'server/services/spoonacularService.js', additions: 78, deletions: 15 }
-        ],
-        summary: '+78 lines, -15 lines in 1 file'
-      },
-      testing: {
-        automated: { passed: 12, failed: 0, coverage: '85%' },
-        apiCalls: 'Simulated 1000 requests',
-        rateLimiting: 'Successfully stayed under 50/day limit'
-      },
-      impact: {
-        level: 'LOW',
-        users: 'Product search users',
-        systems: ['Spoonacular API'],
-        risk: 'MINIMAL',
-        benefits: ['No more 429 errors', '$0 API costs', 'Better reliability']
-      },
-      commits: ['api567'],
-      pullRequest: 'PR #237',
-      requiresApproval: false,
-      autoApprovalEligible: true,
-      approvalReason: 'Low risk change, can be auto-approved',
-      status: 'AUTO_APPROVED',
-      confidence: 95,
-      aiAnalysis: {
-        codeQuality: 'Excellent - well-structured',
-        security: 'API keys properly handled',
-        performance: 'Improved with caching',
-        recommendation: 'AUTO-APPROVE - Low risk, clear benefit'
+        codeQuality: 'Good',
+        security: 'Critical security improvement',
+        performance: 'Neutral',
+        recommendation: 'AUTO-APPROVE - Critical security fix'
       }
     }
   ];
 
-  // Sample reviewed work
   const sampleReviewedWork = [
     {
       id: 'REVIEW-005',
       workId: 'WORK-005',
-      agentId: 'chief-ai-officer',
-      agentAlias: 'CAO',
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      type: 'STRATEGIC',
+      agentId: 'performance-optimizer',
+      agentAlias: 'Speedy',
+      title: 'Database Query Optimization',
+      description: 'Optimized slow database queries reducing load time by 40%',
+      type: 'OPTIMIZATION',
       priority: 'HIGH',
-      title: 'Agent Task Prioritization System',
+      confidence: 87,
+      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
       status: 'APPROVED',
-      reviewedBy: 'admin',
+      approvalStatus: 'APPROVED',
+      reviewedBy: 'admin@cartsmash.com',
       reviewedAt: new Date(Date.now() - 20 * 60 * 60 * 1000),
-      reviewTime: '4 hours',
-      reviewComment: 'Excellent strategic decision. Significant efficiency gains observed.',
+      reviewComment: 'Excellent optimization. Significant performance improvement.',
       deploymentStatus: 'DEPLOYED',
-      metrics: {
-        beforeReview: { efficiency: '60%', conflicts: 15 },
-        afterDeployment: { efficiency: '92%', conflicts: 1 }
+      impact: {
+        level: 'HIGH',
+        users: 'All users',
+        components: ['Database', 'API'],
+        benefits: ['40% faster queries', 'Reduced server load']
       }
-    },
-    {
-      id: 'REVIEW-006',
-      workId: 'WORK-006',
-      agentId: 'grocery-parser',
-      agentAlias: 'Parser',
-      timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000),
-      type: 'FEATURE',
-      priority: 'MEDIUM',
-      title: 'Enhanced Recipe Parsing Algorithm',
-      status: 'REJECTED',
-      reviewedBy: 'admin',
-      reviewedAt: new Date(Date.now() - 44 * 60 * 60 * 1000),
-      reviewTime: '4 hours',
-      reviewComment: 'Accuracy regression detected in edge cases. Needs refinement.',
-      rejectionReason: 'Failed validation on complex recipes',
-      rollbackStatus: 'ROLLED_BACK'
     }
   ];
 
-  // Auto-approval rules
   const defaultAutoApprovalRules = [
     {
       id: 'RULE-001',
-      name: 'Low Risk Optimizations',
-      enabled: true,
-      conditions: {
-        type: 'OPTIMIZATION',
-        impact: 'LOW',
-        testsPassed: true,
-        coverageMin: 80
-      },
-      action: 'AUTO_APPROVE'
+      name: 'Auto-approve critical security fixes',
+      condition: 'type === "SECURITY_FIX" && priority === "CRITICAL"',
+      enabled: true
     },
     {
       id: 'RULE-002',
-      name: 'Documentation Updates',
-      enabled: true,
-      conditions: {
-        type: 'DOCUMENTATION',
-        filesPattern: '*.md',
-        noCodeChanges: true
-      },
-      action: 'AUTO_APPROVE'
-    },
-    {
-      id: 'RULE-003',
-      name: 'Critical Security Fixes',
-      enabled: false,
-      conditions: {
-        type: 'SECURITY_FIX',
-        priority: 'CRITICAL',
-        securityScan: 'PASSED'
-      },
-      action: 'FLAG_FOR_IMMEDIATE_REVIEW'
+      name: 'Auto-approve high confidence optimizations',
+      condition: 'type === "OPTIMIZATION" && confidence >= 95',
+      enabled: false
     }
   ];
 
-  // Load reviews
+  // Load reviews on component mount and filter change
   useEffect(() => {
     loadReviews();
     const interval = setInterval(loadReviews, 30000);
@@ -379,10 +206,10 @@ const WorkReviewDashboard = ({ currentUser }) => {
         setReviewedWork(sampleReviewedWork);
       }
 
-      // Set auto-approval rules (these could come from API in the future)
+      // Set auto-approval rules
       setAutoApproveRules(defaultAutoApprovalRules);
 
-      // Calculate stats based on real data
+      // Calculate stats
       const pending = pendingReviews.length;
       const approved = reviewedWork.filter(r => r.approvalStatus === 'APPROVED').length;
       const rejected = reviewedWork.filter(r => r.approvalStatus === 'REJECTED').length;
@@ -395,7 +222,7 @@ const WorkReviewDashboard = ({ currentUser }) => {
       });
     } catch (error) {
       console.error('Failed to load reviews:', error);
-      // Fall back to sample data on error
+      // Fall back to sample data
       setPendingReviews(samplePendingReviews);
       setReviewedWork(sampleReviewedWork);
       setAutoApproveRules(defaultAutoApprovalRules);
@@ -409,7 +236,7 @@ const WorkReviewDashboard = ({ currentUser }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [filters, currentUser]);
+  }, [filters, currentUser, pendingReviews.length, reviewedWork]);
 
   // Helper function to calculate average review time
   const calculateAvgReviewTime = (reviews) => {
@@ -435,8 +262,8 @@ const WorkReviewDashboard = ({ currentUser }) => {
   // Filter reviews
   const filteredReviews = useMemo(() => {
     let reviews = reviewMode === 'pending' ? pendingReviews :
-                 reviewMode === 'reviewed' ? reviewedWork :
-                 [...pendingReviews, ...reviewedWork];
+                  reviewMode === 'reviewed' ? reviewedWork :
+                  [...pendingReviews, ...reviewedWork];
 
     if (filters.agentId !== 'all') {
       reviews = reviews.filter(r => r.agentId === filters.agentId);
@@ -570,7 +397,7 @@ const WorkReviewDashboard = ({ currentUser }) => {
   // Handle bulk approval
   const bulkApprove = async () => {
     for (const reviewId of bulkSelection) {
-      await approveReview(reviewId, 'Bulk approved');
+      await approveReview(reviewId, 'Bulk approval');
     }
     setBulkSelection(new Set());
   };
@@ -586,317 +413,434 @@ const WorkReviewDashboard = ({ currentUser }) => {
     setBulkSelection(newSelection);
   };
 
-  // Get priority color
-  const getPriorityColor = (priority) => {
-    const colors = {
-      'CRITICAL': 'text-red-600 bg-red-50',
-      'HIGH': 'text-orange-600 bg-orange-50',
-      'MEDIUM': 'text-yellow-600 bg-yellow-50',
-      'LOW': 'text-green-600 bg-green-50'
+  // Format timestamp
+  const formatTimestamp = (timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hours > 24) {
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    } else if (hours > 0) {
+      return `${hours}h ${minutes}m ago`;
+    } else {
+      return `${minutes}m ago`;
+    }
+  };
+
+  // Format file change
+  const formatFileChange = (file) => {
+    const parts = file.path.split('/');
+    const fileName = parts[parts.length - 1];
+    const dir = parts.slice(0, -1).join('/');
+    return {
+      fileName,
+      dir: dir || 'root',
+      additions: file.additions,
+      deletions: file.deletions,
+      total: file.additions + file.deletions
     };
-    return colors[priority] || 'text-gray-600 bg-gray-50';
+  };
+
+  // Get priority style
+  const getPriorityStyle = (priority) => {
+    switch (priority) {
+      case 'CRITICAL':
+        return { background: '#fee2e2', borderLeft: '4px solid #dc2626', color: '#991b1b' };
+      case 'HIGH':
+        return { background: '#fed7aa', borderLeft: '4px solid #ea580c', color: '#9a3412' };
+      case 'MEDIUM':
+        return { background: '#fef3c7', borderLeft: '4px solid #f59e0b', color: '#92400e' };
+      case 'LOW':
+        return { background: '#dbeafe', borderLeft: '4px solid #3b82f6', color: '#1e40af' };
+      default:
+        return { background: '#f3f4f6', borderLeft: '4px solid #9ca3af', color: '#4b5563' };
+    }
+  };
+
+  // Get status style
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case 'APPROVED':
+        return { background: '#dcfce7', color: '#166534', icon: '✅' };
+      case 'REJECTED':
+        return { background: '#fee2e2', color: '#991b1b', icon: '❌' };
+      case 'AUTO_APPROVED':
+        return { background: '#e0e7ff', color: '#3730a3', icon: '🤖' };
+      case 'PENDING_REVIEW':
+        return { background: '#fef3c7', color: '#92400e', icon: '⏳' };
+      default:
+        return { background: '#f3f4f6', color: '#4b5563', icon: '⚡' };
+    }
   };
 
   // Get type icon
   const getTypeIcon = (type) => {
-    const icons = {
-      'CODE_CHANGE': <Code className="w-4 h-4" />,
-      'SECURITY_FIX': <Shield className="w-4 h-4" />,
-      'OPTIMIZATION': <Zap className="w-4 h-4" />,
-      'INTEGRATION': <Package className="w-4 h-4" />,
-      'STRATEGIC': <GitBranch className="w-4 h-4" />,
-      'FEATURE': <Star className="w-4 h-4" />,
-      'DOCUMENTATION': <FileText className="w-4 h-4" />
-    };
-    return icons[type] || <Settings className="w-4 h-4" />;
-  };
-
-  // Get confidence badge
-  const getConfidenceBadge = (confidence) => {
-    let color = 'bg-gray-100 text-gray-700';
-    if (confidence >= 90) color = 'bg-green-100 text-green-700';
-    else if (confidence >= 70) color = 'bg-yellow-100 text-yellow-700';
-    else if (confidence >= 50) color = 'bg-orange-100 text-orange-700';
-    else color = 'bg-red-100 text-red-700';
-
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${color}`}>
-        {confidence}% confidence
-      </span>
-    );
+    switch (type) {
+      case 'FEATURE':
+        return '🚀';
+      case 'SECURITY_FIX':
+        return '🛡️';
+      case 'OPTIMIZATION':
+        return '⚡';
+      case 'BUG_FIX':
+        return '🐛';
+      case 'DOCUMENTATION':
+        return '📚';
+      case 'INTEGRATION':
+        return '🔗';
+      case 'CODE_CHANGE':
+        return '💻';
+      default:
+        return '⚙️';
+    }
   };
 
   // Render review card
   const renderReviewCard = (review) => {
     const isSelected = bulkSelection.has(review.id);
     const isPending = review.status === 'PENDING_REVIEW' || review.status === 'AUTO_APPROVED';
+    const priorityStyle = getPriorityStyle(review.priority);
+    const statusStyle = getStatusStyle(review.status);
 
     return (
       <div
         key={review.id}
-        className={`bg-white border rounded-lg p-4 hover:shadow-md transition-shadow ${
-          isSelected ? 'border-blue-500 bg-blue-50' : ''
-        }`}
+        style={{
+          ...styles.reviewCard,
+          ...priorityStyle,
+          ...(isSelected ? styles.reviewCardSelected : {})
+        }}
       >
         {/* Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-start gap-3">
+        <div style={styles.reviewHeader}>
+          <div style={styles.reviewHeaderLeft}>
             {isPending && (
               <input
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => toggleBulkSelection(review.id)}
-                className="mt-1"
+                style={styles.checkbox}
               />
             )}
-            <div className={`p-2 rounded-lg ${getPriorityColor(review.priority)}`}>
-              {getTypeIcon(review.type)}
-            </div>
-            <div className="flex-1">
-              <h4 className="font-semibold text-gray-800">{review.title}</h4>
-              <p className="text-sm text-gray-600 mt-1">{review.description}</p>
-
-              {/* Agent and timing */}
-              <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                <span className="flex items-center gap-1">
-                  <Users className="w-3 h-3" />
-                  {review.agentAlias}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {new Date(review.timestamp).toLocaleString()}
-                </span>
+            <span style={styles.typeIcon}>{getTypeIcon(review.type)}</span>
+            <div>
+              <div style={styles.reviewTitle}>{review.title}</div>
+              <div style={styles.reviewMeta}>
+                <span>{review.agentAlias}</span>
+                <span style={styles.dot}>•</span>
+                <span>{formatTimestamp(review.timestamp)}</span>
                 {review.pullRequest && (
-                  <span className="flex items-center gap-1">
-                    <GitPullRequest className="w-3 h-3" />
-                    {review.pullRequest}
-                  </span>
+                  <>
+                    <span style={styles.dot}>•</span>
+                    <span>{review.pullRequest}</span>
+                  </>
                 )}
               </div>
             </div>
           </div>
-
-          {/* Confidence badge */}
-          {review.confidence && getConfidenceBadge(review.confidence)}
+          {review.confidence && (
+            <div style={styles.confidenceBadge}>
+              {review.confidence}%
+            </div>
+          )}
         </div>
 
-        {/* Changes summary */}
+        {/* Description */}
+        <div style={styles.reviewDescription}>{review.description}</div>
+
+        {/* Changes Summary */}
         {review.changes && (
-          <div className="mb-3 p-3 bg-gray-50 rounded">
-            <div className="text-sm font-medium text-gray-700 mb-2">Changes:</div>
-            <div className="text-xs text-gray-600">{review.changes.summary}</div>
-            {review.changes.files && (
-              <div className="mt-2 space-y-1">
-                {review.changes.files.map((file, idx) => (
-                  <div key={idx} className="flex items-center gap-2 text-xs">
-                    <FileText className="w-3 h-3" />
-                    <span className="font-mono">{file.path}</span>
-                    <span className="text-green-600">+{file.additions}</span>
-                    <span className="text-red-600">-{file.deletions}</span>
+          <div style={styles.changesSection}>
+            <div style={styles.changesSummary}>{review.changes.summary}</div>
+            {review.changes.files && review.changes.files.length > 0 && (
+              <div style={styles.filesList}>
+                {review.changes.files.slice(0, 3).map((file, idx) => {
+                  const formatted = formatFileChange(file);
+                  return (
+                    <div key={idx} style={styles.fileItem}>
+                      <span style={styles.fileName}>{formatted.fileName}</span>
+                      <div style={styles.fileStats}>
+                        <span style={styles.additions}>+{formatted.additions}</span>
+                        <span style={styles.deletions}>-{formatted.deletions}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+                {review.changes.files.length > 3 && (
+                  <div style={styles.moreFiles}>
+                    +{review.changes.files.length - 3} more files
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>
         )}
 
-        {/* Testing results */}
+        {/* Metrics */}
         {review.testing && (
-          <div className="mb-3 grid grid-cols-3 gap-2 text-xs">
+          <div style={styles.metricsGrid}>
             {review.testing.automated && (
-              <div className="p-2 bg-green-50 rounded">
-                <CheckCircle className="w-3 h-3 text-green-600 mb-1" />
-                <div className="font-medium">Tests: {review.testing.automated.passed}/{
-                  review.testing.automated.passed + review.testing.automated.failed
-                }</div>
-                <div className="text-gray-600">Coverage: {review.testing.automated.coverage}</div>
+              <div style={styles.metricCard}>
+                <div style={styles.metricIcon}>✅</div>
+                <div style={styles.metricValue}>
+                  {review.testing.automated.passed}/{
+                    review.testing.automated.passed + review.testing.automated.failed
+                  }
+                </div>
+                <div style={styles.metricLabel}>Tests</div>
+              </div>
+            )}
+            {review.testing.automated?.coverage && (
+              <div style={styles.metricCard}>
+                <div style={styles.metricIcon}>📊</div>
+                <div style={styles.metricValue}>{review.testing.automated.coverage}</div>
+                <div style={styles.metricLabel}>Coverage</div>
               </div>
             )}
             {review.testing.performance && (
-              <div className="p-2 bg-blue-50 rounded">
-                <TrendingUp className="w-3 h-3 text-blue-600 mb-1" />
-                <div className="font-medium">Performance</div>
-                <div className="text-gray-600">{review.testing.performance.after}</div>
+              <div style={styles.metricCard}>
+                <div style={styles.metricIcon}>⚡</div>
+                <div style={styles.metricValue}>{review.testing.performance.improvement || 'N/A'}</div>
+                <div style={styles.metricLabel}>Performance</div>
               </div>
             )}
             {review.testing.vulnerabilities !== undefined && (
-              <div className="p-2 bg-orange-50 rounded">
-                <Shield className="w-3 h-3 text-orange-600 mb-1" />
-                <div className="font-medium">Security</div>
-                <div className="text-gray-600">
-                  {review.testing.vulnerabilities.after} issues
-                </div>
+              <div style={styles.metricCard}>
+                <div style={styles.metricIcon}>🛡️</div>
+                <div style={styles.metricValue}>{review.testing.vulnerabilities.fixed || 0}</div>
+                <div style={styles.metricLabel}>Fixes</div>
               </div>
             )}
           </div>
         )}
 
-        {/* AI Analysis */}
+        {/* AI Recommendation */}
         {review.aiAnalysis && (
-          <div className="mb-3 p-3 bg-blue-50 rounded">
-            <div className="flex items-center gap-2 mb-2">
-              <Info className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-900">AI Analysis</span>
-            </div>
-            <div className="text-xs space-y-1">
-              <div><strong>Quality:</strong> {review.aiAnalysis.codeQuality}</div>
-              <div><strong>Security:</strong> {review.aiAnalysis.security}</div>
-              <div><strong>Performance:</strong> {review.aiAnalysis.performance}</div>
-              <div className="pt-1 font-medium text-blue-900">
-                {review.aiAnalysis.recommendation}
-              </div>
-            </div>
+          <div style={styles.aiRecommendation}>
+            <div style={styles.aiIcon}>🤖</div>
+            <div style={styles.aiText}>{review.aiAnalysis.recommendation}</div>
           </div>
         )}
 
-        {/* Impact assessment */}
-        {review.impact && (
-          <div className="mb-3 flex items-center gap-4 text-xs">
-            <span className={`px-2 py-1 rounded ${
-              review.impact.level === 'CRITICAL' ? 'bg-red-100 text-red-700' :
-              review.impact.level === 'HIGH' ? 'bg-orange-100 text-orange-700' :
-              review.impact.level === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-              'bg-green-100 text-green-700'
-            }`}>
-              {review.impact.level} Impact
-            </span>
-            <span className="text-gray-600">Risk: {review.impact.risk}</span>
-            <span className="text-gray-600">Users: {review.impact.users}</span>
-          </div>
-        )}
-
-        {/* Review status */}
+        {/* Status Badge */}
         {review.status && review.status !== 'PENDING_REVIEW' && (
-          <div className="mb-3 p-2 bg-gray-50 rounded">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                {review.status === 'APPROVED' ? (
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                ) : review.status === 'REJECTED' ? (
-                  <XCircle className="w-4 h-4 text-red-600" />
-                ) : (
-                  <Clock className="w-4 h-4 text-yellow-600" />
-                )}
-                <span className="font-medium">{review.status}</span>
-              </div>
-              {review.reviewedBy && (
-                <span className="text-gray-600">
-                  by {review.reviewedBy} at {new Date(review.reviewedAt).toLocaleString()}
-                </span>
-              )}
-            </div>
-            {review.reviewComment && (
-              <div className="mt-2 text-xs text-gray-600 italic">
-                "{review.reviewComment}"
-              </div>
+          <div style={{...styles.statusBadge, backgroundColor: statusStyle.background}}>
+            <span>{statusStyle.icon}</span>
+            <span style={{color: statusStyle.color}}>{review.status}</span>
+            {review.reviewedBy && (
+              <span style={styles.statusMeta}>
+                by {review.reviewedBy}
+              </span>
             )}
           </div>
         )}
 
         {/* Actions */}
         {isPending && (
-          <div className="flex items-center gap-2">
+          <div style={styles.actionButtons}>
             <button
               onClick={() => setSelectedReview(review)}
-              className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              style={styles.reviewButton}
             >
               Review Details
             </button>
             <button
               onClick={() => approveReview(review.id, 'Quick approval')}
-              className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              style={styles.approveButton}
               title="Quick Approve"
             >
-              <ThumbsUp className="w-4 h-4" />
+              ✅ Approve
             </button>
             <button
               onClick={() => rejectReview(review.id, 'Needs review', 'Quick rejection')}
-              className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              style={styles.rejectButton}
               title="Quick Reject"
             >
-              <ThumbsDown className="w-4 h-4" />
+              ❌ Reject
             </button>
-          </div>
-        )}
-
-        {/* Deployment status for approved items */}
-        {review.deploymentStatus && (
-          <div className="mt-3 flex items-center gap-2 text-xs">
-            <Package className="w-3 h-3" />
-            <span className="font-medium">Deployment:</span>
-            <span className={
-              review.deploymentStatus === 'DEPLOYED' ? 'text-green-600' :
-              review.deploymentStatus === 'PENDING_DEPLOYMENT' ? 'text-yellow-600' :
-              'text-gray-600'
-            }>
-              {review.deploymentStatus}
-            </span>
           </div>
         )}
       </div>
     );
   };
 
+  // Render diff viewer
+  const renderDiffViewer = (changes) => {
+    if (!changes) return null;
+
+    return (
+      <div style={styles.diffViewer}>
+        <h4 style={styles.diffTitle}>Code Changes</h4>
+        {changes.files?.map((file, idx) => (
+          <div key={idx} style={styles.diffFile}>
+            <div style={styles.diffFileHeader}>
+              <span style={styles.diffFileName}>{file.path}</span>
+              <div style={styles.diffStats}>
+                <span style={styles.diffAdditions}>+{file.additions}</span>
+                <span style={styles.diffDeletions}>-{file.deletions}</span>
+              </div>
+            </div>
+            <div style={styles.diffContent}>
+              {/* In a real implementation, we would show actual diffs here */}
+              <div style={styles.diffPlaceholder}>
+                {file.additions} lines added, {file.deletions} lines removed
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Render test results
+  const renderTestResults = (testing) => {
+    if (!testing) return null;
+
+    return (
+      <div style={styles.testResults}>
+        <h4 style={styles.testTitle}>Test Results</h4>
+        <div style={styles.testGrid}>
+          {testing.automated && (
+            <div style={styles.testCard}>
+              <div style={styles.testHeader}>
+                <span style={styles.testIcon}>🧪</span>
+                <span>Automated Tests</span>
+              </div>
+              <div style={styles.testBody}>
+                <div style={styles.testStat}>
+                  <span>Passed:</span>
+                  <span style={styles.testPassed}>{testing.automated.passed}</span>
+                </div>
+                <div style={styles.testStat}>
+                  <span>Failed:</span>
+                  <span style={styles.testFailed}>{testing.automated.failed || 0}</span>
+                </div>
+                <div style={styles.testStat}>
+                  <span>Coverage:</span>
+                  <span>{testing.automated.coverage || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          {testing.performance && (
+            <div style={styles.testCard}>
+              <div style={styles.testHeader}>
+                <span style={styles.testIcon}>⚡</span>
+                <span>Performance</span>
+              </div>
+              <div style={styles.testBody}>
+                <div style={styles.testStat}>
+                  <span>Before:</span>
+                  <span>{testing.performance.before}</span>
+                </div>
+                <div style={styles.testStat}>
+                  <span>After:</span>
+                  <span style={styles.testImproved}>{testing.performance.after}</span>
+                </div>
+                <div style={styles.testStat}>
+                  <span>Improvement:</span>
+                  <span style={styles.testImproved}>{testing.performance.improvement}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          {testing.security && (
+            <div style={styles.testCard}>
+              <div style={styles.testHeader}>
+                <span style={styles.testIcon}>🛡️</span>
+                <span>Security Scan</span>
+              </div>
+              <div style={styles.testBody}>
+                <div style={styles.testStat}>
+                  <span>Status:</span>
+                  <span style={testing.security.scan === 'PASSED' ? styles.testPassed : styles.testFailed}>
+                    {testing.security.scan}
+                  </span>
+                </div>
+                <div style={styles.testStat}>
+                  <span>Issues:</span>
+                  <span>{testing.security.vulnerabilities || 0}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="p-6">
+    <div style={styles.container}>
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <CheckSquare className="w-6 h-6 text-blue-600" />
-            Work Review Dashboard
+      <div style={styles.header}>
+        <div style={styles.headerTop}>
+          <h2 style={styles.title}>
+            ✅ Work Review Dashboard
           </h2>
-          <div className="flex items-center gap-3">
-            {/* Stats badges */}
-            <div className="flex items-center gap-2 px-3 py-1 bg-yellow-100 rounded-lg">
-              <Clock className="w-4 h-4 text-yellow-600" />
-              <span className="text-sm font-medium">{reviewStats.pending} Pending</span>
+          <div style={styles.statsRow}>
+            <div style={styles.statBadge}>
+              <span style={styles.statIcon}>⏳</span>
+              <span style={styles.statValue}>{reviewStats.pending}</span>
+              <span style={styles.statLabel}>Pending</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1 bg-green-100 rounded-lg">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium">{reviewStats.approved} Approved</span>
+            <div style={{...styles.statBadge, backgroundColor: '#dcfce7'}}>
+              <span style={styles.statIcon}>✅</span>
+              <span style={styles.statValue}>{reviewStats.approved}</span>
+              <span style={styles.statLabel}>Approved</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1 bg-red-100 rounded-lg">
-              <XCircle className="w-4 h-4 text-red-600" />
-              <span className="text-sm font-medium">{reviewStats.rejected} Rejected</span>
+            <div style={{...styles.statBadge, backgroundColor: '#fee2e2'}}>
+              <span style={styles.statIcon}>❌</span>
+              <span style={styles.statValue}>{reviewStats.rejected}</span>
+              <span style={styles.statLabel}>Rejected</span>
+            </div>
+            <div style={styles.statBadge}>
+              <span style={styles.statIcon}>⏱️</span>
+              <span style={styles.statValue}>{reviewStats.avgReviewTime}</span>
+              <span style={styles.statLabel}>Avg Time</span>
             </div>
           </div>
         </div>
 
-        {/* View mode tabs */}
-        <div className="flex gap-2 mb-4">
+        {/* View Mode Tabs */}
+        <div style={styles.tabsRow}>
           <button
             onClick={() => setReviewMode('pending')}
-            className={`px-4 py-2 rounded-lg ${
-              reviewMode === 'pending' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
+            style={{
+              ...styles.tab,
+              ...(reviewMode === 'pending' ? styles.tabActive : {})
+            }}
           >
             Pending Reviews
           </button>
           <button
             onClick={() => setReviewMode('reviewed')}
-            className={`px-4 py-2 rounded-lg ${
-              reviewMode === 'reviewed' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
+            style={{
+              ...styles.tab,
+              ...(reviewMode === 'reviewed' ? styles.tabActive : {})
+            }}
           >
             Reviewed Work
           </button>
           <button
             onClick={() => setReviewMode('all')}
-            className={`px-4 py-2 rounded-lg ${
-              reviewMode === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
+            style={{
+              ...styles.tab,
+              ...(reviewMode === 'all' ? styles.tabActive : {})
+            }}
           >
             All Work
           </button>
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-4 gap-3">
+        <div style={styles.filtersRow}>
           <select
             value={filters.agentId}
             onChange={(e) => setFilters({ ...filters, agentId: e.target.value })}
-            className="px-3 py-2 border rounded-lg"
+            style={styles.filterSelect}
           >
             <option value="all">All Agents</option>
             <option value="dashboard-improvement-agent">Dash</option>
@@ -908,7 +852,7 @@ const WorkReviewDashboard = ({ currentUser }) => {
           <select
             value={filters.priority}
             onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-            className="px-3 py-2 border rounded-lg"
+            style={styles.filterSelect}
           >
             <option value="all">All Priorities</option>
             <option value="CRITICAL">Critical</option>
@@ -920,20 +864,20 @@ const WorkReviewDashboard = ({ currentUser }) => {
           <select
             value={filters.type}
             onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-            className="px-3 py-2 border rounded-lg"
+            style={styles.filterSelect}
           >
             <option value="all">All Types</option>
-            <option value="CODE_CHANGE">Code Changes</option>
+            <option value="FEATURE">Features</option>
             <option value="SECURITY_FIX">Security Fixes</option>
             <option value="OPTIMIZATION">Optimizations</option>
-            <option value="INTEGRATION">Integrations</option>
-            <option value="STRATEGIC">Strategic</option>
+            <option value="BUG_FIX">Bug Fixes</option>
+            <option value="DOCUMENTATION">Documentation</option>
           </select>
 
           <select
             value={filters.dateRange}
             onChange={(e) => setFilters({ ...filters, dateRange: e.target.value })}
-            className="px-3 py-2 border rounded-lg"
+            style={styles.filterSelect}
           >
             <option value="24h">Last 24 Hours</option>
             <option value="7d">Last 7 Days</option>
@@ -942,107 +886,171 @@ const WorkReviewDashboard = ({ currentUser }) => {
           </select>
         </div>
 
-        {/* Bulk actions */}
+        {/* Bulk Actions */}
         {bulkSelection.size > 0 && (
-          <div className="mt-3 p-3 bg-blue-50 rounded-lg flex items-center justify-between">
-            <span className="text-sm font-medium">
+          <div style={styles.bulkActions}>
+            <span style={styles.bulkText}>
               {bulkSelection.size} items selected
             </span>
-            <div className="flex gap-2">
-              <button
-                onClick={bulkApprove}
-                className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-              >
-                Approve All
-              </button>
-              <button
-                onClick={() => setBulkSelection(new Set())}
-                className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm"
-              >
-                Clear Selection
-              </button>
-            </div>
+            <button onClick={bulkApprove} style={styles.bulkApproveBtn}>
+              Approve All
+            </button>
+            <button onClick={() => setBulkSelection(new Set())} style={styles.bulkClearBtn}>
+              Clear Selection
+            </button>
           </div>
         )}
       </div>
 
-      {/* Reviews list */}
-      <div className="grid gap-4">
+      {/* Content */}
+      <div style={styles.content}>
         {isLoading ? (
-          <div className="text-center py-8">
-            <RefreshCw className="w-8 h-8 animate-spin mx-auto text-gray-400" />
-            <p className="mt-2 text-gray-500">Loading reviews...</p>
+          <div style={styles.loading}>
+            <div style={styles.spinner}></div>
+            <p>Loading reviews...</p>
           </div>
         ) : filteredReviews.length === 0 ? (
-          <div className="text-center py-8">
-            <Archive className="w-12 h-12 mx-auto text-gray-300" />
-            <p className="mt-2 text-gray-500">No reviews found</p>
+          <div style={styles.empty}>
+            <p style={styles.emptyText}>No reviews found</p>
+            <p style={styles.emptySubtext}>Try adjusting your filters</p>
           </div>
         ) : (
-          filteredReviews.map(review => renderReviewCard(review))
+          <div style={styles.reviewsGrid}>
+            {filteredReviews.map(review => renderReviewCard(review))}
+          </div>
         )}
       </div>
 
-      {/* Detailed review modal */}
+      {/* Detail Modal */}
       {selectedReview && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-xl font-bold">{selectedReview.title}</h3>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>{selectedReview.title}</h3>
               <button
                 onClick={() => setSelectedReview(null)}
-                className="p-1 hover:bg-gray-100 rounded text-2xl"
+                style={styles.modalClose}
               >
                 ×
               </button>
             </div>
 
-            {/* Full details */}
-            <div className="space-y-4">
-              {/* Complete changes diff */}
-              <div>
-                <h4 className="font-medium mb-2">Complete Changes:</h4>
-                <pre className="p-4 bg-gray-50 rounded overflow-x-auto text-xs">
-                  {JSON.stringify(selectedReview.changes, null, 2)}
-                </pre>
+            <div style={styles.modalBody}>
+              {/* Review details */}
+              <div style={styles.modalSection}>
+                <h4 style={styles.sectionTitle}>Overview</h4>
+                <div style={styles.detailsGrid}>
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Agent:</span>
+                    <span style={styles.detailValue}>{selectedReview.agentAlias}</span>
+                  </div>
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Type:</span>
+                    <span style={styles.detailValue}>
+                      {getTypeIcon(selectedReview.type)} {selectedReview.type}
+                    </span>
+                  </div>
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Priority:</span>
+                    <span style={{...styles.detailValue, ...getPriorityStyle(selectedReview.priority)}}>
+                      {selectedReview.priority}
+                    </span>
+                  </div>
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Confidence:</span>
+                    <span style={styles.detailValue}>{selectedReview.confidence}%</span>
+                  </div>
+                </div>
+                <p style={styles.description}>{selectedReview.description}</p>
               </div>
 
-              {/* Testing details */}
-              <div>
-                <h4 className="font-medium mb-2">Testing Results:</h4>
-                <pre className="p-4 bg-gray-50 rounded overflow-x-auto text-xs">
-                  {JSON.stringify(selectedReview.testing, null, 2)}
-                </pre>
-              </div>
+              {/* Code changes */}
+              {renderDiffViewer(selectedReview.changes)}
+
+              {/* Test results */}
+              {renderTestResults(selectedReview.testing)}
 
               {/* Impact analysis */}
-              <div>
-                <h4 className="font-medium mb-2">Impact Analysis:</h4>
-                <pre className="p-4 bg-gray-50 rounded overflow-x-auto text-xs">
-                  {JSON.stringify(selectedReview.impact, null, 2)}
-                </pre>
-              </div>
+              {selectedReview.impact && (
+                <div style={styles.modalSection}>
+                  <h4 style={styles.sectionTitle}>Impact Analysis</h4>
+                  <div style={styles.impactGrid}>
+                    <div style={styles.impactItem}>
+                      <span style={styles.impactLabel}>Level:</span>
+                      <span style={{
+                        ...styles.impactValue,
+                        color: selectedReview.impact.level === 'CRITICAL' ? '#dc2626' :
+                               selectedReview.impact.level === 'HIGH' ? '#ea580c' :
+                               selectedReview.impact.level === 'MEDIUM' ? '#f59e0b' :
+                               '#10b981'
+                      }}>
+                        {selectedReview.impact.level}
+                      </span>
+                    </div>
+                    <div style={styles.impactItem}>
+                      <span style={styles.impactLabel}>Risk:</span>
+                      <span style={styles.impactValue}>{selectedReview.impact.risk}</span>
+                    </div>
+                    <div style={styles.impactItem}>
+                      <span style={styles.impactLabel}>Users Affected:</span>
+                      <span style={styles.impactValue}>{selectedReview.impact.users}</span>
+                    </div>
+                  </div>
+                  {selectedReview.impact.benefits && (
+                    <div style={styles.benefitsList}>
+                      <strong>Benefits:</strong>
+                      <ul style={styles.benefitsUl}>
+                        {selectedReview.impact.benefits.map((benefit, idx) => (
+                          <li key={idx} style={styles.benefitItem}>✅ {benefit}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* AI Analysis */}
+              {selectedReview.aiAnalysis && (
+                <div style={styles.modalSection}>
+                  <h4 style={styles.sectionTitle}>🤖 AI Analysis</h4>
+                  <div style={styles.aiAnalysisGrid}>
+                    <div style={styles.aiAnalysisItem}>
+                      <strong>Code Quality:</strong> {selectedReview.aiAnalysis.codeQuality}
+                    </div>
+                    <div style={styles.aiAnalysisItem}>
+                      <strong>Security:</strong> {selectedReview.aiAnalysis.security}
+                    </div>
+                    <div style={styles.aiAnalysisItem}>
+                      <strong>Performance:</strong> {selectedReview.aiAnalysis.performance}
+                    </div>
+                    <div style={styles.aiRecommendationBox}>
+                      <strong>Recommendation:</strong>
+                      <p>{selectedReview.aiAnalysis.recommendation}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Review actions */}
-              <div className="border-t pt-4">
-                <label className="block text-sm font-medium mb-2">Review Comment:</label>
+              <div style={styles.modalActions}>
+                <label style={styles.commentLabel}>Review Comment:</label>
                 <textarea
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
-                  className="w-full p-2 border rounded-lg"
+                  style={styles.commentTextarea}
                   rows="3"
                   placeholder="Add your review comments..."
                 />
-                <div className="flex gap-3 mt-3">
+                <div style={styles.actionButtonsRow}>
                   <button
                     onClick={() => {
                       approveReview(selectedReview.id, reviewComment);
                       setSelectedReview(null);
                       setReviewComment('');
                     }}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    style={styles.modalApproveBtn}
                   >
-                    Approve & Deploy
+                    ✅ Approve & Deploy
                   </button>
                   <button
                     onClick={() => {
@@ -1050,13 +1058,16 @@ const WorkReviewDashboard = ({ currentUser }) => {
                       setSelectedReview(null);
                       setReviewComment('');
                     }}
-                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    style={styles.modalRejectBtn}
                   >
-                    Reject & Rollback
+                    ❌ Reject & Rollback
                   </button>
                   <button
-                    onClick={() => setSelectedReview(null)}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                    onClick={() => {
+                      setSelectedReview(null);
+                      setReviewComment('');
+                    }}
+                    style={styles.modalCancelBtn}
                   >
                     Cancel
                   </button>
@@ -1069,5 +1080,798 @@ const WorkReviewDashboard = ({ currentUser }) => {
     </div>
   );
 };
+
+// Comprehensive styles object
+const styles = {
+  container: {
+    padding: '24px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    backgroundColor: '#f9fafb',
+    minHeight: '100vh'
+  },
+
+  // Header styles
+  header: {
+    marginBottom: '24px'
+  },
+
+  headerTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px'
+  },
+
+  title: {
+    fontSize: '28px',
+    fontWeight: 'bold',
+    color: '#111827',
+    margin: 0
+  },
+
+  statsRow: {
+    display: 'flex',
+    gap: '12px'
+  },
+
+  statBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 16px',
+    backgroundColor: '#fef3c7',
+    borderRadius: '8px'
+  },
+
+  statIcon: {
+    fontSize: '18px'
+  },
+
+  statValue: {
+    fontSize: '20px',
+    fontWeight: 'bold',
+    color: '#111827'
+  },
+
+  statLabel: {
+    fontSize: '14px',
+    color: '#6b7280'
+  },
+
+  // Tabs
+  tabsRow: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '16px',
+    borderBottom: '2px solid #e5e7eb',
+    paddingBottom: '8px'
+  },
+
+  tab: {
+    padding: '8px 16px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderRadius: '6px 6px 0 0',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#6b7280',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+
+  tabActive: {
+    backgroundColor: '#3b82f6',
+    color: 'white'
+  },
+
+  // Filters
+  filtersRow: {
+    display: 'flex',
+    gap: '12px',
+    marginBottom: '16px'
+  },
+
+  filterSelect: {
+    flex: 1,
+    padding: '8px 12px',
+    borderRadius: '8px',
+    border: '1px solid #d1d5db',
+    fontSize: '14px',
+    backgroundColor: 'white',
+    cursor: 'pointer'
+  },
+
+  // Bulk actions
+  bulkActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px 16px',
+    backgroundColor: '#eff6ff',
+    borderRadius: '8px',
+    marginBottom: '16px'
+  },
+
+  bulkText: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#1e40af'
+  },
+
+  bulkApproveBtn: {
+    padding: '6px 12px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer'
+  },
+
+  bulkClearBtn: {
+    padding: '6px 12px',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer'
+  },
+
+  // Content
+  content: {
+    minHeight: '400px'
+  },
+
+  loading: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '60px',
+    color: '#6b7280'
+  },
+
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #e5e7eb',
+    borderTopColor: '#3b82f6',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  },
+
+  empty: {
+    textAlign: 'center',
+    padding: '60px'
+  },
+
+  emptyText: {
+    fontSize: '18px',
+    fontWeight: '500',
+    color: '#4b5563',
+    marginBottom: '8px'
+  },
+
+  emptySubtext: {
+    fontSize: '14px',
+    color: '#9ca3af'
+  },
+
+  // Reviews grid
+  reviewsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+    gap: '20px'
+  },
+
+  // Review card
+  reviewCard: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '20px',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+    transition: 'box-shadow 0.2s',
+    cursor: 'default'
+  },
+
+  reviewCardSelected: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#3b82f6'
+  },
+
+  reviewHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '12px'
+  },
+
+  reviewHeaderLeft: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'flex-start',
+    flex: 1
+  },
+
+  checkbox: {
+    marginTop: '2px',
+    cursor: 'pointer'
+  },
+
+  typeIcon: {
+    fontSize: '24px'
+  },
+
+  reviewTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: '4px'
+  },
+
+  reviewMeta: {
+    fontSize: '13px',
+    color: '#6b7280',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+
+  dot: {
+    fontSize: '8px'
+  },
+
+  confidenceBadge: {
+    padding: '4px 8px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600'
+  },
+
+  reviewDescription: {
+    fontSize: '14px',
+    color: '#4b5563',
+    marginBottom: '16px',
+    lineHeight: '1.5'
+  },
+
+  // Changes section
+  changesSection: {
+    backgroundColor: '#f9fafb',
+    borderRadius: '8px',
+    padding: '12px',
+    marginBottom: '16px'
+  },
+
+  changesSummary: {
+    fontSize: '13px',
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: '8px'
+  },
+
+  filesList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px'
+  },
+
+  fileItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: '12px'
+  },
+
+  fileName: {
+    fontFamily: 'monospace',
+    color: '#4b5563'
+  },
+
+  fileStats: {
+    display: 'flex',
+    gap: '8px'
+  },
+
+  additions: {
+    color: '#10b981',
+    fontWeight: '500'
+  },
+
+  deletions: {
+    color: '#ef4444',
+    fontWeight: '500'
+  },
+
+  moreFiles: {
+    fontSize: '12px',
+    color: '#9ca3af',
+    fontStyle: 'italic',
+    marginTop: '4px'
+  },
+
+  // Metrics grid
+  metricsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
+    gap: '8px',
+    marginBottom: '16px'
+  },
+
+  metricCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: '8px',
+    padding: '8px',
+    textAlign: 'center'
+  },
+
+  metricIcon: {
+    fontSize: '16px',
+    marginBottom: '4px'
+  },
+
+  metricValue: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#111827'
+  },
+
+  metricLabel: {
+    fontSize: '11px',
+    color: '#6b7280',
+    marginTop: '2px'
+  },
+
+  // AI recommendation
+  aiRecommendation: {
+    display: 'flex',
+    gap: '8px',
+    padding: '12px',
+    backgroundColor: '#e0e7ff',
+    borderRadius: '8px',
+    marginBottom: '16px'
+  },
+
+  aiIcon: {
+    fontSize: '20px'
+  },
+
+  aiText: {
+    fontSize: '13px',
+    color: '#3730a3',
+    fontWeight: '500',
+    lineHeight: '1.4'
+  },
+
+  // Status badge
+  statusBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    borderRadius: '8px',
+    marginBottom: '16px',
+    fontSize: '13px'
+  },
+
+  statusMeta: {
+    marginLeft: 'auto',
+    fontSize: '12px',
+    color: '#6b7280'
+  },
+
+  // Action buttons
+  actionButtons: {
+    display: 'flex',
+    gap: '8px'
+  },
+
+  reviewButton: {
+    flex: 1,
+    padding: '8px 16px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s'
+  },
+
+  approveButton: {
+    padding: '8px 16px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s'
+  },
+
+  rejectButton: {
+    padding: '8px 16px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s'
+  },
+
+  // Modal styles
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000
+  },
+
+  modal: {
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    width: '90%',
+    maxWidth: '900px',
+    maxHeight: '85vh',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px 24px',
+    borderBottom: '1px solid #e5e7eb'
+  },
+
+  modalTitle: {
+    fontSize: '20px',
+    fontWeight: '600',
+    color: '#111827',
+    margin: 0
+  },
+
+  modalClose: {
+    fontSize: '28px',
+    color: '#6b7280',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '4px',
+    lineHeight: '1'
+  },
+
+  modalBody: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '24px'
+  },
+
+  modalSection: {
+    marginBottom: '24px'
+  },
+
+  sectionTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: '12px'
+  },
+
+  detailsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '12px',
+    marginBottom: '16px'
+  },
+
+  detailItem: {
+    display: 'flex',
+    gap: '8px'
+  },
+
+  detailLabel: {
+    fontSize: '14px',
+    color: '#6b7280'
+  },
+
+  detailValue: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#111827'
+  },
+
+  description: {
+    fontSize: '14px',
+    color: '#4b5563',
+    lineHeight: '1.5'
+  },
+
+  // Diff viewer
+  diffViewer: {
+    marginBottom: '24px'
+  },
+
+  diffTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: '12px'
+  },
+
+  diffFile: {
+    marginBottom: '16px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    overflow: 'hidden'
+  },
+
+  diffFileHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px',
+    backgroundColor: '#f9fafb'
+  },
+
+  diffFileName: {
+    fontFamily: 'monospace',
+    fontSize: '13px',
+    color: '#111827',
+    fontWeight: '500'
+  },
+
+  diffStats: {
+    display: 'flex',
+    gap: '12px',
+    fontSize: '13px'
+  },
+
+  diffAdditions: {
+    color: '#10b981',
+    fontWeight: '500'
+  },
+
+  diffDeletions: {
+    color: '#ef4444',
+    fontWeight: '500'
+  },
+
+  diffContent: {
+    padding: '12px',
+    backgroundColor: '#ffffff'
+  },
+
+  diffPlaceholder: {
+    fontSize: '13px',
+    color: '#6b7280',
+    fontStyle: 'italic'
+  },
+
+  // Test results
+  testResults: {
+    marginBottom: '24px'
+  },
+
+  testTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: '12px'
+  },
+
+  testGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '12px'
+  },
+
+  testCard: {
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    padding: '12px'
+  },
+
+  testHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '12px',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#374151'
+  },
+
+  testIcon: {
+    fontSize: '18px'
+  },
+
+  testBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+
+  testStat: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '13px',
+    color: '#6b7280'
+  },
+
+  testPassed: {
+    color: '#10b981',
+    fontWeight: '500'
+  },
+
+  testFailed: {
+    color: '#ef4444',
+    fontWeight: '500'
+  },
+
+  testImproved: {
+    color: '#3b82f6',
+    fontWeight: '500'
+  },
+
+  // Impact analysis
+  impactGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '12px',
+    marginBottom: '16px'
+  },
+
+  impactItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+
+  impactLabel: {
+    fontSize: '13px',
+    color: '#6b7280'
+  },
+
+  impactValue: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#111827'
+  },
+
+  benefitsList: {
+    marginTop: '12px'
+  },
+
+  benefitsUl: {
+    marginTop: '8px',
+    paddingLeft: '20px'
+  },
+
+  benefitItem: {
+    fontSize: '13px',
+    color: '#4b5563',
+    marginBottom: '4px',
+    listStyle: 'none'
+  },
+
+  // AI Analysis
+  aiAnalysisGrid: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+
+  aiAnalysisItem: {
+    fontSize: '14px',
+    color: '#4b5563'
+  },
+
+  aiRecommendationBox: {
+    marginTop: '12px',
+    padding: '12px',
+    backgroundColor: '#e0e7ff',
+    borderRadius: '8px'
+  },
+
+  // Modal actions
+  modalActions: {
+    borderTop: '1px solid #e5e7eb',
+    paddingTop: '20px'
+  },
+
+  commentLabel: {
+    display: 'block',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: '8px'
+  },
+
+  commentTextarea: {
+    width: '100%',
+    padding: '8px 12px',
+    borderRadius: '8px',
+    border: '1px solid #d1d5db',
+    fontSize: '14px',
+    fontFamily: 'inherit',
+    resize: 'vertical'
+  },
+
+  actionButtonsRow: {
+    display: 'flex',
+    gap: '12px',
+    marginTop: '16px'
+  },
+
+  modalApproveBtn: {
+    padding: '10px 20px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer'
+  },
+
+  modalRejectBtn: {
+    padding: '10px 20px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer'
+  },
+
+  modalCancelBtn: {
+    padding: '10px 20px',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer'
+  }
+};
+
+// Add keyframes for spinner animation
+const styleSheet = document.styleSheets[0];
+const keyframes = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+if (styleSheet && styleSheet.insertRule) {
+  try {
+    styleSheet.insertRule(keyframes, styleSheet.cssRules.length);
+  } catch (e) {
+    // Fallback for browsers that don't support insertRule for keyframes
+    const style = document.createElement('style');
+    style.textContent = keyframes;
+    document.head.appendChild(style);
+  }
+}
 
 export default WorkReviewDashboard;
