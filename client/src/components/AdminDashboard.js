@@ -765,11 +765,11 @@ function AdminDashboard({ onClose, currentUser }) {
             <div style={styles.metricIcon}>💵</div>
             <div style={styles.metricContent}>
               <div style={styles.metricValue}>
-                ${revenueData?.summary?.totalRevenue?.toFixed(2) || '0.00'}
+                ${safeToFixed(revenueData?.summary?.totalRevenue, 2) || '0.00'}
               </div>
               <div style={styles.metricLabel}>Total Revenue</div>
               <div style={styles.metricChange}>
-                +{revenueData?.growth?.revenueGrowth?.growthRate?.toFixed(1) || '0.0'}%
+                +{safeToFixed(revenueData?.growth?.revenueGrowth?.growthRate, 1) || '0.0'}%
               </div>
             </div>
           </div>
@@ -778,11 +778,11 @@ function AdminDashboard({ onClose, currentUser }) {
             <div style={styles.metricIcon}>📊</div>
             <div style={styles.metricContent}>
               <div style={styles.metricValue}>
-                ${revenueData?.summary?.netProfit?.toFixed(2) || '0.00'}
+                ${safeToFixed(revenueData?.summary?.netProfit, 2) || '0.00'}
               </div>
               <div style={styles.metricLabel}>Net Profit</div>
               <div style={styles.metricChange}>
-                {revenueData?.summary?.profitMargin?.toFixed(1) || '0.0'}% margin
+                {safeToFixed(revenueData?.summary?.profitMargin, 1) || '0.0'}% margin
               </div>
             </div>
           </div>
@@ -791,7 +791,7 @@ function AdminDashboard({ onClose, currentUser }) {
             <div style={styles.metricIcon}>🔄</div>
             <div style={styles.metricContent}>
               <div style={styles.metricValue}>
-                ${revenueData?.mrr?.totalMRR?.toFixed(2) || '0.00'}
+                ${safeToFixed(revenueData?.mrr?.totalMRR, 2) || '0.00'}
               </div>
               <div style={styles.metricLabel}>MRR</div>
               <div style={styles.metricChange}>
@@ -804,11 +804,11 @@ function AdminDashboard({ onClose, currentUser }) {
             <div style={styles.metricIcon}>💳</div>
             <div style={styles.metricContent}>
               <div style={styles.metricValue}>
-                ${revenueData?.summary?.totalCosts?.toFixed(2) || '0.00'}
+                ${safeToFixed(revenueData?.summary?.totalCosts, 2) || '0.00'}
               </div>
               <div style={styles.metricLabel}>Total Costs</div>
               <div style={styles.metricChange}>
-                {((revenueData?.summary?.totalCosts / revenueData?.summary?.totalRevenue) * 100)?.toFixed(1) || '0.0'}% of revenue
+                {safeToFixed((revenueData?.summary?.totalCosts / revenueData?.summary?.totalRevenue) * 100, 1) || '0.0'}% of revenue
               </div>
             </div>
           </div>
@@ -827,7 +827,7 @@ function AdminDashboard({ onClose, currentUser }) {
                    stream._id === 'subscription' ? '💳 Subscriptions' :
                    stream._id === 'api_usage' ? '🔌 API Usage' : stream._id}
                 </span>
-                <span style={styles.streamValue}>${stream.total.toFixed(2)}</span>
+                <span style={styles.streamValue}>${safeToFixed(stream.total, 2)}</span>
               </div>
               <div style={styles.streamBar}>
                 <div style={{
@@ -837,7 +837,7 @@ function AdminDashboard({ onClose, currentUser }) {
               </div>
               <div style={styles.streamStats}>
                 <span>{stream.count} transactions</span>
-                <span>{((stream.total / revenueData.summary.totalRevenue) * 100).toFixed(1)}% of total</span>
+                <span>{safeToFixed((stream.total / revenueData.summary.totalRevenue) * 100, 1)}% of total</span>
               </div>
             </div>
           ))}
@@ -857,7 +857,7 @@ function AdminDashboard({ onClose, currentUser }) {
                     height: `${(day.revenue / 600) * 100}%`,
                     backgroundColor: index === 29 ? '#FF6B35' : '#F7931E'
                   }}
-                  title={`${day._id}: $${day.revenue.toFixed(2)}`}
+                  title={`${day._id}: $${safeToFixed(day.revenue, 2)}`}
                 />
               </div>
             ))}
@@ -879,7 +879,7 @@ function AdminDashboard({ onClose, currentUser }) {
               <div key={tier._id} style={styles.tierItem}>
                 <span style={styles.tierName}>{tier._id.toUpperCase()}</span>
                 <span style={styles.tierCount}>{tier.count} users</span>
-                <span style={styles.tierRevenue}>${tier.revenue.toFixed(2)}/mo</span>
+                <span style={styles.tierRevenue}>${safeToFixed(tier.revenue, 2)}/mo</span>
               </div>
             ))}
           </div>
@@ -905,7 +905,7 @@ function AdminDashboard({ onClose, currentUser }) {
             </div>
             <div style={styles.growthItem}>
               <span>Churn Rate</span>
-              <span>{revenueData?.growth?.subscriberMetrics?.churnRate?.toFixed(1) || 0}%</span>
+              <span>{safeToFixed(revenueData?.growth?.subscriberMetrics?.churnRate, 1) || 0}%</span>
             </div>
           </div>
         </div>
@@ -1014,13 +1014,13 @@ function AdminDashboard({ onClose, currentUser }) {
           <div style={styles.costsHeader}>
             <div>
               <div style={styles.totalCost}>
-                ${externalServices?.costs?.totalCosts?.toFixed(2) || '0.00'}
+                ${safeToFixed(externalServices?.costs?.totalCosts, 2) || '0.00'}
               </div>
               <div style={styles.totalLabel}>Current Month Costs</div>
             </div>
             <div>
               <div style={styles.projectedCost}>
-                ${externalServices?.costs?.projectedMonthly?.toFixed(2) || '0.00'}
+                ${safeToFixed(externalServices?.costs?.projectedMonthly, 2) || '0.00'}
               </div>
               <div style={styles.projectedLabel}>Projected Monthly</div>
             </div>
@@ -1037,7 +1037,7 @@ function AdminDashboard({ onClose, currentUser }) {
                    api === 'spoonacular' ? '🍳 Spoonacular' :
                    api === 'instacart' ? '🛒 Instacart' : api}
                 </span>
-                <span style={styles.apiCost}>${data.cost?.toFixed(2) || '0.00'}</span>
+                <span style={styles.apiCost}>${safeToFixed(data.cost, 2) || '0.00'}</span>
               </div>
               <div style={styles.apiMetrics}>
                 <div style={styles.apiMetric}>
@@ -1047,7 +1047,7 @@ function AdminDashboard({ onClose, currentUser }) {
                 {data.tokens && (
                   <div style={styles.apiMetric}>
                     <span>Tokens</span>
-                    <span>{(data.tokens / 1000).toFixed(1)}k</span>
+                    <span>{safeToFixed(data.tokens / 1000, 1)}k</span>
                   </div>
                 )}
               </div>
@@ -1069,7 +1069,7 @@ function AdminDashboard({ onClose, currentUser }) {
             <div key={service.service} style={styles.costItem}>
               <div style={styles.costItemHeader}>
                 <span>{service.service}</span>
-                <span>${service.cost.toFixed(2)}</span>
+                <span>${safeToFixed(service.cost, 2)}</span>
               </div>
               <div style={styles.costBar}>
                 <div style={{
@@ -1077,7 +1077,7 @@ function AdminDashboard({ onClose, currentUser }) {
                   width: `${service.percentage}%`
                 }} />
               </div>
-              <div style={styles.costPercentage}>{service.percentage.toFixed(1)}%</div>
+              <div style={styles.costPercentage}>{safeToFixed(service.percentage, 1)}%</div>
             </div>
           ))}
         </div>
