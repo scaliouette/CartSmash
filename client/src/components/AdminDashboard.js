@@ -680,16 +680,16 @@ function AdminDashboard({ onClose, currentUser }) {
             <div style={styles.financialContent}>
               <div style={styles.financialLabel}>Total Revenue</div>
               <div style={styles.financialValue}>
-                ${(revenueData?.summary?.totalRevenue || 0).toFixed(2)}
+                ${Number(revenueData?.summary?.totalRevenue || 0).toFixed(2)}
               </div>
               <div style={styles.financialTrend}>
-                {revenueData?.growth?.revenueGrowth?.growthRate > 0 ? (
+                {Number(revenueData?.growth?.revenueGrowth?.growthRate) > 0 ? (
                   <span style={{ color: '#28a745' }}>
-                    ↑ {Math.abs(revenueData?.growth?.revenueGrowth?.growthRate || 0).toFixed(1)}%
+                    ↑ {Math.abs(Number(revenueData?.growth?.revenueGrowth?.growthRate || 0)).toFixed(1)}%
                   </span>
-                ) : revenueData?.growth?.revenueGrowth?.growthRate < 0 ? (
+                ) : Number(revenueData?.growth?.revenueGrowth?.growthRate) < 0 ? (
                   <span style={{ color: '#dc3545' }}>
-                    ↓ {Math.abs(revenueData?.growth?.revenueGrowth?.growthRate || 0).toFixed(1)}%
+                    ↓ {Math.abs(Number(revenueData?.growth?.revenueGrowth?.growthRate || 0)).toFixed(1)}%
                   </span>
                 ) : (
                   <span style={{ color: '#6c757d' }}>— 0.0%</span>
@@ -703,11 +703,11 @@ function AdminDashboard({ onClose, currentUser }) {
             <div style={styles.financialContent}>
               <div style={styles.financialLabel}>Total Costs</div>
               <div style={styles.financialValue}>
-                ${(revenueData?.summary?.totalCosts || 0).toFixed(2)}
+                ${Number(revenueData?.summary?.totalCosts || 0).toFixed(2)}
               </div>
               <div style={styles.financialSubtext}>
-                {revenueData?.summary?.totalRevenue > 0
-                  ? `${((revenueData?.summary?.totalCosts / revenueData?.summary?.totalRevenue) * 100).toFixed(1)}% of revenue`
+                {Number(revenueData?.summary?.totalRevenue) > 0
+                  ? `${((Number(revenueData?.summary?.totalCosts || 0) / Number(revenueData?.summary?.totalRevenue)) * 100).toFixed(1)}% of revenue`
                   : 'No revenue yet'}
               </div>
             </div>
@@ -715,19 +715,19 @@ function AdminDashboard({ onClose, currentUser }) {
 
           <div style={styles.financialCard}>
             <div style={styles.financialIcon}>
-              {revenueData?.summary?.netProfit >= 0 ? '📈' : '📉'}
+              {Number(revenueData?.summary?.netProfit) >= 0 ? '📈' : '📉'}
             </div>
             <div style={styles.financialContent}>
               <div style={styles.financialLabel}>Net Profit/Loss</div>
               <div style={{
                 ...styles.financialValue,
-                color: revenueData?.summary?.netProfit >= 0 ? '#28a745' : '#dc3545'
+                color: Number(revenueData?.summary?.netProfit) >= 0 ? '#28a745' : '#dc3545'
               }}>
-                ${(revenueData?.summary?.netProfit || 0).toFixed(2)}
+                ${Number(revenueData?.summary?.netProfit || 0).toFixed(2)}
               </div>
               <div style={styles.financialSubtext}>
                 {revenueData?.summary?.profitMargin
-                  ? `${revenueData.summary.profitMargin.toFixed(1)}% margin`
+                  ? `${Number(revenueData.summary.profitMargin).toFixed(1)}% margin`
                   : '0.0% margin'}
               </div>
             </div>
@@ -738,10 +738,10 @@ function AdminDashboard({ onClose, currentUser }) {
             <div style={styles.financialContent}>
               <div style={styles.financialLabel}>MRR</div>
               <div style={styles.financialValue}>
-                ${(revenueData?.mrr?.totalMRR || 0).toFixed(2)}
+                ${Number(revenueData?.mrr?.totalMRR || 0).toFixed(2)}
               </div>
               <div style={styles.financialSubtext}>
-                {revenueData?.mrr?.subscriberCount || 0} subscribers
+                {Number(revenueData?.mrr?.subscriberCount || 0)} subscribers
               </div>
             </div>
           </div>
@@ -902,7 +902,7 @@ function AdminDashboard({ onClose, currentUser }) {
                   fontWeight: 'bold',
                   fontSize: '14px'
                 }}>
-                  {opusUsage.usage.percentage.toFixed(1)}%
+                  {Number(opusUsage.usage.percentage || 0).toFixed(1)}%
                 </span>
               </div>
             </div>
@@ -929,7 +929,7 @@ function AdminDashboard({ onClose, currentUser }) {
               <div>
                 <div style={{ fontSize: '12px', color: '#6c757d' }}>💰 Weekly Cost</div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                  ${opusUsage.usage.cost.toFixed(2)}
+                  ${Number(opusUsage.usage.cost || 0).toFixed(2)}
                 </div>
               </div>
               <div>
@@ -1717,7 +1717,7 @@ function AdminDashboard({ onClose, currentUser }) {
                 }}>
                   <div style={{ fontSize: '12px', opacity: 0.9 }}>Week Total</div>
                   <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
-                    {(opusUsage.tokensUsed / 1000).toFixed(1)}k tokens
+                    {(Number(opusUsage.tokensUsed || 0) / 1000).toFixed(1)}k tokens
                   </div>
                 </div>
                 <div style={{
@@ -1727,7 +1727,7 @@ function AdminDashboard({ onClose, currentUser }) {
                 }}>
                   <div style={{ fontSize: '12px', opacity: 0.9 }}>Weekly Cost</div>
                   <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
-                    ${opusUsage.weeklyUsage?.totalCost?.toFixed(2) || '0.00'}
+                    ${Number(opusUsage.weeklyUsage?.totalCost || 0).toFixed(2)}
                   </div>
                 </div>
                 <div style={{
@@ -1747,7 +1747,7 @@ function AdminDashboard({ onClose, currentUser }) {
                 }}>
                   <div style={{ fontSize: '12px', opacity: 0.9 }}>Daily Average</div>
                   <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
-                    {(opusUsage.averageDailyUsage / 1000).toFixed(1)}k/day
+                    {(Number(opusUsage.averageDailyUsage || 0) / 1000).toFixed(1)}k/day
                   </div>
                 </div>
               </div>
@@ -1764,7 +1764,7 @@ function AdminDashboard({ onClose, currentUser }) {
                     📈 Usage Projection
                   </div>
                   <div style={{ fontSize: '13px' }}>
-                    At current rate ({(opusUsage.averageDailyUsage / 1000).toFixed(1)}k/day),
+                    At current rate ({(Number(opusUsage.averageDailyUsage || 0) / 1000).toFixed(1)}k/day),
                     limits will be reached in {opusUsage.projection?.daysUntilExhaustion || 'N/A'} days
                     {opusUsage.projection?.exhaustionDate && (
                       <span> ({new Date(opusUsage.projection.exhaustionDate).toLocaleDateString()})</span>
@@ -1821,10 +1821,10 @@ function AdminDashboard({ onClose, currentUser }) {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
-                      {(week.totalTokens / 1000).toFixed(1)}k tokens
+                      {(Number(week.totalTokens || 0) / 1000).toFixed(1)}k tokens
                     </div>
                     <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                      ${week.totalCost.toFixed(2)}
+                      ${Number(week.totalCost || 0).toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -1860,7 +1860,7 @@ function AdminDashboard({ onClose, currentUser }) {
                         {req.tokens.toLocaleString()}
                       </td>
                       <td style={{ padding: '8px', textAlign: 'right' }}>
-                        ${req.cost.toFixed(3)}
+                        ${Number(req.cost || 0).toFixed(3)}
                       </td>
                     </tr>
                   ))}
