@@ -8,11 +8,12 @@ const ErrorLogViewer = () => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    // Load errors from debugService
+    // Load errors from debugService with defensive checks
     const loadLogs = () => {
-      const allErrors = debugService.getErrors() || [];
-      const allWarnings = debugService.getWarnings() || [];
-      const allLogs = debugService.getLogs() || [];
+      // Check if debugService has the required methods
+      const allErrors = (typeof debugService.getErrors === 'function' ? debugService.getErrors() : debugService.errors) || [];
+      const allWarnings = (typeof debugService.getWarnings === 'function' ? debugService.getWarnings() : debugService.warnings) || [];
+      const allLogs = (typeof debugService.getLogs === 'function' ? debugService.getLogs() : debugService.logs) || [];
 
       // Combine and format
       const combined = [

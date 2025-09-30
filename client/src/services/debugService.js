@@ -224,6 +224,19 @@ class DebugService {
     return summary;
   }
 
+  // Getter methods for accessing logs
+  getErrors() {
+    return this.errors || [];
+  }
+
+  getWarnings() {
+    return this.warnings || [];
+  }
+
+  getLogs() {
+    return this.logs || [];
+  }
+
   // Export debug data
   exportDebugData() {
     const debugData = {
