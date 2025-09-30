@@ -26,6 +26,19 @@ const logger = winston.createLogger({
   ]
 });
 
+// ===== CORS HANDLING =====
+
+/**
+ * Handle OPTIONS requests for CORS preflight
+ */
+router.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(200);
+});
+
 // ===== HEALTH CHECK ENDPOINT =====
 
 /**
@@ -706,6 +719,15 @@ router.post('/pause/:agentId',
   async (req, res) => {
     try {
       const { agentId } = req.params;
+
+      // Check if agentTaskQueue is available
+      if (!agentTaskQueue || typeof agentTaskQueue.pauseAgent !== 'function') {
+        return res.status(503).json({
+          error: 'Agent task queue service is not available',
+          message: 'The agent management service is currently unavailable. Please try again later.'
+        });
+      }
+
       const result = agentTaskQueue.pauseAgent(agentId);
 
       // Log audit event
@@ -738,6 +760,14 @@ router.post('/pause-all',
   isAdmin,
   async (req, res) => {
     try {
+      // Check if agentTaskQueue is available
+      if (!agentTaskQueue || typeof agentTaskQueue.pauseAllAgents !== 'function') {
+        return res.status(503).json({
+          error: 'Agent task queue service is not available',
+          message: 'The agent management service is currently unavailable. Please try again later.'
+        });
+      }
+
       const results = agentTaskQueue.pauseAllAgents();
 
       // Log audit event
@@ -853,6 +883,20 @@ router.get('/pause-status',
   isAdmin,
   async (req, res) => {
     try {
+      // Check if agentTaskQueue is available
+      if (!agentTaskQueue || typeof agentTaskQueue.getPauseStatus !== 'function') {
+        return res.json({
+          totalPaused: 0,
+          agents: {},
+          costSummary: {
+            totalSystemCost: 0,
+            totalSystemTokens: 0,
+            topSpender: null
+          },
+          error: 'Agent service temporarily unavailable'
+        });
+      }
+
       const status = agentTaskQueue.getPauseStatus();
       res.json(status);
     } catch (error) {
