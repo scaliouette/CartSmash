@@ -26,6 +26,27 @@ const logger = winston.createLogger({
   ]
 });
 
+// ===== HEALTH CHECK ENDPOINT =====
+
+/**
+ * GET /api/agent/health
+ * Health check endpoint to verify agent routes are loaded
+ */
+router.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    routes: 'loaded',
+    timestamp: new Date().toISOString(),
+    services: {
+      chat: 'available',
+      workReview: 'available',
+      audit: 'available',
+      monitoring: 'available',
+      taskQueue: 'available'
+    }
+  });
+});
+
 // ===== CHAT ENDPOINTS =====
 
 /**

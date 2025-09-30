@@ -17,7 +17,6 @@ require('dotenv').config();
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { auditMiddleware, auditLog } = require('./middleware/auditLogger');
 const AgentWebSocketServer = require('./websocket/agentWebSocketServer');
-const agentRoutes = require('./routes/agentRoutes');
 const agentAuditService = require('./services/agentAuditService');
 
 // Configure Winston Logger FIRST - before any usage
@@ -1076,7 +1075,8 @@ const routes = [
   { path: '/api/debug', module: './routes/debugRoutes' },  // Debug and error tracking system
   { path: '/api/cache', module: './routes/cacheManagement' },  // Product cache management
   { path: '/api/revenue', module: './routes/revenue' },  // Revenue tracking and analytics
-  { path: '/api/monitoring', module: './routes/monitoring' }  // External service monitoring
+  { path: '/api/monitoring', module: './routes/monitoring' },  // External service monitoring
+  { path: '/api/agent', module: './routes/agentRoutes' }  // Agent system routes (work review, chat, audit)
 ];
 
 routes.forEach(route => {
@@ -1090,6 +1090,30 @@ routes.forEach(route => {
       stack: error.stack,
       code: error.code
     });
+  }
+});
+
+// Validate critical routes are registered
+const criticalRoutes = [
+  { path: '/api/agent', name: 'Agent System' },
+  { path: '/api/cart', name: 'Cart Processing' },
+  { path: '/api/analytics', name: 'Analytics' }
+];
+
+criticalRoutes.forEach(route => {
+  const isRegistered = app._router.stack.some(layer => {
+    if (layer.regexp && layer.regexp.test) {
+      return layer.regexp.test(route.path + '/test');
+    }
+    return false;
+  });
+
+  if (!isRegistered) {
+    logger.error(`CRITICAL: ${route.name} routes failed to register at ${route.path}`);
+    logger.error('Server cannot start without critical routes. Exiting...');
+    process.exit(1);
+  } else {
+    logger.info(`✅ ${route.name} routes verified at ${route.path}`);
   }
 });
 
@@ -1134,15 +1158,23 @@ const gracefulShutdown = async (signal) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Add agent routes
-app.use('/api/agent', agentRoutes);
-
 // Start Server with WebSocket support
 if (require.main === module) {
   const httpServer = createServer(app);
 
-  // Initialize WebSocket server
-  const wsServer = new AgentWebSocketServer(httpServer);
+  // Initialize WebSocket server with error handling
+  let wsServer;
+  try {
+    wsServer = new AgentWebSocketServer(httpServer);
+    logger.info('✅ WebSocket server initialized successfully');
+  } catch (error) {
+    logger.error('WebSocket server initialization failed:', {
+      message: error.message,
+      stack: error.stack
+    });
+    logger.warn('⚠️ Server will continue without WebSocket support');
+    // Continue without WebSocket - agent system can still work via REST API
+  }
 
   const server = httpServer.listen(PORT, () => {
     const allowedOrigins = [
