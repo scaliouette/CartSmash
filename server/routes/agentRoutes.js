@@ -12,7 +12,7 @@ const agentAuditService = require('../services/agentAuditService');
 const agentCommunicationHub = require('../services/agentCommunicationHub');
 const agentTaskQueue = require('../services/agentTaskQueue');
 const { authenticateUser } = require('../middleware/auth');
-const { isAdmin } = require('../middleware/adminAuth');
+const { checkAdmin: isAdmin } = require('../middleware/adminAuth');
 const winston = require('winston');
 
 // Configure logger
