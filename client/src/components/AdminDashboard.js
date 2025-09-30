@@ -216,6 +216,47 @@ function AdminDashboard({ onClose, currentUser }) {
     }
   }, []);
 
+  const handleTriggerAllAgents = async () => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const token = currentUser ? await currentUser.getIdToken() : null;
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
+      // Show loading state
+      const agentsList = agents.map(agent => ({ ...agent, status: 'running' }));
+      setAgents(agentsList);
+
+      const response = await fetch(`${apiUrl}/api/agent/trigger-all`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          timestamp: new Date().toISOString(),
+          initiator: currentUser?.email || 'admin'
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Triggered all agents:', result);
+
+        // Refresh agent data after a delay
+        setTimeout(() => {
+          loadAgentData();
+        }, 2000);
+      } else {
+        console.warn('Failed to trigger all agents');
+        // Reset status
+        loadAgentData();
+      }
+    } catch (error) {
+      console.error('Failed to trigger all agents:', error);
+      loadAgentData();
+    }
+  };
+
   const loadExternalServices = useCallback(async () => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
@@ -303,6 +344,54 @@ function AdminDashboard({ onClose, currentUser }) {
     }
     setReviewsLoading(false);
   }, [currentUser]);
+
+  const handleQuickApprove = async (reviewId) => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const token = currentUser ? await currentUser.getIdToken() : null;
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
+      const response = await fetch(`${apiUrl}/api/agent/work/review/${reviewId}/approve`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ approved: true })
+      });
+
+      if (response.ok) {
+        // Remove from pending reviews
+        setPendingReviews(prev => prev.filter(r => r.id !== reviewId));
+      }
+    } catch (error) {
+      console.error('Failed to approve review:', error);
+    }
+  };
+
+  const handleQuickReject = async (reviewId) => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const token = currentUser ? await currentUser.getIdToken() : null;
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
+      const response = await fetch(`${apiUrl}/api/agent/work/review/${reviewId}/reject`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ approved: false })
+      });
+
+      if (response.ok) {
+        // Remove from pending reviews
+        setPendingReviews(prev => prev.filter(r => r.id !== reviewId));
+      }
+    } catch (error) {
+      console.error('Failed to reject review:', error);
+    }
+  };
 
   const loadOpusUsage = useCallback(async () => {
     try {
@@ -401,7 +490,8 @@ function AdminDashboard({ onClose, currentUser }) {
           loadUserAccounts(),
           loadRevenueData(),
           loadExternalServices(),
-          loadOpusUsage()
+          loadOpusUsage(),
+          loadPendingReviews()
         ]);
         setIsLoading(false);
       } catch (error) {
@@ -656,6 +746,83 @@ function AdminDashboard({ onClose, currentUser }) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Work Review Dashboard */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>📋 Work Review</h3>
+        {reviewsLoading ? (
+          <div style={{ padding: '20px', textAlign: 'center' }}>Loading pending reviews...</div>
+        ) : pendingReviews.length > 0 ? (
+          <div style={styles.workReviewGrid}>
+            {pendingReviews.slice(0, 4).map(review => (
+              <div key={review.id} style={styles.workReviewCard}>
+                <div style={styles.workReviewHeader}>
+                  <span style={{
+                    ...styles.priorityBadge,
+                    backgroundColor: review.priority === 'CRITICAL' ? '#dc3545' :
+                                   review.priority === 'HIGH' ? '#ff6b6b' :
+                                   review.priority === 'MEDIUM' ? '#ffd93d' : '#6bcf7f'
+                  }}>
+                    {review.priority}
+                  </span>
+                  <span style={styles.agentBadge}>{review.agentAlias}</span>
+                </div>
+                <div style={styles.workReviewTitle}>{review.title}</div>
+                <div style={styles.workReviewTime}>
+                  {new Date(review.timestamp).toLocaleString()}
+                </div>
+                <div style={styles.workReviewActions}>
+                  <button
+                    onClick={() => handleQuickApprove(review.id)}
+                    style={{
+                      ...styles.actionButton,
+                      backgroundColor: '#28a745'
+                    }}
+                  >
+                    ✓ Approve
+                  </button>
+                  <button
+                    onClick={() => handleQuickReject(review.id)}
+                    style={{
+                      ...styles.actionButton,
+                      backgroundColor: '#dc3545'
+                    }}
+                  >
+                    ✗ Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{
+            padding: '40px',
+            textAlign: 'center',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px',
+            color: '#6c757d'
+          }}>
+            No pending reviews at this time
+          </div>
+        )}
+        {pendingReviews.length > 4 && (
+          <div style={{ marginTop: '15px', textAlign: 'center' }}>
+            <button
+              onClick={() => setActiveTab('work-review')}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              View All {pendingReviews.length} Reviews
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Real-time Metrics */}
@@ -1893,7 +2060,39 @@ function AdminDashboard({ onClose, currentUser }) {
 
         {/* Agent Grid */}
         <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>👥 Agent Team</h3>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px'
+          }}>
+            <h3 style={{ ...styles.sectionTitle, margin: 0 }}>👥 Agent Team</h3>
+            <button
+              onClick={handleTriggerAllAgents}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'background-color 0.2s',
+                '&:hover': {
+                  backgroundColor: '#218838'
+                }
+              }}
+              onMouseOver={(e) => e.target.style.backgroundColor = '#218838'}
+              onMouseOut={(e) => e.target.style.backgroundColor = '#28a745'}
+            >
+              <span>⚡</span>
+              Trigger All Agents
+            </button>
+          </div>
           <div style={styles.agentGrid}>
             {agents.map(agent => (
               <div key={agent.id} style={styles.agentCard}>
@@ -3401,6 +3600,76 @@ const styles = {
   financialSubtext: {
     fontSize: '12px',
     color: '#9ca3af'
+  },
+
+  // Work Review styles
+  workReviewGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gap: '15px',
+    marginTop: '20px'
+  },
+  workReviewCard: {
+    background: 'white',
+    borderRadius: '8px',
+    padding: '15px',
+    border: '1px solid #e9ecef',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+    transition: 'all 0.2s',
+    '&:hover': {
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)'
+    }
+  },
+  workReviewHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '10px'
+  },
+  priorityBadge: {
+    padding: '3px 8px',
+    borderRadius: '4px',
+    fontSize: '11px',
+    fontWeight: 'bold',
+    color: 'white',
+    textTransform: 'uppercase'
+  },
+  agentBadge: {
+    padding: '3px 8px',
+    backgroundColor: '#007bff',
+    color: 'white',
+    borderRadius: '4px',
+    fontSize: '11px',
+    fontWeight: 'bold'
+  },
+  workReviewTitle: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: '8px'
+  },
+  workReviewTime: {
+    fontSize: '12px',
+    color: '#6c757d',
+    marginBottom: '12px'
+  },
+  workReviewActions: {
+    display: 'flex',
+    gap: '8px'
+  },
+  actionButton: {
+    flex: 1,
+    padding: '8px 12px',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'opacity 0.2s',
+    '&:hover': {
+      opacity: 0.9
+    }
   }
 };
 
