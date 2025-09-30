@@ -7,6 +7,7 @@ import AgentChatInterface from './AgentChatInterface';
 import EnhancedErrorLogViewer from './EnhancedErrorLogViewer';
 import AgentWorkJournal from './AgentWorkJournal';
 import WorkReviewDashboard from './WorkReviewDashboard';
+import RouteControlPanel from './RouteControlPanel';
 
 function AdminDashboard({ onClose, currentUser }) {
   // All hooks must be called before any conditional returns
@@ -2455,6 +2456,7 @@ function AdminDashboard({ onClose, currentUser }) {
             { id: 'overview', label: '🏠 Overview' },
             { id: 'revenue', label: '💰 Revenue' },
             { id: 'services', label: '🔗 External Services' },
+            { id: 'routes', label: '🎛️ Route Control' },
             { id: 'agents', label: '🤖 AI Agents' },
             { id: 'system', label: '🖥️ System' },
             { id: 'users', label: '👥 Users' },
@@ -2483,6 +2485,7 @@ function AdminDashboard({ onClose, currentUser }) {
           {activeTab === 'overview' && renderOverviewTab()}
           {activeTab === 'revenue' && renderRevenueTab()}
           {activeTab === 'services' && renderServicesTab()}
+          {activeTab === 'routes' && <RouteControlPanel />}
           {activeTab === 'agents' && renderAgentsTab()}
           {activeTab === 'system' && renderSystemTab()}
           {activeTab === 'users' && renderUsersTab()}

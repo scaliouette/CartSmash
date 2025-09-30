@@ -79,49 +79,69 @@ for (const [service, vars] of Object.entries(optionalEnvVars)) {
 
 // Logger is already configured above
 
-// API BILLING DISABLED - ALL AI SERVICES DISABLED
-// Initialize AI Services
+// Initialize AI Services based on database settings
 let openai, genAI, anthropic;
 
-// DISABLED TO STOP BILLING
-// if (process.env.OPENAI_API_KEY) {
-//   try {
-//     openai = new OpenAI({
-//       apiKey: process.env.OPENAI_API_KEY
-//     });
-//     // Assign to global for AIProductParser
-//     global.openai = openai;
-//     logger.info('OpenAI service initialized');
-//   } catch (error) {
-//     logger.warn('OpenAI initialization failed:', error.message);
-//   }
-// }
+// AI services will be initialized after MongoDB connection
+// This allows checking database settings before initialization
+const initializeAIServices = async () => {
+  try {
+    const SystemSettings = require('./models/SystemSettings');
 
-// DISABLED TO STOP BILLING
-// if (process.env.ANTHROPIC_API_KEY) {
-//   try {
-//     anthropic = new Anthropic({
-//       apiKey: process.env.ANTHROPIC_API_KEY
-//     });
-//     // Assign to global for AIProductParser
-//     global.anthropic = anthropic;
-//     logger.info('Anthropic service initialized');
-//   } catch (error) {
-//     logger.warn('Anthropic initialization failed:', error.message);
-//   }
-// }
+    // Check OpenAI setting
+    const openaiEnabled = await SystemSettings.getSetting('service.openai', false);
+    if (openaiEnabled && process.env.OPENAI_API_KEY) {
+      try {
+        openai = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY
+        });
+        global.openai = openai;
+        logger.info('✅ OpenAI service initialized');
+      } catch (error) {
+        logger.warn('OpenAI initialization failed:', error.message);
+      }
+    } else {
+      logger.info('⏸️  OpenAI service disabled (check Admin Dashboard → Route Control)');
+    }
 
-// DISABLED TO STOP BILLING
-// if (process.env.GOOGLE_AI_API_KEY) {
-//   try {
-//     genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
-//     logger.info('Google Generative AI service initialized');
-//   } catch (error) {
-//     logger.warn('Google AI initialization failed:', error.message);
-//   }
-// }
+    // Check Anthropic setting
+    const anthropicEnabled = await SystemSettings.getSetting('service.anthropic', true);
+    if (anthropicEnabled && process.env.ANTHROPIC_API_KEY) {
+      try {
+        anthropic = new Anthropic({
+          apiKey: process.env.ANTHROPIC_API_KEY
+        });
+        global.anthropic = anthropic;
+        logger.info('✅ Anthropic service initialized');
+      } catch (error) {
+        logger.warn('Anthropic initialization failed:', error.message);
+      }
+    } else {
+      logger.info('⏸️  Anthropic service disabled (check Admin Dashboard → Route Control)');
+    }
 
-logger.info('⚠️ ALL AI SERVICES DISABLED - No API billing active');
+    // Check Google AI setting
+    const googleAIEnabled = await SystemSettings.getSetting('service.google-ai', false);
+    if (googleAIEnabled && process.env.GOOGLE_AI_API_KEY) {
+      try {
+        genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+        logger.info('✅ Google AI service initialized');
+      } catch (error) {
+        logger.warn('Google AI initialization failed:', error.message);
+      }
+    } else {
+      logger.info('⏸️  Google AI service disabled (check Admin Dashboard → Route Control)');
+    }
+  } catch (error) {
+    logger.error('Error initializing AI services:', error);
+    // Fallback to defaults if database check fails
+    if (process.env.ANTHROPIC_API_KEY) {
+      anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      global.anthropic = anthropic;
+      logger.warn('Using Anthropic (fallback mode)');
+    }
+  }
+};
 
 // MongoDB Connection with proper configuration for production
 mongoose.connect(process.env.MONGODB_URI, {
@@ -130,8 +150,10 @@ mongoose.connect(process.env.MONGODB_URI, {
   maxPoolSize: 10,
   minPoolSize: 2
 })
-.then(() => {
+.then(async () => {
   logger.info('Connected to MongoDB Atlas successfully');
+  // Initialize AI services after DB connection
+  await initializeAIServices();
 })
 .catch((error) => {
   logger.error('MongoDB connection failed:', error);
@@ -1140,16 +1162,14 @@ app.post('/api/cache/clear', (req, res) => {
 // Load route modules
 const routes = [
   { path: '/api/cart', module: './routes/cart' },
-  // AI ROUTES DISABLED TO STOP BILLING
-  // { path: '/api/ai', module: './routes/ai' },
-  // { path: '/api/ai-simple', module: './routes/aiSimplified' },  // Simplified AI system
+  { path: '/api/ai', module: './routes/ai' },  // AI parsing with Anthropic
+  { path: '/api/ai-simple', module: './routes/aiSimplified' },  // Simplified AI system
   // { path: '/api/kroger', module: './routes/kroger' },  // ARCHIVED - Kroger integration disabled
   // { path: '/api/kroger-orders', module: './routes/kroger-orders' },  // ARCHIVED - Kroger integration disabled
-  // INSTACART/SPOONACULAR DISABLED TO STOP BILLING
-  // { path: '/api/instacart', module: './routes/instacartRoutes' },  // Instacart integration
-  // { path: '/api/spoonacular', module: './routes/spoonacularRoutes' },  // Spoonacular API integration
+  { path: '/api/instacart', module: './routes/instacartRoutes' },  // Instacart integration
+  { path: '/api/spoonacular', module: './routes/spoonacularRoutes' },  // Spoonacular API integration
   { path: '/api/images', module: './routes/imageProxy' },  // Image proxy for CORS issues
-  // { path: '/api/product-validation', module: './routes/productValidationRoutes' },  // Enhanced product validation
+  { path: '/api/product-validation', module: './routes/productValidationRoutes' },  // Enhanced product validation
   { path: '/api/smash-cart', module: './routes/smash-cart' },  // New comprehensive cart service
   { path: '/api/grocery', module: './routes/grocery' },
   { path: '/api/account', module: './routes/account' },
@@ -1157,7 +1177,8 @@ const routes = [
   { path: '/api/settings', module: './routes/settings' },  // Admin settings management
   { path: '/api/analytics', module: './routes/analytics' },  // Admin dashboard analytics
   { path: '/api/monitoring', module: './routes/monitoring' },  // External service monitoring
-  // AI MEAL PLANS DISABLED TO STOP BILLING
+  { path: '/api/route-control', module: './routes/routeControl' },  // Route on/off control
+  // AI MEAL PLANS - DISABLED (uses OpenAI primarily)
   // { path: '/api/meal-plans', module: './routes/aiMealPlanRoutes' },  // AI meal plan generation
   { path: '/api/price-history', module: './routes/priceHistoryRoutes' },  // Multi-vendor price history
   { path: '/api/recipes', module: './routes/recipeImportRoutes' },  // Recipe import functionality
