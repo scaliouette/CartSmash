@@ -38,6 +38,10 @@ function AdminDashboard({ onClose, currentUser }) {
   const [opusUsage, setOpusUsage] = useState(null);
   const [opusLoading, setOpusLoading] = useState(false);
 
+  // Work reviews for overview widget
+  const [pendingReviews, setPendingReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
   // Define all callbacks before conditional returns
   const loadSystemHealth = useCallback(async () => {
     try {
@@ -140,43 +144,59 @@ function AdminDashboard({ onClose, currentUser }) {
         default: startDate.setDate(startDate.getDate() - 30); break;
       }
 
-      const [summary, mrr, growth] = await Promise.all([
-        fetch(`${apiUrl}/api/revenue/summary?start=${startDate.toISOString()}&end=${endDate.toISOString()}`).then(r => r.json()),
-        fetch(`${apiUrl}/api/revenue/mrr`).then(r => r.json()),
-        fetch(`${apiUrl}/api/revenue/growth`).then(r => r.json())
+      const [summaryRes, mrrRes, growthRes, costsRes] = await Promise.all([
+        fetch(`${apiUrl}/api/revenue/summary?start=${startDate.toISOString()}&end=${endDate.toISOString()}`),
+        fetch(`${apiUrl}/api/revenue/mrr`),
+        fetch(`${apiUrl}/api/revenue/growth`),
+        fetch(`${apiUrl}/api/monitoring/costs/current`)
       ]);
 
-      setRevenueData({ summary, mrr, growth });
-    } catch (error) {
-      console.error('Failed to load revenue data:', error);
-      // Use mock data if API fails
+      const summary = summaryRes.ok ? await summaryRes.json() : {};
+      const mrr = mrrRes.ok ? await mrrRes.json() : {};
+      const growth = growthRes.ok ? await growthRes.json() : {};
+      const costs = costsRes.ok ? await costsRes.json() : {};
+
+      // Calculate real financial metrics including potentially negative values
+      const totalRevenue = summary.totalRevenue || 0;
+      const totalCosts = costs.total || summary.totalCosts || 0;
+      const netProfit = totalRevenue - totalCosts; // Can be negative
+      const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
       setRevenueData({
         summary: {
-          totalRevenue: 12847.52,
-          totalCosts: 3214.38,
-          netProfit: 9633.14,
-          profitMargin: 75.0,
-          revenueByType: [
-            { _id: 'instacart_commission', total: 8432.12, count: 1245 },
-            { _id: 'subscription', total: 3999.60, count: 400 },
-            { _id: 'api_usage', total: 415.80, count: 892 }
-          ],
-          dailyRevenue: Array.from({ length: 30 }, (_, i) => ({
-            _id: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            revenue: 350 + Math.random() * 200
-          }))
+          ...summary,
+          totalRevenue,
+          totalCosts,
+          netProfit,
+          profitMargin
+        },
+        mrr,
+        growth,
+        costs
+      });
+    } catch (error) {
+      console.error('Failed to load revenue data:', error);
+      setError('Failed to load revenue data. Showing actual values.');
+
+      // Show real zeros/empty data instead of mock data when API fails
+      // This ensures transparency about actual financial status
+      setRevenueData({
+        summary: {
+          totalRevenue: 0,
+          totalCosts: 0,
+          netProfit: 0,
+          profitMargin: 0,
+          revenueByType: [],
+          dailyRevenue: []
         },
         mrr: {
-          totalMRR: 3999.60,
-          subscriberCount: 400,
-          byTier: [
-            { _id: 'pro', count: 350, revenue: 3496.50 },
-            { _id: 'enterprise', count: 50, revenue: 4999.50 }
-          ]
+          totalMRR: 0,
+          subscriberCount: 0,
+          byTier: []
         },
         growth: {
-          revenueGrowth: { current: 12847.52, previous: 9824.33, growthRate: 30.8, trend: 'up' },
-          subscriberMetrics: { newSubscribers: 45, churnedSubscribers: 12, netGrowth: 33, churnRate: 26.7 }
+          revenueGrowth: { current: 0, previous: 0, growthRate: 0, trend: 'flat' },
+          subscriberMetrics: { newSubscribers: 0, churnedSubscribers: 0, netGrowth: 0, churnRate: 0 }
         }
       });
     }
@@ -243,6 +263,46 @@ function AdminDashboard({ onClose, currentUser }) {
       });
     }
   }, []);
+
+  const loadPendingReviews = useCallback(async () => {
+    try {
+      setReviewsLoading(true);
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const token = currentUser ? await currentUser.getIdToken() : null;
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+      const response = await fetch(`${apiUrl}/api/agent/work/pending-reviews`, { headers });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPendingReviews(data.reviews || []);
+      } else {
+        // Use sample data for demo
+        setPendingReviews([
+          {
+            id: 'REVIEW-001',
+            workId: 'WORK-001',
+            agentAlias: 'Dash',
+            title: 'Enhanced Admin Dashboard Analytics',
+            priority: 'HIGH',
+            timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000)
+          },
+          {
+            id: 'REVIEW-002',
+            workId: 'WORK-002',
+            agentAlias: 'SecOps',
+            title: 'Critical Security Patch - XSS Prevention',
+            priority: 'CRITICAL',
+            timestamp: new Date(Date.now() - 30 * 60 * 1000)
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to load pending reviews:', error);
+      setPendingReviews([]);
+    }
+    setReviewsLoading(false);
+  }, [currentUser]);
 
   const loadOpusUsage = useCallback(async () => {
     try {
@@ -516,6 +576,83 @@ function AdminDashboard({ onClose, currentUser }) {
             <div style={styles.healthMetric}>
               <span>Uptime:</span>
               <span>{realtimeMetrics ? getUptimeMinutes(realtimeMetrics.performance?.uptime) + ' min' : 'Loading...'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Financial Overview */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>💰 Financial Overview</h3>
+        <div style={styles.financialGrid}>
+          <div style={styles.financialCard}>
+            <div style={styles.financialIcon}>💵</div>
+            <div style={styles.financialContent}>
+              <div style={styles.financialLabel}>Total Revenue</div>
+              <div style={styles.financialValue}>
+                ${(revenueData?.summary?.totalRevenue || 0).toFixed(2)}
+              </div>
+              <div style={styles.financialTrend}>
+                {revenueData?.growth?.revenueGrowth?.growthRate > 0 ? (
+                  <span style={{ color: '#28a745' }}>
+                    ↑ {Math.abs(revenueData?.growth?.revenueGrowth?.growthRate || 0).toFixed(1)}%
+                  </span>
+                ) : revenueData?.growth?.revenueGrowth?.growthRate < 0 ? (
+                  <span style={{ color: '#dc3545' }}>
+                    ↓ {Math.abs(revenueData?.growth?.revenueGrowth?.growthRate || 0).toFixed(1)}%
+                  </span>
+                ) : (
+                  <span style={{ color: '#6c757d' }}>— 0.0%</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.financialCard}>
+            <div style={styles.financialIcon}>💸</div>
+            <div style={styles.financialContent}>
+              <div style={styles.financialLabel}>Total Costs</div>
+              <div style={styles.financialValue}>
+                ${(revenueData?.summary?.totalCosts || 0).toFixed(2)}
+              </div>
+              <div style={styles.financialSubtext}>
+                {revenueData?.summary?.totalRevenue > 0
+                  ? `${((revenueData?.summary?.totalCosts / revenueData?.summary?.totalRevenue) * 100).toFixed(1)}% of revenue`
+                  : 'No revenue yet'}
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.financialCard}>
+            <div style={styles.financialIcon}>
+              {revenueData?.summary?.netProfit >= 0 ? '📈' : '📉'}
+            </div>
+            <div style={styles.financialContent}>
+              <div style={styles.financialLabel}>Net Profit/Loss</div>
+              <div style={{
+                ...styles.financialValue,
+                color: revenueData?.summary?.netProfit >= 0 ? '#28a745' : '#dc3545'
+              }}>
+                ${(revenueData?.summary?.netProfit || 0).toFixed(2)}
+              </div>
+              <div style={styles.financialSubtext}>
+                {revenueData?.summary?.profitMargin
+                  ? `${revenueData.summary.profitMargin.toFixed(1)}% margin`
+                  : '0.0% margin'}
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.financialCard}>
+            <div style={styles.financialIcon}>📊</div>
+            <div style={styles.financialContent}>
+              <div style={styles.financialLabel}>MRR</div>
+              <div style={styles.financialValue}>
+                ${(revenueData?.mrr?.totalMRR || 0).toFixed(2)}
+              </div>
+              <div style={styles.financialSubtext}>
+                {revenueData?.mrr?.subscriberCount || 0} subscribers
+              </div>
             </div>
           </div>
         </div>
@@ -3208,6 +3345,62 @@ const styles = {
   recIcon: {
     fontSize: '16px',
     flexShrink: 0
+  },
+
+  // Financial Overview styles
+  financialGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '20px',
+    marginTop: '20px'
+  },
+
+  financialCard: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: '20px',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '15px',
+    transition: 'all 0.2s',
+    '&:hover': {
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+    }
+  },
+
+  financialIcon: {
+    fontSize: '32px',
+    flexShrink: 0
+  },
+
+  financialContent: {
+    flex: 1
+  },
+
+  financialLabel: {
+    fontSize: '12px',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    fontWeight: '600',
+    marginBottom: '8px'
+  },
+
+  financialValue: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: '4px'
+  },
+
+  financialTrend: {
+    fontSize: '13px',
+    fontWeight: '500'
+  },
+
+  financialSubtext: {
+    fontSize: '12px',
+    color: '#9ca3af'
   }
 };
 
