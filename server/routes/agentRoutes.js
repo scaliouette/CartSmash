@@ -697,6 +697,190 @@ router.post('/trigger',
 );
 
 /**
+ * POST /api/agent/pause/:agentId
+ * Pause a specific agent
+ */
+router.post('/pause/:agentId',
+  authenticateUser,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const { agentId } = req.params;
+      const result = agentTaskQueue.pauseAgent(agentId);
+
+      // Log audit event
+      agentAuditService.createAuditEntry({
+        agentId: 'system',
+        agentAlias: 'Admin',
+        action: 'AGENT_PAUSED',
+        actionType: 'CONTROL',
+        target: agentId,
+        userId: req.user?.uid,
+        metadata: { agentId, initiatedBy: req.user?.email },
+        severity: 'INFO',
+        impact: 'MEDIUM'
+      });
+
+      res.json(result);
+    } catch (error) {
+      logger.error('Error pausing agent:', error);
+      res.status(500).json({ error: 'Failed to pause agent' });
+    }
+  }
+);
+
+/**
+ * POST /api/agent/pause-all
+ * Pause all agents
+ */
+router.post('/pause-all',
+  authenticateUser,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const results = agentTaskQueue.pauseAllAgents();
+
+      // Log audit event
+      agentAuditService.createAuditEntry({
+        agentId: 'system',
+        agentAlias: 'Admin',
+        action: 'ALL_AGENTS_PAUSED',
+        actionType: 'CONTROL',
+        target: 'all-agents',
+        userId: req.user?.uid,
+        metadata: {
+          pausedCount: results.filter(r => r.success).length,
+          initiatedBy: req.user?.email
+        },
+        severity: 'WARNING',
+        impact: 'HIGH'
+      });
+
+      res.json({
+        success: true,
+        results,
+        message: `${results.filter(r => r.success).length} agents paused`
+      });
+    } catch (error) {
+      logger.error('Error pausing all agents:', error);
+      res.status(500).json({ error: 'Failed to pause agents' });
+    }
+  }
+);
+
+/**
+ * POST /api/agent/resume/:agentId
+ * Resume a specific agent
+ */
+router.post('/resume/:agentId',
+  authenticateUser,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const { agentId } = req.params;
+      const result = agentTaskQueue.resumeAgent(agentId);
+
+      // Log audit event
+      agentAuditService.createAuditEntry({
+        agentId: 'system',
+        agentAlias: 'Admin',
+        action: 'AGENT_RESUMED',
+        actionType: 'CONTROL',
+        target: agentId,
+        userId: req.user?.uid,
+        metadata: {
+          agentId,
+          pauseDuration: result.pauseDuration,
+          initiatedBy: req.user?.email
+        },
+        severity: 'INFO',
+        impact: 'MEDIUM'
+      });
+
+      res.json(result);
+    } catch (error) {
+      logger.error('Error resuming agent:', error);
+      res.status(500).json({ error: 'Failed to resume agent' });
+    }
+  }
+);
+
+/**
+ * POST /api/agent/resume-all
+ * Resume all paused agents
+ */
+router.post('/resume-all',
+  authenticateUser,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const results = agentTaskQueue.resumeAllAgents();
+
+      // Log audit event
+      agentAuditService.createAuditEntry({
+        agentId: 'system',
+        agentAlias: 'Admin',
+        action: 'ALL_AGENTS_RESUMED',
+        actionType: 'CONTROL',
+        target: 'all-agents',
+        userId: req.user?.uid,
+        metadata: {
+          resumedCount: results.filter(r => r.success).length,
+          initiatedBy: req.user?.email
+        },
+        severity: 'INFO',
+        impact: 'HIGH'
+      });
+
+      res.json({
+        success: true,
+        results,
+        message: `${results.filter(r => r.success).length} agents resumed`
+      });
+    } catch (error) {
+      logger.error('Error resuming all agents:', error);
+      res.status(500).json({ error: 'Failed to resume agents' });
+    }
+  }
+);
+
+/**
+ * GET /api/agent/pause-status
+ * Get pause status of all agents
+ */
+router.get('/pause-status',
+  authenticateUser,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const status = agentTaskQueue.getPauseStatus();
+      res.json(status);
+    } catch (error) {
+      logger.error('Error getting pause status:', error);
+      res.status(500).json({ error: 'Failed to get pause status' });
+    }
+  }
+);
+
+/**
+ * GET /api/agent/cost-summary
+ * Get cost summary for all agents
+ */
+router.get('/cost-summary',
+  authenticateUser,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const costSummary = agentTaskQueue.getAgentCostSummary();
+      res.json(costSummary);
+    } catch (error) {
+      logger.error('Error getting cost summary:', error);
+      res.status(500).json({ error: 'Failed to get cost summary' });
+    }
+  }
+);
+
+/**
  * POST /api/agent/trigger-all
  * Trigger all agents simultaneously
  */

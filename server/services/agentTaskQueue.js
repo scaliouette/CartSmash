@@ -40,8 +40,35 @@ class AgentTaskQueue extends EventEmitter {
     // Agent status tracking
     this.agentStatus = new Map();
 
+    // Paused agents tracking
+    this.pausedAgents = new Set();
+    this.pauseTimestamps = new Map();
+
+    // Agent cost tracking
+    this.agentCosts = new Map();
+    this.initializeAgentCosts();
+
     // Initialize system
     this.initialize();
+  }
+
+  /**
+   * Initialize agent cost tracking
+   */
+  initializeAgentCosts() {
+    const agents = ['dashboard-improvement-agent', 'security-auditor', 'performance-optimizer',
+                   'api-integration-specialist', 'chief-ai-officer', 'error-monitor', 'development-manager'];
+
+    agents.forEach(agentId => {
+      this.agentCosts.set(agentId, {
+        totalCost: 0,
+        tokensUsed: 0,
+        apiCalls: 0,
+        lastReset: new Date(),
+        dailyCost: 0,
+        weeklyCost: 0
+      });
+    });
   }
 
   /**
@@ -55,6 +82,49 @@ class AgentTaskQueue extends EventEmitter {
 
     // Set up task timeout checker
     setInterval(() => this.checkTimeouts(), 60000); // Every minute
+  }
+
+  /**
+   * Track agent cost
+   */
+  trackAgentCost(agentId, cost, tokens = 0) {
+    const agentCost = this.agentCosts.get(agentId);
+    if (agentCost) {
+      agentCost.totalCost += cost;
+      agentCost.tokensUsed += tokens;
+      agentCost.apiCalls++;
+      agentCost.dailyCost += cost;
+      agentCost.weeklyCost += cost;
+
+      this.agentCosts.set(agentId, agentCost);
+
+      logger.info(`Agent ${agentId} cost tracked: $${cost.toFixed(4)}, ${tokens} tokens`);
+    }
+  }
+
+  /**
+   * Get agent cost summary
+   */
+  getAgentCostSummary() {
+    const summary = {};
+    let totalSystemCost = 0;
+    let totalSystemTokens = 0;
+
+    for (const [agentId, costs] of this.agentCosts) {
+      summary[agentId] = {
+        ...costs,
+        averageCostPerCall: costs.apiCalls > 0 ? (costs.totalCost / costs.apiCalls) : 0
+      };
+      totalSystemCost += costs.totalCost;
+      totalSystemTokens += costs.tokensUsed;
+    }
+
+    return {
+      agents: summary,
+      totalSystemCost,
+      totalSystemTokens,
+      topSpender: Object.entries(summary).sort((a, b) => b[1].totalCost - a[1].totalCost)[0]?.[0] || null
+    };
   }
 
   /**
@@ -212,6 +282,12 @@ class AgentTaskQueue extends EventEmitter {
    * Assign task to agent
    */
   assignTaskToAgent(taskId, agentId) {
+    // Check if agent is paused
+    if (this.isAgentPaused(agentId)) {
+      logger.warn(`Cannot assign task ${taskId} to paused agent ${agentId}`);
+      return null;
+    }
+
     const task = this.tasks.get(taskId);
     if (!task) {
       logger.error(`Task not found: ${taskId}`);
@@ -334,6 +410,11 @@ class AgentTaskQueue extends EventEmitter {
    * Update agent status
    */
   updateAgentStatus(agentId, status, currentTaskId = null) {
+    // Don't override paused status unless explicitly resuming
+    if (this.pausedAgents.has(agentId) && status !== 'PAUSED' && status !== 'RESUMING') {
+      return;
+    }
+
     this.agentStatus.set(agentId, {
       status,
       currentTaskId,
@@ -341,6 +422,131 @@ class AgentTaskQueue extends EventEmitter {
     });
 
     this.emit('agent:status', { agentId, status, currentTaskId });
+  }
+
+  /**
+   * Pause a specific agent
+   */
+  pauseAgent(agentId) {
+    if (this.pausedAgents.has(agentId)) {
+      return { success: false, message: 'Agent already paused' };
+    }
+
+    this.pausedAgents.add(agentId);
+    this.pauseTimestamps.set(agentId, new Date());
+    this.updateAgentStatus(agentId, 'PAUSED');
+
+    logger.info(`Agent ${agentId} paused`);
+    this.emit('agent:paused', { agentId, timestamp: new Date() });
+
+    return { success: true, message: 'Agent paused successfully' };
+  }
+
+  /**
+   * Resume a specific agent
+   */
+  resumeAgent(agentId) {
+    if (!this.pausedAgents.has(agentId)) {
+      return { success: false, message: 'Agent not paused' };
+    }
+
+    const pauseDuration = Date.now() - this.pauseTimestamps.get(agentId);
+    this.pausedAgents.delete(agentId);
+    this.pauseTimestamps.delete(agentId);
+    this.updateAgentStatus(agentId, 'IDLE');
+
+    logger.info(`Agent ${agentId} resumed after ${Math.round(pauseDuration / 1000)}s`);
+    this.emit('agent:resumed', { agentId, pauseDuration, timestamp: new Date() });
+
+    // Check if there are queued tasks for this agent
+    const queue = this.agentQueues.get(agentId) || [];
+    if (queue.length > 0) {
+      this.processAgentQueue(agentId);
+    }
+
+    return { success: true, message: 'Agent resumed successfully', pauseDuration };
+  }
+
+  /**
+   * Pause all agents
+   */
+  pauseAllAgents() {
+    const agents = ['dashboard-improvement-agent', 'security-auditor', 'performance-optimizer',
+                   'api-integration-specialist', 'chief-ai-officer', 'error-monitor', 'development-manager'];
+
+    const results = [];
+    for (const agentId of agents) {
+      results.push({
+        agentId,
+        ...this.pauseAgent(agentId)
+      });
+    }
+
+    logger.info('All agents paused');
+    this.emit('agents:paused:all', { timestamp: new Date(), count: results.filter(r => r.success).length });
+
+    return results;
+  }
+
+  /**
+   * Resume all agents
+   */
+  resumeAllAgents() {
+    const results = [];
+    for (const agentId of this.pausedAgents) {
+      results.push({
+        agentId,
+        ...this.resumeAgent(agentId)
+      });
+    }
+
+    logger.info('All agents resumed');
+    this.emit('agents:resumed:all', { timestamp: new Date(), count: results.filter(r => r.success).length });
+
+    return results;
+  }
+
+  /**
+   * Check if agent is paused
+   */
+  isAgentPaused(agentId) {
+    return this.pausedAgents.has(agentId);
+  }
+
+  /**
+   * Get pause status for all agents
+   */
+  getPauseStatus() {
+    const status = {};
+    const agents = ['dashboard-improvement-agent', 'security-auditor', 'performance-optimizer',
+                   'api-integration-specialist', 'chief-ai-officer', 'error-monitor', 'development-manager'];
+
+    const costSummary = this.getAgentCostSummary();
+
+    for (const agentId of agents) {
+      status[agentId] = {
+        paused: this.pausedAgents.has(agentId),
+        pausedAt: this.pauseTimestamps.get(agentId) || null,
+        currentStatus: this.agentStatus.get(agentId)?.status || 'UNKNOWN',
+        cost: costSummary.agents[agentId] || {
+          totalCost: 0,
+          tokensUsed: 0,
+          apiCalls: 0,
+          dailyCost: 0,
+          weeklyCost: 0
+        }
+      };
+    }
+
+    return {
+      totalPaused: this.pausedAgents.size,
+      agents: status,
+      costSummary: {
+        totalSystemCost: costSummary.totalSystemCost,
+        totalSystemTokens: costSummary.totalSystemTokens,
+        topSpender: costSummary.topSpender
+      }
+    };
   }
 
   /**

@@ -33,6 +33,8 @@ function AdminDashboard({ onClose, currentUser }) {
   const [agentActivities, setAgentActivities] = useState([]);
   const [agentOverview, setAgentOverview] = useState(null);
   const [agentSubTab, setAgentSubTab] = useState('overview'); // Sub-tab for agent section
+  const [pausedAgents, setPausedAgents] = useState(new Set());
+  const [agentCosts, setAgentCosts] = useState({});
 
   // Opus usage monitoring
   const [opusUsage, setOpusUsage] = useState(null);
@@ -254,6 +256,171 @@ function AdminDashboard({ onClose, currentUser }) {
     } catch (error) {
       console.error('Failed to trigger all agents:', error);
       loadAgentData();
+    }
+  };
+
+  const handlePauseAllAgents = async () => {
+    if (!window.confirm('Are you sure you want to pause all agents? This will stop all ongoing tasks.')) {
+      return;
+    }
+
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const token = currentUser ? await currentUser.getIdToken() : null;
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
+      const response = await fetch(`${apiUrl}/api/agent/pause-all`, {
+        method: 'POST',
+        headers
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('All agents paused:', data);
+
+        // Update UI to show paused state
+        const pausedSet = new Set(agents.map(a => a.id));
+        setPausedAgents(pausedSet);
+        setAgents(agents.map(agent => ({ ...agent, status: 'paused' })));
+
+        // Load pause status
+        loadPauseStatus();
+      }
+    } catch (error) {
+      console.error('Error pausing all agents:', error);
+    }
+  };
+
+  const handleResumeAllAgents = async () => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const token = currentUser ? await currentUser.getIdToken() : null;
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
+      const response = await fetch(`${apiUrl}/api/agent/resume-all`, {
+        method: 'POST',
+        headers
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('All agents resumed:', data);
+
+        // Clear paused state
+        setPausedAgents(new Set());
+        setAgents(agents.map(agent => ({ ...agent, status: 'idle' })));
+
+        // Load pause status
+        loadPauseStatus();
+      }
+    } catch (error) {
+      console.error('Error resuming all agents:', error);
+    }
+  };
+
+  const handlePauseAgent = async (agentId) => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const token = currentUser ? await currentUser.getIdToken() : null;
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
+      const response = await fetch(`${apiUrl}/api/agent/pause/${agentId}`, {
+        method: 'POST',
+        headers
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`Agent ${agentId} paused:`, data);
+
+        // Update UI
+        const newPaused = new Set(pausedAgents);
+        newPaused.add(agentId);
+        setPausedAgents(newPaused);
+
+        setAgents(agents.map(agent =>
+          agent.id === agentId ? { ...agent, status: 'paused' } : agent
+        ));
+      }
+    } catch (error) {
+      console.error(`Error pausing agent ${agentId}:`, error);
+    }
+  };
+
+  const handleResumeAgent = async (agentId) => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const token = currentUser ? await currentUser.getIdToken() : null;
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
+      const response = await fetch(`${apiUrl}/api/agent/resume/${agentId}`, {
+        method: 'POST',
+        headers
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`Agent ${agentId} resumed:`, data);
+
+        // Update UI
+        const newPaused = new Set(pausedAgents);
+        newPaused.delete(agentId);
+        setPausedAgents(newPaused);
+
+        setAgents(agents.map(agent =>
+          agent.id === agentId ? { ...agent, status: 'idle' } : agent
+        ));
+      }
+    } catch (error) {
+      console.error(`Error resuming agent ${agentId}:`, error);
+    }
+  };
+
+  const loadPauseStatus = async () => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const token = currentUser ? await currentUser.getIdToken() : null;
+      const headers = {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
+      const response = await fetch(`${apiUrl}/api/agent/pause-status`, {
+        headers
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Update paused agents set
+        const paused = new Set();
+        Object.entries(data.agents).forEach(([agentId, status]) => {
+          if (status.paused) {
+            paused.add(agentId);
+          }
+        });
+        setPausedAgents(paused);
+
+        // Update agent costs
+        const costs = {};
+        Object.entries(data.agents).forEach(([agentId, status]) => {
+          costs[agentId] = status.cost;
+        });
+        setAgentCosts(costs);
+      }
+    } catch (error) {
+      console.error('Error loading pause status:', error);
     }
   };
 
@@ -524,7 +691,11 @@ function AdminDashboard({ onClose, currentUser }) {
       loadExternalServices().catch(console.error);
     } else if (activeTab === 'agents') {
       loadAgentData();
-      const interval = setInterval(loadAgentData, 5000);
+      loadPauseStatus();
+      const interval = setInterval(() => {
+        loadAgentData();
+        loadPauseStatus();
+      }, 5000);
       return () => clearInterval(interval);
     }
   }, [activeTab, currentUser?.isAdmin, loadAgentData]); // Only depends on tab change
@@ -2067,31 +2238,52 @@ function AdminDashboard({ onClose, currentUser }) {
             marginBottom: '20px'
           }}>
             <h3 style={{ ...styles.sectionTitle, margin: 0 }}>👥 Agent Team</h3>
-            <button
-              onClick={handleTriggerAllAgents}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#28a745',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'background-color 0.2s',
-                '&:hover': {
-                  backgroundColor: '#218838'
-                }
-              }}
-              onMouseOver={(e) => e.target.style.backgroundColor = '#218838'}
-              onMouseOut={(e) => e.target.style.backgroundColor = '#28a745'}
-            >
-              <span>⚡</span>
-              Trigger All Agents
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handleTriggerAllAgents}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#218838'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#28a745'}
+              >
+                <span>⚡</span>
+                Trigger All Agents
+              </button>
+              <button
+                onClick={pausedAgents.size > 0 ? handleResumeAllAgents : handlePauseAllAgents}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: pausedAgents.size > 0 ? '#10b981' : '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = pausedAgents.size > 0 ? '#059669' : '#dc2626'}
+                onMouseOut={(e) => e.target.style.backgroundColor = pausedAgents.size > 0 ? '#10b981' : '#ef4444'}
+              >
+                <span>{pausedAgents.size > 0 ? '▶️' : '⏸️'}</span>
+                {pausedAgents.size > 0 ? 'Resume All' : 'Pause All'}
+              </button>
+            </div>
           </div>
           <div style={styles.agentGrid}>
             {agents.map(agent => (
@@ -2105,6 +2297,7 @@ function AdminDashboard({ onClose, currentUser }) {
                   <span style={{
                     ...styles.agentStatus,
                     backgroundColor:
+                      agent.status === 'paused' ? '#f59e0b' :
                       agent.status === 'active' ? '#10b981' :
                       agent.status === 'idle' ? '#6b7280' :
                       agent.status === 'error' ? '#ef4444' : '#f59e0b'
@@ -2119,6 +2312,12 @@ function AdminDashboard({ onClose, currentUser }) {
                   <div style={styles.agentStat}>
                     <span style={styles.statLabel}>Tasks Today</span>
                     <span style={styles.statValue}>{agent.stats.tasksToday}</span>
+                  </div>
+                  <div style={styles.agentStat}>
+                    <span style={styles.statLabel}>Cost</span>
+                    <span style={styles.statValue} title={`${(agentCosts[agent.id]?.tokensUsed || 0).toLocaleString()} tokens`}>
+                      ${Number(agentCosts[agent.id]?.totalCost || 0).toFixed(2)}
+                    </span>
                   </div>
                   {agent.stats.accuracy && (
                     <div style={styles.agentStat}>
@@ -2145,9 +2344,20 @@ function AdminDashboard({ onClose, currentUser }) {
                   <button
                     style={styles.agentButton}
                     onClick={() => triggerAgent(agent.id)}
-                    disabled={agent.status === 'active'}
+                    disabled={agent.status === 'active' || agent.status === 'paused'}
                   >
-                    {agent.status === 'active' ? 'Running...' : 'Trigger'}
+                    {agent.status === 'active' ? 'Running...' :
+                     agent.status === 'paused' ? 'Paused' : 'Trigger'}
+                  </button>
+                  <button
+                    style={{
+                      ...styles.agentButton,
+                      backgroundColor: pausedAgents.has(agent.id) ? '#10b981' : '#f59e0b',
+                      marginLeft: '8px'
+                    }}
+                    onClick={() => pausedAgents.has(agent.id) ? handleResumeAgent(agent.id) : handlePauseAgent(agent.id)}
+                  >
+                    {pausedAgents.has(agent.id) ? '▶️' : '⏸️'}
                   </button>
                   <span style={styles.lastActivity}>
                     Last: {agent.stats.lastActivity ?
