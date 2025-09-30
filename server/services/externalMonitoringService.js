@@ -141,7 +141,8 @@ class ExternalMonitoringService {
       },
       anthropic: {
         'claude-3-opus': { prompt: 0.015, completion: 0.075 },
-        'claude-3-sonnet': { prompt: 0.003, completion: 0.015 }
+        'claude-3-sonnet': { prompt: 0.003, completion: 0.015 },
+        'claude-opus-4.1-20250805': { prompt: 0.015, completion: 0.075 } // Opus 4.1
       },
       spoonacular: {
         perRequest: 0.001 // $1 per 1000 requests
@@ -871,6 +872,271 @@ class ExternalMonitoringService {
       logger.error('Failed to check all services:', error);
       throw error;
     }
+  }
+
+  // Get Opus weekly usage
+  async getOpusWeeklyUsage() {
+    try {
+      // Get start of current week (Monday)
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - daysToMonday);
+      weekStart.setHours(0, 0, 0, 0);
+
+      // Calculate next Monday (reset date)
+      const resetDate = new Date(weekStart);
+      resetDate.setDate(resetDate.getDate() + 7);
+
+      // Aggregate weekly usage for Opus models
+      const weeklyUsage = await APIUsage.aggregate([
+        {
+          $match: {
+            service: 'anthropic',
+            timestamp: { $gte: weekStart },
+            $or: [
+              { 'metadata.model': 'claude-opus-4.1-20250805' },
+              { 'metadata.model': 'claude-3-opus' },
+              { 'metadata.model': { $regex: /opus/i } }
+            ]
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalTokens: { $sum: '$tokens.total' },
+            promptTokens: { $sum: '$tokens.prompt' },
+            completionTokens: { $sum: '$tokens.completion' },
+            totalCost: { $sum: '$cost' },
+            requestCount: { $sum: 1 },
+            successCount: {
+              $sum: { $cond: [{ $eq: ['$success', true] }, 1, 0] }
+            }
+          }
+        }
+      ]);
+
+      const usage = weeklyUsage[0] || {
+        totalTokens: 0,
+        promptTokens: 0,
+        completionTokens: 0,
+        totalCost: 0,
+        requestCount: 0,
+        successCount: 0
+      };
+
+      // Get limits from environment or use defaults
+      const weeklyLimit = parseInt(process.env.OPUS_WEEKLY_TOKEN_LIMIT || '50000');
+      const warningThreshold = parseFloat(process.env.OPUS_WARNING_THRESHOLD || '0.8');
+      const criticalThreshold = parseFloat(process.env.OPUS_CRITICAL_THRESHOLD || '0.95');
+
+      // Calculate usage percentage
+      const usagePercentage = (usage.totalTokens / weeklyLimit) * 100;
+      const daysUntilReset = Math.ceil((resetDate - now) / (1000 * 60 * 60 * 24));
+
+      // Determine status
+      let status = 'healthy';
+      let statusMessage = 'Opus usage within normal limits';
+
+      if (usagePercentage >= criticalThreshold * 100) {
+        status = 'critical';
+        statusMessage = `Critical: Opus usage at ${usagePercentage.toFixed(1)}% of weekly limit`;
+        await this.createAlert('anthropic', 'critical', statusMessage);
+      } else if (usagePercentage >= warningThreshold * 100) {
+        status = 'warning';
+        statusMessage = `Warning: Opus usage at ${usagePercentage.toFixed(1)}% of weekly limit`;
+        await this.createAlert('anthropic', 'warning', statusMessage);
+      }
+
+      // Calculate projected exhaustion
+      const daysElapsed = 7 - daysUntilReset;
+      const dailyAverage = daysElapsed > 0 ? usage.totalTokens / daysElapsed : 0;
+      const projectedTotal = dailyAverage * 7;
+      const projectedExhaustion = projectedTotal > weeklyLimit ?
+        new Date(now.getTime() + ((weeklyLimit - usage.totalTokens) / dailyAverage) * 24 * 60 * 60 * 1000) : null;
+
+      // Get historical usage (last 4 weeks)
+      const fourWeeksAgo = new Date(weekStart);
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+
+      const historicalUsage = await APIUsage.aggregate([
+        {
+          $match: {
+            service: 'anthropic',
+            timestamp: { $gte: fourWeeksAgo },
+            $or: [
+              { 'metadata.model': 'claude-opus-4.1-20250805' },
+              { 'metadata.model': 'claude-3-opus' },
+              { 'metadata.model': { $regex: /opus/i } }
+            ]
+          }
+        },
+        {
+          $project: {
+            week: { $week: '$timestamp' },
+            year: { $year: '$timestamp' },
+            weekStart: {
+              $dateFromParts: {
+                isoWeekYear: { $isoWeekYear: '$timestamp' },
+                isoWeek: { $isoWeek: '$timestamp' },
+                isoDayOfWeek: 1
+              }
+            },
+            tokens: '$tokens.total',
+            cost: '$cost'
+          }
+        },
+        {
+          $group: {
+            _id: { week: '$week', year: '$year' },
+            weekStart: { $first: '$weekStart' },
+            totalTokens: { $sum: '$tokens' },
+            totalCost: { $sum: '$cost' },
+            requestCount: { $sum: 1 }
+          }
+        },
+        {
+          $sort: { weekStart: -1 }
+        },
+        {
+          $limit: 4
+        }
+      ]);
+
+      // Get recent requests for detailed analysis
+      const recentRequests = await APIUsage.find({
+        service: 'anthropic',
+        timestamp: { $gte: weekStart },
+        $or: [
+          { 'metadata.model': 'claude-opus-4.1-20250805' },
+          { 'metadata.model': 'claude-3-opus' },
+          { 'metadata.model': { $regex: /opus/i } }
+        ]
+      })
+      .sort({ timestamp: -1 })
+      .limit(20)
+      .select('timestamp tokens.total cost metadata.endpoint');
+
+      return {
+        // Current week stats
+        tokensUsed: usage.totalTokens,
+        weeklyLimit,
+        percentageUsed: Math.round(usagePercentage),
+        daysUntilReset,
+        averageDailyUsage: Math.round(dailyAverage),
+
+        // Detailed usage breakdown
+        usage: {
+          tokens: {
+            used: usage.totalTokens,
+            prompt: usage.promptTokens,
+            completion: usage.completionTokens,
+            limit: weeklyLimit,
+            remaining: Math.max(0, weeklyLimit - usage.totalTokens)
+          },
+          percentage: usagePercentage,
+          cost: usage.totalCost,
+          requests: {
+            total: usage.requestCount,
+            successful: usage.successCount,
+            failed: usage.requestCount - usage.successCount
+          }
+        },
+
+        // Week details with requests
+        weeklyUsage: {
+          totalCost: usage.totalCost,
+          requests: recentRequests.map(r => ({
+            timestamp: r.timestamp,
+            tokens: r.tokens?.total || 0,
+            cost: r.cost || 0,
+            endpoint: r.metadata?.endpoint || 'API Call'
+          }))
+        },
+
+        // Historical data
+        historicalUsage: historicalUsage.map(h => ({
+          weekStart: h.weekStart,
+          totalTokens: h.totalTokens,
+          totalCost: h.totalCost,
+          requestCount: h.requestCount
+        })),
+
+        // Limits and thresholds
+        limits: {
+          weekly: weeklyLimit,
+          warningThreshold: warningThreshold * 100,
+          criticalThreshold: criticalThreshold * 100
+        },
+
+        // Status and projections
+        status,
+        statusMessage,
+        resetDate: resetDate.toISOString(),
+        projections: {
+          dailyAverage,
+          weeklyProjected: projectedTotal,
+          exhaustionDate: projectedExhaustion ? projectedExhaustion.toISOString() : null,
+          willExceedLimit: projectedTotal > weeklyLimit,
+          daysUntilExhaustion: projectedExhaustion ?
+            Math.ceil((projectedExhaustion - now) / (1000 * 60 * 60 * 24)) : null
+        },
+
+        // AI recommendations
+        recommendations: this.getOpusRecommendations(usagePercentage, daysUntilReset)
+      };
+    } catch (error) {
+      logger.error('Failed to get Opus weekly usage:', error);
+      return {
+        error: error.message,
+        usage: {
+          tokens: { used: 0, limit: 50000, remaining: 50000 },
+          percentage: 0
+        },
+        status: 'error'
+      };
+    }
+  }
+
+  // Get Opus usage recommendations
+  getOpusRecommendations(usagePercentage, daysUntilReset) {
+    const recommendations = [];
+
+    if (usagePercentage >= 95) {
+      recommendations.push({
+        priority: 'CRITICAL',
+        action: 'Switch to fallback AI immediately',
+        message: 'Opus limit nearly exhausted. Switch to GPT-4 or Claude Sonnet to preserve remaining tokens.'
+      });
+    } else if (usagePercentage >= 80) {
+      recommendations.push({
+        priority: 'HIGH',
+        action: 'Enable aggressive caching',
+        message: 'Approaching Opus limit. Enable response caching for common queries.'
+      });
+      recommendations.push({
+        priority: 'HIGH',
+        action: 'Review usage patterns',
+        message: 'Analyze which features consume most tokens and optimize.'
+      });
+    } else if (usagePercentage >= 60 && daysUntilReset > 3) {
+      recommendations.push({
+        priority: 'MEDIUM',
+        action: 'Monitor usage closely',
+        message: 'Usage trending high. Consider implementing rate limiting for non-critical features.'
+      });
+    }
+
+    if (usagePercentage < 30 && daysUntilReset <= 2) {
+      recommendations.push({
+        priority: 'LOW',
+        action: 'Optimize token usage',
+        message: 'Good token budget remaining. Consider using Opus for more complex tasks.'
+      });
+    }
+
+    return recommendations;
   }
 }
 

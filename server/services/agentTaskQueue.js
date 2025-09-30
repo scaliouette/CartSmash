@@ -26,7 +26,7 @@ class AgentTaskQueue extends EventEmitter {
     this.tasks = new Map();
     this.taskHistory = [];
     this.agentQueues = new Map();
-    this.activeT asks = new Map();
+    this.activeTasks = new Map();
 
     // Task priorities
     this.priorities = {

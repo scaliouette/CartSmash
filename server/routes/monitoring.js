@@ -89,6 +89,25 @@ router.get('/alerts', async (req, res) => {
   }
 });
 
+// Get Opus weekly usage
+router.get('/opus-usage', async (req, res) => {
+  try {
+    logger.info('Fetching Opus weekly usage data');
+    const opusUsage = await externalMonitoringService.getOpusWeeklyUsage();
+    res.json({
+      success: true,
+      ...opusUsage
+    });
+  } catch (error) {
+    logger.error('Failed to get Opus usage:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get Opus usage',
+      message: error.message
+    });
+  }
+});
+
 // Generate mock data
 router.post('/generate-mock', async (req, res) => {
   try {

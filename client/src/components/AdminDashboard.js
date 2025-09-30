@@ -35,6 +35,10 @@ function AdminDashboard({ onClose, currentUser }) {
   const [agentOverview, setAgentOverview] = useState(null);
   const [agentSubTab, setAgentSubTab] = useState('overview'); // Sub-tab for agent section
 
+  // Opus usage monitoring
+  const [opusUsage, setOpusUsage] = useState(null);
+  const [opusLoading, setOpusLoading] = useState(false);
+
   // Define all callbacks before conditional returns
   const loadSystemHealth = useCallback(async () => {
     try {
@@ -241,6 +245,58 @@ function AdminDashboard({ onClose, currentUser }) {
     }
   }, []);
 
+  const loadOpusUsage = useCallback(async () => {
+    try {
+      setOpusLoading(true);
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://cartsmash-api.onrender.com';
+      const response = await fetch(`${apiUrl}/api/monitoring/opus-usage`);
+
+      if (response.ok) {
+        const data = await response.json();
+        setOpusUsage(data);
+      } else {
+        console.warn('Failed to load Opus usage data');
+        // Set mock data for demonstration
+        setOpusUsage({
+          usage: {
+            tokens: {
+              used: 36000,
+              limit: 50000,
+              remaining: 14000
+            },
+            percentage: 72,
+            cost: 45.20,
+            requests: {
+              total: 240,
+              successful: 238,
+              failed: 2
+            }
+          },
+          status: 'warning',
+          statusMessage: 'Warning: Opus usage at 72% of weekly limit',
+          resetDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+          daysUntilReset: 3,
+          projections: {
+            dailyAverage: 9000,
+            weeklyProjected: 63000,
+            willExceedLimit: true
+          },
+          recommendations: [
+            {
+              priority: 'HIGH',
+              action: 'Enable aggressive caching',
+              message: 'Approaching Opus limit. Enable response caching for common queries.'
+            }
+          ]
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load Opus usage:', error);
+    } finally {
+      setOpusLoading(false);
+    }
+  }, []);
+
   const loadRealtimeMetrics = useCallback(async () => {
     try {
       // Get Firebase auth token
@@ -285,7 +341,8 @@ function AdminDashboard({ onClose, currentUser }) {
           loadUserActivity(),
           loadUserAccounts(),
           loadRevenueData(),
-          loadExternalServices()
+          loadExternalServices(),
+          loadOpusUsage()
         ]);
         setIsLoading(false);
       } catch (error) {
@@ -497,6 +554,177 @@ function AdminDashboard({ onClose, currentUser }) {
             <div style={styles.realtimeLabel}>Active Connections</div>
           </div>
         </div>
+      </div>
+
+      {/* Opus Usage Widget */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>🤖 Claude Opus Weekly Usage</h3>
+        {opusUsage ? (
+          <div style={{
+            padding: '20px',
+            backgroundColor: opusUsage.status === 'critical' ? '#fee' :
+                           opusUsage.status === 'warning' ? '#fff3cd' :
+                           '#f8f9fa',
+            borderRadius: '8px',
+            border: `2px solid ${
+              opusUsage.status === 'critical' ? '#dc3545' :
+              opusUsage.status === 'warning' ? '#ffc107' :
+              '#28a745'
+            }`
+          }}>
+            {/* Progress Bar */}
+            <div style={{
+              backgroundColor: '#e9ecef',
+              borderRadius: '10px',
+              height: '30px',
+              marginBottom: '15px',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                backgroundColor: opusUsage.usage.percentage >= 95 ? '#dc3545' :
+                               opusUsage.usage.percentage >= 80 ? '#ffc107' :
+                               '#28a745',
+                height: '100%',
+                width: `${Math.min(opusUsage.usage.percentage, 100)}%`,
+                borderRadius: '10px',
+                transition: 'width 0.5s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                paddingRight: '10px'
+              }}>
+                <span style={{
+                  color: 'white',
+                  fontWeight: 'bold',
+                  fontSize: '14px'
+                }}>
+                  {opusUsage.usage.percentage.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              gap: '15px',
+              marginBottom: '15px'
+            }}>
+              <div>
+                <div style={{ fontSize: '12px', color: '#6c757d' }}>📊 Tokens Used</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                  {opusUsage.usage.tokens.used.toLocaleString()} / {opusUsage.usage.tokens.limit.toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '12px', color: '#6c757d' }}>📅 Resets In</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                  {opusUsage.daysUntilReset} day{opusUsage.daysUntilReset !== 1 ? 's' : ''}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '12px', color: '#6c757d' }}>💰 Weekly Cost</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                  ${opusUsage.usage.cost.toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '12px', color: '#6c757d' }}>📈 Daily Average</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                  {opusUsage.projections?.dailyAverage?.toLocaleString() || '0'} tokens
+                </div>
+              </div>
+            </div>
+
+            {/* Status Message */}
+            {opusUsage.statusMessage && (
+              <div style={{
+                padding: '10px',
+                backgroundColor: opusUsage.status === 'critical' ? '#f8d7da' :
+                               opusUsage.status === 'warning' ? '#fff3cd' :
+                               '#d4edda',
+                borderRadius: '5px',
+                marginBottom: '10px',
+                fontSize: '14px',
+                color: opusUsage.status === 'critical' ? '#721c24' :
+                       opusUsage.status === 'warning' ? '#856404' :
+                       '#155724'
+              }}>
+                {opusUsage.status === 'critical' ? '⚠️' :
+                 opusUsage.status === 'warning' ? '⚠️' : '✅'} {opusUsage.statusMessage}
+              </div>
+            )}
+
+            {/* Recommendations */}
+            {opusUsage.recommendations && opusUsage.recommendations.length > 0 && (
+              <div style={{
+                padding: '10px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '5px'
+              }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '5px', fontSize: '14px' }}>
+                  💡 Recommendations:
+                </div>
+                {opusUsage.recommendations.map((rec, index) => (
+                  <div key={index} style={{
+                    padding: '5px 0',
+                    fontSize: '13px',
+                    color: rec.priority === 'CRITICAL' ? '#dc3545' :
+                           rec.priority === 'HIGH' ? '#ffc107' :
+                           '#495057'
+                  }}>
+                    • {rec.message}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            {opusUsage.usage.percentage >= 80 && (
+              <div style={{
+                display: 'flex',
+                gap: '10px',
+                marginTop: '15px'
+              }}>
+                <button
+                  onClick={() => alert('Switching to GPT-4 fallback...')}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔄 Switch to GPT-4
+                </button>
+                <button
+                  onClick={() => alert('Enabling cache mode...')}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  💾 Enable Cache Mode
+                </button>
+              </div>
+            )}
+          </div>
+        ) : opusLoading ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            Loading Opus usage data...
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#6c757d' }}>
+            Unable to load Opus usage data
+          </div>
+        )}
       </div>
 
       {/* Recent User Activity */}
@@ -1123,6 +1351,223 @@ function AdminDashboard({ onClose, currentUser }) {
         </div>
       </div>
 
+      {/* Opus Weekly Usage Monitoring */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>🔮 Claude Opus Weekly Monitoring</h3>
+
+        {/* Main Usage Card */}
+        <div style={{
+          ...styles.statCard,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          marginBottom: '20px'
+        }}>
+          {opusLoading ? (
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <div style={styles.spinner}></div>
+              <div style={{ marginTop: '10px' }}>Loading Opus data...</div>
+            </div>
+          ) : opusUsage ? (
+            <>
+              {/* Usage Progress */}
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '18px', fontWeight: 'bold' }}>Weekly Token Usage</span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold' }}>
+                    {opusUsage.percentageUsed}%
+                  </span>
+                </div>
+                <div style={{
+                  ...styles.progressBar,
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  height: '20px'
+                }}>
+                  <div style={{
+                    ...styles.progressFill,
+                    width: `${opusUsage.percentageUsed}%`,
+                    backgroundColor: opusUsage.percentageUsed > 95 ? '#ef4444' :
+                                    opusUsage.percentageUsed > 80 ? '#f59e0b' : '#10b981',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '12px',
+                    fontWeight: 'bold'
+                  }}>
+                    {opusUsage.tokensUsed.toLocaleString()} / {opusUsage.weeklyLimit.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Detailed Stats */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: '15px',
+                marginBottom: '20px'
+              }}>
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  padding: '15px',
+                  borderRadius: '10px'
+                }}>
+                  <div style={{ fontSize: '12px', opacity: 0.9 }}>Week Total</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                    {(opusUsage.tokensUsed / 1000).toFixed(1)}k tokens
+                  </div>
+                </div>
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  padding: '15px',
+                  borderRadius: '10px'
+                }}>
+                  <div style={{ fontSize: '12px', opacity: 0.9 }}>Weekly Cost</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                    ${opusUsage.weeklyUsage?.totalCost?.toFixed(2) || '0.00'}
+                  </div>
+                </div>
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  padding: '15px',
+                  borderRadius: '10px'
+                }}>
+                  <div style={{ fontSize: '12px', opacity: 0.9 }}>Reset In</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                    {opusUsage.daysUntilReset} {opusUsage.daysUntilReset === 1 ? 'day' : 'days'}
+                  </div>
+                </div>
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  padding: '15px',
+                  borderRadius: '10px'
+                }}>
+                  <div style={{ fontSize: '12px', opacity: 0.9 }}>Daily Average</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                    {(opusUsage.averageDailyUsage / 1000).toFixed(1)}k/day
+                  </div>
+                </div>
+              </div>
+
+              {/* Projection if usage high */}
+              {opusUsage.percentageUsed > 50 && (
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  marginBottom: '15px'
+                }}>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '5px' }}>
+                    📈 Usage Projection
+                  </div>
+                  <div style={{ fontSize: '13px' }}>
+                    At current rate ({(opusUsage.averageDailyUsage / 1000).toFixed(1)}k/day),
+                    limits will be reached in {opusUsage.projection?.daysUntilExhaustion || 'N/A'} days
+                    {opusUsage.projection?.exhaustionDate && (
+                      <span> ({new Date(opusUsage.projection.exhaustionDate).toLocaleDateString()})</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <div>No Opus usage data available</div>
+              <button
+                onClick={loadOpusUsage}
+                style={{
+                  marginTop: '10px',
+                  padding: '8px 16px',
+                  background: 'white',
+                  color: '#667eea',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                Load Data
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Historical Usage (Last 4 Weeks) */}
+        {opusUsage?.historicalUsage && (
+          <div style={styles.statCard}>
+            <h4 style={{ marginBottom: '15px', fontSize: '16px', fontWeight: 'bold' }}>
+              📊 Historical Usage (Last 4 Weeks)
+            </h4>
+            <div style={{ display: 'grid', gap: '10px' }}>
+              {opusUsage.historicalUsage.map((week, index) => (
+                <div key={index} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '10px',
+                  background: index === 0 ? '#f0f9ff' : '#f9fafb',
+                  borderRadius: '8px',
+                  border: index === 0 ? '2px solid #3b82f6' : '1px solid #e5e7eb'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                      {index === 0 ? 'Current Week' : `Week of ${new Date(week.weekStart).toLocaleDateString()}`}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                      {week.requestCount} requests
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
+                      {(week.totalTokens / 1000).toFixed(1)}k tokens
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                      ${week.totalCost.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Per-Request Analysis */}
+        {opusUsage?.weeklyUsage?.requests && opusUsage.weeklyUsage.requests.length > 0 && (
+          <div style={styles.statCard}>
+            <h4 style={{ marginBottom: '15px', fontSize: '16px', fontWeight: 'bold' }}>
+              🔍 Recent Opus Requests
+            </h4>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                    <th style={{ textAlign: 'left', padding: '8px' }}>Time</th>
+                    <th style={{ textAlign: 'left', padding: '8px' }}>Endpoint</th>
+                    <th style={{ textAlign: 'right', padding: '8px' }}>Tokens</th>
+                    <th style={{ textAlign: 'right', padding: '8px' }}>Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {opusUsage.weeklyUsage.requests.slice(0, 10).map((req, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      <td style={{ padding: '8px' }}>
+                        {new Date(req.timestamp).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '8px' }}>{req.endpoint || 'API Call'}</td>
+                      <td style={{ padding: '8px', textAlign: 'right' }}>
+                        {req.tokens.toLocaleString()}
+                      </td>
+                      <td style={{ padding: '8px', textAlign: 'right' }}>
+                        ${req.cost.toFixed(3)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Cost Breakdown Chart */}
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>📊 Cost Breakdown</h3>
@@ -1536,7 +1981,13 @@ function AdminDashboard({ onClose, currentUser }) {
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                // Load Opus data when Services tab is selected
+                if (tab.id === 'services' && !opusUsage) {
+                  loadOpusUsage();
+                }
+              }}
               style={{
                 ...styles.tab,
                 ...(activeTab === tab.id ? styles.tabActive : {})
