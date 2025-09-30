@@ -259,61 +259,13 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Additional CORS header enforcement for production deployment
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  const allowedOrigins = [
-    'https://www.cartsmash.com',
-    'https://cartsmash.com',
-    'https://cart-smash.vercel.app',
-    'https://cartsmash.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    process.env.CLIENT_URL
-  ].filter(Boolean);
-
-  const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
-
-  if (!origin || allowedOrigins.includes(origin) || vercelPattern.test(origin)) {
-    res.header('Access-Control-Allow-Origin', origin || '*');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
-    res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization,X-API-Key,User-ID,user-id');
-    res.header('Access-Control-Max-Age', '86400');
-  }
-
-  next();
-});
+// CORS is already handled by the cors middleware above - no need for duplicate headers
 
 
-// Explicit OPTIONS handler for preflight requests (using same CORS logic)
+// The cors middleware already handles OPTIONS requests properly
+// This is only here as a fallback for any edge cases
 app.options('*', (req, res) => {
-
-  const origin = req.headers.origin;
-  const allowedOrigins = [
-    'https://cart-smash.vercel.app',
-    'https://cartsmash.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3085',
-    process.env.CLIENT_URL
-  ].filter(Boolean);
-
-  const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
-  const isAllowed = !origin || allowedOrigins.includes(origin) || vercelPattern.test(origin);
-
-  if (isAllowed) {
-    res.header('Access-Control-Allow-Origin', origin || '*');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
-    res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization,X-API-Key,User-ID,user-id');
-    res.header('Access-Control-Max-Age', '86400');
-    logger.debug('OPTIONS: Preflight response sent with CORS headers');
-    res.sendStatus(200);
-  } else {
-    logger.warn('OPTIONS: Origin not allowed in preflight');
-    res.sendStatus(403);
-  }
+  res.sendStatus(200);
 });
 
 // Body Parser Middleware

@@ -243,6 +243,24 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
       maxWidth: '100%',
       boxSizing: 'border-box'
     }}>
+      {/* Global styles to hide number input spinners */}
+      <style>
+        {`
+          /* Chrome, Safari, Edge, Opera */
+          input[type=number]::-webkit-outer-spin-button,
+          input[type=number]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+            display: none;
+          }
+
+          /* Firefox */
+          input[type=number] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+          }
+        `}
+      </style>
       {/* Header Section */}
       <div style={{
         backgroundColor: '#002244',
@@ -494,13 +512,13 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                     }}>
                       <span>{formatProductName(item.productName)}</span>
                       {/* Shopping Quantity × Size Display */}
-                      {(item.quantity > 1 || item.size) && (
+                      {(item.quantity > 1 || (item.size && item.size !== 'item') || (item.packageSize && item.packageSize !== 'item')) && (
                         <span style={{
                           fontSize: '12px',
                           color: '#6c757d',
                           fontWeight: '500'
                         }}>
-                          ({item.quantity || 1} × {item.size || item.packageSize || 'item'})
+                          ({item.quantity || 1}{(item.size && item.size !== 'item') || (item.packageSize && item.packageSize !== 'item') ? ` × ${item.size || item.packageSize}` : ''})
                         </span>
                       )}
                     </div>
@@ -555,10 +573,15 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                           height: '24px',
                           textAlign: 'center',
                           fontSize: '14px',
+                          fontWeight: '600',
                           border: '1px solid #dee2e6',
                           borderRadius: '4px',
                           backgroundColor: 'white',
-                          outline: 'none'
+                          color: '#212529',
+                          outline: 'none',
+                          MozAppearance: 'textfield',
+                          WebkitAppearance: 'none',
+                          appearance: 'none'
                         }}
                         onFocus={(e) => {
                           e.target.style.borderColor = '#FB4F14';
@@ -618,16 +641,20 @@ function InstacartShoppingList({ items = [], sortBy, filterBy, onItemsChange, on
                       gap: '4px',
                       flex: 1
                     }}>
-                      {/* Product Size/Package Info */}
-                      {(item.size || item.packageSize || item.servingSize || item.spoonacularData?.servingSize || item.spoonacular?.servingSize) && (
-                        <div style={{
-                          fontSize: '12px',
-                          color: '#495057',
-                          fontWeight: '500'
-                        }}>
-                          Package: {item.size || item.packageSize || item.servingSize || item.spoonacularData?.servingSize || item.spoonacular?.servingSize}
-                        </div>
-                      )}
+                      {/* Product Size/Package Info - Only show if meaningful */}
+                      {(() => {
+                        const size = item.size || item.packageSize || item.servingSize || item.spoonacularData?.servingSize || item.spoonacular?.servingSize;
+                        const isValidSize = size && size !== 'item' && size !== '1 item';
+                        return isValidSize ? (
+                          <div style={{
+                            fontSize: '12px',
+                            color: '#495057',
+                            fontWeight: '500'
+                          }}>
+                            Package: {size}
+                          </div>
+                        ) : null;
+                      })()}
 
                     </div>
 
