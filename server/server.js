@@ -1062,6 +1062,7 @@ const routes = [
   { path: '/api/stores', module: './routes/stores' },
   { path: '/api/settings', module: './routes/settings' },  // Admin settings management
   { path: '/api/analytics', module: './routes/analytics' },  // Admin dashboard analytics
+  { path: '/api/monitoring', module: './routes/monitoring' },  // External service monitoring
   { path: '/api/meal-plans', module: './routes/aiMealPlanRoutes' },  // AI meal plan generation
   { path: '/api/price-history', module: './routes/priceHistoryRoutes' },  // Multi-vendor price history
   { path: '/api/recipes', module: './routes/recipeImportRoutes' },  // Recipe import functionality

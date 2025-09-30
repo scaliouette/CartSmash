@@ -6,16 +6,17 @@ class DebugService {
     this.errors = [];
     this.warnings = [];
     this.logs = [];
-    // Disable all logging in production
-    this.isEnabled = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEBUG === 'true';
-    this.maxLogs = 1000; // Prevent memory leaks
+    // Always track errors, but limit verbose logging in production
+    this.isEnabled = true; // Always enabled for error tracking
+    this.isVerbose = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEBUG === 'true';
+    this.maxLogs = this.isVerbose ? 1000 : 100; // Smaller limit in production
 
     // Setup global error handlers
     this.setupErrorHandlers();
   }
 
   setupErrorHandlers() {
-    if (!this.isEnabled) return;
+    // Always setup error handlers to capture errors
 
     // Capture unhandled promise rejections
     window.addEventListener('unhandledrejection', (event) => {

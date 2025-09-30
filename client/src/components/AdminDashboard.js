@@ -986,9 +986,14 @@ function AdminDashboard({ onClose, currentUser }) {
                 </div>
                 <div style={{
                   ...styles.serviceStatus,
-                  backgroundColor: status.status === 'operational' ? '#28a745' : '#dc3545'
+                  backgroundColor: (status.status === 'operational' || status.status === 'healthy') ? '#28a745' :
+                                   (status.status === 'degraded' || status.status === 'warning') ? '#ffc107' :
+                                   (status.status === 'inactive' || status.status === 'not_configured') ? '#6c757d' : '#dc3545'
                 }}>
-                  {status.status === 'operational' ? '✓ Operational' : '⚠ Issue'}
+                  {status.status === 'operational' || status.status === 'healthy' ? '✓ Operational' :
+                   status.status === 'degraded' || status.status === 'warning' ? '⚠ Degraded' :
+                   status.status === 'inactive' || status.status === 'not_configured' ? '○ Inactive' :
+                   status.status === 'error' || status.status === 'unhealthy' ? '✗ Error' : '⚠ Issue'}
                 </div>
               </div>
               <div style={styles.serviceMetrics}>
