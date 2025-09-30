@@ -267,9 +267,7 @@ ${JSON.stringify(log.context, null, 2)}
   };
 
   const clearLogs = () => {
-    debugService.clearErrors?.();
-    debugService.clearWarnings?.();
-    debugService.clearLogs?.();
+    debugService.clearDebugData();
     setLogs([]);
     setFilteredLogs([]);
   };
